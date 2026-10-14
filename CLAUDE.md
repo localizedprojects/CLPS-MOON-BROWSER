@@ -2,6 +2,19 @@
 
 This is a NASA Space Apps entry: a Flutter app (web + Android) for comparing south-pole landing sites and dates by Sun and Earth visibility above the local horizon (power and direct-to-Earth comms). See `PLAN.md` for the architecture and milestones.
 
+## Source of truth
+- **GitHub is the source of truth:** https://github.com/localizedprojects/CLPS-MOON-BROWSER (public, MIT).
+  The web app is published from `main` to https://localizedprojects.github.io/CLPS-MOON-BROWSER/ by
+  `.github/workflows/deploy-pages.yml`.
+- **Work in a clone of this repository** (on Windows keep it on a short path outside synced folders,
+  for example `C:\src\CLPS-MOON-BROWSER`). If it is missing:
+  `git clone https://github.com/localizedprojects/CLPS-MOON-BROWSER`.
+- **Branches and PRs:** start a branch for non-trivial work, push it, and open a PR into `main`; CI
+  (`.github/workflows/ci.yml`) must pass before merging. Never force-push `main`.
+- **Not in git:** `.venv`, `charts/node_modules`, `app/build`, and the SPICE kernels and LOLA DEMs in
+  `$LUNAR_SP_CACHE` (default `~/.cache/lunar-sp`). Recreate them in the clone (see Commands).
+  `app/assets/data/` and `app/assets/charts/` **are** committed.
+
 ## Layout
 - `pipeline/`: Python precompute (spiceypy, numpy). The package is `pipeline/lunarsp/` and its tests are in `pipeline/tests/`.
 - `pipeline/validation/`: cached JPL Horizons responses (commit these).

@@ -156,7 +156,8 @@ def test_golden_is_current(rel):
     want = (GOLDEN.get("provenance") or {}).get("sha256", {}).get(rel)
     if root is None or want is None:
         pytest.skip("repo or provenance hash not available")
-    have = hashlib.sha256((root / rel).read_bytes()).hexdigest()
+    # line endings normalised: a Windows checkout may turn LF into CRLF
+    have = hashlib.sha256((root / rel).read_bytes().replace(b"\r\n", b"\n")).hexdigest()
     assert have == want, f"{rel} changed since the golden export: regenerate tests/data/golden_shadow.json"
 
 

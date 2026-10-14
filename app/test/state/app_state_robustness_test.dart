@@ -240,9 +240,10 @@ void main() {
     expectConsistent(t);
     // this attempt really computed every site's 11-year series (a cold cache)
     expect(t.seriesComputeCount - computedBefore, t.allSites.length);
-    // Structural, load-independent: the work hands the event loop back hundreds
-    // of times (measured about 300 ticks alone and under heavy load).
-    expect(ticks, greaterThan(100), reason: 'the computation must yield between slices');
+    // Structural, load-independent: the work hands the event loop back many
+    // times (about 300 ticks on a laptop, 97 to 100 on the faster CI runners);
+    // yielding only once per site would give about 16 to 20.
+    expect(ticks, greaterThan(50), reason: 'the computation must yield between slices');
     // Wall-clock, scaled by the machine's current speed (queue item 18): time a
     // fixed synchronous job (metrics of the 11-year series, about 10 ms idle) and
     // allow 25 of those. Idle that is 250 ms; a one-shot 11-year series blocks

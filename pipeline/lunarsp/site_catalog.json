@@ -1,0 +1,446 @@
+{
+ "retrieved": "2026-10-09",
+ "method": "3 parallel web-research agents (Artemis III regions, illumination points, missions), each followed by an independent skeptical fact-check agent that re-opened sources, fixed conventions and dropped unsourced values",
+ "groups": [
+  {
+   "id": "artemis",
+   "name": "Artemis III candidate regions",
+   "note": "NASA's nine candidate regions (28 Oct 2024). Each is a ~15 x 15 km area; the preset is the approximate region centre from LROC/Henriksen et al. 2023 mosaic extents, NOT an official landing point. Slater Plain is omitted: no published centre coordinates were found."
+  },
+  {
+   "id": "illumination",
+   "name": "High-illumination points (literature)",
+   "note": "Exact points from De Rosa et al. 2012 (Planet. Space Sci.), selected for long sunlight in that study."
+  },
+  {
+   "id": "missions",
+   "name": "Missions",
+   "note": "Actual landed positions (LROC) and published mission-area centres."
+  }
+ ],
+ "sites": [
+  {
+   "id": "artemis3-haworth",
+   "name": "Haworth (Artemis III candidate region)",
+   "short": "Haworth",
+   "group": "artemis",
+   "kind": "region-center-approx",
+   "confidence": "high",
+   "lat": -86.75,
+   "lon": -23.67,
+   "sources": [
+    {
+     "title": "Henriksen et al. (2023), Optimized Illuminated Terrain Coverage of the Candidate Artemis III Landing Sites with LROC NAC Controlled Mosaics. ELS 2023 abstract book, PDF pp.134-135, Table 1",
+     "url": "https://sservi.directus.app/assets/2483b7e0-a336-443d-8739-3d5f4756e1fb.pdf",
+     "says": "Table 1 row 'Haworth': Center Lat. -86.75, Center Lon. -23.67, 1,669 images."
+    },
+    {
+     "title": "LROC RDR NAC_ROI_HAWORTH_LO1: Haworth low-Sun controlled NAC mosaic",
+     "url": "https://data.lroc.im-ldi.com/lroc/view_rdr/NAC_ROI_HAWORTH_LO1",
+     "says": "Center Lat -86.7, Center Lon 336.3 (0-360 E). Bounds: lat -87.39 to -86.11, lon -34.98 to -12.36."
+    },
+    {
+     "title": "NASA Provides Update on Artemis III Moon Landing Regions (28 Oct 2024)",
+     "url": "https://www.nasa.gov/news-release/nasa-provides-update-on-artemis-iii-moon-landing-regions/",
+     "says": "Haworth is retained among the nine candidate regions. No coordinates are given."
+    }
+   ],
+   "notes": "Verified: the PDF was downloaded live (identical MD5 to the earlier cached copy) and Table 1 was rendered from it; -86.75 / -23.67 is stated there. The live LROC page gives 336.3 E, which is -23.7 E. Caveat: the two sources are not independent. Henriksen's Table 1 centers equal the midpoints of the LROC mosaic lat/lon extents: (-87.39 + -86.11)/2 = -86.75 and (-34.98 + -12.36)/2 = -23.67. Both are LROC-team products. The two centers differ by 1.5 km. Haworth was in both the 2022 and 2024 lists, and NASA has not published a 2024 boundary. For context, the IAU Gazetteer center of Haworth crater is -87.45, -5.17 E."
+  },
+  {
+   "id": "artemis3-malapert-massif",
+   "name": "Malapert Massif (Artemis III candidate region)",
+   "short": "Malapert Massif",
+   "group": "artemis",
+   "kind": "region-center-approx",
+   "confidence": "high",
+   "lat": -85.98,
+   "lon": -0.26,
+   "sources": [
+    {
+     "title": "Henriksen et al. (2023) ELS abstract, Table 1 and Fig. 2 caption",
+     "url": "https://sservi.directus.app/assets/2483b7e0-a336-443d-8739-3d5f4756e1fb.pdf",
+     "says": "Table 1 'Malapert Massif': -85.98, -0.26. The Fig. 2 caption gives the region as (-85.98 S, -0.26 E)."
+    },
+    {
+     "title": "LROC RDR NAC_ROI_MALAPERTLO1: Malapert Massif low-Sun controlled NAC mosaic",
+     "url": "https://data.lroc.im-ldi.com/lroc/view_rdr/NAC_ROI_MALAPERTLO1",
+     "says": "Center Lat -86.0, Center Lon 0.3. Bounds: lat -86.33 to -85.63, lon -5.66 to 5.15. Product P860S0003."
+    }
+   ],
+   "notes": "Verified: Table 1 and the Fig. 2 caption are in the live PDF, and the LROC page was re-fetched live. The table value is the midpoint of the LROC mosaic extents, so the two sources are not independent. The LROC center (-86.0, +0.3) is 1.3 km from the table value; the input said about 1 km. The region was in both the 2022 and 2024 lists. For context, the IAU center of Malapert crater is -85.00, 11.40 E, so the massif region lies poleward of it."
+  },
+  {
+   "id": "artemis3-mons-mouton-plateau",
+   "name": "Mons Mouton Plateau (Artemis III candidate region, added Oct 2024)",
+   "short": "Mons Mouton Plateau",
+   "group": "artemis",
+   "kind": "region-center-approx",
+   "confidence": "medium",
+   "lat": -84.3,
+   "lon": 30.6,
+   "sources": [
+    {
+     "title": "LROC RDR NAC_ROI_MOUTNPLTLO1: Mons Mouton Plateau low-Sun controlled NAC mosaic",
+     "url": "https://data.lroc.im-ldi.com/lroc/view_rdr/NAC_ROI_MOUTNPLTLO1",
+     "says": "Artemis III candidate-site mosaic. Center Lat -84.3, Center Lon 30.6. Bounds: lat -85.76 to -82.85, lon 15.49 to 46.61. Product P843S0306."
+    },
+    {
+     "title": "NASA Provides Update on Artemis III Moon Landing Regions (28 Oct 2024)",
+     "url": "https://www.nasa.gov/news-release/nasa-provides-update-on-artemis-iii-moon-landing-regions/",
+     "says": "Mons Mouton Plateau is one of nine candidate regions. No coordinates are given."
+    },
+    {
+     "title": "Astronomy.com: nine Artemis 3 sites",
+     "url": "https://www.astronomy.com/space-exploration/here-are-the-nine-sites-where-artemis-3-might-land-on-the-moon/",
+     "says": "The widest and flattest site, 5,000-6,000 m elevation across a 60 km span. No lat/lon is given."
+    }
+   ],
+   "notes": "Verified: the live LROC page was re-fetched; the center and bounds are as stated. The source is a single LROC product given to 0.1 deg. The mosaic credit also names Intuitive Machines, and its bounding box (about 88 km in latitude) is larger than the roughly 60 km plateau, so this is only a rough center. The bounding-box midpoint is -84.31, 31.05. IM-2 Athena (-84.7906, 29.1957) lies inside the mosaic bounds, about 15 km from this center. LROC says IM-2 was in the central portion of one Artemis 3 region but does not name it. This region is distinct from 'Mons Mouton'. For context, the IAU center of Mons Mouton is -84.60, 31.00 E."
+  },
+  {
+   "id": "artemis3-mons-mouton",
+   "name": "Mons Mouton (Artemis III candidate region; 2022 name 'Leibnitz Beta Plateau')",
+   "short": "Mons Mouton",
+   "group": "artemis",
+   "kind": "region-center-approx",
+   "confidence": "medium",
+   "lat": -85.43,
+   "lon": 31.83,
+   "sources": [
+    {
+     "title": "Henriksen et al. (2023) ELS abstract, Table 1",
+     "url": "https://sservi.directus.app/assets/2483b7e0-a336-443d-8739-3d5f4756e1fb.pdf",
+     "says": "Row 'Nobile Rim 1 & Leibnitz Beta Plateau': lat -85.44 & -85.43, lon 37.44 & 31.83. The second pair is Leibnitz Beta Plateau."
+    },
+    {
+     "title": "LROC RDR NAC_ROI_MTMOUTONLO1: Nobile Rim 1 and Mons Mouton (Leibnitz Beta Plateau) combined mosaic",
+     "url": "https://data.lroc.im-ldi.com/lroc/view_rdr/NAC_ROI_MTMOUTONLO1",
+     "says": "Product title equates Mons Mouton with Leibnitz Beta Plateau. Combined center -85.4, 35.3. Bounds: lat -86.07 to -84.82, lon 27.29 to 43.23."
+    },
+    {
+     "title": "Wikipedia: Mons Mouton",
+     "url": "https://en.wikipedia.org/wiki/Mons_Mouton",
+     "says": "Mons Mouton was previously sometimes called Leibnitz Beta and was named by the IAU on 13 May 2022."
+    }
+   ],
+   "notes": "Verified: the pair order in Table 1 was rendered from the live PDF; the second pair is -85.43 / 31.83. The LROC product title was re-fetched live. Wikipedia independently confirms that Mons Mouton is the former 'Leibnitz Beta', which supports the 2022 Leibnitz Beta Plateau to 2024 Mons Mouton mapping, but NASA has not stated the rename. The coordinate is the 2022 region center. The point lies inside the LROC combined-mosaic bounds and about 25 km poleward of the IAU massif center (-84.60, 31.00), on the massif's southern part. IM-2 is about 20.5 km from this center. Medium because both the rename and the 2024 boundary are inferred."
+  },
+  {
+   "id": "artemis3-nobile-rim-1",
+   "name": "Nobile Rim 1 (Artemis III candidate region)",
+   "short": "Nobile Rim 1",
+   "group": "artemis",
+   "kind": "region-center-approx",
+   "confidence": "high",
+   "lat": -85.44,
+   "lon": 37.44,
+   "sources": [
+    {
+     "title": "Henriksen et al. (2023) ELS abstract, Table 1",
+     "url": "https://sservi.directus.app/assets/2483b7e0-a336-443d-8739-3d5f4756e1fb.pdf",
+     "says": "Row 'Nobile Rim 1 & Leibnitz Beta Plateau': the first pair, -85.44 / 37.44, is Nobile Rim 1."
+    },
+    {
+     "title": "LROC RDR NAC_ROI_MTMOUTONLO1: Nobile Rim 1 and Mons Mouton (Leibnitz Beta Plateau) combined mosaic",
+     "url": "https://data.lroc.im-ldi.com/lroc/view_rdr/NAC_ROI_MTMOUTONLO1",
+     "says": "Combined mosaic centered at -85.4, 35.3 E. Bounds: lat -86.07 to -84.82, lon 27.29 to 43.23."
+    },
+    {
+     "title": "IAU Gazetteer of Planetary Nomenclature: Nobile",
+     "url": "https://planetarynames.wr.usgs.gov/Feature/4321",
+     "says": "Nobile crater center -85.28, 53.27 E. Diameter 79.27 km. Longitude extent 37.32 to 69.26 E."
+    }
+   ],
+   "notes": "Verified: Table 1 was rendered from the live PDF and the pair order confirmed. The point lies inside the live LROC combined-mosaic bounds. Feature identity: the point is 39 km from Nobile's IAU center, about equal to the 39.6 km crater radius, and lies poleward and west of it. That fits Astronomy.com's 'southwestern rim'. Correction: the input cited NAC_ROI_MTMOUTONLOB, which is the 95-105 deg sub-solar sub-mosaic (B), not the combined mosaic, so it was replaced with LO1. This is the 2022 center; the region was retained in 2024."
+  },
+  {
+   "id": "artemis3-nobile-rim-2",
+   "name": "Nobile Rim 2 (Artemis III candidate region)",
+   "short": "Nobile Rim 2",
+   "group": "artemis",
+   "kind": "region-center-approx",
+   "confidence": "high",
+   "lat": -83.95,
+   "lon": 58.74,
+   "sources": [
+    {
+     "title": "Henriksen et al. (2023) ELS abstract, Table 1",
+     "url": "https://sservi.directus.app/assets/2483b7e0-a336-443d-8739-3d5f4756e1fb.pdf",
+     "says": "Table 1 'Nobile Rim 2': Center Lat. -83.95, Center Lon. 58.74."
+    },
+    {
+     "title": "LROC RDR NAC_ROI_NOBILE02LO1: Nobile Rim 2 low-Sun controlled NAC mosaic",
+     "url": "https://data.lroc.im-ldi.com/lroc/view_rdr/NAC_ROI_NOBILE02LO1",
+     "says": "Center -83.9, 58.7 E. Bounds: lat -84.40 to -83.50, lon 54.46 to 63.02. Product P839S0587."
+    },
+    {
+     "title": "Pena-Asensio et al. (2024), Evaluating potential landing sites for the Artemis III mission using a multi-criteria decision making approach (arXiv:2406.19863)",
+     "url": "https://arxiv.org/abs/2406.19863",
+     "says": "Optimal landing point in site DM2 (Nobile Rim 2): -84.20156, 60.69989 E."
+    }
+   ],
+   "notes": "Verified: both values are stated in the live sources, and the table value equals the midpoint of the LROC extents. The Pena-Asensio optimal point is a single landing point, not the region center; it lies inside the LROC bounds, 9.8 km from this center. The point is 43 km from Nobile's IAU center, just outside the rim to the north-east, consistent with 'northeastern rim'. Minor note: -83.95 is 6.05 deg from the pole, slightly beyond NASA's 2022 'within six degrees', though the region extends to -84.40. The region was in both the 2022 and 2024 lists."
+  },
+  {
+   "id": "artemis3-de-gerlache-rim-2",
+   "name": "de Gerlache Rim 2 (Artemis III candidate region)",
+   "short": "de Gerlache Rim 2",
+   "group": "artemis",
+   "kind": "region-center-approx",
+   "confidence": "medium",
+   "lat": -88.22,
+   "lon": -63.43,
+   "sources": [
+    {
+     "title": "Henriksen et al. (2023) ELS abstract, Table 1",
+     "url": "https://sservi.directus.app/assets/2483b7e0-a336-443d-8739-3d5f4756e1fb.pdf",
+     "says": "Row 'de Gerlache Rim 1 & 2': lat -88.67 & -88.22, lon -66.37 & -63.43. The second pair is Rim 2."
+    },
+    {
+     "title": "LROC RDR NAC_ROI_DEGERRIMLO1: de Gerlache Rim combined mosaic",
+     "url": "https://data.lroc.im-ldi.com/lroc/view_rdr/NAC_ROI_DEGERRIMLO1",
+     "says": "Combined Rim 1 and 2 mosaic: center -88.5, 293.3 (0-360 E). Bounds: lat -89.02 to -87.79, lon -83.18 to -41.31."
+    },
+    {
+     "title": "Astronomy.com: nine Artemis 3 sites",
+     "url": "https://www.astronomy.com/space-exploration/here-are-the-nine-sites-where-artemis-3-might-land-on-the-moon/",
+     "says": "de Gerlache Rim 2 is the site closest to the pole, only 31 miles (50 km) away. No lat/lon is given."
+    }
+   ],
+   "notes": "Verified: the pair order was rendered from the live PDF. The point lies inside the live LROC combined-mosaic bounds; that mosaic's center, 293.3 E, is -66.7 E. Correction: the '31 mi' figure comes from Astronomy.com, not NASA. -88.22 is 54 km (33.5 mi) from the pole, which matches better than Rim 1's 40 km. It is also the closest of the nine 2024 regions; Haworth is next at 99 km, and Slater Plain lies beyond Slater crater at 58 km. The point is 23 km from de Gerlache's IAU center (-88.48, -88.34 E; radius 16.4 km), so the region spans the rim and outer flank. Medium because only one source gives the number and the pairing within the cell is inferred from order."
+  },
+  {
+   "id": "artemis3-peak-near-cabeus-b",
+   "name": "Peak near Cabeus B (Artemis III candidate region, added Oct 2024)",
+   "short": "Peak near Cabeus B",
+   "group": "artemis",
+   "kind": "region-center-approx",
+   "confidence": "medium",
+   "lat": -83.6,
+   "lon": -68.8,
+   "sources": [
+    {
+     "title": "LROC RDR NAC_ROI_CABEUSPKLO1: Peak Near Cabeus B low-Sun controlled NAC mosaic (Combined mosaic #1), ASU/NASA GSFC",
+     "url": "https://data.lroc.im-ldi.com/lroc/view_rdr/NAC_ROI_CABEUSPKLO1",
+     "says": "Artemis III candidate-site mosaic. Center Lat -83.6, Center Lon 291.2 (0-360 E). Bounds: lat -84.06 to -83.21, lon -72.47 to -64.80. Product NAC_ROI_CABEUSPKLO1_P836S2912."
+    },
+    {
+     "title": "LROC RDR NAC_ROI_CABEUSPKLO2 (Combined mosaic #2)",
+     "url": "https://data.lroc.im-ldi.com/lroc/view_rdr_product/NAC_ROI_CABEUSPKLO2_P836S2912",
+     "says": "Second Peak Near Cabeus B mosaic. Its product name encodes the same center, 83.6 S, 291.2 E."
+    },
+    {
+     "title": "NASA Provides Update on Artemis III Moon Landing Regions (28 Oct 2024, RELEASE 24-136)",
+     "url": "https://www.nasa.gov/news-release/nasa-provides-update-on-artemis-iii-moon-landing-regions/",
+     "says": "Peak near Cabeus B is one of nine candidate regions. No coordinates are given."
+    },
+    {
+     "title": "Astronomy.com: Here are the nine sites where Artemis 3 might land on the Moon",
+     "url": "https://www.astronomy.com/space-exploration/here-are-the-nine-sites-where-artemis-3-might-land-on-the-moon/",
+     "says": "Peak near Cabeus B is the site farthest from the south pole, about 125 miles away. No lat/lon is given."
+    }
+   ],
+   "notes": "Verified: the live LROC RDR page was re-fetched on 2026-10-09; Center Lat -83.6 and Center Lon 291.2 are stated there. LROC's longitude domain is 0-360 east, so 291.2 converts to -68.8 E. The center encoded in the product names (P836S2912) agrees. The bounding-box midpoint is -83.64, -68.64. NASA published no numeric center, so this rests on a single LROC-team source given to 0.1 deg; medium is kept. Sanity check: -83.6 is 194 km (121 mi) from the pole, which fits Astronomy.com's 'about 125 miles'. The input attributed that figure to NASA, which was wrong; the NASA release gives no distances. For context, the IAU Gazetteer center of Cabeus B crater is -82.26, -54.58 E, so the region lies poleward and west of it. The region was new in Oct 2024."
+  },
+  {
+   "id": "derosa2012-sr1-shackleton-rim",
+   "name": "De Rosa et al. 2012 SR1 - Shackleton Rim",
+   "short": "Shackleton rim (SR1)",
+   "group": "illumination",
+   "kind": "exact-point",
+   "confidence": "high",
+   "lat": -89.7755,
+   "lon": -156.448,
+   "sources": [
+    {
+     "title": "De Rosa et al. 2012 (arXiv:1208.5587), Table 2",
+     "url": "https://arxiv.org/pdf/1208.5587",
+     "says": "Shackleton Rim SR1 RoI centre: -89.7755, -156.448; stereographic X -2.72, Y -6.24 km."
+    },
+    {
+     "title": "Barker et al. 2021 PSS (NTRS manuscript)",
+     "url": "https://ntrs.nasa.gov/api/citations/20205009660/downloads/Mike%20Barker_%20Paper_%20Improved%20Lola.pdf",
+     "says": "Site 4 (Shackleton rim) corresponds to De Rosa SR1 and to Gläser 2018 S."
+    }
+   ],
+   "notes": "RoI center; longitude east-positive. verified: Table 2 text extraction and the X/Y recompute both match exactly. The SR1 = Site 4 = Gläser 2018 S correspondence is confirmed in Barker 2021. SR1 is 0.29 km from the Gläser 2018 surface point S."
+  },
+  {
+   "id": "derosa2012-cr1-connecting-ridge",
+   "name": "De Rosa et al. 2012 CR1 - Connecting Ridge (Shackleton-de Gerlache ridge)",
+   "short": "Connecting ridge (CR1)",
+   "group": "illumination",
+   "kind": "exact-point",
+   "confidence": "high",
+   "lat": -89.4679,
+   "lon": -137.411,
+   "sources": [
+    {
+     "title": "De Rosa et al. 2012, Characterisation of potential landing sites for ESA's Lunar Lander project, PSS 74:224-246 (arXiv:1208.5587), Table 2",
+     "url": "https://arxiv.org/pdf/1208.5587",
+     "says": "Connecting Ridge CR1, centre of Region of Interest, ME/PA DE421 geodetic: -89.4679, -137.411; polar stereographic X -10.92, Y -11.88 km."
+    },
+    {
+     "title": "Barker et al. 2021 PSS (NTRS manuscript)",
+     "url": "https://ntrs.nasa.gov/api/citations/20205009660/downloads/Mike%20Barker_%20Paper_%20Improved%20Lola.pdf",
+     "says": "Sites 1, 4, 7, 11 = De Rosa CR1, SR1, SV1, GR1; Sites 1 and 4 = Gläser 2018 C1 and S."
+    }
+   ],
+   "notes": "This is the center of an ESA Region of Interest (RoI), not a single illumination maximum. De Rosa calls CR1 one of the most promising areas. verified: Table 2 extracted from the arXiv PDF with pdftotext matches exactly. Stereographic X/Y recomputed from the lat/lon with R = 1737.4 km, X = k·sin(lon), Y = k·cos(lon) (lon 0 up, 90°E right); the result reproduces the table's X/Y. That confirms east-positive longitude and spherical, i.e. planetocentric, latitude. The equivalence CR1 = Mazarico Site 1 = Gläser 2018 C1 is confirmed in the Barker 2021 text."
+  },
+  {
+   "id": "derosa2012-sv1-shackleton-vicinity-peak",
+   "name": "De Rosa et al. 2012 SV1 - Shackleton Vicinity (isolated peak near Shackleton)",
+   "short": "Peak near Shackleton (SV1)",
+   "group": "illumination",
+   "kind": "exact-point",
+   "confidence": "high",
+   "lat": -88.8247,
+   "lon": 124.1359,
+   "sources": [
+    {
+     "title": "De Rosa et al. 2012 (arXiv:1208.5587), Table 2",
+     "url": "https://arxiv.org/pdf/1208.5587",
+     "says": "Shackleton Vicinity SV1 RoI centre: -88.8247, 124.1359; stereographic X 29.48, Y -20 km."
+    },
+    {
+     "title": "Barker et al. 2021 PSS (NTRS manuscript)",
+     "url": "https://ntrs.nasa.gov/api/citations/20205009660/downloads/Mike%20Barker_%20Paper_%20Improved%20Lola.pdf",
+     "says": "Site 7 is an isolated peak near Shackleton on the far side; corresponds to De Rosa SV1."
+    }
+   ],
+   "notes": "RoI center. verified: Table 2 text extraction matches, and the X/Y recompute gives (29.5, -20.0). SV1 = Site 7 is confirmed in Barker 2021. SV1 is 1.1 km from Bussey Point D and near the center of the LROC 'Peak near Shackleton' Artemis mosaic."
+  },
+  {
+   "id": "derosa2012-mp1-malapert-peak",
+   "name": "De Rosa et al. 2012 MP1 - Malapert Peak",
+   "short": "Malapert peak (MP1)",
+   "group": "illumination",
+   "kind": "exact-point",
+   "confidence": "high",
+   "lat": -85.9756,
+   "lon": -2.11241,
+   "sources": [
+    {
+     "title": "De Rosa et al. 2012 (arXiv:1208.5587), Table 2",
+     "url": "https://arxiv.org/pdf/1208.5587",
+     "says": "Malapert Peak MP1 RoI centre: -85.9756, -2.11241; stereographic X -4.48, Y 121.8 km."
+    }
+   ],
+   "notes": "RoI center on the Malapert massif peaks; the source does not say it is the topographic summit. Longitude east-positive. verified: Table 2 text extraction matches, and the X/Y recompute gives (-4.50, 122.0) against the table's (-4.48, 121.8), a rounding-level difference."
+  },
+  {
+   "id": "derosa2012-gr1-de-gerlache-rim",
+   "name": "De Rosa et al. 2012 GR1 - de Gerlache Rim",
+   "short": "de Gerlache rim (GR1)",
+   "group": "illumination",
+   "kind": "exact-point",
+   "confidence": "high",
+   "lat": -88.6952,
+   "lon": -68.2846,
+   "sources": [
+    {
+     "title": "De Rosa et al. 2012 (arXiv:1208.5587), Table 2",
+     "url": "https://arxiv.org/pdf/1208.5587",
+     "says": "de Gerlache Rim GR1 RoI centre: -88.6952, -68.2846; stereographic X -36.76, Y 14.64 km."
+    }
+   ],
+   "notes": "RoI center; longitude east-positive. A typo in the input's what_it_says is corrected (stray '-89.6952? no:'); the value is -88.6952. verified: Table 2 text extraction matches, and the X/Y recompute matches exactly. Barker 2021 confirms GR1 = Mazarico Site 11 (de Gerlache rim). It is 0.53 km from Bussey Point C."
+  },
+  {
+   "id": "im-2-athena-landed",
+   "name": "Intuitive Machines IM-2 Athena landed position (Mons Mouton)",
+   "short": "IM-2 Athena (landed)",
+   "group": "missions",
+   "kind": "landed-position",
+   "confidence": "high",
+   "lat": -84.7906,
+   "lon": 29.1957,
+   "sources": [
+    {
+     "title": "LROC: IM-2 Athena Seen Obliquely (10 Mar 2025)",
+     "url": "https://www.lroc.im-ldi.com/images/1408",
+     "says": "Athena is at 84.7906 S, 29.1957 E. It reached the surface on 6 March 2025, near the center of Mons Mouton."
+    },
+    {
+     "title": "LROC: IM-2 Landing Region (26 Feb 2025)",
+     "url": "https://lroc.im-ldi.com/images/1401",
+     "says": "The pre-landing target was -84.78, 29.13 E, 160 km from the pole, in the central portion of one Artemis 3 potential landing region."
+    },
+    {
+     "title": "Wikipedia: IM-2",
+     "url": "https://en.wikipedia.org/wiki/IM-2",
+     "says": "Landing site 84 deg 47'26\" S, 29 deg 11'45\" E (84.7906 S, 29.1957 E) at Mons Mouton, 6 March 2025. Cites LROC."
+    }
+   ],
+   "notes": "Verified: both LROC posts were fetched live. Wikipedia gives the same value but cites LROC, so it is not independent. The landed point is 158 km from the pole, matching LROC's 160 km for the target. It lies inside the LROC Mons Mouton Plateau mosaic bounds, about 15 km from that mosaic's center and about 20.5 km from the 'Mons Mouton' (Leibnitz Beta Plateau) center. LROC does not name the region that contains it. The lander lies on its side in a roughly 20 m crater."
+  },
+  {
+   "id": "viper-mission-area-center",
+   "name": "NASA VIPER primary mission area center (southern edge of Mons Mouton, NW of Nobile)",
+   "short": "VIPER mission area",
+   "group": "missions",
+   "kind": "region-center-approx",
+   "confidence": "high",
+   "lat": -85.42088,
+   "lon": 31.6218,
+   "sources": [
+    {
+     "title": "Beyer et al. (2025) 'VIPER Site Analysis', Planetary Science Journal 6(10):236, doi:10.3847/PSJ/ae061a",
+     "url": "https://iopscience.iop.org/article/10.3847/PSJ/ae061a",
+     "says": "Primary mission area is about 5 x 4 km, centered at 31.6218°E, 85.42088°S, on the southern edge of Mons Mouton, a flat-topped mountain NW of Nobile."
+    },
+    {
+     "title": "Keszthelyi et al. (2025) 'Nested Geologic Maps for the VIPER Exploration Region of Mons Mouton, Luna', 56th LPSC #2586",
+     "url": "https://www.hou.usra.edu/meetings/lpsc2025/pdf/2586.pdf",
+     "says": "VIPER geologic maps are centered on 31.62°E, 85.42°S, covering the rover's likely investigation area."
+    },
+    {
+     "title": "NASA news release: NASA Selects Blue Origin to Deliver VIPER Rover to Moon's South Pole (19 Sep 2025)",
+     "url": "https://www.nasa.gov/news-release/nasa-selects-blue-origin-to-deliver-viper-rover-to-moons-south-pole/",
+     "says": "CLPS task order CS-7 ($190M potential) for Blue Moon MK1 to deliver VIPER to the 'South Pole region' in late 2027. It does not name Mons Mouton."
+    },
+    {
+     "title": "Wikipedia: VIPER (rover)",
+     "url": "https://en.wikipedia.org/wiki/VIPER_(rover)",
+     "says": "VIPER is planned to operate on the western edge of Nobile crater on Mons Mouton; landing planned for 2027."
+    }
+   ],
+   "notes": "verified: opened the Beyer et al. PSJ paper, where the center is stated verbatim. Its Appendix B PROJ string is '+proj=stere +lon_0=31.6218 +lat_0=-85.42088 +R=1737400', which is ocentric on a 1737.4 km sphere with east longitude. The USGS LPSC 2025 abstract independently gives 31.62°E, 85.42°S. Correction to the input: the NASA 19 Sep 2025 release says only 'South Pole region' and does not mention Mons Mouton; the Mons Mouton site comes from Beyer et al. and Wikipedia. This is the mission-area center; no lander aim point or landing ellipse is published. Primary-area polygon from Beyer et al. Table A1 (lon, lat): (30.48,-85.368), (32.626,-85.367), (32.666,-85.49), (30.461,-85.491). Extended area: (27.986,-85.14), (33.571,-85.146), (33.728,-85.509), (27.693,-85.50). The point lies west of Nobile's IAU longitude bounds (37.32-69.26°E), consistent with 'NW of Nobile'. VIPER was cancelled in Jul 2024 and revived 19 Sep 2025, and NASA's exercise of the delivery option reportedly depends on the first Blue Moon MK1 mission succeeding."
+  },
+  {
+   "id": "im-1-odysseus-landed",
+   "name": "Intuitive Machines IM-1 'Odysseus' landed position (near Malapert A)",
+   "short": "IM-1 Odysseus (landed)",
+   "group": "missions",
+   "kind": "landed-position",
+   "confidence": "high",
+   "lat": -80.13,
+   "lon": 1.44,
+   "sources": [
+    {
+     "title": "LROC: Intuitive Machines IM-1 On The Moon! (26 Feb 2024)",
+     "url": "https://lroc.im-ldi.com/images/1360",
+     "says": "Odysseus came to rest at 80.13°S, 1.44°E, 2579 m elevation, 12° slope; landed 22 Feb 2024 23:23:53 UTC."
+    },
+    {
+     "title": "NASA: NASA's LRO Images Intuitive Machines' Odysseus Lander",
+     "url": "https://www.nasa.gov/missions/lro/nasas-lro-images-intuitive-machines-odysseus-lander/",
+     "says": "Odysseus came to rest at 80.13° S, 1.44° E, 2,579 m elevation, in a degraded 1 km crater sloped at 12°."
+    },
+    {
+     "title": "NASA NSSDC: Lunar artifact impact/landing site table",
+     "url": "https://nssdc.gsfc.nasa.gov/planetary/lunar/lunar_artifact_impacts.html",
+     "says": "Odysseus (IM-1), 22 February 2024: 80.13 S, 1.44 E (-80.13, 1.44), N/E positive."
+    },
+    {
+     "title": "Thomson et al., EGU25-20315, 'Characterization of the Intuitive Machines (IM-1) Lunar Landing Site Near the South Pole'",
+     "url": "https://meetingorganizer.copernicus.org/EGU25/EGU25-20315.html",
+     "says": "Touched down at 80.13°S, 1.44°E, in an intercrater region about 300 km from the south pole."
+    }
+   ],
+   "notes": "verified: LROC 1360, the NASA LRO news page, NASA NSSDC and the EGU25 abstract all give 80.13°S, 1.44°E (east), so no conversion was needed. Sanity check: the cached LOLA LDEM_80S_80M gives about 2593 m here, against 2579 m stated by LROC (14 m difference). The site is just poleward of 80°S. Press reports say it landed within about 1.5 km of the intended Malapert A site. No primary source giving a numeric target coordinate was found, so the target is left out."
+  }
+ ]
+}

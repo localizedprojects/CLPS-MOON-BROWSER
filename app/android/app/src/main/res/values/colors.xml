@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- = PH.bg in lib/theme.dart: the window behind the app and the launch splash (android-4) -->
+    <color name="ph_bg">#060B16</color>
+</resources>

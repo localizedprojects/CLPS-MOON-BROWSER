@@ -1,0 +1,17 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "charts-dev",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["--prefix", "charts", "run", "dev", "--", "--port", "5173", "--strictPort"],
+      "port": 5173
+    },
+    {
+      "name": "app-web",
+      "runtimeExecutable": ".venv/Scripts/python.exe",
+      "runtimeArgs": ["-m", "http.server", "8088", "--directory", "app/build/web", "--bind", "127.0.0.1"],
+      "port": 8088
+    }
+  ]
+}

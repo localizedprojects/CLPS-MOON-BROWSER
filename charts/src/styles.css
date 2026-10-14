@@ -1,0 +1,116 @@
+/* Shared chart-page styling: calm deep navy (mirrors app/lib/theme.dart and src/theme.ts). */
+:root {
+  --bg: #0c1528; /* = PH.panel: the charts sit inside Flutter cards */
+  --page: #060b16;
+  --panel: #12203a;
+  --selected: #1c3358;
+  --line: #1e3050;
+  --line-strong: #2c4470;
+  --text: #e6eef9;
+  --muted: #8da1c3;
+  --ice: #a9ccff;
+  --sun: #ffb000;
+  --earth: #3d8bfd;
+  --both: #2ec4b6;
+  /* slate gaps (dark spells, Earth out of view): fill + 1 px dashed outline */
+  --dark: #33445f;
+  --dark-line: #6b7fa3;
+  --radius-small: 6px;
+  --radius-inner: 12px;
+  --radius-card: 16px;
+  --radius-sheet: 24px;
+  --fade: 250ms;
+}
+
+html, body, #root {
+  margin: 0;
+  height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'IBM Plex Sans', system-ui, sans-serif;
+  font-variant-numeric: tabular-nums;
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Plotly draws its labels as SVG text: keep every number on tabular figures. */
+.main-svg text {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Every button, preset and toggle is at least 48 px tall (charts spec 2.0). */
+button,
+[role='radio'] {
+  min-height: 48px;
+}
+
+/* "Exact numbers" / "Simple view": a quiet text link with a 48 px hit area. */
+.ph-detail {
+  min-height: 48px;
+  min-width: 48px;
+  padding: 0 8px;
+  background: none;
+  border: 0;
+  color: var(--ice);
+  font: 500 13px/1.2 'IBM Plex Sans', system-ui, sans-serif;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.ph-detail:hover {
+  color: var(--text);
+}
+
+/* Parts joined by " · " that wrap between the parts (the sky header, qa-1).
+   Each part carries its dot in its left padding; the row is shifted left by
+   that padding and the outer box clips it, so a part that starts a line (the
+   first one, or one that wrapped) shows no dot. A part wider than the whole
+   line wraps inside itself at its spaces, never cut off. */
+.ph-seps {
+  overflow: hidden;
+  min-width: 0;
+}
+
+.ph-seps > div {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  margin-left: -1.2em;
+}
+
+.ph-seps > div > span {
+  position: relative;
+  box-sizing: border-box;
+  min-width: 0;
+  max-width: 100%;
+  padding-left: 1.2em;
+  overflow-wrap: anywhere;
+}
+
+.ph-seps > div > span::before {
+  content: '·';
+  content: '·' / '';
+  position: absolute;
+  left: 0;
+  width: 1.2em;
+  text-align: center;
+  color: var(--muted);
+  font-family: 'IBM Plex Sans', system-ui, sans-serif;
+  font-weight: 400;
+}
+
+button:focus-visible,
+[role='radio']:focus-visible,
+[tabindex]:focus-visible {
+  outline: 2px solid var(--ice);
+  outline-offset: 2px;
+  border-radius: var(--radius-small);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    transition-duration: 0s !important;
+    animation-duration: 0s !important;
+  }
+}

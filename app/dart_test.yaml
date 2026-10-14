@@ -1,0 +1,5 @@
+# `flutter test` runs everything (CI, gates, commits).
+# While iterating, skip the slow real-data checks (the light-map agreement
+# test, about 60 s): flutter test --exclude-tags slow
+tags:
+  slow:

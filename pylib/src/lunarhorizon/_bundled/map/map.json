@@ -1,0 +1,48 @@
+{
+ "projection": "south polar stereographic, sphere R=1737.4 km, lon 0 up, 90E right (LOLA/PDS)",
+ "halfWidthM": 304000.0,
+ "hillshade": {
+  "file": "map/hillshade.webp",
+  "pxM": 320.0,
+  "source": "LOLA LDEM_80S_80M (block-mean to 320 m)",
+  "lightAzimuthDeg": 315.0,
+  "lightAzimuthFrom": "clockwise from image up (the lon 0 direction)",
+  "lightAltitudeDeg": 35.0,
+  "verticalExaggeration": 2.0,
+  "tint": {
+   "formula": "grey = clip(base + shade * hillshade + elevation * clip(zNorm, 0, 1), 0, 1); zNorm maps the given percentiles of the 320 m heights to 0..1",
+   "base": 0.18,
+   "shade": 0.62,
+   "elevation": 0.2,
+   "percentiles": [
+    1,
+    99
+   ]
+  },
+  "note": "Display shading only (artificial light direction); not a Sun position."
+ },
+ "dem": {
+  "file": "map/dem_400m.bin.gz",
+  "size": 1520,
+  "pxM": 400.0,
+  "dtype": "int16-le",
+  "encoding": "planar-split: r = z - (left + up - upleft) with zero padding, int16 LE; stored as all low bytes then all high bytes; gzip. Decode: un-split, then z = r + left + up - upleft row-major.",
+  "unit": "m above 1737.4 km",
+  "source": "LOLA LDEM_80S_80M block-mean to 400 m (custom-site horizons)"
+ },
+ "sunvis": {
+  "file": "map/sunvis.webp",
+  "pxM": 480.0,
+  "source": "LOLA AVGVISIB_75S_120M_201608 (Mazarico et al. 2011 method)"
+ },
+ "earthvis": {
+  "file": "map/earthvis.webp",
+  "pxM": 480.0,
+  "source": "LOLA AVGVISIB_75S_120M_201608_EARTH"
+ },
+ "psr": {
+  "file": "map/psr.webp",
+  "pxM": 480.0,
+  "source": "AVGVISIB == 0 (never sunlit over the averaging period)"
+ }
+}

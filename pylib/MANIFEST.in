@@ -1,0 +1,6 @@
+# sdist extras (the wheel holds only src/lunarhorizon and its _bundled data)
+include CHANGELOG.md
+recursive-include tests *.py *.json
+recursive-include examples *.py
+recursive-include docs *.md
+global-exclude __pycache__ *.py[cod]

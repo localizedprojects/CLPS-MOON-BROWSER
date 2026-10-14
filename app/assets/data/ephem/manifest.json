@@ -1,0 +1,166 @@
+{
+ "version": 1,
+ "generatedUtc": "2026-10-09T10:20:38Z",
+ "frame": "MOON_ME (= MOON_ME_DE440_ME421, aligned with LOLA DE421 mean-Earth frame)",
+ "abcorr": "LT+S",
+ "observer": "Moon centre; site parallax applied on the device",
+ "stepSeconds": 3600.0,
+ "startUnixMs": 1735689600000,
+ "endUnixMs": 2082758400000,
+ "columns": [
+  "sun_x_km",
+  "sun_y_km",
+  "sun_z_km",
+  "earth_x_km",
+  "earth_y_km",
+  "earth_z_km"
+ ],
+ "dtype": "float32-le",
+ "kernels": [
+  {
+   "file": "naif0012.tls",
+   "note": "leap seconds"
+  },
+  {
+   "file": "pck00011.tpc",
+   "note": "body radii (Earth ellipsoid for DSN stations) and IAU_MOON rotation (frame-sensitivity check only); DSN Earth orientation is ITRF93 from the Earth binary PCK, not IAU_EARTH"
+  },
+  {
+   "file": "moon_de440_250416.tf",
+   "note": "MOON_ME / MOON_PA frame definitions"
+  },
+  {
+   "file": "moon_pa_de440_200625.bpc",
+   "note": "DE440 lunar libration (PA frame)"
+  },
+  {
+   "file": "earth_1962_260806_2126_combined.bpc",
+   "note": "ITRF93 Earth orientation, history + long-term prediction to 2126 (DSN stations)"
+  },
+  {
+   "file": "de440s.bsp",
+   "note": "DE440 planetary+lunar ephemeris (1849-2150)"
+  }
+ ],
+ "toolkit": "CSPICE_N0067",
+ "dsn": {
+  "minElevationDeg": 10.0,
+  "earthFrame": "ITRF93 (earth_1962_260806_2126_combined.bpc)",
+  "bits": [
+   {
+    "bit": 0,
+    "id": "goldstone",
+    "name": "Goldstone (DSS-14)",
+    "lat": 35.4259,
+    "lon": -116.8895,
+    "alt_km": 1.002
+   },
+   {
+    "bit": 1,
+    "id": "madrid",
+    "name": "Madrid (DSS-63)",
+    "lat": 40.4313,
+    "lon": -4.248,
+    "alt_km": 0.865
+   },
+   {
+    "bit": 2,
+    "id": "canberra",
+    "name": "Canberra (DSS-43)",
+    "lat": -35.4024,
+    "lon": 148.9813,
+    "alt_km": 0.689
+   }
+  ]
+ },
+ "years": [
+  {
+   "year": 2025,
+   "file": "ephem/2025.bin",
+   "dsnFile": "dsn/2025.bin",
+   "startUnixMs": 1735689600000,
+   "count": 8760,
+   "sha256": "7602992505bb78d5"
+  },
+  {
+   "year": 2026,
+   "file": "ephem/2026.bin",
+   "dsnFile": "dsn/2026.bin",
+   "startUnixMs": 1767225600000,
+   "count": 8760,
+   "sha256": "25986a4e8f31417b"
+  },
+  {
+   "year": 2027,
+   "file": "ephem/2027.bin",
+   "dsnFile": "dsn/2027.bin",
+   "startUnixMs": 1798761600000,
+   "count": 8760,
+   "sha256": "a25e1a19bf47e387"
+  },
+  {
+   "year": 2028,
+   "file": "ephem/2028.bin",
+   "dsnFile": "dsn/2028.bin",
+   "startUnixMs": 1830297600000,
+   "count": 8784,
+   "sha256": "c13e89b669789788"
+  },
+  {
+   "year": 2029,
+   "file": "ephem/2029.bin",
+   "dsnFile": "dsn/2029.bin",
+   "startUnixMs": 1861920000000,
+   "count": 8760,
+   "sha256": "bb4d424e204bfa70"
+  },
+  {
+   "year": 2030,
+   "file": "ephem/2030.bin",
+   "dsnFile": "dsn/2030.bin",
+   "startUnixMs": 1893456000000,
+   "count": 8760,
+   "sha256": "f5b72929ceceb2f9"
+  },
+  {
+   "year": 2031,
+   "file": "ephem/2031.bin",
+   "dsnFile": "dsn/2031.bin",
+   "startUnixMs": 1924992000000,
+   "count": 8760,
+   "sha256": "2803d7b369d67cbf"
+  },
+  {
+   "year": 2032,
+   "file": "ephem/2032.bin",
+   "dsnFile": "dsn/2032.bin",
+   "startUnixMs": 1956528000000,
+   "count": 8784,
+   "sha256": "8182c5ba4364c896"
+  },
+  {
+   "year": 2033,
+   "file": "ephem/2033.bin",
+   "dsnFile": "dsn/2033.bin",
+   "startUnixMs": 1988150400000,
+   "count": 8760,
+   "sha256": "444bcb9f18326d9c"
+  },
+  {
+   "year": 2034,
+   "file": "ephem/2034.bin",
+   "dsnFile": "dsn/2034.bin",
+   "startUnixMs": 2019686400000,
+   "count": 8760,
+   "sha256": "e0b59fa91f2a219c"
+  },
+  {
+   "year": 2035,
+   "file": "ephem/2035.bin",
+   "dsnFile": "dsn/2035.bin",
+   "startUnixMs": 2051222400000,
+   "count": 8760,
+   "sha256": "a7a610dc921ba697"
+  }
+ ]
+}

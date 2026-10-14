@@ -1,0 +1,58 @@
+[build-system]
+requires = ["setuptools>=77", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "lunar-horizon"
+dynamic = ["version"]
+description = "Sun and Earth visibility, terrain horizons, power, DSN contact, planning metrics, best landing windows and light-and-shadow maps for sites near the lunar south pole (the Lunar Horizon science as a library)."
+readme = "README.md"
+requires-python = ">=3.10"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "Rihansh Singh" }]
+keywords = ["moon", "lunar south pole", "SPICE", "LOLA", "illumination", "horizon", "Artemis", "DSN", "landing site"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Operating System :: OS Independent",
+    "Intended Audience :: Science/Research",
+    "Topic :: Scientific/Engineering :: Astronomy",
+    "Typing :: Typed",
+]
+dependencies = ["numpy>=1.24", "spiceypy>=6.0"]
+
+[project.optional-dependencies]
+fetch = ["requests>=2.28"]
+images = ["pillow>=10"]
+plot = ["matplotlib>=3.7"]
+test = ["pytest>=7"]
+all = ["requests>=2.28", "pillow>=10", "matplotlib>=3.7", "pytest>=7"]
+
+[project.scripts]
+lunarhorizon = "lunarhorizon.cli:main"
+
+[project.urls]
+Source = "https://github.com/localizedprojects/CLPS-MOON-BROWSER"
+Documentation = "https://github.com/localizedprojects/CLPS-MOON-BROWSER/blob/main/pylib/README.md"
+
+[tool.setuptools]
+package-dir = { "" = "src" }
+include-package-data = false
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+lunarhorizon = ["py.typed", "_bundled/*", "_bundled/**/*"]
+
+[tool.setuptools.dynamic]
+version = { attr = "lunarhorizon.__version__" }
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+    "needs_kernels: needs the SPICE kernels (lunarhorizon.data.fetch('kernels') or an existing ~/.cache/lunar-sp)",
+    "needs_dems: needs the LOLA 80 m and 240 m DEMs (lunarhorizon.data.fetch('dems'))",
+    "slow: takes more than a few seconds",
+]

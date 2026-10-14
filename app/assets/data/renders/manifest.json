@@ -1,0 +1,1464 @@
+{
+ "sites": {
+  "derosa2012-cr1-connecting-ridge": {
+   "name": "De Rosa et al. 2012 CR1 - Connecting Ridge (Shackleton-de Gerlache ridge)",
+   "lat": -89.4679,
+   "lon": -137.411,
+   "groundHeightM": 1943.0,
+   "eyeHeightM": 2.0,
+   "epochs": [
+    {
+     "key": "best",
+     "label": "Sun + Earth both up (longest joint window: 322 h)",
+     "utc": "2027-09-17T20:00:00Z",
+     "unixMs": 1821211200000,
+     "file": "renders/derosa2012-cr1-connecting-ridge/best.webp",
+     "sun": {
+      "az": 111.1558,
+      "el": 0.9169,
+      "rangeKm": 150720945.9,
+      "angRadiusDeg": 0.26447,
+      "visibleFraction": 1.0,
+      "dirEnu": [
+       0.93248315,
+       -0.36085887,
+       0.01600162
+      ],
+      "irradianceWm2": 1340.79
+     },
+     "earth": {
+      "az": 132.5397,
+      "el": 5.4898,
+      "rangeKm": 393710.4,
+      "angRadiusDeg": 0.92824,
+      "visibleFraction": 1.0,
+      "dirEnu": [
+       0.73342971,
+       -0.67299963,
+       0.09566797
+      ],
+      "illuminatedFraction": 0.0362
+     }
+    },
+    {
+     "key": "night",
+     "label": "Middle of the longest night (541 h with no Sun)",
+     "utc": "2027-05-22T21:00:00Z",
+     "unixMs": 1811019600000,
+     "file": "renders/derosa2012-cr1-connecting-ridge/night.webp",
+     "sun": {
+      "az": 112.2391,
+      "el": -1.7127,
+      "rangeKm": 151791761.6,
+      "angRadiusDeg": 0.2626,
+      "visibleFraction": 0.0,
+      "dirEnu": [
+       0.92519884,
+       -0.37830392,
+       -0.02988713
+      ],
+      "irradianceWm2": 0.0
+     },
+     "earth": {
+      "az": 139.8123,
+      "el": -5.3475,
+      "rangeKm": 401285.6,
+      "angRadiusDeg": 0.91071,
+      "visibleFraction": 0.0,
+      "dirEnu": [
+       0.64248543,
+       -0.76060964,
+       -0.09319576
+      ],
+      "illuminatedFraction": 0.0577
+     }
+    }
+   ],
+   "skyline": {
+    "columns": 4096,
+    "columnsWithoutTerrain": 0,
+    "pixelDeg": 0.0878,
+    "meanAbsDeg": 0.0401,
+    "p95AbsDeg": 0.0837,
+    "maxAbsDeg": 0.1218
+   },
+   "notes": [
+    "Epoch search: hourly, [2026-10-09T00:00:00Z, 2027-10-09T00:00:00Z); 2 m horizon mask (terrain < 120 m excluded).",
+    "Longest Sun+Earth window 322 h; longest night 541 h.",
+    "Mesh: LOLA LDEM_80S_80M (LDEM_75S_240M fallback) on the 1737.4 km sphere, true curvature, 120 m - 300 km.",
+    "Near field < 120 m is not resolved by the DEM; the renderer fills it with a flat fan."
+   ]
+  },
+  "artemis3-haworth": {
+   "name": "Haworth (Artemis III candidate region)",
+   "lat": -86.75,
+   "lon": -23.67,
+   "groundHeightM": 1550.77,
+   "eyeHeightM": 2.0,
+   "epochs": [
+    {
+     "key": "best",
+     "label": "Sun + Earth both up (longest joint window: 210 h)",
+     "utc": "2027-07-27T22:00:00Z",
+     "unixMs": 1816725600000,
+     "file": "renders/artemis3-haworth/best.webp",
+     "sun": {
+      "az": 271.5157,
+      "el": -0.1156,
+      "rangeKm": 151824476.7,
+      "angRadiusDeg": 0.26255,
+      "visibleFraction": 1.0,
+      "dirEnu": [
+       -0.99964806,
+       0.02645156,
+       -0.00201778
+      ],
+      "irradianceWm2": 1321.37
+     },
+     "earth": {
+      "az": 16.4812,
+      "el": 9.6233,
+      "rangeKm": 378394.4,
+      "angRadiusDeg": 0.96581,
+      "visibleFraction": 1.0,
+      "dirEnu": [
+       0.27970906,
+       0.94541896,
+       0.16717009
+      ],
+      "illuminatedFraction": 0.6285
+     }
+    },
+    {
+     "key": "night",
+     "label": "Middle of the longest night (504 h with no Sun)",
+     "utc": "2027-05-13T09:00:00Z",
+     "unixMs": 1810198800000,
+     "file": "renders/artemis3-haworth/night.webp",
+     "sun": {
+      "az": 114.2079,
+      "el": -2.8495,
+      "rangeKm": 151160878.4,
+      "angRadiusDeg": 0.2637,
+      "visibleFraction": 0.0,
+      "dirEnu": [
+       0.91093589,
+       -0.40954172,
+       -0.04971296
+      ],
+      "irradianceWm2": 0.0
+     },
+     "earth": {
+      "az": 26.7613,
+      "el": 1.5699,
+      "rangeKm": 371590.0,
+      "angRadiusDeg": 0.9835,
+      "visibleFraction": 0.0,
+      "dirEnu": [
+       0.45010621,
+       0.89255468,
+       0.02739601
+      ],
+      "illuminatedFraction": 0.4798
+     }
+    }
+   ],
+   "skyline": {
+    "columns": 4096,
+    "columnsWithoutTerrain": 0,
+    "pixelDeg": 0.0878,
+    "meanAbsDeg": 0.0392,
+    "p95AbsDeg": 0.0839,
+    "maxAbsDeg": 0.1316
+   },
+   "notes": [
+    "Epoch search: hourly, [2026-10-09T00:00:00Z, 2027-10-09T00:00:00Z); 2 m horizon mask (terrain < 120 m excluded).",
+    "Longest Sun+Earth window 210 h; longest night 504 h.",
+    "Mesh: LOLA LDEM_80S_80M (LDEM_75S_240M fallback) on the 1737.4 km sphere, true curvature, 120 m - 300 km.",
+    "Near field < 120 m is not resolved by the DEM; the renderer fills it with a flat fan."
+   ]
+  },
+  "artemis3-malapert-massif": {
+   "name": "Malapert Massif (Artemis III candidate region)",
+   "lat": -85.98,
+   "lon": -0.26,
+   "groundHeightM": 4816.85,
+   "eyeHeightM": 2.0,
+   "epochs": [
+    {
+     "key": "best",
+     "label": "Sun + Earth both up (longest joint window: 317 h)",
+     "utc": "2026-11-24T10:00:00Z",
+     "unixMs": 1795514400000,
+     "file": "renders/artemis3-malapert-massif/best.webp",
+     "sun": {
+      "az": 0.2478,
+      "el": 5.5416,
+      "rangeKm": 148060731.0,
+      "angRadiusDeg": 0.26922,
+      "visibleFraction": 1.0,
+      "dirEnu": [
+       0.00430406,
+       0.99531701,
+       0.09656873
+      ],
+      "irradianceWm2": 1389.41
+     },
+     "earth": {
+      "az": 357.379,
+      "el": 10.2488,
+      "rangeKm": 360943.0,
+      "angRadiusDeg": 1.01251,
+      "visibleFraction": 1.0,
+      "dirEnu": [
+       -0.04499917,
+       0.98301486,
+       0.17792374
+      ],
+      "illuminatedFraction": 0.0025
+     }
+    },
+    {
+     "key": "night",
+     "label": "Middle of the longest night (524 h with no Sun)",
+     "utc": "2027-05-05T11:00:00Z",
+     "unixMs": 1809514800000,
+     "file": "renders/artemis3-malapert-massif/night.webp",
+     "sun": {
+      "az": 187.7593,
+      "el": -5.5095,
+      "rangeKm": 150505942.6,
+      "angRadiusDeg": 0.26485,
+      "visibleFraction": 0.0,
+      "dirEnu": [
+       -0.13438816,
+       -0.9862665,
+       -0.09601155
+      ],
+      "irradianceWm2": 0.0
+     },
+     "earth": {
+      "az": 354.6471,
+      "el": 10.0765,
+      "rangeKm": 376801.7,
+      "angRadiusDeg": 0.96989,
+      "visibleFraction": 1.0,
+      "dirEnu": [
+       -0.09185119,
+       0.98028139,
+       0.17496213
+      ],
+      "illuminatedFraction": 0.9855
+     }
+    }
+   ],
+   "skyline": {
+    "columns": 4096,
+    "columnsWithoutTerrain": 0,
+    "pixelDeg": 0.0878,
+    "meanAbsDeg": 0.0386,
+    "p95AbsDeg": 0.0826,
+    "maxAbsDeg": 0.1128
+   },
+   "notes": [
+    "Epoch search: hourly, [2026-10-09T00:00:00Z, 2027-10-09T00:00:00Z); 2 m horizon mask (terrain < 120 m excluded).",
+    "Longest Sun+Earth window 317 h; longest night 524 h.",
+    "Mesh: LOLA LDEM_80S_80M (LDEM_75S_240M fallback) on the 1737.4 km sphere, true curvature, 120 m - 300 km.",
+    "Near field < 120 m is not resolved by the DEM; the renderer fills it with a flat fan."
+   ]
+  },
+  "artemis3-mons-mouton-plateau": {
+   "name": "Mons Mouton Plateau (Artemis III candidate region, added Oct 2024)",
+   "lat": -84.3,
+   "lon": 30.6,
+   "groundHeightM": 5290.84,
+   "eyeHeightM": 2.0,
+   "epochs": [
+    {
+     "key": "best",
+     "label": "Sun + Earth both up (longest joint window: 267 h)",
+     "utc": "2026-11-25T06:00:00Z",
+     "unixMs": 1795586400000,
+     "file": "renders/artemis3-mons-mouton-plateau/best.webp",
+     "sun": {
+      "az": 319.0385,
+      "el": 5.829,
+      "rangeKm": 148032092.7,
+      "angRadiusDeg": 0.26927,
+      "visibleFraction": 1.0,
+      "dirEnu": [
+       -0.65216249,
+       0.75124547,
+       0.10155953
+      ],
+      "irradianceWm2": 1389.94
+     },
+     "earth": {
+      "az": 327.6924,
+      "el": 10.7894,
+      "rangeKm": 359374.2,
+      "angRadiusDeg": 1.01693,
+      "visibleFraction": 1.0,
+      "dirEnu": [
+       -0.52501654,
+       0.8302493,
+       0.1871997
+      ],
+      "illuminatedFraction": 0.0077
+     }
+    },
+    {
+     "key": "night",
+     "label": "Middle of the longest night (564 h with no Sun)",
+     "utc": "2027-05-06T00:00:00Z",
+     "unixMs": 1809561600000,
+     "file": "renders/artemis3-mons-mouton-plateau/night.webp",
+     "sun": {
+      "az": 150.0387,
+      "el": -6.4683,
+      "rangeKm": 150520709.6,
+      "angRadiusDeg": 0.26482,
+      "visibleFraction": 0.0,
+      "dirEnu": [
+       0.49623609,
+       -0.86084776,
+       -0.11265383
+      ],
+      "irradianceWm2": 0.0
+     },
+     "earth": {
+      "az": 323.7128,
+      "el": 10.8428,
+      "rangeKm": 374436.6,
+      "angRadiusDeg": 0.97602,
+      "visibleFraction": 1.0,
+      "dirEnu": [
+       -0.58126687,
+       0.79167025,
+       0.18811444
+      ],
+      "illuminatedFraction": 0.9954
+     }
+    }
+   ],
+   "skyline": {
+    "columns": 4096,
+    "columnsWithoutTerrain": 0,
+    "pixelDeg": 0.0878,
+    "meanAbsDeg": 0.0381,
+    "p95AbsDeg": 0.0819,
+    "maxAbsDeg": 0.1181
+   },
+   "notes": [
+    "Epoch search: hourly, [2026-10-09T00:00:00Z, 2027-10-09T00:00:00Z); 2 m horizon mask (terrain < 120 m excluded).",
+    "Longest Sun+Earth window 267 h; longest night 564 h.",
+    "Mesh: LOLA LDEM_80S_80M (LDEM_75S_240M fallback) on the 1737.4 km sphere, true curvature, 120 m - 300 km.",
+    "Near field < 120 m is not resolved by the DEM; the renderer fills it with a flat fan."
+   ]
+  },
+  "artemis3-mons-mouton": {
+   "name": "Mons Mouton (Artemis III candidate region; 2022 name 'Leibnitz Beta Plateau')",
+   "lat": -85.43,
+   "lon": 31.83,
+   "groundHeightM": 6397.39,
+   "eyeHeightM": 2.0,
+   "epochs": [
+    {
+     "key": "best",
+     "label": "Sun + Earth both up (longest joint window: 283 h)",
+     "utc": "2027-09-21T06:00:00Z",
+     "unixMs": 1821506400000,
+     "file": "renders/artemis3-mons-mouton/best.webp",
+     "sun": {
+      "az": 260.2353,
+      "el": 0.3866,
+      "rangeKm": 150393822.8,
+      "angRadiusDeg": 0.26504,
+      "visibleFraction": 1.0,
+      "dirEnu": [
+       -0.98549011,
+       -0.1695987,
+       0.00674713
+      ],
+      "irradianceWm2": 1346.63
+     },
+     "earth": {
+      "az": 322.2953,
+      "el": 9.6292,
+      "rangeKm": 381590.6,
+      "angRadiusDeg": 0.95772,
+      "visibleFraction": 1.0,
+      "dirEnu": [
+       -0.60297571,
+       0.7800262,
+       0.1672705
+      ],
+      "illuminatedFraction": 0.2696
+     }
+    },
+    {
+     "key": "night",
+     "label": "Middle of the longest night (661 h with no Sun)",
+     "utc": "2027-05-10T23:00:00Z",
+     "unixMs": 1809990000000,
+     "file": "renders/artemis3-mons-mouton/night.webp",
+     "sun": {
+      "az": 88.2298,
+      "el": -1.3746,
+      "rangeKm": 150884669.6,
+      "angRadiusDeg": 0.26418,
+      "visibleFraction": 0.0,
+      "dirEnu": [
+       0.99923512,
+       0.03088267,
+       -0.0239884
+      ],
+      "irradianceWm2": 0.0
+     },
+     "earth": {
+      "az": 328.7118,
+      "el": 6.4275,
+      "rangeKm": 367003.1,
+      "angRadiusDeg": 0.99579,
+      "visibleFraction": 1.0,
+      "dirEnu": [
+       -0.51607832,
+       0.8491944,
+       0.11194662
+      ],
+      "illuminatedFraction": 0.7469
+     }
+    }
+   ],
+   "skyline": {
+    "columns": 4096,
+    "columnsWithoutTerrain": 0,
+    "pixelDeg": 0.0878,
+    "meanAbsDeg": 0.0397,
+    "p95AbsDeg": 0.0843,
+    "maxAbsDeg": 0.1407
+   },
+   "notes": [
+    "Epoch search: hourly, [2026-10-09T00:00:00Z, 2027-10-09T00:00:00Z); 2 m horizon mask (terrain < 120 m excluded).",
+    "Longest Sun+Earth window 283 h; longest night 661 h.",
+    "Mesh: LOLA LDEM_80S_80M (LDEM_75S_240M fallback) on the 1737.4 km sphere, true curvature, 120 m - 300 km.",
+    "Near field < 120 m is not resolved by the DEM; the renderer fills it with a flat fan."
+   ]
+  },
+  "artemis3-nobile-rim-1": {
+   "name": "Nobile Rim 1 (Artemis III candidate region)",
+   "lat": -85.44,
+   "lon": 37.44,
+   "groundHeightM": 5926.65,
+   "eyeHeightM": 2.0,
+   "epochs": [
+    {
+     "key": "best",
+     "label": "Sun + Earth both up (longest joint window: 196 h)",
+     "utc": "2027-02-13T17:00:00Z",
+     "unixMs": 1802538000000,
+     "file": "renders/artemis3-nobile-rim-1/best.webp",
+     "sun": {
+      "az": 53.9424,
+      "el": 2.6124,
+      "rangeKm": 147653434.2,
+      "angRadiusDeg": 0.26996,
+      "visibleFraction": 1.0,
+      "dirEnu": [
+       0.80758575,
+       0.58798626,
+       0.04557861
+      ],
+      "irradianceWm2": 1397.08
+     },
+     "earth": {
+      "az": 315.6238,
+      "el": 9.8182,
+      "rangeKm": 378203.1,
+      "angRadiusDeg": 0.9663,
+      "visibleFraction": 1.0,
+      "dirEnu": [
+       -0.68912359,
+       0.7042944,
+       0.17052294
+      ],
+      "illuminatedFraction": 0.5684
+     }
+    },
+    {
+     "key": "night",
+     "label": "Middle of the longest night (508 h with no Sun)",
+     "utc": "2027-04-27T14:00:00Z",
+     "unixMs": 1808834400000,
+     "file": "renders/artemis3-nobile-rim-1/night.webp",
+     "sun": {
+      "az": 246.4377,
+      "el": -3.3783,
+      "rangeKm": 150662399.4,
+      "angRadiusDeg": 0.26457,
+      "visibleFraction": 0.0,
+      "dirEnu": [
+       -0.91503281,
+       -0.39905189,
+       -0.05892828
+      ],
+      "irradianceWm2": 0.0
+     },
+     "earth": {
+      "az": 322.526,
+      "el": 0.738,
+      "rangeKm": 404121.6,
+      "angRadiusDeg": 0.90432,
+      "visibleFraction": 0.0,
+      "dirEnu": [
+       -0.60835106,
+       0.79356354,
+       0.01288016
+      ],
+      "illuminatedFraction": 0.3818
+     }
+    }
+   ],
+   "skyline": {
+    "columns": 4096,
+    "columnsWithoutTerrain": 0,
+    "pixelDeg": 0.0878,
+    "meanAbsDeg": 0.0405,
+    "p95AbsDeg": 0.0842,
+    "maxAbsDeg": 0.1401
+   },
+   "notes": [
+    "Epoch search: hourly, [2026-10-09T00:00:00Z, 2027-10-09T00:00:00Z); 2 m horizon mask (terrain < 120 m excluded).",
+    "Longest Sun+Earth window 196 h; longest night 508 h.",
+    "Mesh: LOLA LDEM_80S_80M (LDEM_75S_240M fallback) on the 1737.4 km sphere, true curvature, 120 m - 300 km.",
+    "Near field < 120 m is not resolved by the DEM; the renderer fills it with a flat fan."
+   ]
+  },
+  "artemis3-nobile-rim-2": {
+   "name": "Nobile Rim 2 (Artemis III candidate region)",
+   "lat": -83.95,
+   "lon": 58.74,
+   "groundHeightM": 988.53,
+   "eyeHeightM": 2.0,
+   "epochs": [
+    {
+     "key": "best",
+     "label": "Sun + Earth both up (longest joint window: 297 h)",
+     "utc": "2026-12-21T02:00:00Z",
+     "unixMs": 1797818400000,
+     "file": "renders/artemis3-nobile-rim-2/best.webp",
+     "sun": {
+      "az": 336.6835,
+      "el": 6.8213,
+      "rangeKm": 147445126.3,
+      "angRadiusDeg": 0.27034,
+      "visibleFraction": 1.0,
+      "dirEnu": [
+       -0.39300757,
+       0.9118322,
+       0.11877324
+      ],
+      "irradianceWm2": 1401.03
+     },
+     "earth": {
+      "az": 294.4312,
+      "el": 8.8788,
+      "rangeKm": 366262.6,
+      "angRadiusDeg": 0.99781,
+      "visibleFraction": 1.0,
+      "dirEnu": [
+       -0.89954839,
+       0.40864452,
+       0.15434492
+      ],
+      "illuminatedFraction": 0.1283
+     }
+    },
+    {
+     "key": "night",
+     "label": "Middle of the longest night (512 h with no Sun)",
+     "utc": "2027-05-03T13:00:00Z",
+     "unixMs": 1809349200000,
+     "file": "renders/artemis3-nobile-rim-2/night.webp",
+     "sun": {
+      "az": 151.9678,
+      "el": -6.8799,
+      "rangeKm": 150491737.9,
+      "angRadiusDeg": 0.26487,
+      "visibleFraction": 0.0,
+      "dirEnu": [
+       0.4665839,
+       -0.87632777,
+       -0.11978779
+      ],
+      "irradianceWm2": 0.0
+     },
+     "earth": {
+      "az": 294.6146,
+      "el": 7.2847,
+      "rangeKm": 386311.2,
+      "angRadiusDeg": 0.94602,
+      "visibleFraction": 1.0,
+      "dirEnu": [
+       -0.90179224,
+       0.41314983,
+       0.12679891
+      ],
+      "illuminatedFraction": 0.8995
+     }
+    }
+   ],
+   "skyline": {
+    "columns": 4096,
+    "columnsWithoutTerrain": 0,
+    "pixelDeg": 0.0878,
+    "meanAbsDeg": 0.0388,
+    "p95AbsDeg": 0.0833,
+    "maxAbsDeg": 0.1262
+   },
+   "notes": [
+    "Epoch search: hourly, [2026-10-09T00:00:00Z, 2027-10-09T00:00:00Z); 2 m horizon mask (terrain < 120 m excluded).",
+    "Longest Sun+Earth window 297 h; longest night 512 h.",
+    "Mesh: LOLA LDEM_80S_80M (LDEM_75S_240M fallback) on the 1737.4 km sphere, true curvature, 120 m - 300 km.",
+    "Near field < 120 m is not resolved by the DEM; the renderer fills it with a flat fan.",
+    "149 mesh vertices had no DEM data and were set to 0 m."
+   ]
+  },
+  "artemis3-de-gerlache-rim-2": {
+   "name": "de Gerlache Rim 2 (Artemis III candidate region)",
+   "lat": -88.22,
+   "lon": -63.43,
+   "groundHeightM": -176.14,
+   "eyeHeightM": 2.0,
+   "epochs": [
+    {
+     "key": "best",
+     "label": "Sun + Earth both up (longest joint window: 334 h)",
+     "utc": "2027-09-18T21:00:00Z",
+     "unixMs": 1821301200000,
+     "file": "renders/artemis3-de-gerlache-rim-2/best.webp",
+     "sun": {
+      "az": 24.5089,
+      "el": 2.7453,
+      "rangeKm": 150637202.5,
+      "angRadiusDeg": 0.26461,
+      "visibleFraction": 1.0,
+      "dirEnu": [
+       0.41435914,
+       0.90885224,
+       0.04789683
+      ],
+      "irradianceWm2": 1342.28
+     },
+     "earth": {
+      "az": 58.2647,
+      "el": 7.2496,
+      "rangeKm": 390228.2,
+      "angRadiusDeg": 0.93652,
+      "visibleFraction": 1.0,
+      "dirEnu": [
+       0.84368819,
+       0.52179082,
+       0.1261926
+      ],
+      "illuminatedFraction": 0.0856
+     }
+    },
+    {
+     "key": "night",
+     "label": "Middle of the longest night (496 h with no Sun)",
+     "utc": "2027-05-11T12:00:00Z",
+     "unixMs": 1810036800000,
+     "file": "renders/artemis3-de-gerlache-rim-2/night.webp",
+     "sun": {
+      "az": 176.9802,
+      "el": -3.2887,
+      "rangeKm": 150944209.5,
+      "angRadiusDeg": 0.26408,
+      "visibleFraction": 0.0,
+      "dirEnu": [
+       0.05259448,
+       -0.99696682,
+       -0.05736707
+      ],
+      "irradianceWm2": 0.0
+     },
+     "earth": {
+      "az": 64.8418,
+      "el": 2.4435,
+      "rangeKm": 367800.7,
+      "angRadiusDeg": 0.99363,
+      "visibleFraction": 1.0,
+      "dirEnu": [
+       0.90431463,
+       0.42473215,
+       0.04263384
+      ],
+      "illuminatedFraction": 0.6903
+     }
+    }
+   ],
+   "skyline": {
+    "columns": 4096,
+    "columnsWithoutTerrain": 0,
+    "pixelDeg": 0.0878,
+    "meanAbsDeg": 0.0385,
+    "p95AbsDeg": 0.0822,
+    "maxAbsDeg": 0.1247
+   },
+   "notes": [
+    "Epoch search: hourly, [2026-10-09T00:00:00Z, 2027-10-09T00:00:00Z); 2 m horizon mask (terrain < 120 m excluded).",
+    "Longest Sun+Earth window 334 h; longest night 496 h.",
+    "Mesh: LOLA LDEM_80S_80M (LDEM_75S_240M fallback) on the 1737.4 km sphere, true curvature, 120 m - 300 km.",
+    "Near field < 120 m is not resolved by the DEM; the renderer fills it with a flat fan."
+   ]
+  },
+  "artemis3-peak-near-cabeus-b": {
+   "name": "Peak near Cabeus B (Artemis III candidate region, added Oct 2024)",
+   "lat": -83.6,
+   "lon": -68.8,
+   "groundHeightM": 4534.92,
+   "eyeHeightM": 2.0,
+   "epochs": [
+    {
+     "key": "best",
+     "label": "Sun + Earth both up (longest joint window: 244 h)",
+     "utc": "2027-08-23T14:00:00Z",
+     "unixMs": 1819029600000,
+     "file": "renders/artemis3-peak-near-cabeus-b/best.webp",
+     "sun": {
+      "az": 350.7781,
+      "el": 6.8328,
+      "rangeKm": 151405715.4,
+      "angRadiusDeg": 0.26327,
+      "visibleFraction": 1.0,
+      "dirEnu": [
+       -0.15912065,
+       0.98006447,
+       0.11897161
+      ],
+      "irradianceWm2": 1328.69
+     },
+     "earth": {
+      "az": 62.8407,
+      "el": 9.5134,
+      "rangeKm": 386143.7,
+      "angRadiusDeg": 0.94643,
+      "visibleFraction": 1.0,
+      "dirEnu": [
+       0.87750416,
+       0.45018843,
+       0.16527802
+      ],
+      "illuminatedFraction": 0.3404
+     }
+    },
+    {
+     "key": "night",
+     "label": "Middle of the longest night (395 h with no Sun)",
+     "utc": "2027-04-14T22:00:00Z",
+     "unixMs": 1807740000000,
+     "file": "renders/artemis3-peak-near-cabeus-b/night.webp",
+     "sun": {
+      "az": 146.494,
+      "el": -6.7473,
+      "rangeKm": 150129313.1,
+      "angRadiusDeg": 0.26551,
+      "visibleFraction": 0.0,
+      "dirEnu": [
+       0.54820097,
+       -0.82805286,
+       -0.11749107
+      ],
+      "irradianceWm2": 0.0
+     },
+     "earth": {
+      "az": 69.7782,
+      "el": 3.1757,
+      "rangeKm": 370063.1,
+      "angRadiusDeg": 0.98756,
+      "visibleFraction": 0.0,
+      "dirEnu": [
+       0.93692075,
+       0.34512394,
+       0.05539837
+      ],
+      "illuminatedFraction": 0.3908
+     }
+    }
+   ],
+   "skyline": {
+    "columns": 4096,
+    "columnsWithoutTerrain": 0,
+    "pixelDeg": 0.0878,
+    "meanAbsDeg": 0.0405,
+    "p95AbsDeg": 0.0847,
+    "maxAbsDeg": 0.1201
+   },
+   "notes": [
+    "Epoch search: hourly, [2026-10-09T00:00:00Z, 2027-10-09T00:00:00Z); 2 m horizon mask (terrain < 120 m excluded).",
+    "Longest Sun+Earth window 244 h; longest night 395 h.",
+    "Mesh: LOLA LDEM_80S_80M (LDEM_75S_240M fallback) on the 1737.4 km sphere, true curvature, 120 m - 300 km.",
+    "Near field < 120 m is not resolved by the DEM; the renderer fills it with a flat fan.",
+    "3239 mesh vertices had no DEM data and were set to 0 m."
+   ]
+  },
+  "derosa2012-sr1-shackleton-rim": {
+   "name": "De Rosa et al. 2012 SR1 - Shackleton Rim",
+   "lat": -89.7755,
+   "lon": -156.448,
+   "groundHeightM": 1733.11,
+   "eyeHeightM": 2.0,
+   "epochs": [
+    {
+     "key": "best",
+     "label": "Sun + Earth both up (longest joint window: 313 h)",
+     "utc": "2027-09-24T05:00:00Z",
+     "unixMs": 1821762000000,
+     "file": "renders/derosa2012-sr1-shackleton-rim/best.webp",
+     "sun": {
+      "az": 52.5048,
+      "el": 1.337,
+      "rangeKm": 150032543.0,
+      "angRadiusDeg": 0.26568,
+      "visibleFraction": 1.0,
+      "dirEnu": [
+       0.79318851,
+       0.60852904,
+       0.02333225
+      ],
+      "irradianceWm2": 1353.13
+     },
+     "earth": {
+      "az": 152.5413,
+      "el": 2.7672,
+      "rangeKm": 370754.8,
+      "angRadiusDeg": 0.98571,
+      "visibleFraction": 1.0,
+      "dirEnu": [
+       0.46057113,
+       -0.88630892,
+       0.04827774
+      ],
+      "illuminatedFraction": 0.5876
+     }
+    },
+    {
+     "key": "night",
+     "label": "Middle of the longest night (261 h with no Sun)",
+     "utc": "2027-04-23T04:00:00Z",
+     "unixMs": 1808452800000,
+     "file": "renders/derosa2012-sr1-shackleton-rim/night.webp",
+     "sun": {
+      "az": 133.9548,
+      "el": -1.6873,
+      "rangeKm": 150735530.6,
+      "angRadiusDeg": 0.26444,
+      "visibleFraction": 0.0,
+      "dirEnu": [
+       0.71957488,
+       -0.69379029,
+       -0.02944532
+      ],
+      "irradianceWm2": 0.0
+     },
+     "earth": {
+      "az": 160.8034,
+      "el": -6.8905,
+      "rangeKm": 392784.7,
+      "angRadiusDeg": 0.93042,
+      "visibleFraction": 0.0,
+      "dirEnu": [
+       0.32643632,
+       -0.9375745,
+       -0.11997242
+      ],
+      "illuminatedFraction": 0.0557
+     }
+    }
+   ],
+   "skyline": {
+    "columns": 4096,
+    "columnsWithoutTerrain": 0,
+    "pixelDeg": 0.0878,
+    "meanAbsDeg": 0.0426,
+    "p95AbsDeg": 0.09,
+    "maxAbsDeg": 0.1749
+   },
+   "notes": [
+    "Epoch search: hourly, [2026-10-09T00:00:00Z, 2027-10-09T00:00:00Z); 2 m horizon mask (terrain < 120 m excluded).",
+    "Longest Sun+Earth window 313 h; longest night 261 h.",
+    "Mesh: LOLA LDEM_80S_80M (LDEM_75S_240M fallback) on the 1737.4 km sphere, true curvature, 120 m - 300 km.",
+    "Near field < 120 m is not resolved by the DEM; the renderer fills it with a flat fan."
+   ]
+  },
+  "derosa2012-sv1-shackleton-vicinity-peak": {
+   "name": "De Rosa et al. 2012 SV1 - Shackleton Vicinity (isolated peak near Shackleton)",
+   "lat": -88.8247,
+   "lon": 124.1359,
+   "groundHeightM": 1597.36,
+   "eyeHeightM": 2.0,
+   "epochs": [
+    {
+     "key": "best",
+     "label": "Sun + Earth both up (longest joint window: 355 h)",
+     "utc": "2027-09-25T00:00:00Z",
+     "unixMs": 1821830400000,
+     "file": "renders/derosa2012-sv1-shackleton-vicinity-peak/best.webp",
+     "sun": {
+      "az": 122.27,
+      "el": 0.5845,
+      "rangeKm": 149935889.9,
+      "angRadiusDeg": 0.26585,
+      "visibleFraction": 1.0,
+      "dirEnu": [
+       0.84549791,
+       -0.53388127,
+       0.01020169
+      ],
+      "irradianceWm2": 1354.87
+     },
+     "earth": {
+      "az": 232.6808,
+      "el": 1.051,
+      "rangeKm": 368241.2,
+      "angRadiusDeg": 0.99244,
+      "visibleFraction": 1.0,
+      "dirEnu": [
+       -0.79513664,
+       -0.60615288,
+       0.01834152
+      ],
+      "illuminatedFraction": 0.6753
+     }
+    },
+    {
+     "key": "night",
+     "label": "Middle of the longest night (402 h with no Sun)",
+     "utc": "2027-05-11T21:00:00Z",
+     "unixMs": 1810069200000,
+     "file": "renders/derosa2012-sv1-shackleton-vicinity-peak/night.webp",
+     "sun": {
+      "az": 344.8408,
+      "el": -0.3769,
+      "rangeKm": 150986482.0,
+      "angRadiusDeg": 0.264,
+      "visibleFraction": 0.0,
+      "dirEnu": [
+       -0.26149665,
+       0.96518196,
+       -0.00657887
+      ],
+      "irradianceWm2": 0.0
+     },
+     "earth": {
+      "az": 237.5863,
+      "el": 0.4602,
+      "rangeKm": 368453.8,
+      "angRadiusDeg": 0.99187,
+      "visibleFraction": 1.0,
+      "dirEnu": [
+       -0.8441726,
+       -0.5360113,
+       0.00803195
+      ],
+      "illuminatedFraction": 0.6494
+     }
+    }
+   ],
+   "skyline": {
+    "columns": 4096,
+    "columnsWithoutTerrain": 0,
+    "pixelDeg": 0.0878,
+    "meanAbsDeg": 0.0388,
+    "p95AbsDeg": 0.0828,
+    "maxAbsDeg": 0.1113
+   },
+   "notes": [
+    "Epoch search: hourly, [2026-10-09T00:00:00Z, 2027-10-09T00:00:00Z); 2 m horizon mask (terrain < 120 m excluded).",
+    "Longest Sun+Earth window 355 h; longest night 402 h.",
+    "Mesh: LOLA LDEM_80S_80M (LDEM_75S_240M fallback) on the 1737.4 km sphere, true curvature, 120 m - 300 km.",
+    "Near field < 120 m is not resolved by the DEM; the renderer fills it with a flat fan."
+   ]
+  },
+  "derosa2012-mp1-malapert-peak": {
+   "name": "De Rosa et al. 2012 MP1 - Malapert Peak",
+   "lat": -85.9756,
+   "lon": -2.11241,
+   "groundHeightM": 4969.29,
+   "eyeHeightM": 2.0,
+   "epochs": [
+    {
+     "key": "best",
+     "label": "Sun + Earth both up (longest joint window: 388 h)",
+     "utc": "2027-09-24T20:00:00Z",
+     "unixMs": 1821816000000,
+     "file": "renders/derosa2012-mp1-malapert-peak/best.webp",
+     "sun": {
+      "az": 250.5015,
+      "el": -0.1332,
+      "rangeKm": 149956007.0,
+      "angRadiusDeg": 0.26582,
+      "visibleFraction": 1.0,
+      "dirEnu": [
+       -0.94264791,
+       -0.33378064,
+       -0.00232405
+      ],
+      "irradianceWm2": 1354.51
+     },
+     "earth": {
+      "az": 358.7791,
+      "el": 6.0504,
+      "rangeKm": 368600.7,
+      "angRadiusDeg": 0.99148,
+      "visibleFraction": 1.0,
+      "dirEnu": [
+       -0.02118924,
+       0.99420388,
+       0.10540239
+      ],
+      "illuminatedFraction": 0.6571
+     }
+    },
+    {
+     "key": "night",
+     "label": "Middle of the longest night (167 h with no Sun)",
+     "utc": "2027-05-06T15:00:00Z",
+     "unixMs": 1809615600000,
+     "file": "renders/derosa2012-mp1-malapert-peak/night.webp",
+     "sun": {
+      "az": 175.28,
+      "el": -5.5326,
+      "rangeKm": 150544069.1,
+      "angRadiusDeg": 0.26478,
+      "visibleFraction": 0.0,
+      "dirEnu": [
+       0.08190291,
+       -0.99196602,
+       -0.09641228
+      ],
+      "irradianceWm2": 0.0
+     },
+     "earth": {
+      "az": 357.4852,
+      "el": 10.2929,
+      "rangeKm": 372050.6,
+      "angRadiusDeg": 0.98228,
+      "visibleFraction": 1.0,
+      "dirEnu": [
+       -0.04317161,
+       0.98295958,
+       0.17868039
+      ],
+      "illuminatedFraction": 0.9977
+     }
+    }
+   ],
+   "skyline": {
+    "columns": 4096,
+    "columnsWithoutTerrain": 0,
+    "pixelDeg": 0.0878,
+    "meanAbsDeg": 0.0397,
+    "p95AbsDeg": 0.0858,
+    "maxAbsDeg": 0.1395
+   },
+   "notes": [
+    "Epoch search: hourly, [2026-10-09T00:00:00Z, 2027-10-09T00:00:00Z); 2 m horizon mask (terrain < 120 m excluded).",
+    "Longest Sun+Earth window 388 h; longest night 167 h.",
+    "Mesh: LOLA LDEM_80S_80M (LDEM_75S_240M fallback) on the 1737.4 km sphere, true curvature, 120 m - 300 km.",
+    "Near field < 120 m is not resolved by the DEM; the renderer fills it with a flat fan."
+   ]
+  },
+  "derosa2012-gr1-de-gerlache-rim": {
+   "name": "De Rosa et al. 2012 GR1 - de Gerlache Rim",
+   "lat": -88.6952,
+   "lon": -68.2846,
+   "groundHeightM": 1778.25,
+   "eyeHeightM": 2.0,
+   "epochs": [
+    {
+     "key": "best",
+     "label": "Sun + Earth both up (longest joint window: 349 h)",
+     "utc": "2027-09-24T18:00:00Z",
+     "unixMs": 1821808800000,
+     "file": "renders/derosa2012-gr1-de-gerlache-rim/best.webp",
+     "sun": {
+      "az": 317.7007,
+      "el": 2.1735,
+      "rangeKm": 149966044.2,
+      "angRadiusDeg": 0.2658,
+      "visibleFraction": 1.0,
+      "dirEnu": [
+       -0.67251916,
+       0.73910733,
+       0.03792542
+      ],
+      "irradianceWm2": 1354.33
+     },
+     "earth": {
+      "az": 64.9303,
+      "el": 2.7092,
+      "rangeKm": 368964.0,
+      "angRadiusDeg": 0.9905,
+      "visibleFraction": 1.0,
+      "dirEnu": [
+       0.90478049,
+       0.42324705,
+       0.04726725
+      ],
+      "illuminatedFraction": 0.6479
+     }
+    },
+    {
+     "key": "night",
+     "label": "Middle of the longest night (289 h with no Sun)",
+     "utc": "2027-05-11T20:00:00Z",
+     "unixMs": 1810065600000,
+     "file": "renders/derosa2012-gr1-de-gerlache-rim/night.webp",
+     "sun": {
+      "az": 177.7634,
+      "el": -2.8151,
+      "rangeKm": 150981809.9,
+      "angRadiusDeg": 0.26401,
+      "visibleFraction": 0.0,
+      "dirEnu": [
+       0.03897876,
+       -0.99803234,
+       -0.04911326
+      ],
+      "irradianceWm2": 0.0
+     },
+     "earth": {
+      "az": 70.0176,
+      "el": 1.6031,
+      "rangeKm": 368348.6,
+      "angRadiusDeg": 0.99215,
+      "visibleFraction": 1.0,
+      "dirEnu": [
+       0.93942963,
+       0.34159816,
+       0.0279762
+      ],
+      "illuminatedFraction": 0.654
+     }
+    }
+   ],
+   "skyline": {
+    "columns": 4096,
+    "columnsWithoutTerrain": 0,
+    "pixelDeg": 0.0878,
+    "meanAbsDeg": 0.0401,
+    "p95AbsDeg": 0.0842,
+    "maxAbsDeg": 0.1578
+   },
+   "notes": [
+    "Epoch search: hourly, [2026-10-09T00:00:00Z, 2027-10-09T00:00:00Z); 2 m horizon mask (terrain < 120 m excluded).",
+    "Longest Sun+Earth window 349 h; longest night 289 h.",
+    "Mesh: LOLA LDEM_80S_80M (LDEM_75S_240M fallback) on the 1737.4 km sphere, true curvature, 120 m - 300 km.",
+    "Near field < 120 m is not resolved by the DEM; the renderer fills it with a flat fan."
+   ]
+  },
+  "im-2-athena-landed": {
+   "name": "Intuitive Machines IM-2 Athena landed position (Mons Mouton)",
+   "lat": -84.7906,
+   "lon": 29.1957,
+   "groundHeightM": 5321.13,
+   "eyeHeightM": 2.0,
+   "epochs": [
+    {
+     "key": "best",
+     "label": "Sun + Earth both up (longest joint window: 380 h)",
+     "utc": "2026-11-22T22:00:00Z",
+     "unixMs": 1795384800000,
+     "file": "renders/im-2-athena-landed/best.webp",
+     "sun": {
+      "az": 348.9177,
+      "el": 6.6444,
+      "rangeKm": 148080079.1,
+      "angRadiusDeg": 0.26918,
+      "visibleFraction": 1.0,
+      "dirEnu": [
+       -0.19092764,
+       0.97476068,
+       0.1157076
+      ],
+      "irradianceWm2": 1389.04
+     },
+     "earth": {
+      "az": 325.0515,
+      "el": 10.2343,
+      "rangeKm": 366584.3,
+      "angRadiusDeg": 0.99693,
+      "visibleFraction": 1.0,
+      "dirEnu": [
+       -0.56372617,
+       0.80662539,
+       0.17767468
+      ],
+      "illuminatedFraction": 0.0431
+     }
+    },
+    {
+     "key": "night",
+     "label": "Middle of the longest night (411 h with no Sun)",
+     "utc": "2027-05-04T09:00:00Z",
+     "unixMs": 1809421200000,
+     "file": "renders/im-2-athena-landed/night.webp",
+     "sun": {
+      "az": 171.471,
+      "el": -6.6825,
+      "rangeKm": 150491108.2,
+      "angRadiusDeg": 0.26487,
+      "visibleFraction": 0.0,
+      "dirEnu": [
+       0.14730275,
+       -0.98222223,
+       -0.11636744
+      ],
+      "irradianceWm2": 0.0
+     },
+     "earth": {
+      "az": 324.3759,
+      "el": 9.698,
+      "rangeKm": 382012.2,
+      "angRadiusDeg": 0.95666,
+      "visibleFraction": 1.0,
+      "dirEnu": [
+       -0.57414172,
+       0.80123902,
+       0.16845565
+      ],
+      "illuminatedFraction": 0.9458
+     }
+    }
+   ],
+   "skyline": {
+    "columns": 4096,
+    "columnsWithoutTerrain": 0,
+    "pixelDeg": 0.0878,
+    "meanAbsDeg": 0.0369,
+    "p95AbsDeg": 0.0808,
+    "maxAbsDeg": 0.111
+   },
+   "notes": [
+    "Epoch search: hourly, [2026-10-09T00:00:00Z, 2027-10-09T00:00:00Z); 2 m horizon mask (terrain < 120 m excluded).",
+    "Longest Sun+Earth window 380 h; longest night 411 h.",
+    "Mesh: LOLA LDEM_80S_80M (LDEM_75S_240M fallback) on the 1737.4 km sphere, true curvature, 120 m - 300 km.",
+    "Near field < 120 m is not resolved by the DEM; the renderer fills it with a flat fan."
+   ]
+  },
+  "viper-mission-area-center": {
+   "name": "NASA VIPER primary mission area center (southern edge of Mons Mouton, NW of Nobile)",
+   "lat": -85.42088,
+   "lon": 31.6218,
+   "groundHeightM": 6417.41,
+   "eyeHeightM": 2.0,
+   "epochs": [
+    {
+     "key": "best",
+     "label": "Sun + Earth both up (longest joint window: 426 h)",
+     "utc": "2027-08-18T17:00:00Z",
+     "unixMs": 1818608400000,
+     "file": "renders/viper-mission-area-center/best.webp",
+     "sun": {
+      "az": 309.7554,
+      "el": 3.3273,
+      "rangeKm": 151813841.4,
+      "angRadiusDeg": 0.26256,
+      "visibleFraction": 1.0,
+      "dirEnu": [
+       -0.76748548,
+       0.6384336,
+       0.05803937
+      ],
+      "irradianceWm2": 1321.56
+     },
+     "earth": {
+      "az": 324.8456,
+      "el": 6.8652,
+      "rangeKm": 402697.9,
+      "angRadiusDeg": 0.90752,
+      "visibleFraction": 1.0,
+      "dirEnu": [
+       -0.57165367,
+       0.8117411,
+       0.11953437
+      ],
+      "illuminatedFraction": 0.0183
+     }
+    },
+    {
+     "key": "night",
+     "label": "Middle of the longest night (516 h with no Sun)",
+     "utc": "2027-05-08T08:00:00Z",
+     "unixMs": 1809763200000,
+     "file": "renders/viper-mission-area-center/night.webp",
+     "sun": {
+      "az": 120.4751,
+      "el": -3.8457,
+      "rangeKm": 150643300.6,
+      "angRadiusDeg": 0.2646,
+      "visibleFraction": 0.0,
+      "dirEnu": [
+       0.85990942,
+       -0.50602126,
+       -0.06706914
+      ],
+      "irradianceWm2": 0.0
+     },
+     "earth": {
+      "az": 325.4245,
+      "el": 9.3606,
+      "rangeKm": 367562.5,
+      "angRadiusDeg": 0.99428,
+      "visibleFraction": 1.0,
+      "dirEnu": [
+       -0.5599349,
+       0.81241541,
+       0.16264718
+      ],
+      "illuminatedFraction": 0.9518
+     }
+    }
+   ],
+   "skyline": {
+    "columns": 4096,
+    "columnsWithoutTerrain": 0,
+    "pixelDeg": 0.0878,
+    "meanAbsDeg": 0.0374,
+    "p95AbsDeg": 0.0818,
+    "maxAbsDeg": 0.1299
+   },
+   "notes": [
+    "Epoch search: hourly, [2026-10-09T00:00:00Z, 2027-10-09T00:00:00Z); 2 m horizon mask (terrain < 120 m excluded).",
+    "Longest Sun+Earth window 426 h; longest night 516 h.",
+    "Mesh: LOLA LDEM_80S_80M (LDEM_75S_240M fallback) on the 1737.4 km sphere, true curvature, 120 m - 300 km.",
+    "Near field < 120 m is not resolved by the DEM; the renderer fills it with a flat fan."
+   ]
+  },
+  "im-1-odysseus-landed": {
+   "name": "Intuitive Machines IM-1 'Odysseus' landed position (near Malapert A)",
+   "lat": -80.13,
+   "lon": 1.44,
+   "groundHeightM": 2593.39,
+   "eyeHeightM": 2.0,
+   "epochs": [
+    {
+     "key": "best",
+     "label": "Sun + Earth both up (longest joint window: 312 h)",
+     "utc": "2026-11-23T16:00:00Z",
+     "unixMs": 1795449600000,
+     "file": "renders/im-1-odysseus-landed/best.webp",
+     "sun": {
+      "az": 7.7946,
+      "el": 11.3078,
+      "rangeKm": 148075268.2,
+      "angRadiusDeg": 0.26919,
+      "visibleFraction": 1.0,
+      "dirEnu": [
+       0.13298939,
+       0.97152789,
+       0.19608004
+      ],
+      "irradianceWm2": 1389.13
+     },
+     "earth": {
+      "az": 354.1832,
+      "el": 16.0414,
+      "rangeKm": 363176.5,
+      "angRadiusDeg": 1.00629,
+      "visibleFraction": 1.0,
+      "dirEnu": [
+       -0.09740164,
+       0.95611383,
+       0.27633182
+      ],
+      "illuminatedFraction": 0.0152
+     }
+    },
+    {
+     "key": "night",
+     "label": "Middle of the longest night (449 h with no Sun)",
+     "utc": "2027-05-06T16:00:00Z",
+     "unixMs": 1809619200000,
+     "file": "renders/im-1-odysseus-landed/night.webp",
+     "sun": {
+      "az": 171.0674,
+      "el": -11.2748,
+      "rangeKm": 150546047.5,
+      "angRadiusDeg": 0.26477,
+      "visibleFraction": 0.0,
+      "dirEnu": [
+       0.15227592,
+       -0.96880658,
+       -0.19551432
+      ],
+      "irradianceWm2": 0.0
+     },
+     "earth": {
+      "az": 353.788,
+      "el": 16.0904,
+      "rangeKm": 371732.6,
+      "angRadiusDeg": 0.98312,
+      "visibleFraction": 1.0,
+      "dirEnu": [
+       -0.10396941,
+       0.95518385,
+       0.27715369
+      ],
+      "illuminatedFraction": 0.9975
+     }
+    }
+   ],
+   "skyline": {
+    "columns": 4096,
+    "columnsWithoutTerrain": 0,
+    "pixelDeg": 0.0878,
+    "meanAbsDeg": 0.0371,
+    "p95AbsDeg": 0.081,
+    "maxAbsDeg": 0.1045
+   },
+   "notes": [
+    "Epoch search: hourly, [2026-10-09T00:00:00Z, 2027-10-09T00:00:00Z); 2 m horizon mask (terrain < 120 m excluded).",
+    "Longest Sun+Earth window 312 h; longest night 449 h.",
+    "Mesh: LOLA LDEM_80S_80M (LDEM_75S_240M fallback) on the 1737.4 km sphere, true curvature, 120 m - 300 km.",
+    "Near field < 120 m is not resolved by the DEM; the renderer fills it with a flat fan.",
+    "54379 mesh vertices had no DEM data and were set to 0 m."
+   ]
+  }
+ },
+ "generatedUtc": "2026-10-09T15:57:43Z",
+ "renderer": "Blender 5.1.2 Cycles (CPU)",
+ "settings": {
+  "width": 4096,
+  "height": 683,
+  "samples": 32,
+  "exposureEv": -2.0,
+  "outputWidth": 4096,
+  "outputHeight": 683,
+  "webpQuality": 82,
+  "fillLight": 3.0,
+  "mappingVerified": "marker test in this run: emissive spheres at az/el (0,0) (90,10) (180,-5) rendered 1024x171 and located by numpy centroid; max residual 0.176 deg"
+ },
+ "conventions": {
+  "projection": "equirectangular",
+  "centerAzimuthDeg": 0,
+  "azimuthIncreasesTo": "right",
+  "north": "away from the pole",
+  "elevationTopDeg": 30.0,
+  "elevationBottomDeg": -30.0,
+  "background": "black",
+  "frame": "MOON_ME local ENU, spherical normal",
+  "times": "UTC"
+ },
+ "honestyNotes": [
+  "Terrain is real LOLA topography (80 m/px, 240 m/px fallback) out to 300 km with true curvature; no textures.",
+  "Terrain albedo is a uniform 0.12 grey (Diffuse BSDF); real regolith reflectance varies.",
+  "Ground closer than 120 m is not resolved by the DEM: it is drawn as an unlit slate-coloured fan (a planar triangle fan from the site to the first DEM ring), not real terrain.",
+  "Shadowed terrain is lifted by a faint uniform fill light (visualisation aid, invisible in the sky) so its shape is readable; only sunlit terrain is bright. Set fill 0 for purely physical lighting.",
+  "Sun and Earth positions, sizes and Earth phase are from SPICE (DE440, LT+S); Earth is a plain sphere, no surface detail.",
+  "No stars are drawn; one fixed exposure is used for every site and epoch.",
+  "The Sun lamp uses the full-disk irradiance with the true solar diameter, so terrain shadows and penumbrae (and sunlit distant peaks while the Sun is below the site's own horizon) are geometric. The sun.irradianceWm2 field is the site's panel power proxy (x visible fraction), not the lamp."
+ ]
+}

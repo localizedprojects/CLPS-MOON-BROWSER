@@ -1,0 +1,25 @@
+# deps / envs
+node_modules/
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# build output
+dist/
+coverage/
+*.tsbuildinfo
+
+# local data cache (should live outside the repo anyway)
+.cache/
+pipeline/.cache/
+
+# editor / OS
+.vscode/*
+!.vscode/extensions.json
+.idea/
+.DS_Store
+Thumbs.db
+*.log
+.env
+.env.*

@@ -12,6 +12,7 @@ import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 
+import '../core/landing_wording.dart' show tryAgainText;
 import '../core/ranking.dart';
 import '../state/app_state.dart';
 import '../theme.dart';
@@ -113,7 +114,8 @@ class _IntroSplashState extends State<IntroSplash> with SingleTickerProviderStat
 }
 
 /// Space objects drift while the sites are ranked for the chosen goal, with
-/// the real progress under them; [onDone] once the app is ready and [minShow]
+/// the real progress under them (words and a bar that never runs ahead of
+/// the work); [onDone] once the app is ready and [minShow]
 /// (10 s, user decision 2026-10-14) has passed.
 class SpaceLoading extends StatefulWidget {
   final AppState state;
@@ -125,55 +127,168 @@ class SpaceLoading extends StatefulWidget {
   State<SpaceLoading> createState() => _SpaceLoadingState();
 }
 
+/// The real work done, 0..1, for the loading bar: nothing until the ranking
+/// has begun (it starts only once the data and the first site are loaded:
+/// 20%), then the share of sites ranked (up to 95%), and 1 only once the app
+/// is ready. It never claims more than has really happened.
+@visibleForTesting
+double loadingWork({required bool ready, required bool rankingDone, required int done, required int total}) {
+  if (ready && rankingDone) return 1;
+  if (total <= 0) return 0;
+  return 0.2 + 0.75 * (done / total).clamp(0.0, 1.0);
+}
+
+// The bar's pace over the minimum show time: short bursts and brief holds,
+// the same every run, so it feels like loading rather than a straight line.
+const _paceKeys = <(double, double)>[
+  (0, 0), (0.05, 0.04), (0.12, 0.16), (0.18, 0.18), (0.30, 0.37), (0.36, 0.39), (0.47, 0.55), //
+  (0.52, 0.57), (0.64, 0.72), (0.70, 0.74), (0.82, 0.88), (0.88, 0.90), (0.96, 0.97), (1, 1),
+];
+
+/// The pace at [x] (the share of the minimum show time gone), 0..1; below 1
+/// until the whole time has passed.
+@visibleForTesting
+double loadingPace(double x) {
+  if (x <= 0) return 0;
+  if (x >= 1) return 1;
+  for (var i = 1; i < _paceKeys.length; i++) {
+    final (x1, y1) = _paceKeys[i];
+    if (x <= x1) {
+      final (x0, y0) = _paceKeys[i - 1];
+      return y0 + (y1 - y0) * Curves.easeInOutSine.transform((x - x0) / (x1 - x0));
+    }
+  }
+  return 1;
+}
+
 class _SpaceLoadingState extends State<SpaceLoading> with TickerProviderStateMixin {
   /// The ending (1.6 s): the lander touches down, the site lights flash round
   /// the ring, and the view zooms into the Moon as it fades; then [onDone].
   late final AnimationController _outro = AnimationController(vsync: this, duration: const Duration(milliseconds: 1600));
   late final Ticker _ticker = createTicker(_tick);
-  final _shown = Stopwatch()..start();
   // seconds of scene time (2.3: a pleasant still frame under reduce motion);
   // the painter listens to it, so a frame repaints the picture, not the page
   final _t = ValueNotifier<double>(2.3);
-  bool _done = false;
-  Timer? _minTimer;
+  // the loading bar's value, 0..1 (only the bar listens to it)
+  final _bar = ValueNotifier<double>(0);
+  double _aimed = 0;
+  // time on screen, from the frames (or the steps under reduce motion); a
+  // restarted ticker counts from zero again, so its time is added to [_base]
+  Duration _elapsed = Duration.zero, _last = Duration.zero, _base = Duration.zero;
+  bool _stopped = false; // loading failed: the bar stops where it is
+  Duration? _fullAt; // when the bar filled up
+  bool _done = false, _minPassed = false;
+  Timer? _minTimer, _steps;
+
+  static const _beat = Duration(milliseconds: 350); // a moment at full before the ending
+
+  bool get _complete {
+    final s = widget.state;
+    return s.ready && s.rankingDone && _minPassed;
+  }
+
+  /// Loading failed (and has not finished anyway): nothing is moving.
+  bool get _failed {
+    final s = widget.state;
+    return s.error != null && !(s.ready && s.rankingDone);
+  }
+
+  /// Where the bar may go now: the lower of its pace and the real work, and
+  /// full only when everything is done; never back.
+  double _aim() {
+    final s = widget.state;
+    final x = _minPassed ? 1.0 : _elapsed.inMicroseconds / widget.minShow.inMicroseconds;
+    final work = loadingWork(ready: s.ready, rankingDone: s.rankingDone, done: s.rankProgress, total: s.rankTotal);
+    final aim = _complete ? 1.0 : math.min(math.min(loadingPace(x), work), 0.999);
+    return _aimed = math.max(_aimed, aim);
+  }
 
   void _tick(Duration d) {
-    _t.value = 2.3 + d.inMicroseconds / 1e6;
+    final dt = (d - _last).inMicroseconds / 1e6;
+    _last = d;
+    _elapsed = _base + d;
+    _t.value = 2.3 + _elapsed.inMicroseconds / 1e6;
+    if (_elapsed >= widget.minShow) _minPassed = true;
+    if (dt <= 0 || _stopped) return _check();
+    // glide toward the aim, settling onto it when close
+    final aim = _aim(), v = _bar.value;
+    var next = v + (aim - v) * (1 - math.exp(-dt / 0.22));
+    if (!next.isFinite || aim - next < 0.004) next = aim;
+    _bar.value = math.max(v, next);
+    if (_bar.value >= 1) _fullAt ??= _elapsed;
     _check();
   }
 
   void _check() {
-    final s = widget.state;
-    if (_done || !s.ready || !s.rankingDone || _shown.elapsed < widget.minShow) return;
-    _done = true;
+    if (_done || !_complete) return;
     if (MediaQuery.disableAnimationsOf(context)) {
+      _bar.value = 1; // under reduce motion the bar just shows where things are
+      _done = true;
       widget.onDone();
-    } else {
-      _outro.forward().whenComplete(() => mounted ? widget.onDone() : null);
+      return;
     }
+    // the ending starts once the bar has been full for a moment
+    final full = _fullAt;
+    if (full == null || _elapsed - full < _beat) return;
+    _done = true;
+    _outro.forward().whenComplete(() => mounted ? widget.onDone() : null);
+  }
+
+  void _onState() {
+    final failed = _failed;
+    if (failed != _stopped) {
+      if (!failed) {
+        // "Try again": the work starts over, so does the bar (it never sits
+        // above the restarted work)
+        _aimed = 0;
+        _bar.value = 0;
+        _fullAt = null;
+      }
+      setState(() => _stopped = failed);
+    }
+    if (!_stopped && MediaQuery.disableAnimationsOf(context)) _bar.value = math.max(_bar.value, _aim());
+    _check();
   }
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    if (!MediaQuery.disableAnimationsOf(context) && !_ticker.isActive) _ticker.start();
+    if (MediaQuery.disableAnimationsOf(context)) {
+      // no ticker: the bar steps along with the time and the work
+      if (_ticker.isActive) _ticker.stop();
+      _steps ??= Timer.periodic(const Duration(milliseconds: 250), (_) {
+        _elapsed += const Duration(milliseconds: 250);
+        _onState();
+      });
+    } else if (!_ticker.isActive) {
+      _steps?.cancel();
+      _steps = null;
+      _base = _elapsed;
+      _last = Duration.zero;
+      _ticker.start();
+    }
   }
 
   @override
   void initState() {
     super.initState();
-    widget.state.addListener(_check);
-    // under reduce motion there is no ticker: look again once the minimum has passed
-    _minTimer = Timer(widget.minShow, _check);
+    _stopped = _failed;
+    widget.state.addListener(_onState);
+    _minTimer = Timer(widget.minShow, () {
+      _minPassed = true;
+      _onState();
+    });
   }
 
   @override
   void dispose() {
-    widget.state.removeListener(_check);
+    widget.state.removeListener(_onState);
     _minTimer?.cancel();
+    _steps?.cancel();
     _outro.dispose();
     _ticker.dispose();
     _t.dispose();
+    _bar.dispose();
     super.dispose();
   }
 
@@ -209,30 +324,118 @@ class _SpaceLoadingState extends State<SpaceLoading> with TickerProviderStateMix
           alignment: const Alignment(0, 0.86),
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 32),
-            child: Semantics(
-              liveRegion: true,
-              label: line,
-              excludeSemantics: true,
-              child: Column(mainAxisSize: MainAxisSize.min, children: [
-                Text(line, textAlign: TextAlign.center, style: PHText.body.copyWith(color: PH.muted)),
-                const SizedBox(height: 12),
-                SizedBox(
-                  width: 220,
-                  child: LinearProgressIndicator(
-                    value: ranking ? done / total : (s.ready ? 1 : null),
-                    minHeight: 3,
-                    backgroundColor: PH.line,
-                    color: PH.ice,
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+              Semantics(
+                liveRegion: true,
+                label: line,
+                excludeSemantics: true,
+                child: Text(line, textAlign: TextAlign.center, style: PHText.body.copyWith(color: PH.muted)),
+              ),
+              const SizedBox(height: 14),
+              LoadingBar(value: _bar, stopped: _stopped),
+              if (_stopped) ...[
+                const SizedBox(height: 14),
+                Semantics(
+                  button: true,
+                  label: tryAgainText,
+                  excludeSemantics: true,
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(minHeight: 48, minWidth: 48),
+                    child: OutlinedButton(onPressed: () => s.init(), child: const Text(tryAgainText)),
                   ),
                 ),
-              ]),
-            ),
+              ],
+            ]),
           ),
         ),
       ]),
       ),
     );
   }
+}
+
+/// A slim rounded bar for [value] (0..1), in neutral ice (it is neither the
+/// Sun nor Earth); muted with no value when loading has [stopped]. Only the
+/// paint follows every frame; screen readers hear 10% steps.
+class LoadingBar extends StatefulWidget {
+  final ValueListenable<double> value;
+  final bool stopped;
+  const LoadingBar({super.key, required this.value, this.stopped = false});
+  @override
+  State<LoadingBar> createState() => _LoadingBarState();
+}
+
+/// The value screen readers hear for [v]: whole tens of percent.
+@visibleForTesting
+int loadingSpoken(double v) => v.isFinite ? ((v.clamp(0.0, 1.0) * 10).floor() * 10) : 0;
+
+class _LoadingBarState extends State<LoadingBar> {
+  late int _said = loadingSpoken(widget.value.value);
+
+  void _onValue() {
+    final n = loadingSpoken(widget.value.value);
+    if (n != _said) setState(() => _said = n);
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    widget.value.addListener(_onValue);
+  }
+
+  @override
+  void didUpdateWidget(LoadingBar old) {
+    super.didUpdateWidget(old);
+    if (old.value != widget.value) {
+      old.value.removeListener(_onValue);
+      widget.value.addListener(_onValue);
+      _said = loadingSpoken(widget.value.value);
+    }
+  }
+
+  @override
+  void dispose() {
+    widget.value.removeListener(_onValue);
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+        label: widget.stopped ? 'Loading stopped' : 'Loading',
+        value: widget.stopped ? null : '$_said percent',
+        excludeSemantics: true,
+        child: RepaintBoundary(
+          child: SizedBox(
+            key: const ValueKey('loading-bar'),
+            width: 264,
+            height: 5,
+            child: CustomPaint(painter: _BarPainter(widget.value, stopped: widget.stopped)),
+          ),
+        ),
+      );
+}
+
+class _BarPainter extends CustomPainter {
+  final ValueListenable<double> value;
+  final bool stopped;
+  _BarPainter(this.value, {required this.stopped}) : super(repaint: value);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final v = value.value;
+    final rr = Radius.circular(size.height / 2);
+    canvas.drawRRect(RRect.fromRectAndRadius(Offset.zero & size, rr), Paint()..color = PH.line);
+    if (!(v > 0)) return;
+    final fill = Rect.fromLTWH(0, 0, math.max(size.height, size.width * v.clamp(0.0, 1.0)), size.height);
+    canvas.drawRRect(
+        RRect.fromRectAndRadius(fill, rr),
+        stopped
+            ? (Paint()..color = PH.muted.withValues(alpha: 0.5))
+            : (Paint()..shader = LinearGradient(colors: [PH.ice.withValues(alpha: 0.55), PH.ice]).createShader(fill)));
+  }
+
+  @override
+  bool shouldRepaint(covariant _BarPainter old) => old.value != value || old.stopped != stopped;
 }
 
 /// The loading scene at [t] seconds, looking down on the Moon's south pole:

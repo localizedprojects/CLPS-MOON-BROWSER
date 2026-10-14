@@ -104,7 +104,15 @@ class NowStatus extends StatelessWidget {
   /// for a short phone pane (360 x 640), so the timeline's answer lines fit
   /// above the time bar.
   final bool dense;
-  const NowStatus({super.key, required this.state, this.dense = false});
+
+  /// Keep the height of the longest wording, whatever the time shown, so
+  /// the charts below never move while Play steps the time (their words
+  /// change, and wrap to more or fewer lines, on every step).
+  final bool reserve;
+  const NowStatus({super.key, required this.state, this.dense = false, this.reserve = false});
+
+  /// The longest line each chip can show (for [reserve]).
+  static String _longest(Iterable<String> all) => all.reduce((a, b) => b.length > a.length ? b : a);
 
   @override
   Widget build(BuildContext context) {
@@ -143,20 +151,37 @@ class NowStatus extends StatelessWidget {
             ),
           ],
         );
-    final body = dense
+    Widget lay(String both, GlyphKind bothGlyph, String sun, String earth) => dense
         ? DefaultTextStyle.merge(
             style: style,
             child: Wrap(children: [
-              part(lines.bothGlyph, lines.both, strong: true),
-              part(GlyphKind.sun, lines.sun),
-              part(GlyphKind.earth, lines.earth, last: true),
+              part(bothGlyph, both, strong: true),
+              part(GlyphKind.sun, sun),
+              part(GlyphKind.earth, earth, last: true),
             ]),
           )
         : Wrap(spacing: 8, runSpacing: 8, children: [
-            chip(lines.bothGlyph, lines.both, strong: true),
-            chip(GlyphKind.sun, lines.sun),
-            chip(GlyphKind.earth, lines.earth),
+            chip(bothGlyph, both, strong: true),
+            chip(GlyphKind.sun, sun),
+            chip(GlyphKind.earth, earth),
           ]);
+    var body = lay(lines.both, lines.bothGlyph, lines.sun, lines.earth);
+    if (reserve) {
+      const states = ['up', 'partly', 'notCounted', 'behindHills', 'belowHorizon', 'noDsn'];
+      final contact = o.requireDsn ? 'Earth contact' : 'Earth in view';
+      final longest = lay(
+        _longest(['Power + $contact now', 'Power now, but no $contact', '$contact now, but no sunlight for power',
+          'No power and no $contact now']),
+        GlyphKind.both,
+        _longest([for (final st in states.take(5)) bodyChipText('Sun', st, 0.99)]),
+        _longest([for (final st in states) bodyChipText('Earth', st, 0.99)]),
+      );
+      // the longest wording, unseen, holds the height; the real one on top
+      body = Stack(children: [
+        ExcludeSemantics(child: Visibility(visible: false, maintainSize: true, maintainAnimation: true, maintainState: true, child: longest)),
+        body,
+      ]);
+    }
     // one live region with the whole sentence, read once per change
     return Semantics(
       liveRegion: true,

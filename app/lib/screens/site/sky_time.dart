@@ -20,6 +20,7 @@ import '../../theme.dart';
 import '../../widgets/chart_focus.dart';
 import '../../widgets/expert_numbers.dart';
 import '../../widgets/explain.dart';
+import '../../widgets/hide_on_scroll.dart';
 import '../../widgets/now_status.dart';
 import '../../widgets/time_bar.dart';
 
@@ -127,10 +128,19 @@ class _SkyTimeTabState extends State<SkyTimeTab> {
   bool _wasShown = false;
   double? _leftAt;
 
+  /// Whether Play was on at the last AppState change.
+  bool _wasPlaying = false;
+
+  /// Since Play started on this tab, NowStatus keeps the height of its
+  /// longest wording, so the charts below it stay still on every step (and
+  /// after a pause); leaving the tab lets it fit its words again.
+  bool _reserve = false;
+
   @override
   void initState() {
     super.initState();
     _wasShown = _shown;
+    _wasPlaying = widget.state.playing;
     widget.state.addListener(_onState);
   }
 
@@ -160,7 +170,16 @@ class _SkyTimeTabState extends State<SkyTimeTab> {
     if (shown && !_wasShown && _leftAt != null && _leftAt != s.cursorMs && _scroll.hasClients) {
       _scroll.jumpTo(0);
     }
+    if (!shown && _reserve) setState(() => _reserve = false);
+    // the user chose to play: the top bars slide away (on a phone) and the
+    // charts keep that room and stay still until the user scrolls back to
+    // the very top
+    if (shown && s.playing && !_wasPlaying) {
+      if (!_reserve) setState(() => _reserve = true);
+      if (_scroll.hasClients) HideOnScroll.hide(context, _scroll.position);
+    }
     _wasShown = shown;
+    _wasPlaying = s.playing;
   }
 
   @override
@@ -195,7 +214,7 @@ class _SkyTimeTabState extends State<SkyTimeTab> {
     List<Widget> column(double width, {double? paneHeight, bool dense = false}) {
       final skyH = skyPanelHeight(width, paneHeight);
       return [
-        NowStatus(state: s, dense: dense),
+        NowStatus(state: s, dense: dense, reserve: _reserve),
         if (!dense) ...notes,
         if (s.explainInline) explainSkyTime,
         // on a wide pane the (square) plot is centred, not full width: the
@@ -320,7 +339,7 @@ class _SkyTimeTabState extends State<SkyTimeTab> {
     List<Widget> column(double width, {bool dense = false}) {
       final skyW = math.min(width, 600.0);
       return [
-        NowStatus(state: s, dense: dense),
+        NowStatus(state: s, dense: dense, reserve: _reserve),
         if (!dense) ...notes,
         if (s.explainInline) explainTimeline,
         SizedBox(

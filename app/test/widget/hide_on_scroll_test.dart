@@ -177,4 +177,62 @@ void main() {
     await settle(tester);
     expect(topH(tester), 0);
   });
+
+  ScrollPosition pos(WidgetTester tester) => tester.state<ScrollableState>(find.byType(Scrollable)).position;
+
+  testWidgets('only the user brings it back: a jump to the top or the page changing size does not', (tester) async {
+    await tester.pumpWidget(page());
+    await tester.dragFrom(at, const Offset(0, -300));
+    await settle(tester);
+    expect(topH(tester), 0);
+    pos(tester).jumpTo(0); // a scroll made by the app
+    await settle(tester);
+    expect(topH(tester), 0, reason: 'a jump made by the app keeps it hidden');
+    await tester.pumpWidget(page(rows: 40)); // the page shrinks (still scrollable)
+    await settle(tester);
+    expect(topH(tester), 0, reason: 'a layout change keeps it hidden');
+    await tester.dragFrom(at, const Offset(0, 120)); // the user pulls down at the top
+    await settle(tester);
+    expect(topH(tester), 60);
+  });
+
+  testWidgets('hide() hides it for the app (Play); only the very top shows it again', (tester) async {
+    await tester.pumpWidget(page(nested: true));
+    final ctx = tester.element(find.text('row 0'));
+    HideOnScroll.hide(ctx, pos(tester));
+    await settle(tester);
+    expect(topH(tester, 0), 0);
+    expect(topH(tester, 1), 0, reason: 'the bars hide together');
+    await tester.dragFrom(at, const Offset(0, -300));
+    await settle(tester);
+    await tester.dragFrom(at, const Offset(0, 100));
+    await settle(tester);
+    expect(topH(tester, 0), 0, reason: 'a partial scroll up keeps it hidden');
+    await tester.dragFrom(at, const Offset(0, 2000));
+    await settle(tester);
+    expect(topH(tester, 0), 60);
+    expect(topH(tester, 1), 40);
+  });
+
+  testWidgets('hide() does nothing on a short page or with a screen reader on', (tester) async {
+    await tester.pumpWidget(page(rows: 12));
+    HideOnScroll.hide(tester.element(find.text('row 0')), pos(tester));
+    await settle(tester);
+    expect(topH(tester), 60, reason: 'it could never come back');
+    await tester.pumpWidget(page(reader: true));
+    HideOnScroll.hide(tester.element(find.text('row 0')), pos(tester));
+    await settle(tester);
+    expect(topH(tester), 60);
+  });
+
+  testWidgets('a page that stops scrolling brings it back (never stuck hidden)', (tester) async {
+    await tester.pumpWidget(page());
+    await tester.dragFrom(at, const Offset(0, -300));
+    await settle(tester);
+    expect(topH(tester), 0);
+    await tester.pumpWidget(page(rows: 3));
+    await settle(tester);
+    await settle(tester);
+    expect(topH(tester), 60);
+  });
 }

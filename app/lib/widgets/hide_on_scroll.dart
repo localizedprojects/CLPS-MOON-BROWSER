@@ -150,10 +150,18 @@ class _HideOnScrollState extends State<HideOnScroll> {
     return h;
   }
 
+  /// How deep the page sits: 0, or 1 under a [HideOnScrollPages] (the
+  /// sideways Site tabs) that lies between this bar and the page.
+  int _pagesDepth(BuildContext? page) {
+    final pages = page?.getInheritedWidgetOfExactType<HideOnScrollPages>();
+    if (pages == null || identical(context.getInheritedWidgetOfExactType<HideOnScrollPages>(), pages)) return 0;
+    return 1;
+  }
+
   bool _onScroll(ScrollNotification n) {
     // only the page itself, scrolled up or down: not a carousel, a chart or
     // a list nested inside the page
-    if (_leader != null || n.depth != 0 || n.metrics.axis != Axis.vertical) return false;
+    if (_leader != null || n.depth != _pagesDepth(n.context) || n.metrics.axis != Axis.vertical) return false;
     final m = n.metrics;
     if (n is UserScrollNotification) {
       _dir = n.direction;
@@ -188,7 +196,7 @@ class _HideOnScrollState extends State<HideOnScroll> {
   /// or shrinking while Play runs, or sitting at its top after a jump) keeps
   /// the bar as it is, so nothing moves under the user.
   bool _onMetrics(ScrollMetricsNotification n) {
-    if (_leader != null || n.depth != 0 || n.metrics.axis != Axis.vertical) return false;
+    if (_leader != null || n.depth != _pagesDepth(n.context) || n.metrics.axis != Axis.vertical) return false;
     if (_page == null || n.context != _page) return false;
     final m = n.metrics;
     if (m.maxScrollExtent - m.minScrollExtent < 0.5) _set(false);
@@ -243,6 +251,15 @@ class _HideOnScrollState extends State<HideOnScroll> {
 }
 
 /// Lets an inner bar find the outer one it hides with.
+/// Marks a PageView of whole pages (the Site tabs): a page inside it still
+/// hides the bar above, though the PageView adds one level of scrolling.
+class HideOnScrollPages extends InheritedWidget {
+  const HideOnScrollPages({super.key, required super.child});
+
+  @override
+  bool updateShouldNotify(HideOnScrollPages old) => false;
+}
+
 class _HideScope extends InheritedWidget {
   final _HideOnScrollState? state;
   const _HideScope({required this.state, required super.child});

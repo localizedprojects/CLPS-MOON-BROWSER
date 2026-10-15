@@ -15,6 +15,7 @@ import '../state/app_state.dart';
 import '../theme.dart';
 import 'chart_bridge.dart' show utcLabel;
 import 'hide_on_scroll.dart';
+import 'no_page_swipe.dart';
 
 /// The cursor time on two lines: "17 Sep 2027" and "20:00 UTC".
 (String, String) utcTwoLines(double ms) {
@@ -107,8 +108,11 @@ class _TimeScrubberState extends State<TimeScrubber> {
     });
   }
 
+  // sideways drags on the bar (the slider, the strip) never turn the Site page
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => NoPageSwipe(child: _bar(context));
+
+  Widget _bar(BuildContext context) {
     final bar = state.timeControlsHidden
         ? TimeStrip(
             key: const ValueKey('time-strip'),

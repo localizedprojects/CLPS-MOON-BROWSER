@@ -1,7 +1,8 @@
 /// Site: the selected site's header (name, kind, a "Change site" button) and
 /// its three sub-tabs, Overview · Sky & time · Light & shadow, bound to
 /// `AppState.siteTab`. From 1100 px wide the Overview is a fixed 440 dp left
-/// pane and the right pane switches between Sky & time and Light & shadow.
+/// pane and the right pane switches between Sky & time and Light & shadow;
+/// narrower, one tab shows at a time and a sideways swipe turns to the next.
 library;
 
 import 'package:flutter/material.dart';
@@ -93,7 +94,9 @@ class SiteScreen extends StatelessWidget {
       ]);
     }
     final chips = _TabChips(state: s, tabs: SiteTab.values, selected: s.siteTab);
-    final tabs = _LazyTabs(index: s.siteTab.index, children: [
+    // one tab at a time: a sideways swipe turns to the next one, as the chips do
+    void swipedTo(int i) => s.goTo(Dest.site, siteTab: SiteTab.values[i]);
+    final tabs = _SwipeTabs(index: s.siteTab.index, onSwipe: swipedTo, children: [
       () => const SiteOverview(),
       () => SkyTimeTab(state: s),
       () => LightTab(state: s),
@@ -315,5 +318,174 @@ class _LazyTabsState extends State<_LazyTabs> {
           ),
       ],
     );
+  }
+}
+
+/// The tabs one at a time, in a PageView: a sideways swipe turns to the next
+/// tab (no wrap at the ends) and tells [onSwipe]; a new [index] (a chip, a
+/// deep link) slides there, or jumps with reduce motion. As in [_LazyTabs],
+/// each tab is built on its first visit and then kept alive (chart web
+/// views, scroll positions and the light map survive a swipe); a tab not yet
+/// visited is blank while a swipe peeks at it. Sideways drags on a slider, a
+/// list, a chart or the time bar stay theirs (NoPageSwipe).
+class _SwipeTabs extends StatefulWidget {
+  final int index;
+  final ValueChanged<int> onSwipe;
+  final List<Widget Function()> children;
+  const _SwipeTabs({required this.index, required this.onSwipe, required this.children});
+  @override
+  State<_SwipeTabs> createState() => _SwipeTabsState();
+}
+
+class _SwipeTabsState extends State<_SwipeTabs> {
+  late final PageController _pages = PageController(initialPage: widget.index);
+  final Set<int> _built = {};
+
+  /// The tab last swiped to or asked for.
+  late int _shown;
+
+  /// A chip or deep link is sliding the pages: the ones passed on the way
+  /// are not swipes.
+  bool _sliding = false;
+  int _slideGen = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _shown = widget.index;
+  }
+
+  @override
+  void didUpdateWidget(_SwipeTabs old) {
+    super.didUpdateWidget(old);
+    if (widget.index != _shown) {
+      _shown = widget.index;
+      _turnTo(widget.index);
+    }
+  }
+
+  void _turnTo(int i) {
+    if (!_pages.hasClients) return;
+    if (MediaQuery.disableAnimationsOf(context)) {
+      _pages.jumpToPage(i);
+      return;
+    }
+    // a newer slide cancels this one: only the latest one ends the slide
+    final gen = ++_slideGen;
+    _sliding = true;
+    _pages.animateToPage(i, duration: PH.fade, curve: Curves.easeOutCubic).whenComplete(() {
+      if (gen == _slideGen) _sliding = false;
+    });
+  }
+
+  /// The pages' own scroll (not a list or chart inside a page).
+  bool _ours(ScrollNotification n) => n.depth == 0 && n.metrics.axis == Axis.horizontal;
+
+  bool _onScroll(ScrollNotification n) {
+    if (!_ours(n)) return false;
+    if (n is ScrollStartNotification && n.dragDetails != null) {
+      // a drag starts: build both neighbours now, so the page swiped in is
+      // never blank (each is built once, then kept alive)
+      final i = widget.index;
+      final more = {i - 1, i + 1}.where((k) => k >= 0 && k < widget.children.length && !_built.contains(k));
+      if (more.isNotEmpty) setState(() => _built.addAll(more));
+    } else if (n is ScrollEndNotification && !_sliding && _pages.hasClients && _pages.page != null) {
+      // the tab changes only once the pages settle, never halfway through a
+      // drag that may still go back
+      final k = _pages.page!.round();
+      if (k != _shown) {
+        _shown = k;
+        widget.onSwipe(k);
+      }
+    }
+    return false;
+  }
+
+  /// Left and right arrow keys turn a whole page (the default would nudge
+  /// the pages 50 px and snap back); other scrolls keep the default.
+  late final Action<ScrollIntent> _arrows = _PageArrowAction(this);
+
+  void _arrowTo(int k) {
+    if (k < 0 || k >= widget.children.length || k == _shown) return;
+    _shown = k;
+    widget.onSwipe(k);
+    _turnTo(k);
+  }
+
+  @override
+  void dispose() {
+    _pages.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final i = widget.index;
+    _built.add(i);
+    // a page inside still hides the bars above as it scrolls
+    // the tab changes when the pages settle (_onScroll); arrow keys turn a
+    // whole page (_PageArrowAction)
+    return HideOnScrollPages(
+      child: Actions(
+        actions: {ScrollIntent: _arrows},
+        child: NotificationListener<ScrollNotification>(
+          onNotification: _onScroll,
+          child: PageView.builder(
+            controller: _pages,
+            itemCount: widget.children.length,
+            // no tickers, tooltips or focus on a tab that is not the current
+            // one (new-sun-earth-tooltip), as in _LazyTabs
+            itemBuilder: (context, k) => TickerMode(
+              enabled: k == i,
+              child: TooltipVisibility(
+                visible: k == i,
+                child: ExcludeFocus(
+                  excluding: k != i,
+                  child: _built.contains(k) ? _KeptPage(child: widget.children[k]()) : const SizedBox.expand(),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// [ScrollAction] for the Site pages: a left or right arrow press that would
+/// scroll the pages turns one page instead.
+class _PageArrowAction extends ScrollAction {
+  final _SwipeTabsState tabs;
+  _PageArrowAction(this.tabs);
+
+  @override
+  void invoke(ScrollIntent intent, [BuildContext? context]) {
+    final horizontal = intent.direction == AxisDirection.left || intent.direction == AxisDirection.right;
+    final from = context ?? primaryFocus?.context;
+    final target = from == null ? null : Scrollable.maybeOf(from, axis: Axis.horizontal);
+    if (horizontal && tabs._pages.hasClients && target?.position == tabs._pages.position) {
+      tabs._arrowTo(tabs._shown + (intent.direction == AxisDirection.right ? 1 : -1));
+      return;
+    }
+    super.invoke(intent, context);
+  }
+}
+
+/// A visited tab stays built while the PageView shows another one.
+class _KeptPage extends StatefulWidget {
+  final Widget child;
+  const _KeptPage({required this.child});
+  @override
+  State<_KeptPage> createState() => _KeptPageState();
+}
+
+class _KeptPageState extends State<_KeptPage> with AutomaticKeepAliveClientMixin {
+  @override
+  bool get wantKeepAlive => true;
+
+  @override
+  Widget build(BuildContext context) {
+    super.build(context);
+    return widget.child;
   }
 }

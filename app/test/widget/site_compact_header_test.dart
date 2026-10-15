@@ -40,6 +40,8 @@ void main() {
     await tester.pump();
     state.openSite(id, tab: tab);
     await settle(tester);
+    // the Site pages finish sliding to the tab (they take no touches meanwhile)
+    await tester.pump(const Duration(milliseconds: 100));
     expect(state.dest, Dest.site);
   }
 
@@ -84,14 +86,10 @@ void main() {
     expect(site0, greaterThan(100), reason: 'the header sits above the tab');
     expect(shell0, greaterThan(50), reason: 'the app bar and the pill sit above the page');
 
-    // the user reads further down: a drag up on the tab content
-    // the tab's own scroll (the shown one that scrolls), dragged near its
-    // left edge, clear of the charts
-    final page = tester
-        .stateList<ScrollableState>(find.byType(Scrollable))
-        .where((st) => st.position.axis == Axis.vertical && st.position.hasContentDimensions && st.position.maxScrollExtent > 0)
-        .last;
-    final at = tester.getRect(find.byWidget(page.widget)).centerLeft + const Offset(3, 0);
+    // the user reads further down: a drag up on the tab content, near the
+    // left edge of the Site pages, clear of the charts (a tab visited before
+    // stays built beside the shown one, so not "the last scrollable")
+    final at = tester.getRect(find.byType(PageView)).centerLeft + const Offset(3, 0);
     await tester.dragFrom(at, const Offset(0, -200));
     await settle(tester);
     expect(topH(site), 0, reason: 'the header slid away and the tab took its height');

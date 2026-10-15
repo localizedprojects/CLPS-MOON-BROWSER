@@ -22,6 +22,7 @@ import '../state/chart_hub.dart';
 import '../theme.dart';
 import 'chart_bridge.dart';
 import 'chart_view.dart';
+import 'no_page_swipe.dart';
 
 /// A chart on a page that opens full screen (a still picture) when touched.
 class FocusableChart extends StatelessWidget {
@@ -46,7 +47,9 @@ class FocusableChart extends StatelessWidget {
     }
     void open() => openChartFocus(context,
         hub: hub, controller: controller, title: title, semanticsLabel: semanticsLabel, landscape: landscape);
-    return Stack(fit: StackFit.passthrough, children: [
+    // a sideways drag on the chart never turns the Site page
+    return NoPageSwipe(
+        child: Stack(fit: StackFit.passthrough, children: [
       ChartView(controller: controller, semanticsLabel: semanticsLabel),
       // a touch anywhere opens the full-screen picture; vertical drags still
       // scroll the page
@@ -68,7 +71,7 @@ class FocusableChart extends StatelessWidget {
           icon: const Icon(Icons.open_in_full, size: 20),
         ),
       ),
-    ]);
+    ]));
   }
 }
 

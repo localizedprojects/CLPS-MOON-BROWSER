@@ -48,6 +48,9 @@ void main() {
 
   tearDownAll(() => state.dispose());
 
+  // Sky & time's own time bar: Light & shadow, once visited, stays built
+  // beside it in the Site pages with a bar of its own
+  Finder skyBar() => find.descendant(of: find.byType(SkyTimeTab), matching: find.byType(TimeBar));
   Finder chart(String label) => find.byWidgetPredicate((w) => w is ChartView && w.semanticsLabel == label);
 
   /// Overview › "Show me" in the app shell at [size]: Sky & time at the
@@ -123,7 +126,7 @@ void main() {
       expect(chart(whenChartLabel), findsNothing);
       expect(chart(whereChartLabel), findsNothing);
 
-      final bar = tester.getRect(find.byType(TimeBar));
+      final bar = tester.getRect(skyBar());
       final scrollable = find.ancestor(of: sky, matching: find.byType(Scrollable)).first;
       final view = tester.getRect(scrollable);
       final r = tester.getRect(sky);
@@ -144,10 +147,10 @@ void main() {
       final scroll = tester.state<ScrollableState>(scrollable);
       scroll.position.jumpTo(scroll.position.maxScrollExtent);
       await tester.pump();
-      expect(tester.getRect(tl).bottom, lessThanOrEqualTo(tester.getRect(find.byType(TimeBar)).top + 0.5));
+      expect(tester.getRect(tl).bottom, lessThanOrEqualTo(tester.getRect(skyBar()).top + 0.5));
       final sw = find.byType(SimpleViewSwitch);
       expect(sw, findsOneWidget);
-      expect(tester.getRect(sw).bottom, lessThanOrEqualTo(tester.getRect(find.byType(TimeBar)).top + 0.5));
+      expect(tester.getRect(sw).bottom, lessThanOrEqualTo(tester.getRect(skyBar()).top + 0.5));
       expect(tester.getSize(sw).height, greaterThanOrEqualTo(48));
       expect(tester.takeException(), isNull);
       semantics.dispose();
@@ -174,7 +177,7 @@ void main() {
 
       // the When header and its two answer lines are on screen, above the
       // bar, with no scrolling
-      final bar = tester.getRect(find.byType(TimeBar));
+      final bar = tester.getRect(skyBar());
       final scrollable = find.ancestor(of: when, matching: find.byType(Scrollable)).first;
       final view = tester.getRect(scrollable);
       final w = tester.getRect(when);
@@ -194,7 +197,7 @@ void main() {
       final ctx = tester.element(when);
       await tester.runAsync(() => Scrollable.ensureVisible(ctx, alignment: 1));
       await tester.pump();
-      expect(tester.getRect(when).bottom, lessThanOrEqualTo(tester.getRect(find.byType(TimeBar)).top + 0.5));
+      expect(tester.getRect(when).bottom, lessThanOrEqualTo(tester.getRect(skyBar()).top + 0.5));
       expect(tester.getRect(when).bottom, greaterThan(view.top));
       final scroll = tester.state<ScrollableState>(scrollable);
       scroll.position.jumpTo(scroll.position.pixels + 60);
@@ -206,7 +209,7 @@ void main() {
       expect(iWhere, greaterThan(iWhen), reason: 'the timeline comes before the sky plot');
       scroll.position.jumpTo(scroll.position.maxScrollExtent);
       await tester.pump();
-      expect(tester.getRect(where).bottom, lessThanOrEqualTo(tester.getRect(find.byType(TimeBar)).top + 0.5));
+      expect(tester.getRect(where).bottom, lessThanOrEqualTo(tester.getRect(skyBar()).top + 0.5));
 
       // and off again: the classic charts are back
       hubOf(tester).setSimpleView(false);

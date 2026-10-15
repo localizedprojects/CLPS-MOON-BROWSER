@@ -238,7 +238,7 @@ class _SkyTimeTabState extends State<SkyTimeTab> {
           return SingleChildScrollView(
             controller: _scroll,
             padding: const EdgeInsets.all(6),
-            child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [bar, ...column(outer.maxWidth - 12, dense: true)]),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [TimeBar(state: s, compact: short, alignTop: true), ...column(outer.maxWidth - 12, dense: true)]),
           );
         }
         return Column(
@@ -369,7 +369,7 @@ class _SkyTimeTabState extends State<SkyTimeTab> {
           return SingleChildScrollView(
             controller: _scroll,
             padding: const EdgeInsets.all(6),
-            child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [bar, ...column(outer.maxWidth - 12, dense: true)]),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [TimeBar(state: s, compact: short, alignTop: true), ...column(outer.maxWidth - 12, dense: true)]),
           );
         }
         return Column(

@@ -175,6 +175,7 @@ class _SpaceLoadingState extends State<SpaceLoading> with TickerProviderStateMix
   // time on screen, from the frames (or the steps under reduce motion); a
   // restarted ticker counts from zero again, so its time is added to [_base]
   Duration _elapsed = Duration.zero, _last = Duration.zero, _base = Duration.zero;
+  Duration _paceBase = Duration.zero; // when the pace started (the last retry)
   bool _stopped = false; // loading failed: the bar stops where it is
   Duration? _fullAt; // when the bar filled up
   bool _done = false, _minPassed = false;
@@ -197,8 +198,14 @@ class _SpaceLoadingState extends State<SpaceLoading> with TickerProviderStateMix
   /// full only when everything is done; never back.
   double _aim() {
     final s = widget.state;
-    final x = _minPassed ? 1.0 : _elapsed.inMicroseconds / widget.minShow.inMicroseconds;
-    final work = loadingWork(ready: s.ready, rankingDone: s.rankingDone, done: s.rankProgress, total: s.rankTotal);
+    // the pace runs from the start, or from the last "Try again" (so a retry
+    // has its bursts and holds too); the minimum time stays on the first clock
+    final paced = _elapsed - _paceBase;
+    final x = _minPassed && _paceBase == Duration.zero ? 1.0 : paced.inMicroseconds / widget.minShow.inMicroseconds;
+    // while the data is still loading nothing is ranked, whatever the counters say
+    final work = s.loading
+        ? 0.0
+        : loadingWork(ready: s.ready, rankingDone: s.rankingDone, done: s.rankProgress, total: s.rankTotal);
     final aim = _complete ? 1.0 : math.min(math.min(loadingPace(x), work), 0.999);
     return _aimed = math.max(_aimed, aim);
   }
@@ -243,6 +250,7 @@ class _SpaceLoadingState extends State<SpaceLoading> with TickerProviderStateMix
         _aimed = 0;
         _bar.value = 0;
         _fullAt = null;
+        _paceBase = _elapsed;
       }
       setState(() => _stopped = failed);
     }
@@ -335,14 +343,10 @@ class _SpaceLoadingState extends State<SpaceLoading> with TickerProviderStateMix
               LoadingBar(value: _bar, stopped: _stopped),
               if (_stopped) ...[
                 const SizedBox(height: 14),
-                Semantics(
-                  button: true,
-                  label: tryAgainText,
-                  excludeSemantics: true,
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(minHeight: 48, minWidth: 48),
-                    child: OutlinedButton(onPressed: () => s.init(), child: const Text(tryAgainText)),
-                  ),
+                // the button's own semantics keep its tap action for screen readers
+                ConstrainedBox(
+                  constraints: const BoxConstraints(minHeight: 48, minWidth: 48),
+                  child: OutlinedButton(onPressed: () => s.init(), child: const Text(tryAgainText)),
                 ),
               ],
             ]),
@@ -404,14 +408,20 @@ class _LoadingBarState extends State<LoadingBar> {
         label: widget.stopped ? 'Loading stopped' : 'Loading',
         value: widget.stopped ? null : '$_said percent',
         excludeSemantics: true,
-        child: RepaintBoundary(
-          child: SizedBox(
-            key: const ValueKey('loading-bar'),
-            width: 264,
-            height: 5,
-            child: CustomPaint(painter: _BarPainter(widget.value, stopped: widget.stopped)),
-          ),
-        ),
+        child: LayoutBuilder(builder: (context, box) {
+          // phones: 264 wide (less on a very narrow screen); tablets: a bit
+          // wider and thicker so it keeps its weight on the bigger scene
+          final tablet = MediaQuery.sizeOf(context).shortestSide >= 600;
+          final w = math.min(tablet ? 360.0 : 264.0, box.maxWidth);
+          return RepaintBoundary(
+            child: SizedBox(
+              key: const ValueKey('loading-bar'),
+              width: w.isFinite ? w : 264,
+              height: tablet ? 6 : 5,
+              child: CustomPaint(painter: _BarPainter(widget.value, stopped: widget.stopped)),
+            ),
+          );
+        }),
       );
 }
 

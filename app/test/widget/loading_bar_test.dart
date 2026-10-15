@@ -25,6 +25,29 @@ class _Progress extends AppState {
     n = total ?? n;
     rd = ranked ?? rd;
     r = isReady ?? r;
+    // as in AppState: the ranking (and its counters) starts once the data is in
+    if (n > 0 || r) loading = false;
+    notifyListeners();
+  }
+
+  /// "Try again" as the real [AppState.init] does it: the error goes, the
+  /// data loads again, and the ranking counters start over.
+  void retry() {
+    error = null;
+    loading = true;
+    r = false;
+    rd = false;
+    d = 0;
+    n = 0;
+    notifyListeners();
+  }
+
+  /// The failed retry's counters as they were before the fix (init kept them):
+  /// the bar must still read nothing as done while the data loads.
+  void retryKeepingCounters() {
+    error = null;
+    loading = true;
+    r = false;
     notifyListeners();
   }
 
@@ -196,11 +219,28 @@ void main() {
     expect(tester.getSize(find.byType(OutlinedButton)).height, greaterThanOrEqualTo(48));
     expect(done, isFalse);
     // the retry clears the error and starts the work over: so does the bar
-    s.fail(null);
-    s.set(done: 0, total: 16);
-    await tester.pump(const Duration(milliseconds: 50));
-    expect(_bar(tester), lessThanOrEqualTo(s.work + 1e-9));
+    // even with the old run's counters still there, nothing counts as done
+    // while the data loads again (the work is 0 then)
+    s.retryKeepingCounters();
+    expect(s.d, 4);
+    for (var i = 0; i < 200; i++) {
+      await tester.pump(const Duration(milliseconds: 50));
+      expect(_bar(tester), 0, reason: 'nothing is ranked while the data reloads (frame $i)');
+    }
     expect(find.text('Try again'), findsNothing);
+    // the ranking starts over: the bar follows it from 0 again, with its pace
+    s.set(done: 0, total: 16);
+    var last = 0.0;
+    for (var i = 0; i < 200; i++) {
+      if (i % 10 == 9 && s.d < 16) s.set(done: s.d + 1);
+      await tester.pump(const Duration(milliseconds: 50));
+      final b = _bar(tester);
+      expect(b, lessThanOrEqualTo(s.work + 1e-9), reason: 'frame $i');
+      expect(b, greaterThanOrEqualTo(last));
+      last = b;
+    }
+    // the retried pace has its own holds: it does not jump straight to the work
+    expect(done, isFalse);
     semantics.dispose();
     await tester.pumpWidget(const SizedBox());
   });
@@ -237,4 +277,61 @@ void main() {
     expect(_bar(tester), 1);
     await tester.pumpWidget(const SizedBox());
   });
+
+  for (final (name, size, width) in [
+    ('a small phone', const Size(320, 640), 256.0),
+    ('a phone', const Size(390, 844), 264.0),
+    ('a tablet', const Size(1024, 1366), 360.0),
+  ]) {
+    testWidgets('the bar fits $name without overflow', (tester) async {
+      tester.view.physicalSize = size;
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      final s = _Progress()..set(done: 4, total: 16);
+      addTearDown(s.dispose);
+      await tester.pumpWidget(_host(SpaceLoading(state: s, onDone: () {})));
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(tester.getSize(find.byKey(const ValueKey('loading-bar'))).width, width);
+      expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox());
+    });
+  }
+
+  test('the real AppState: a failed first ranking, then Try again, starts the counters over', () async {
+    final probe = AppState();
+    final firstSelected = probe.selectedId;
+    await probe.init();
+    final victim = probe.allSites
+        .map((x) => x.id)
+        .lastWhere((id) => id != firstSelected && !AppState.exampleShortlist.contains(id));
+    probe.dispose();
+
+    final s = AppState()..debugFailSiteId = victim;
+    addTearDown(s.dispose);
+    await s.init();
+    expect(s.error, isNotNull);
+    expect(s.ready, isFalse);
+    expect(s.rankProgress, greaterThan(0), reason: 'the ranking got partway');
+    expect(s.rankingDone, isFalse);
+
+    // Try again: from the first notification on, nothing counts as done
+    s.debugFailSiteId = null;
+    final seen = <double>[];
+    void watch() => seen.add(s.loading
+        ? 0
+        : loadingWork(ready: s.ready, rankingDone: s.rankingDone, done: s.rankProgress, total: s.rankTotal));
+    s.addListener(watch);
+    final job = s.init();
+    expect((s.rankProgress, s.rankTotal, s.rankingDone, s.loading), (0, 0, false, true));
+    await job;
+    s.removeListener(watch);
+    expect(s.error, isNull);
+    expect(s.ready && s.rankingDone, isTrue);
+    expect(seen.first, 0);
+    // the work only rises through the retry, and is full only at the end
+    for (var i = 1; i < seen.length; i++) {
+      expect(seen[i], greaterThanOrEqualTo(seen[i - 1]), reason: 'step $i');
+    }
+    expect(seen.last, 1);
+  }, timeout: const Timeout(Duration(minutes: 3)));
 }

@@ -13,6 +13,7 @@ import '../core/wording.dart' show fmtDuration;
 import '../state/app_state.dart';
 import '../theme.dart';
 import 'chart_bridge.dart' show utcLabel;
+import 'hide_on_scroll.dart';
 
 /// The cursor time on two lines: "17 Sep 2027" and "20:00 UTC".
 (String, String) utcTwoLines(double ms) {
@@ -163,4 +164,110 @@ class TimeScrubber extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Wraps a Site tab that has the time bar: when Play starts on [tab] (by the
+/// button or Space), or the tab opens while Play runs, the top bars slide
+/// away on a phone, as a scroll down would, and come back only when the user
+/// scrolls the tab's page to its very top (user request 2026-10-14). So the
+/// charts and the map keep one place while the time runs. On wide layouts,
+/// with a screen reader on, or on a page that cannot scroll, nothing hides.
+class PlayHidesBars extends StatefulWidget {
+  final AppState state;
+  final SiteTab tab;
+  final Widget child;
+  const PlayHidesBars({super.key, required this.state, required this.tab, required this.child});
+
+  @override
+  State<PlayHidesBars> createState() => _PlayHidesBarsState();
+}
+
+class _PlayHidesBarsState extends State<PlayHidesBars> {
+  /// Whether Play was running on this tab, and whether the tab was showing,
+  /// at the last AppState change.
+  bool _was = false, _wasShown = false;
+
+  bool get _shown => widget.state.dest == Dest.site && widget.state.siteTab == widget.tab;
+  bool get _on => widget.state.playing && _shown;
+
+  @override
+  void initState() {
+    super.initState();
+    _was = _on;
+    _wasShown = _shown;
+    widget.state.addListener(_onState);
+    if (_was) _hideSoon(); // built while Play already runs
+  }
+
+  @override
+  void didUpdateWidget(PlayHidesBars old) {
+    super.didUpdateWidget(old);
+    if (old.state != widget.state) {
+      old.state.removeListener(_onState);
+      widget.state.addListener(_onState);
+    }
+  }
+
+  @override
+  void dispose() {
+    widget.state.removeListener(_onState);
+    super.dispose();
+  }
+
+  void _onState() {
+    final on = _on;
+    if (on && !_was) {
+      // Play started here: at once (the bars go with this frame); the tab
+      // just opened: after its first frame
+      final page = _wasShown ? _page() : null;
+      if (page != null) {
+        HideOnScroll.hide(context, page.position);
+      } else {
+        _hideSoon();
+      }
+    }
+    _was = on;
+    _wasShown = _shown;
+  }
+
+  /// After this frame: the tab switch (which shows the bars again) and the
+  /// page's first layout come first. A page not laid out yet is tried again
+  /// on the next few frames.
+  void _hideSoon([int tries = 4]) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_on) return;
+      final page = _page();
+      if (page != null) {
+        HideOnScroll.hide(context, page.position);
+      } else if (tries > 1) {
+        _hideSoon(tries - 1);
+        WidgetsBinding.instance.scheduleFrame();
+      }
+    });
+  }
+
+  /// The tab's page: its tallest vertical scroll view that is not inside
+  /// another one (a list in a card is not the page).
+  ScrollableState? _page() {
+    ScrollableState? best;
+    double extent(ScrollableState st) => st.position.maxScrollExtent - st.position.minScrollExtent;
+    void visit(Element e) {
+      if (e is StatefulElement && e.state is ScrollableState) {
+        final st = e.state as ScrollableState;
+        if (st.position.axis == Axis.vertical &&
+            st.position.hasContentDimensions &&
+            (best == null || extent(st) > extent(best!))) {
+          best = st;
+        }
+        return;
+      }
+      e.visitChildren(visit);
+    }
+
+    context.visitChildElements(visit);
+    return best;
+  }
+
+  @override
+  Widget build(BuildContext context) => widget.child;
 }

@@ -20,7 +20,6 @@ import '../../theme.dart';
 import '../../widgets/chart_focus.dart';
 import '../../widgets/expert_numbers.dart';
 import '../../widgets/explain.dart';
-import '../../widgets/hide_on_scroll.dart';
 import '../../widgets/now_status.dart';
 import '../../widgets/time_bar.dart';
 
@@ -131,7 +130,7 @@ class _SkyTimeTabState extends State<SkyTimeTab> {
   /// Whether Play was on at the last AppState change.
   bool _wasPlaying = false;
 
-  /// Since Play started on this tab, NowStatus keeps the height of its
+  /// Since Play started on this tab (or the tab opened while it ran), NowStatus keeps the height of its
   /// longest wording, so the charts below it stay still on every step (and
   /// after a pause); leaving the tab lets it fit its words again.
   bool _reserve = false;
@@ -141,6 +140,8 @@ class _SkyTimeTabState extends State<SkyTimeTab> {
     super.initState();
     _wasShown = _shown;
     _wasPlaying = widget.state.playing;
+    // built while Play already runs: keep the room from the first frame
+    _reserve = _wasShown && _wasPlaying;
     widget.state.addListener(_onState);
   }
 
@@ -171,13 +172,9 @@ class _SkyTimeTabState extends State<SkyTimeTab> {
       _scroll.jumpTo(0);
     }
     if (!shown && _reserve) setState(() => _reserve = false);
-    // the user chose to play: the top bars slide away (on a phone) and the
-    // charts keep that room and stay still until the user scrolls back to
-    // the very top
-    if (shown && s.playing && !_wasPlaying) {
-      if (!_reserve) setState(() => _reserve = true);
-      if (_scroll.hasClients) HideOnScroll.hide(context, _scroll.position);
-    }
+    // Play started here, or this tab opened while it ran: the charts keep
+    // NowStatus's room and stay still (PlayHidesBars hides the top bars)
+    if (shown && s.playing && (!_wasPlaying || !_wasShown) && !_reserve) setState(() => _reserve = true);
     _wasShown = shown;
     _wasPlaying = s.playing;
   }
@@ -185,9 +182,13 @@ class _SkyTimeTabState extends State<SkyTimeTab> {
   @override
   Widget build(BuildContext context) {
     final hub = context.read<ChartHub>();
-    return ValueListenableBuilder<bool>(
-      valueListenable: hub.simpleView,
-      builder: (context, simple, _) => simple ? _simpleTab(context, hub) : _classicTab(context, hub),
+    return PlayHidesBars(
+      state: widget.state,
+      tab: SiteTab.skyTime,
+      child: ValueListenableBuilder<bool>(
+        valueListenable: hub.simpleView,
+        builder: (context, simple, _) => simple ? _simpleTab(context, hub) : _classicTab(context, hub),
+      ),
     );
   }
 

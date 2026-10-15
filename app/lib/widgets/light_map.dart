@@ -538,12 +538,15 @@ class _LightMapState extends State<LightMap> {
     final half = widget.state.mapLayers?.halfWidthM ?? 304000;
     if (!closeUp) return _withMargin((x0: -half, y0: half, ext: 2 * half));
     final (x, y) = latLonToXY(widget.state.site.lat, widget.state.site.lon);
-    const ext = closeUpPx * 400.0;
-    // kept inside the region as the engine keeps its window (a site near the
-    // edge, IM-1 Odysseus, is not centred), so the first frame does not
-    // shift the whole map and its arrows by a hundred pixels
-    final hi = math.max(-half, half - ext);
-    return (x0: (x - ext / 2).clamp(-half, hi), y0: (y + ext / 2).clamp(math.min(half, -half + ext), half), ext: ext);
+    // the window the engine will compute (ShadowGrid.windowAround on the
+    // 800 m grid while playing, 400 m otherwise): on whole pixels of that
+    // grid and kept inside the region (a site near the edge, IM-1 Odysseus,
+    // is not centred), so the first frame does not shift the map at all
+    final pxM = widget.state.playing ? 800.0 : 400.0;
+    final n = (2 * half / pxM).round(), side = math.min(n, (closeUpPx * 400.0 / pxM).round());
+    int place(double centre) => (centre - side / 2 + 0.5).round().clamp(0, n - side);
+    final r0 = place(n / 2 - 0.5 - y / pxM), c0 = place(x / pxM + n / 2 - 0.5);
+    return (x0: (c0 - n / 2) * pxM, y0: (n / 2 - r0) * pxM, ext: side * pxM);
   }
 
   @override
@@ -698,6 +701,7 @@ class _LightMapState extends State<LightMap> {
     Widget mapBox(double side, {bool bottomMayHide = false}) {
       _images.update(side: side, dpr: MediaQuery.devicePixelRatioOf(context));
       final view = _targetView;
+      if (!s.playing) _labelMemory.clear();
       final playNote = 'Coarser while playing, pause for full detail. Showing ${utcLabel(tMap)}';
       final semantic = '${s.site.short}, ${utcLabel(tMap)}. '
           '${shares == null ? 'Computing.' : '${coarseShown ? 'About ' : ''}${(100 * shares.sun).round()}% of the area $scope is sunlit, '
@@ -812,7 +816,8 @@ class _LightMapState extends State<LightMap> {
                     closeUp: fine,
                     // the corner note covers a band; labels keep out of it
                     noteArea: noteArea,
-                    labelMemory: _labelMemory,
+                    // only Play keeps labels near their last spots
+                    labelMemory: s.playing ? _labelMemory : null,
                     earthRule: o.earthCriterion,
                     requireDsn: o.requireDsn,
                     textScaler: MediaQuery.textScalerOf(context).clamp(maxScaleFactor: PH.maxCanvasTextScale),
@@ -1226,6 +1231,13 @@ List<Offset> layoutArrowLabels(
       // stacked above or below an earlier label (the Sun and Earth together)
       for (final r in placed) ...[Offset(r.center.dx, r.top - h / 2 - 3), Offset(r.center.dx, r.bottom + h / 2 + 3)],
     ].map((c) => inside(a.size, c)).toList();
+    // and just above or below the site, its name or a note band, in line
+    // with the first spot (a head off the map's edge, under the corner note,
+    // leaves nothing else free)
+    final c0 = candidates.first;
+    candidates.addAll([
+      for (final r in keepClear) ...[Offset(c0.dx, r.top - h / 2 - 3), Offset(c0.dx, r.bottom + h / 2 + 3)],
+    ].map((c) => inside(a.size, c)));
     Rect box(Offset c) => Rect.fromCenter(center: c, width: w, height: h);
     bool clearOf(Rect r, Iterable<Rect> others) => !others.any(r.overlaps);
     bool strict(Offset c) {
@@ -1274,14 +1286,24 @@ List<Offset> layoutArrowLabels(
             (shafts.any(r.inflate(1).contains) ? 8 : 0);
       }
 
-      final free = options.where(ok).toList();
-      at = free.isEmpty ? candidates.first : free.reduce((a, b) => cost(b) < cost(a) ? b : a);
+      // first the nearest spot clear of the notes, the site and every head;
+      // only when there is none does covering one weigh against distance
+      bool clear(Offset c) => ok(c) && clearOf(box(c), [...heads, ...keepClear]);
+      final near = options.where(clear).toList();
+      final free = near.isNotEmpty ? near : options.where(ok).toList();
+      at = free.isEmpty
+          ? candidates.first
+          : near.isNotEmpty
+              ? near.reduce((a, b) => (b - moved).distance < (a - moved).distance ? b : a)
+              : free.reduce((a, b) => cost(b) < cost(a) ? b : a);
     }
     placed.add(box(at));
     out.add(at);
   }
   memory?.centres = out;
   memory?.tips = [for (final a in arrows) a.tip];
+  memory?.sizes = [for (final a in arrows) a.size];
+  memory?.kept = keepClear;
   return out;
 }
 
@@ -1293,10 +1315,22 @@ class ArrowLabelMemory {
   /// The last layout's label centres and arrow heads (for tests).
   List<Offset> centres = const [], tips = const [];
 
+  /// The last layout's label sizes and the areas it kept clear (for tests).
+  List<Size> sizes = const [];
+  List<Rect> kept = const [];
+
   /// Forgets the spots when [key] differs from the last one.
   void keyedTo(Object key) {
-    if (key != _key) centres = tips = const [];
+    if (key != _key) clear();
     _key = key;
+  }
+
+  /// Forgets the spots (Play stopped: the still map gets its ideal layout).
+  void clear() {
+    centres = tips = const [];
+    sizes = const [];
+    kept = const [];
+    _key = null;
   }
 }
 
@@ -1603,6 +1637,7 @@ class LightFramePainter extends CustomPainter {
   bool shouldRepaint(covariant LightFramePainter old) =>
       old.images != images ||
       old.noteArea != noteArea ||
+      old.labelMemory != labelMemory ||
       old.view != view ||
       old.selected != selected ||
       old.now != now ||

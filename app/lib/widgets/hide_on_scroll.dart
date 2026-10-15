@@ -4,8 +4,8 @@
 /// very top (or they pull down there). Only the user's own scrolling
 /// brings it back: a page changing size (text changing while Play runs),
 /// or a scroll made by the app, never does, so the content below never
-/// jumps on its own. [HideOnScroll.hide] hides it for the app (Play on
-/// Sky & time gives the charts the room). Used on phones for the shell's app
+/// jumps on its own. [HideOnScroll.hide] hides it for the app (Play on a
+/// Site tab gives the charts and the map the room). Used on phones for the shell's app
 /// bar and pill row and for the Site header and tab chips (user request
 /// 2026-10-14). Nested bars hide and show together: an inner [HideOnScroll]
 /// follows the nearest outer one.
@@ -101,8 +101,13 @@ class _HideOnScrollState extends State<HideOnScroll> {
       if (_leader == null) {
         _hidden.value = false;
       } else {
-        // the outer bar is mid-build; show both right after this frame
-        WidgetsBinding.instance.addPostFrameCallback((_) => _leader?._set(false));
+        // the outer bar is mid-build; show both right after this frame,
+        // unless the app hid them again meanwhile (Play still running on the
+        // tab just opened)
+        final stamp = _leader!._hideStamp;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (_leader?._hideStamp == stamp) _leader?._set(false);
+        });
       }
     }
     if (!widget.enabled) _hidden.value = false;
@@ -122,12 +127,16 @@ class _HideOnScrollState extends State<HideOnScroll> {
     _hidden.value = hidden;
   }
 
+  /// Counts the app's hides, so a show queued before one does not undo it.
+  int _hideStamp = 0;
+
   void _hideFor(ScrollPosition page) {
     if (!page.hasContentDimensions || page.maxScrollExtent - page.minScrollExtent <= _barHeight + hideOnScrollSlack) {
       return;
     }
     _page = page.context.notificationContext;
     _dir = ScrollDirection.idle;
+    _hideStamp++;
     _set(true);
   }
 
@@ -155,10 +164,14 @@ class _HideOnScrollState extends State<HideOnScroll> {
       // a pull down at the top (a drag, so never a scroll made by the app)
       if (n.overscroll < 0 && n.dragDetails != null) _set(false);
     } else if (n is ScrollUpdateNotification) {
-      // only the user's own scroll up (a drag, a fling or a wheel) reaching
-      // the top: a jump made by the app is not one
+      // only the user's own scroll up reaching the top: a drag, a fling or a
+      // wheel, or an animated scroll (PageUp, Home or focus moving up with
+      // the keyboard; a screen reader's scroll is a drag). A jump made by
+      // the app (no animation) is not one. The app animates no Site page to
+      // its top, so an animated scroll there is always the user's.
       if (m.pixels <= m.minScrollExtent) {
-        if (_dir == ScrollDirection.forward || n.dragDetails != null) _set(false);
+        final moving = n.context == null ? false : Scrollable.maybeOf(n.context!)?.position.isScrollingNotifier.value ?? false;
+        if (_dir == ScrollDirection.forward || n.dragDetails != null || moving) _set(false);
       } else if (_dir == ScrollDirection.reverse &&
           (n.scrollDelta ?? 0) > 0 &&
           m.pixels > m.minScrollExtent + hideOnScrollThreshold &&

@@ -42,7 +42,7 @@ class LightTab extends StatelessWidget {
           if (LightMap.shortSideBySideFor(c.deflate(_pad))) {
             return Padding(
               padding: _pad,
-              child: lightMap(sideTop: TimeBar(state: s, compact: true)),
+              child: lightMap(sideTop: TimeBar(state: s, compact: true, alignTop: true)),
             );
           }
           // too short to pin the bar and still show a usable map (large text on a
@@ -52,7 +52,7 @@ class LightTab extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  TimeBar(state: s, compact: true),
+                  TimeBar(state: s, compact: true, alignTop: true),
                   Padding(padding: const EdgeInsets.fromLTRB(6, 0, 6, 6), child: lightMap()),
                 ],
               ),

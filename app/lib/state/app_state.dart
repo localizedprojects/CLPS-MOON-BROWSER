@@ -336,6 +336,34 @@ class AppState extends ChangeNotifier {
     }());
   }
 
+  /// Whether the time bar of Sky & time and Light & shadow is folded to its
+  /// slim strip (user request 2026-10-15). Both tabs share it; it is saved.
+  bool timeControlsHidden = false;
+
+  static const _timeControlsKey = 'timeControlsHidden';
+
+  /// Read the saved [timeControlsHidden]; a missing store keeps the bar shown.
+  Future<void> loadTimeControlsHidden() async {
+    try {
+      final v = (await SharedPreferences.getInstance()).getBool(_timeControlsKey);
+      if (v == null || v == timeControlsHidden) return;
+      timeControlsHidden = v;
+      notifyListeners();
+    } catch (_) {}
+  }
+
+  /// Fold the time bar to its strip ([hidden]) or open it, and remember it.
+  void setTimeControlsHidden(bool hidden) {
+    if (hidden == timeControlsHidden) return;
+    timeControlsHidden = hidden;
+    notifyListeners();
+    unawaited(() async {
+      try {
+        await (await SharedPreferences.getInstance()).setBool(_timeControlsKey, hidden);
+      } catch (_) {}
+    }());
+  }
+
   /// Answer the start question: rank for [g], open Explore, and remember the
   /// choice for next time.
   void answerGoal(Goal g) {

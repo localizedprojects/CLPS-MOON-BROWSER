@@ -6,6 +6,7 @@ library;
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart' show SemanticsService;
 
 import '../core/metrics.dart' show NextStretch, bothAt;
 import '../core/summary.dart' show date;
@@ -47,20 +48,96 @@ typedef TimeBar = TimeScrubber;
 /// stretch. Everything shares one row only when the slider keeps at least
 /// [minSliderWidth]; otherwise (phones, large text) the slider gets the whole
 /// first row with Play, and ‹ Day, the time and Day › move to a second row.
-/// Every control is at least 48 dp.
-class TimeScrubber extends StatelessWidget {
+/// Every control is at least 48 dp. A chevron folds it to a slim strip
+/// ([TimeStrip]); the choice is kept in [AppState.timeControlsHidden].
+class TimeScrubber extends StatefulWidget {
   final AppState state;
 
   /// Fewer rows (Light & shadow): the next-stretch link becomes an icon
   /// button (its text is the tooltip and the screen-reader label).
   final bool compact;
-  const TimeScrubber({super.key, required this.state, this.compact = false});
+
+  /// The bar is pinned at the top of its pane (Light & shadow beside the map
+  /// in phone landscape, or first in the one-scroll layout), not the bottom.
+  final bool alignTop;
+  const TimeScrubber({super.key, required this.state, this.compact = false, this.alignTop = false});
 
   /// The slider must keep at least this width for the time to share its row.
   static const minSliderWidth = 320.0;
 
   @override
+  State<TimeScrubber> createState() => _TimeScrubberState();
+}
+
+class _TimeScrubberState extends State<TimeScrubber> {
+  AppState get state => widget.state;
+  bool get compact => widget.compact;
+  final _hideFocus = FocusNode(debugLabel: 'time-hide');
+  final _showFocus = FocusNode(debugLabel: 'time-show');
+
+  @override
+  void dispose() {
+    _hideFocus.dispose();
+    _showFocus.dispose();
+    super.dispose();
+  }
+
+  /// Fold or open the bar from its own button: keyboard focus moves to the
+  /// matching button on the other side (so Space and Esc keep working) and a
+  /// screen reader hears what happened.
+  void _setHidden(bool hidden) {
+    final hadFocus = (hidden ? _hideFocus : _showFocus).hasFocus;
+    state.setTimeControlsHidden(hidden);
+    final view = View.of(context);
+    final dir = Directionality.of(context);
+    SemanticsService.sendAnnouncement(view, hidden ? 'Time controls hidden' : 'Time controls shown', dir);
+    if (!hadFocus) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) (hidden ? _showFocus : _hideFocus).requestFocus();
+    });
+  }
+
+  /// Pause in the strip vanishes once pressed; focus goes to Show.
+  void _pauseFromStrip(FocusNode pauseFocus) {
+    final hadFocus = pauseFocus.hasFocus;
+    state.togglePlay();
+    if (!hadFocus) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _showFocus.requestFocus();
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final bar = state.timeControlsHidden
+        ? TimeStrip(
+            key: const ValueKey('time-strip'),
+            state: state,
+            showFocus: _showFocus,
+            onShow: () => _setHidden(false),
+            onPause: _pauseFromStrip,
+          )
+        : _full(context);
+    // reduce motion: the swap is instant. Otherwise a short fade; the bigger
+    // of the two keeps its room while it runs, so what is beside the bar
+    // changes size once (at the start on show, at the end on hide). Both line
+    // up with the bar's pinned edge, so the strip never jumps, and the bar
+    // fading out takes no taps, focus or screen-reader visits
+    if (MediaQuery.disableAnimationsOf(context)) return bar;
+    return AnimatedSwitcher(
+      duration: PH.fade,
+      layoutBuilder: (current, previous) => Stack(
+        alignment: widget.alignTop ? Alignment.topCenter : Alignment.bottomCenter,
+        children: [
+          for (final w in previous) IgnorePointer(child: ExcludeFocus(child: ExcludeSemantics(child: w))),
+          ?current,
+        ],
+      ),
+      child: bar,
+    );
+  }
+
+  Widget _full(BuildContext context) {
     final s = state;
     final next = s.loading ? null : s.nextStretchFromCursor?.window;
     final last = s.rangeEndMs - s.options.stepMs;
@@ -81,6 +158,13 @@ class TimeScrubber extends StatelessWidget {
       tooltip: 'Back one day (Shift+←)',
       onPressed: s.cursorMs <= s.rangeStartMs ? null : () => s.stepCursor(-day),
       icon: const Icon(Icons.chevron_left),
+    );
+    final hide = IconButton(
+      key: const ValueKey('time-hide'),
+      tooltip: 'Hide the time controls',
+      focusNode: _hideFocus,
+      onPressed: () => _setHidden(true),
+      icon: const Icon(Icons.unfold_less),
     );
     final forward = IconButton(
       tooltip: 'Forward one day (Shift+→)',
@@ -103,6 +187,7 @@ class TimeScrubber extends StatelessWidget {
       ),
     );
     return Card(
+      key: const ValueKey('time-full'),
       margin: const EdgeInsets.fromLTRB(6, 4, 6, 6),
       child: Padding(
         padding: const EdgeInsets.fromLTRB(4, 2, 8, 2),
@@ -118,8 +203,8 @@ class TimeScrubber extends StatelessWidget {
           }
 
           final labelWidth = math.max(width(dayText), width(timeText)) + 8;
-          final buttons = 48.0 * (compact ? 4 : 3);
-          final inline = c.maxWidth - buttons - labelWidth >= minSliderWidth;
+          final buttons = 48.0 * (compact ? 5 : 4); // with the hide chevron
+          final inline = c.maxWidth - buttons - labelWidth >= TimeScrubber.minSliderWidth;
           final time = Semantics(
             label: 'Time shown: $label',
             excludeSemantics: true,
@@ -140,6 +225,7 @@ class TimeScrubber extends StatelessWidget {
               forward,
               Padding(padding: const EdgeInsets.symmetric(horizontal: 4), child: time),
               if (compact) nextIcon,
+              hide,
             ]);
             if (compact) return row;
             return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
@@ -150,7 +236,7 @@ class TimeScrubber extends StatelessWidget {
           // narrow (phones, large text): the slider gets the whole first row;
           // the day steps sit around the time on the second
           return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-            Row(children: [play, Expanded(child: slider), if (compact) nextIcon]),
+            Row(children: [play, Expanded(child: slider), if (compact) nextIcon, hide]),
             Wrap(
               alignment: WrapAlignment.spaceBetween,
               crossAxisAlignment: WrapCrossAlignment.center,
@@ -161,6 +247,88 @@ class TimeScrubber extends StatelessWidget {
             ),
           ]);
         }),
+      ),
+    );
+  }
+}
+
+/// The folded time bar: a "Show the time controls" button (a chevron and the
+/// UTC time) and, only while Play runs, Pause, so playback can stop without
+/// opening the bar. Space still plays and pauses (the shell handles it).
+class TimeStrip extends StatefulWidget {
+  final AppState state;
+
+  /// Focus for the Show button, so the bar can hand focus back and forth.
+  final FocusNode? showFocus;
+
+  /// Instead of just clearing [AppState.timeControlsHidden].
+  final VoidCallback? onShow;
+
+  /// Instead of just [AppState.togglePlay]; gets Pause's focus node.
+  final void Function(FocusNode pauseFocus)? onPause;
+  const TimeStrip({super.key, required this.state, this.showFocus, this.onShow, this.onPause});
+
+  @override
+  State<TimeStrip> createState() => _TimeStripState();
+}
+
+class _TimeStripState extends State<TimeStrip> {
+  final _pauseFocus = FocusNode(debugLabel: 'strip-pause');
+
+  @override
+  void dispose() {
+    _pauseFocus.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final s = widget.state;
+    final (dayText, timeText) = utcTwoLines(s.cursorMs);
+    void show() => widget.onShow != null ? widget.onShow!() : s.setTimeControlsHidden(false);
+    return Card(
+      margin: const EdgeInsets.fromLTRB(6, 4, 6, 6),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 4),
+        child: Row(children: [
+          Expanded(
+            child: Tooltip(
+              message: 'Show the time controls',
+              // the Semantics label below already says it
+              excludeFromSemantics: true,
+              child: Semantics(
+                button: true,
+                label: 'Show the time controls',
+                value: 'Time shown: ${utcLabel(s.cursorMs)}',
+                excludeSemantics: true,
+                onTap: show,
+                child: TextButton.icon(
+                  key: const ValueKey('time-show'),
+                  focusNode: widget.showFocus,
+                  style: const ButtonStyle(
+                    minimumSize: WidgetStatePropertyAll(Size(48, 48)),
+                    alignment: Alignment.centerLeft,
+                  ),
+                  onPressed: show,
+                  icon: const Icon(Icons.unfold_more),
+                  label: Text('$dayText · $timeText',
+                      key: const ValueKey('strip-time'),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: numStyle(size: 13.5)),
+                ),
+              ),
+            ),
+          ),
+          if (s.playing)
+            IconButton(
+              key: const ValueKey('strip-pause'),
+              focusNode: _pauseFocus,
+              tooltip: 'Pause (Space)',
+              onPressed: () => widget.onPause != null ? widget.onPause!(_pauseFocus) : s.togglePlay(),
+              icon: const Icon(Icons.pause, size: 26),
+            ),
+        ]),
       ),
     );
   }

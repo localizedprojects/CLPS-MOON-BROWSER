@@ -410,6 +410,7 @@ class _LightMapState extends State<LightMap> {
   Timer? _debounce;
 
   // legend shares of the shown frame, computed once per frame
+  final _labelMemory = ArrowLabelMemory();
   LightFrame? _sharesFrame;
   LightShares? _shares;
 
@@ -537,8 +538,15 @@ class _LightMapState extends State<LightMap> {
     final half = widget.state.mapLayers?.halfWidthM ?? 304000;
     if (!closeUp) return _withMargin((x0: -half, y0: half, ext: 2 * half));
     final (x, y) = latLonToXY(widget.state.site.lat, widget.state.site.lon);
-    const ext = closeUpPx * 400.0;
-    return (x0: x - ext / 2, y0: y + ext / 2, ext: ext);
+    // the window the engine will compute (ShadowGrid.windowAround on the
+    // 800 m grid while playing, 400 m otherwise): on whole pixels of that
+    // grid and kept inside the region (a site near the edge, IM-1 Odysseus,
+    // is not centred), so the first frame does not shift the map at all
+    final pxM = widget.state.playing ? 800.0 : 400.0;
+    final n = (2 * half / pxM).round(), side = math.min(n, (closeUpPx * 400.0 / pxM).round());
+    int place(double centre) => (centre - side / 2 + 0.5).round().clamp(0, n - side);
+    final r0 = place(n / 2 - 0.5 - y / pxM), c0 = place(x / pxM + n / 2 - 0.5);
+    return (x0: (c0 - n / 2) * pxM, y0: (n / 2 - r0) * pxM, ext: side * pxM);
   }
 
   @override
@@ -693,6 +701,7 @@ class _LightMapState extends State<LightMap> {
     Widget mapBox(double side, {bool bottomMayHide = false}) {
       _images.update(side: side, dpr: MediaQuery.devicePixelRatioOf(context));
       final view = _targetView;
+      if (!s.playing) _labelMemory.clear();
       final playNote = 'Coarser while playing, pause for full detail. Showing ${utcLabel(tMap)}';
       final semantic = '${s.site.short}, ${utcLabel(tMap)}. '
           '${shares == null ? 'Computing.' : '${coarseShown ? 'About ' : ''}${(100 * shares.sun).round()}% of the area $scope is sunlit, '
@@ -737,10 +746,14 @@ class _LightMapState extends State<LightMap> {
       // of the pole-direction badge in the top-right corner.
       const aboveScaleBar = 44.0;
       final badgeW = fine ? 60.0 : 0.0;
-      final noteH = playFrame
-          ? noteBand(playLines, badgeW, noteScaler)
+      // while playing the band is the same on every frame (the playback note,
+      // "Computing" or neither), so the labels it keeps out never jump in and out
+      final playH = noteBand(playLines, badgeW, noteScaler);
+      final busyH = noteBand(const [busyText], 22 + badgeW, MediaQuery.textScalerOf(context));
+      final noteH = s.playing
+          ? math.max(playH, busyH)
           : stale
-              ? noteBand(const [busyText], 22 + badgeW, MediaQuery.textScalerOf(context))
+              ? busyH
               : 0.0;
       final (_, sy) = latLonToXY(s.site.lat, s.site.lon);
       final siteY = (view.y0 - sy) * side / view.ext;
@@ -803,6 +816,8 @@ class _LightMapState extends State<LightMap> {
                     closeUp: fine,
                     // the corner note covers a band; labels keep out of it
                     noteArea: noteArea,
+                    // only Play keeps labels near their last spots
+                    labelMemory: s.playing ? _labelMemory : null,
                     earthRule: o.earthCriterion,
                     requireDsn: o.requireDsn,
                     textScaler: MediaQuery.textScalerOf(context).clamp(maxScaleFactor: PH.maxCanvasTextScale),
@@ -1181,7 +1196,12 @@ typedef ArrowLabel = ({Offset from, Offset tip, Size size});
 /// inside [canvas] and clear of every arrow head and shaft, of [keepClear]
 /// and of the labels placed before it. When no spot is free (a tiny canvas),
 /// the labels still never cover each other or a head where that is possible.
-List<Offset> layoutArrowLabels({required List<ArrowLabel> arrows, required Size canvas, List<Rect> keepClear = const []}) {
+///
+/// With [memory], a label takes the free spot nearest to where it was on the
+/// last layout, so Play (the arrows turning a little and the label
+/// words changing on every step) never makes a label jump between spots.
+List<Offset> layoutArrowLabels(
+    {required List<ArrowLabel> arrows, required Size canvas, List<Rect> keepClear = const [], ArrowLabelMemory? memory}) {
   Offset inside(Size s, Offset c) => Offset(
       c.dx.clamp(s.width / 2 + 2, math.max(s.width / 2 + 2, canvas.width - s.width / 2 - 2)),
       c.dy.clamp(s.height / 2 + 2, math.max(s.height / 2 + 2, canvas.height - s.height / 2 - 2)));
@@ -1211,6 +1231,13 @@ List<Offset> layoutArrowLabels({required List<ArrowLabel> arrows, required Size 
       // stacked above or below an earlier label (the Sun and Earth together)
       for (final r in placed) ...[Offset(r.center.dx, r.top - h / 2 - 3), Offset(r.center.dx, r.bottom + h / 2 + 3)],
     ].map((c) => inside(a.size, c)).toList();
+    // and just above or below the site, its name or a note band, in line
+    // with the first spot (a head off the map's edge, under the corner note,
+    // leaves nothing else free)
+    final c0 = candidates.first;
+    candidates.addAll([
+      for (final r in keepClear) ...[Offset(c0.dx, r.top - h / 2 - 3), Offset(c0.dx, r.bottom + h / 2 + 3)],
+    ].map((c) => inside(a.size, c)));
     Rect box(Offset c) => Rect.fromCenter(center: c, width: w, height: h);
     bool clearOf(Rect r, Iterable<Rect> others) => !others.any(r.overlaps);
     bool strict(Offset c) {
@@ -1221,15 +1248,90 @@ List<Offset> layoutArrowLabels({required List<ArrowLabel> arrows, required Size 
     bool relaxed(Offset c) => clearOf(box(c), [...placed, ...heads]);
     // clear of notes and labels but touching a shaft beats covering a note
     bool clearOfNotes(Offset c) => clearOf(box(c), [...placed, ...heads, ...keepClear]);
-    final at = candidates.where(strict).firstOrNull ??
-        candidates.where(clearOfNotes).firstOrNull ??
-        candidates.where(relaxed).firstOrNull ??
-        candidates.where((c) => clearOf(box(c), placed)).firstOrNull ??
-        candidates.first;
+    final prev = memory?.centres.elementAtOrNull(out.length);
+    Offset at;
+    if (prev == null) {
+      at = candidates.where(strict).firstOrNull ??
+          candidates.where(clearOfNotes).firstOrNull ??
+          candidates.where(relaxed).firstOrNull ??
+          candidates.where((c) => clearOf(box(c), placed)).firstOrNull ??
+          candidates.first;
+    } else {
+      // near where the label was: it moves on only as far as it must. It
+      // never covers its own head or a label; covering the other arrow's
+      // head as it sweeps past, a note band or a shaft only weighs against
+      // distance, so a turning arrow never flips a label between far-apart
+      // spots
+      final i = out.length;
+      final prevTip = memory!.tips.elementAtOrNull(i);
+      // where it was, moved with its head, and short steps round that (to
+      // let a head or a label pass without a hop across the map)
+      final moved = prevTip == null ? prev : prev + (a.tip - prevTip);
+      final options = [
+        for (final (dx, dy) in const [(0, 0), (1, 0), (-1, 0), (0, 1), (0, -1), (1, 1), (-1, 1), (1, -1), (-1, -1), (2, 0), (-2, 0), (0, 2), (0, -2)])
+          inside(a.size, moved + Offset(dx * 24.0, dy * 20.0)),
+        ...candidates,
+      ];
+      // (a head at or past the map's edge, which a label pinned to that edge
+      // cannot get out of the way of, only weighs too)
+      final ownHead = heads[i];
+      final ownSeen = (Offset.zero & canvas).deflate(1).contains(ownHead.topLeft) &&
+          (Offset.zero & canvas).deflate(1).contains(ownHead.bottomRight);
+      bool ok(Offset c) => clearOf(box(c), placed) && !(ownSeen && box(c).overlaps(ownHead));
+      double cost(Offset c) {
+        final r = box(c);
+        return (c - prev).distance +
+            (clearOf(r, heads) ? 0 : 60) +
+            (clearOf(r, keepClear) ? 0 : 24) +
+            (shafts.any(r.inflate(1).contains) ? 8 : 0);
+      }
+
+      // first the nearest spot clear of the notes, the site and every head;
+      // only when there is none does covering one weigh against distance
+      bool clear(Offset c) => ok(c) && clearOf(box(c), [...heads, ...keepClear]);
+      final near = options.where(clear).toList();
+      final free = near.isNotEmpty ? near : options.where(ok).toList();
+      at = free.isEmpty
+          ? candidates.first
+          : near.isNotEmpty
+              ? near.reduce((a, b) => (b - moved).distance < (a - moved).distance ? b : a)
+              : free.reduce((a, b) => cost(b) < cost(a) ? b : a);
+    }
     placed.add(box(at));
     out.add(at);
   }
+  memory?.centres = out;
+  memory?.tips = [for (final a in arrows) a.tip];
+  memory?.sizes = [for (final a in arrows) a.size];
+  memory?.kept = keepClear;
   return out;
+}
+
+/// The arrow-label spots of the last layout, kept by the map between frames
+/// (see [layoutArrowLabels]); a new site, view or map size starts afresh.
+class ArrowLabelMemory {
+  Object? _key;
+
+  /// The last layout's label centres and arrow heads (for tests).
+  List<Offset> centres = const [], tips = const [];
+
+  /// The last layout's label sizes and the areas it kept clear (for tests).
+  List<Size> sizes = const [];
+  List<Rect> kept = const [];
+
+  /// Forgets the spots when [key] differs from the last one.
+  void keyedTo(Object key) {
+    if (key != _key) clear();
+    _key = key;
+  }
+
+  /// Forgets the spots (Play stopped: the still map gets its ideal layout).
+  void clear() {
+    centres = tips = const [];
+    sizes = const [];
+    kept = const [];
+    _key = null;
+  }
 }
 
 /// Paints one light frame: the LOLA shaded relief cropped to [view], the
@@ -1272,7 +1374,10 @@ class LightFramePainter extends CustomPainter {
   LightFramePainter({required this.hillshade, required this.halfWidthM, required this.images, required this.view,
       required this.sites, required this.selected, required this.now, required this.closeUp,
       this.siteNames = true, this.arrowFrac = 0.24, this.earthRule = EarthCriterion.center, this.requireDsn = false,
-      this.textScaler = TextScaler.noScaling, this.exact = false, this.noteArea});
+      this.textScaler = TextScaler.noScaling, this.exact = false, this.noteArea, this.labelMemory});
+
+  /// Keeps each arrow label on its spot from frame to frame (Play).
+  final ArrowLabelMemory? labelMemory;
 
   /// Where a note over the map ("Computing shadows…", "Coarser while
   /// playing") sits, as a full-width band; arrow labels are laid out clear of it.
@@ -1427,7 +1532,9 @@ class LightFramePainter extends CustomPainter {
     // arrow labels sit just past their heads, inside the canvas and clear of
     // both arrows, both heads, the site and the other label, so they never
     // overprint when the Sun and Earth point almost the same way
+    labelMemory?.keyedTo((selected.id, closeUp, size, view.ext));
     final ats = layoutArrowLabels(
+      memory: labelMemory,
       arrows: [for (final a in arrows) (from: p + a.dir * 12, tip: a.tip, size: Size(a.label.width + 4, a.label.height))],
       canvas: size,
       keepClear: [
@@ -1530,6 +1637,7 @@ class LightFramePainter extends CustomPainter {
   bool shouldRepaint(covariant LightFramePainter old) =>
       old.images != images ||
       old.noteArea != noteArea ||
+      old.labelMemory != labelMemory ||
       old.view != view ||
       old.selected != selected ||
       old.now != now ||

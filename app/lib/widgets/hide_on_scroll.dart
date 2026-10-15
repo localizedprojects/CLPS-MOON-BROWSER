@@ -1,7 +1,11 @@
 /// A top bar over a scrolling body that gets out of the way: it slides up
 /// (clipped to no height) once the user scrolls the body down, stays hidden
 /// while they scroll back up, and comes back only when the body is at its
-/// very top (or they pull down there). Used on phones for the shell's app
+/// very top (or they pull down there). Only the user's own scrolling
+/// brings it back: a page changing size (text changing while Play runs),
+/// or a scroll made by the app, never does, so the content below never
+/// jumps on its own. [HideOnScroll.hide] hides it for the app (Play on a
+/// Site tab gives the charts and the map the room). Used on phones for the shell's app
 /// bar and pill row and for the Site header and tab chips (user request
 /// 2026-10-14). Nested bars hide and show together: an inner [HideOnScroll]
 /// follows the nearest outer one.
@@ -34,6 +38,14 @@ class HideOnScroll extends StatefulWidget {
 
   const HideOnScroll(
       {super.key, required this.top, required this.body, this.pinned, this.resetKey, this.enabled = true});
+
+  /// Hides the bar above [context] (and the bars it hides with), as a scroll
+  /// down of [page] would: not with a screen reader on, and not when [page]
+  /// would no longer scroll by much without the bar (it could never come
+  /// back). It comes back only when the user scrolls [page] to its very top.
+  static void hide(BuildContext context, ScrollPosition page) {
+    context.getInheritedWidgetOfExactType<_HideScope>()?.state?._lead._hideFor(page);
+  }
 
   @override
   State<HideOnScroll> createState() => _HideOnScrollState();
@@ -89,8 +101,13 @@ class _HideOnScrollState extends State<HideOnScroll> {
       if (_leader == null) {
         _hidden.value = false;
       } else {
-        // the outer bar is mid-build; show both right after this frame
-        WidgetsBinding.instance.addPostFrameCallback((_) => _leader?._set(false));
+        // the outer bar is mid-build; show both right after this frame,
+        // unless the app hid them again meanwhile (Play still running on the
+        // tab just opened)
+        final stamp = _leader!._hideStamp;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (_leader?._hideStamp == stamp) _leader?._set(false);
+        });
       }
     }
     if (!widget.enabled) _hidden.value = false;
@@ -108,6 +125,19 @@ class _HideOnScrollState extends State<HideOnScroll> {
     // a screen reader reads (and swipes to) everything, so nothing hides
     if (hidden && (!widget.enabled || MediaQuery.accessibleNavigationOf(context))) return;
     _hidden.value = hidden;
+  }
+
+  /// Counts the app's hides, so a show queued before one does not undo it.
+  int _hideStamp = 0;
+
+  void _hideFor(ScrollPosition page) {
+    if (!page.hasContentDimensions || page.maxScrollExtent - page.minScrollExtent <= _barHeight + hideOnScrollSlack) {
+      return;
+    }
+    _page = page.context.notificationContext;
+    _dir = ScrollDirection.idle;
+    _hideStamp++;
+    _set(true);
   }
 
   /// The full height of this bar and the inner ones that hide with it.
@@ -131,10 +161,17 @@ class _HideOnScrollState extends State<HideOnScroll> {
     } else if (_page != null && n.context != _page) {
       return false;
     } else if (n is OverscrollNotification) {
-      if (n.overscroll < 0) _set(false); // a pull down at the top
+      // a pull down at the top (a drag, so never a scroll made by the app)
+      if (n.overscroll < 0 && n.dragDetails != null) _set(false);
     } else if (n is ScrollUpdateNotification) {
+      // only the user's own scroll up reaching the top: a drag, a fling or a
+      // wheel, or an animated scroll (PageUp, Home or focus moving up with
+      // the keyboard; a screen reader's scroll is a drag). A jump made by
+      // the app (no animation) is not one. The app animates no Site page to
+      // its top, so an animated scroll there is always the user's.
       if (m.pixels <= m.minScrollExtent) {
-        _set(false);
+        final moving = n.context == null ? false : Scrollable.maybeOf(n.context!)?.position.isScrollingNotifier.value ?? false;
+        if (_dir == ScrollDirection.forward || n.dragDetails != null || moving) _set(false);
       } else if (_dir == ScrollDirection.reverse &&
           (n.scrollDelta ?? 0) > 0 &&
           m.pixels > m.minScrollExtent + hideOnScrollThreshold &&
@@ -146,13 +183,15 @@ class _HideOnScrollState extends State<HideOnScroll> {
     return false;
   }
 
-  /// The page re-laid out: back at the top, or no longer scrollable at all,
-  /// shows the bar (it can never get stuck hidden).
+  /// The page re-laid out so that it no longer scrolls at all: the bar comes
+  /// back (it can never get stuck hidden). Anything else (the page growing
+  /// or shrinking while Play runs, or sitting at its top after a jump) keeps
+  /// the bar as it is, so nothing moves under the user.
   bool _onMetrics(ScrollMetricsNotification n) {
     if (_leader != null || n.depth != 0 || n.metrics.axis != Axis.vertical) return false;
     if (_page == null || n.context != _page) return false;
     final m = n.metrics;
-    if (m.pixels <= m.minScrollExtent || m.maxScrollExtent - m.minScrollExtent < 0.5) _set(false);
+    if (m.maxScrollExtent - m.minScrollExtent < 0.5) _set(false);
     return false;
   }
 

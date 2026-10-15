@@ -410,6 +410,7 @@ class _LightMapState extends State<LightMap> {
   Timer? _debounce;
 
   // legend shares of the shown frame, computed once per frame
+  final _labelMemory = ArrowLabelMemory();
   LightFrame? _sharesFrame;
   LightShares? _shares;
 
@@ -538,7 +539,11 @@ class _LightMapState extends State<LightMap> {
     if (!closeUp) return _withMargin((x0: -half, y0: half, ext: 2 * half));
     final (x, y) = latLonToXY(widget.state.site.lat, widget.state.site.lon);
     const ext = closeUpPx * 400.0;
-    return (x0: x - ext / 2, y0: y + ext / 2, ext: ext);
+    // kept inside the region as the engine keeps its window (a site near the
+    // edge, IM-1 Odysseus, is not centred), so the first frame does not
+    // shift the whole map and its arrows by a hundred pixels
+    final hi = math.max(-half, half - ext);
+    return (x0: (x - ext / 2).clamp(-half, hi), y0: (y + ext / 2).clamp(math.min(half, -half + ext), half), ext: ext);
   }
 
   @override
@@ -737,10 +742,14 @@ class _LightMapState extends State<LightMap> {
       // of the pole-direction badge in the top-right corner.
       const aboveScaleBar = 44.0;
       final badgeW = fine ? 60.0 : 0.0;
-      final noteH = playFrame
-          ? noteBand(playLines, badgeW, noteScaler)
+      // while playing the band is the same on every frame (the playback note,
+      // "Computing" or neither), so the labels it keeps out never jump in and out
+      final playH = noteBand(playLines, badgeW, noteScaler);
+      final busyH = noteBand(const [busyText], 22 + badgeW, MediaQuery.textScalerOf(context));
+      final noteH = s.playing
+          ? math.max(playH, busyH)
           : stale
-              ? noteBand(const [busyText], 22 + badgeW, MediaQuery.textScalerOf(context))
+              ? busyH
               : 0.0;
       final (_, sy) = latLonToXY(s.site.lat, s.site.lon);
       final siteY = (view.y0 - sy) * side / view.ext;
@@ -803,6 +812,7 @@ class _LightMapState extends State<LightMap> {
                     closeUp: fine,
                     // the corner note covers a band; labels keep out of it
                     noteArea: noteArea,
+                    labelMemory: _labelMemory,
                     earthRule: o.earthCriterion,
                     requireDsn: o.requireDsn,
                     textScaler: MediaQuery.textScalerOf(context).clamp(maxScaleFactor: PH.maxCanvasTextScale),
@@ -1181,7 +1191,12 @@ typedef ArrowLabel = ({Offset from, Offset tip, Size size});
 /// inside [canvas] and clear of every arrow head and shaft, of [keepClear]
 /// and of the labels placed before it. When no spot is free (a tiny canvas),
 /// the labels still never cover each other or a head where that is possible.
-List<Offset> layoutArrowLabels({required List<ArrowLabel> arrows, required Size canvas, List<Rect> keepClear = const []}) {
+///
+/// With [memory], a label takes the free spot nearest to where it was on the
+/// last layout, so Play (the arrows turning a little and the label
+/// words changing on every step) never makes a label jump between spots.
+List<Offset> layoutArrowLabels(
+    {required List<ArrowLabel> arrows, required Size canvas, List<Rect> keepClear = const [], ArrowLabelMemory? memory}) {
   Offset inside(Size s, Offset c) => Offset(
       c.dx.clamp(s.width / 2 + 2, math.max(s.width / 2 + 2, canvas.width - s.width / 2 - 2)),
       c.dy.clamp(s.height / 2 + 2, math.max(s.height / 2 + 2, canvas.height - s.height / 2 - 2)));
@@ -1221,15 +1236,68 @@ List<Offset> layoutArrowLabels({required List<ArrowLabel> arrows, required Size 
     bool relaxed(Offset c) => clearOf(box(c), [...placed, ...heads]);
     // clear of notes and labels but touching a shaft beats covering a note
     bool clearOfNotes(Offset c) => clearOf(box(c), [...placed, ...heads, ...keepClear]);
-    final at = candidates.where(strict).firstOrNull ??
-        candidates.where(clearOfNotes).firstOrNull ??
-        candidates.where(relaxed).firstOrNull ??
-        candidates.where((c) => clearOf(box(c), placed)).firstOrNull ??
-        candidates.first;
+    final prev = memory?.centres.elementAtOrNull(out.length);
+    Offset at;
+    if (prev == null) {
+      at = candidates.where(strict).firstOrNull ??
+          candidates.where(clearOfNotes).firstOrNull ??
+          candidates.where(relaxed).firstOrNull ??
+          candidates.where((c) => clearOf(box(c), placed)).firstOrNull ??
+          candidates.first;
+    } else {
+      // near where the label was: it moves on only as far as it must. It
+      // never covers its own head or a label; covering the other arrow's
+      // head as it sweeps past, a note band or a shaft only weighs against
+      // distance, so a turning arrow never flips a label between far-apart
+      // spots
+      final i = out.length;
+      final prevTip = memory!.tips.elementAtOrNull(i);
+      // where it was, moved with its head, and short steps round that (to
+      // let a head or a label pass without a hop across the map)
+      final moved = prevTip == null ? prev : prev + (a.tip - prevTip);
+      final options = [
+        for (final (dx, dy) in const [(0, 0), (1, 0), (-1, 0), (0, 1), (0, -1), (1, 1), (-1, 1), (1, -1), (-1, -1), (2, 0), (-2, 0), (0, 2), (0, -2)])
+          inside(a.size, moved + Offset(dx * 24.0, dy * 20.0)),
+        ...candidates,
+      ];
+      // (a head at or past the map's edge, which a label pinned to that edge
+      // cannot get out of the way of, only weighs too)
+      final ownHead = heads[i];
+      final ownSeen = (Offset.zero & canvas).deflate(1).contains(ownHead.topLeft) &&
+          (Offset.zero & canvas).deflate(1).contains(ownHead.bottomRight);
+      bool ok(Offset c) => clearOf(box(c), placed) && !(ownSeen && box(c).overlaps(ownHead));
+      double cost(Offset c) {
+        final r = box(c);
+        return (c - prev).distance +
+            (clearOf(r, heads) ? 0 : 60) +
+            (clearOf(r, keepClear) ? 0 : 24) +
+            (shafts.any(r.inflate(1).contains) ? 8 : 0);
+      }
+
+      final free = options.where(ok).toList();
+      at = free.isEmpty ? candidates.first : free.reduce((a, b) => cost(b) < cost(a) ? b : a);
+    }
     placed.add(box(at));
     out.add(at);
   }
+  memory?.centres = out;
+  memory?.tips = [for (final a in arrows) a.tip];
   return out;
+}
+
+/// The arrow-label spots of the last layout, kept by the map between frames
+/// (see [layoutArrowLabels]); a new site, view or map size starts afresh.
+class ArrowLabelMemory {
+  Object? _key;
+
+  /// The last layout's label centres and arrow heads (for tests).
+  List<Offset> centres = const [], tips = const [];
+
+  /// Forgets the spots when [key] differs from the last one.
+  void keyedTo(Object key) {
+    if (key != _key) centres = tips = const [];
+    _key = key;
+  }
 }
 
 /// Paints one light frame: the LOLA shaded relief cropped to [view], the
@@ -1272,7 +1340,10 @@ class LightFramePainter extends CustomPainter {
   LightFramePainter({required this.hillshade, required this.halfWidthM, required this.images, required this.view,
       required this.sites, required this.selected, required this.now, required this.closeUp,
       this.siteNames = true, this.arrowFrac = 0.24, this.earthRule = EarthCriterion.center, this.requireDsn = false,
-      this.textScaler = TextScaler.noScaling, this.exact = false, this.noteArea});
+      this.textScaler = TextScaler.noScaling, this.exact = false, this.noteArea, this.labelMemory});
+
+  /// Keeps each arrow label on its spot from frame to frame (Play).
+  final ArrowLabelMemory? labelMemory;
 
   /// Where a note over the map ("Computing shadows…", "Coarser while
   /// playing") sits, as a full-width band; arrow labels are laid out clear of it.
@@ -1427,7 +1498,9 @@ class LightFramePainter extends CustomPainter {
     // arrow labels sit just past their heads, inside the canvas and clear of
     // both arrows, both heads, the site and the other label, so they never
     // overprint when the Sun and Earth point almost the same way
+    labelMemory?.keyedTo((selected.id, closeUp, size, view.ext));
     final ats = layoutArrowLabels(
+      memory: labelMemory,
       arrows: [for (final a in arrows) (from: p + a.dir * 12, tip: a.tip, size: Size(a.label.width + 4, a.label.height))],
       canvas: size,
       keepClear: [

@@ -37,16 +37,24 @@ void main() {
       .where((st) => st.position.axis == Axis.vertical && st.position.hasContentDimensions && st.position.maxScrollExtent > 0)
       .last;
 
-  for (final (w, h) in const [(320.0, 640.0), (360.0, 800.0), (390.0, 844.0)]) {
+  // MP1 at three phone sizes, and IM-1 Odysseus (80.13 S, at the region
+  // map's edge: the user's second report)
+  for (final (site, w, h) in const [
+    ('derosa2012-mp1-malapert-peak', 320.0, 640.0),
+    ('derosa2012-mp1-malapert-peak', 360.0, 800.0),
+    ('derosa2012-mp1-malapert-peak', 390.0, 844.0),
+    ('im-1-odysseus-landed', 360.0, 800.0),
+    ('im-1-odysseus-landed', 320.0, 640.0),
+  ]) {
     for (final scrolledFirst in [false, true]) {
-      testWidgets('${w.toInt()}x${h.toInt()}${scrolledFirst ? ' after a scroll down' : ''}: Play hides the bars, '
+      testWidgets('$site ${w.toInt()}x${h.toInt()}${scrolledFirst ? ' after a scroll down' : ''}: Play hides the bars, '
           'the chart stays still for 60 steps, pause keeps them hidden, only the very top shows them', (tester) async {
         tester.view.physicalSize = Size(w, h);
         tester.view.devicePixelRatio = 1;
         addTearDown(tester.view.reset);
         await tester.pumpWidget(ChangeNotifierProvider<AppState>.value(value: state, child: const LunarHorizonApp()));
         await tester.pump();
-        state.openSite('derosa2012-mp1-malapert-peak', tab: SiteTab.skyTime);
+        state.openSite(site, tab: SiteTab.skyTime);
         await settle(tester);
         final shell0 = topH(tester, 0), site0 = topH(tester, 1);
         expect(site0, greaterThan(40));
@@ -58,6 +66,8 @@ void main() {
         }
         final chart = find.byType(ChartView).first;
 
+        state.setCursor(state.rangeStartMs); // a whole period to play, whatever ran before
+        await settle(tester);
         state.togglePlay();
         expect(state.playing, isTrue);
         await settle(tester);

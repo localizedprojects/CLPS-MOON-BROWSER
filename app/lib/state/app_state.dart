@@ -764,6 +764,12 @@ class AppState extends ChangeNotifier {
     error = null;
     loading = true;
     _ready = false;
+    // a retry after a failed ranking starts the ranking over too (the loading
+    // bar must not read the old run's partial progress as work done)
+    _rankGen++;
+    _rankProgress = 0;
+    _rankTotal = 0;
+    _rankingDone = false;
     notifyListeners();
     try {
       // fetched together, not one after another (async-2); the map layers load

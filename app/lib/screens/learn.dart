@@ -14,16 +14,13 @@ import '../theme.dart';
 import '../widgets/explain.dart';
 import '../widgets/site_card.dart' show FocusRingInkWell;
 import 'how_calculated.dart';
-import 'openings/openings.dart';
 import 'validation_page.dart';
 
 /// The views explained under "What each view shows", in app order.
 const learnViews = [explainExplore, explainOverview, explainSky, explainTimeline, explainLight, explainCompare];
 
 class LearnScreen extends StatelessWidget {
-  /// Show the opening-animation picker (preview builds; tests force it).
-  final bool showOpenings;
-  const LearnScreen({super.key, this.showOpenings = openingsPreview});
+  const LearnScreen({super.key});
 
   /// Width from which Learn uses two columns.
   static const twoColumnWidth = 840.0;
@@ -38,7 +35,6 @@ class LearnScreen extends StatelessWidget {
       return ListView(
         padding: EdgeInsets.fromLTRB(16 + side, 16, 16 + side, 32),
         children: [
-          if (showOpenings) const _OpeningPicker(),
           const _Intro(),
           if (wide)
             const Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -73,65 +69,6 @@ Widget _card({required Widget child, EdgeInsets padding = const EdgeInsets.all(1
 
 void _push(BuildContext context, Widget page) =>
     Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => page));
-
-/// Preview only: play each opening animation and pick the one shown at start.
-class _OpeningPicker extends StatelessWidget {
-  const _OpeningPicker();
-
-  void _play(BuildContext context, Opening o) => Navigator.of(context).push(PageRouteBuilder<void>(
-        pageBuilder: (ctx, _, _) => o.build(() => Navigator.of(ctx).pop()),
-      ));
-
-  @override
-  Widget build(BuildContext context) {
-    final s = context.watch<AppState>();
-    return _card(
-      padding: const EdgeInsets.fromLTRB(16, 12, 8, 4),
-      child: RadioGroup<String>(
-        groupValue: s.openingId,
-        onChanged: (id) => s.setOpening(id ?? defaultOpeningId),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-          const MicroLabel('Opening animation (preview)'),
-          for (final o in openings)
-            Row(children: [
-              Expanded(child: Text(o.title, style: PHText.subtitle)),
-              Semantics(
-                button: true,
-                label: 'Play ${o.title}',
-                excludeSemantics: true,
-                child: TextButton(
-                  style: TextButton.styleFrom(minimumSize: const Size(64, 48)),
-                  onPressed: () => _play(context, o),
-                  child: const Text('Play'),
-                ),
-              ),
-              Semantics(
-                label: 'Use ${o.title} at start',
-                button: true,
-                inMutuallyExclusiveGroup: true,
-                checked: s.openingId == o.id,
-                excludeSemantics: true,
-                onTap: () => s.setOpening(o.id),
-                child: SizedBox(
-                  height: 48,
-                  child: InkWell(
-                    onTap: () => s.setOpening(o.id),
-                    child: Row(mainAxisSize: MainAxisSize.min, children: [
-                      Radio<String>(value: o.id),
-                      Padding(
-                        padding: const EdgeInsets.only(right: 8),
-                        child: Text('Use at start', style: PHText.small.copyWith(color: PH.muted)),
-                      ),
-                    ]),
-                  ),
-                ),
-              ),
-            ]),
-        ]),
-      ),
-    );
-  }
-}
 
 class _Intro extends StatelessWidget {
   const _Intro();

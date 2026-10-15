@@ -9,6 +9,7 @@ import 'package:polar_horizon/core/ranking.dart';
 import 'package:polar_horizon/core/score.dart';
 import 'package:polar_horizon/core/timeseries.dart';
 import 'package:polar_horizon/core/visibility.dart';
+import 'package:polar_horizon/theme.dart' show FidelityBadge;
 
 const hourMs = 3600e3, dayMs = 86400e3;
 final t20Oct = DateTime.utc(2026, 10, 20).millisecondsSinceEpoch.toDouble();
@@ -115,7 +116,7 @@ void main() {
     test('copy', () {
       expect(landingIdleTitle, 'When should you land here?');
       expect(landingIdleLead,
-          'Finds the earliest landing in your dates when the Sun and Earth stay above the skyline for the whole mission.');
+          'Finds the earliest landing in your dates with the Sun and Earth up the whole mission.');
       expect(missionLengthLabel, 'How long is the surface mission? (days)');
       expect(findButtonLabel, 'Find the best landing window');
       expect(waitingForSeriesLabel, "Waiting for this site's sunlight and Earth numbers…");
@@ -179,13 +180,14 @@ void main() {
       expect(fullFitEarthText(requireDsn: true), 'Earth contact (DSN) the whole time');
       expect(fullFitEarthText(requireDsn: false, earthRule: EarthCriterion.anyPart),
           'Earth in view the whole time (at least part of it above the skyline)');
-      expect(noNightNoGapText, 'No night and no Earth gap during the mission');
     });
     test('slack line and actions', () {
-      expect(slackText(full),
-          'Any landing in this span covers the whole mission. The suggested time keeps the Sun and Earth furthest above the skyline.');
+      // a span's label says any time works, so no slack line under it
+      expect(slackText(full), isNull);
+      expect(spanLabel(full), 'Land any time between');
       final single = plan(suggested: win(startMs: spanA), spanStartMs: spanA, spanEndMs: spanA, tight: true);
       expect(slackText(single), 'Only this exact time fits; landing later loses part of the mission.');
+      expect(spanLabel(single), 'Land at');
       expect(showLandingText, 'Show me the landing');
       expect(useDatesText, 'Use these dates');
       expect(nextWindowText, 'Next window that fits ›');
@@ -231,15 +233,15 @@ void main() {
 
     test('title, longest stretch and actions', () {
       expect(noFitTitle(part), 'No 14-day window fits in your dates');
-      expect(longestStretchText(part), 'The longest Sun-and-Earth stretch in your dates is 13 days.');
+      expect(longestStretchText(part), 'Longest Sun-and-Earth stretch in your dates: 13 days.');
       expect(findShorterText(part), 'Find a 13-day window');
       expect(searchMoreDatesText, 'Search more dates');
       final atEnd = plan(status: LandingStatus.partial, suggested: w2, runDays: 5.5, runTrunc: true, runAtEnd: true);
       expect(longestStretchText(atEnd),
-          'The longest Sun-and-Earth stretch in your dates is 5 days. (It runs to the end of your dates and may be longer.)');
+          'Longest Sun-and-Earth stretch in your dates: 5 days (may run past your dates).');
       final atStart = plan(status: LandingStatus.partial, suggested: w2, runDays: 1.2, runTrunc: true);
       expect(longestStretchText(atStart),
-          'The longest Sun-and-Earth stretch in your dates is 1 day. (It is already under way at the start of your dates and may be longer.)');
+          'Longest Sun-and-Earth stretch in your dates: 1 day (may have started before your dates).');
       expect(findShorterText(atStart), 'Find a 1-day window');
       // landing-4: "an" before 8, 11 and 18
       for (final (d, a) in [(8, 'an'), (11, 'an'), (18, 'an'), (7, 'a'), (21, 'a'), (28, 'a')]) {
@@ -249,7 +251,7 @@ void main() {
       expect(periodTooShortText(plan(status: LandingStatus.periodTooShort, days: 11, periodDays: 10, daysAvailable: 10)),
           contains('but an 11-day mission needs at least 11'));
       final none = plan(status: LandingStatus.partial, suggested: w2, runDays: 0.9);
-      expect(longestStretchText(none), 'Here the Sun and Earth are never up together for a whole day in your dates.');
+      expect(longestStretchText(none), 'The Sun and Earth are never up together for a whole day in your dates.');
       expect(findShorterText(none), isNull);
     });
 
@@ -261,14 +263,13 @@ void main() {
       expect(partialSunText(w2), 'Sunlight 81% of the time; longest night 5 d 7 h');
       expect(partialEarthText(w2, requireDsn: false), 'Earth in view 56% of the time; longest Earth gap 23 h');
       expect(partialEarthText(w2, requireDsn: true), 'Earth contact (DSN) 56% of the time; longest Earth gap 23 h');
-      expect(batteryText(w2), 'The lander would have to last 5 d 7 h of darkness on batteries.');
+      expect(batteryText(w2), 'Batteries must last 5 d 7 h of darkness.');
       expect(batteryText(win(nightH: 24)), isNull);
       expect(partialSunText(win(sunPct: 100)), 'Sunlight 100% of the time; no night');
       // landing-1: it says what the touchdown lacks, never that the dates
       // have no Sun-and-Earth time (the verdict may say 74% together)
       expect(relaxedText(win(earth: false), requireDsn: false),
-          'No landing time in your dates has the Sun and Earth up together, so this one lands without Earth in view. '
-          'It is the closest window anyway.');
+          'No landing time in your dates has the Sun and Earth up together, so this one lands without Earth in view.');
       expect(relaxedText(win(sun: false), requireDsn: false), contains('so this one lands in darkness.'));
       expect(relaxedText(win(sun: false, earth: false), requireDsn: true),
           contains('so this one lands in darkness and without Earth contact (DSN).'));
@@ -410,6 +411,18 @@ void main() {
 
     test('always', () {
       expect(landingFidelityText(site('crater-rim'), full, 2), common);
+    });
+
+    test('details: the badge text, why the suggested time (a span only), then the footnote', () {
+      final d = landingDetailsText(site('crater-rim'), full, 2, requireDsn: true);
+      expect(d, startsWith('$landingDetailsLead ${common.replaceFirst('Approximate timing. ', '')}'));
+      expect(d, contains(' $suggestedWhyText '));
+      expect(d, endsWith(landingFootnote(full, 2, requireDsn: true)));
+      final single = plan(suggested: win(startMs: spanA), spanStartMs: spanA, spanEndMs: spanA);
+      expect(landingDetailsText(site('crater-rim'), single, 2, requireDsn: false), isNot(contains(suggestedWhyText)));
+      // the badge still shows only the label until More
+      expect(FidelityBadge.summaryOf(d), contains('Sun and Earth only'));
+      expect(FidelityBadge.summaryOf(d), landingDetailsLead);
     });
 
     test('negative margins say "below"', () {

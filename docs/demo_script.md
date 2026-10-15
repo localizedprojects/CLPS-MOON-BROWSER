@@ -31,7 +31,7 @@ stretch with both.
 
 **Show:** Site › Overview. The first card asks "When should you land here?" with the
 mission length already on 14 days. Tap **Find the best landing window**. A progress bar
-counts the landing times it checks, then the answer: "Land between {date} and {date}",
+counts the landing times it checks, then the answer: "Land any time between {date} and {date}",
 the suggested landing date and time, and a verdict in words.
 
 **Say:** "These aren't guesses. For every half hour of the next year we compute exactly

@@ -83,7 +83,7 @@ String groupedCount(int n) => _grouped.format(n);
 
 const String landingIdleTitle = 'When should you land here?';
 const String landingIdleLead =
-    'Finds the earliest landing in your dates when the Sun and Earth stay above the skyline for the whole mission.';
+    'Finds the earliest landing in your dates with the Sun and Earth up the whole mission.';
 const String missionLengthLabel = 'How long is the surface mission? (days)';
 const String missionLengthGroupLabel = 'Surface mission length';
 const List<int> missionLengthPresets = [7, 10, 14, 21];
@@ -135,13 +135,13 @@ String progressValue(double p) => '${(100 * p.clamp(0.0, 1.0)).round()}%';
 
 const String fullFitTitle = 'Best landing window in your dates';
 const String changeText = 'Change';
-const String landBetweenLabel = 'Land between';
+const String landBetweenLabel = 'Land any time between';
+const String landAtLabel = 'Land at';
 const String suggestedLandingLabel = 'Suggested landing';
 const String coversVerdict = 'Covers the whole mission';
 const String tightVerdict = 'Tight fit: only works if the skyline model is exact';
-const String noNightNoGapText = 'No night and no Earth gap during the mission';
-const String spanSlackText =
-    'Any landing in this span covers the whole mission. The suggested time keeps the Sun and Earth furthest above the skyline.';
+/// Why the suggested time inside a span (behind the badge's More).
+const String suggestedWhyText = 'The suggested time keeps the Sun and Earth furthest above the skyline.';
 const String singleTimeSlackText = 'Only this exact time fits; landing later loses part of the mission.';
 const String showLandingText = 'Show me the landing';
 const String useDatesText = 'Use these dates';
@@ -196,8 +196,12 @@ String fullFitEarthText({required bool requireDsn, EarthCriterion earthRule = Ea
   return '${earthMetricLabel(requireDsn: false)} the whole time ($why)';
 }
 
-/// The slack line under a full fit.
-String slackText(LandingPlan p) => p.hasSpan ? spanSlackText : singleTimeSlackText;
+/// The label over [spanText]: "Land any time between", or "Land at" for one time.
+String spanLabel(LandingPlan p) => p.hasSpan ? landBetweenLabel : landAtLabel;
+
+/// The slack line under a full fit: only for a single landing time (a span's
+/// label already says any time in it works).
+String? slackText(LandingPlan p) => p.hasSpan ? null : singleTimeSlackText;
 
 /// Footnote under every result.
 String landingFootnote(LandingPlan p, double heightM, {required bool requireDsn}) =>
@@ -225,8 +229,7 @@ String relaxedText(LandingWindow w, {required bool requireDsn}) {
       : !w.landsInSunlight
           ? 'in darkness'
           : noEarth;
-  return 'No landing time in your dates has the Sun and Earth up together, so this one lands $missing. '
-      'It is the closest window anyway.';
+  return 'No landing time in your dates has the Sun and Earth up together, so this one lands $missing.';
 }
 
 /// "0.25°" ([safeMarginDeg], the touchdown safety margin).
@@ -251,13 +254,13 @@ String noFitTitle(LandingPlan p) => 'No ${p.missionDays}-day window fits in your
 /// The longest Sun-and-Earth stretch, with the truncation note.
 String longestStretchText(LandingPlan p) {
   final d = p.longestFitDays;
-  if (d < 1) return 'Here the Sun and Earth are never up together for a whole day in your dates.';
+  if (d < 1) return 'The Sun and Earth are never up together for a whole day in your dates.';
   final note = !p.longestBothRunTruncated
       ? ''
       : p.longestBothRunAtEnd
-          ? ' (It runs to the end of your dates and may be longer.)'
-          : ' (It is already under way at the start of your dates and may be longer.)';
-  return 'The longest Sun-and-Earth stretch in your dates is ${_plural(d, 'day', 'days')}.$note';
+          ? ' (may run past your dates)'
+          : ' (may have started before your dates)';
+  return 'Longest Sun-and-Earth stretch in your dates: ${_plural(d, 'day', 'days')}$note.';
 }
 
 /// "Find a 13-day window", or null when the longest stretch is under a day.
@@ -281,10 +284,10 @@ String partialEarthText(LandingWindow w, {required bool requireDsn}) =>
     '${earthMetricLabel(requireDsn: requireDsn)} ${landingPct(w.earthPct)}% of the time; '
     '${w.longestOutageH <= 0 ? 'no Earth gap' : 'longest Earth gap ${duration(w.longestOutageH)}'}';
 
-/// "The lander would have to last 5.3 days of darkness on batteries." when
+/// "Batteries must last 5.3 days of darkness." when
 /// the longest night is over 24 h, else null.
 String? batteryText(LandingWindow w) => w.longestNightH > 24 + 1e-9
-    ? 'The lander would have to last ${duration(w.longestNightH)} of darkness on batteries.'
+    ? 'Batteries must last ${duration(w.longestNightH)} of darkness.'
     : null;
 
 /// "The very best partial window starts 20 Oct 2026, 05:00 UTC." when the
@@ -459,3 +462,16 @@ String landingFidelityText(Site site, LandingPlan plan, double heightM, {({doubl
   return b.toString();
 }
 
+/// The badge's visible first sentence: the timing caveat plus the model's
+/// main limit, so sighted users see it too, not only screen readers.
+const String landingDetailsLead = 'Approximate timing; Sun and Earth only, not terrain hazards or thermal limits.';
+
+/// The card's one disclosure: [landingDetailsLead] (all the badge shows until
+/// More), the rest of the [landingFidelityText], then why the suggested time
+/// (a span only) and the [landingFootnote].
+String landingDetailsText(Site site, LandingPlan plan, double heightM,
+        {required bool requireDsn, ({double mean, double max})? ridgePeakDiff}) =>
+    '$landingDetailsLead '
+    '${landingFidelityText(site, plan, heightM, ridgePeakDiff: ridgePeakDiff).replaceFirst('Approximate timing. ', '')}'
+    '${plan.isFullFit && plan.hasSpan ? ' $suggestedWhyText' : ''}'
+    ' ${landingFootnote(plan, heightM, requireDsn: requireDsn)}';

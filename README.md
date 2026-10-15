@@ -11,6 +11,13 @@ The same Flutter code runs as a web app and on Android.
 
 > **Status.** Complete: Explore (the map with every site ranked), Site (Overview, Sky & time with the classic sky plot and timeline, and the light & shadow map), Compare and Learn, plus the *best landing window* finder. Suggested landings keep the Sun and Earth at least 0.25° above the skyline. Code: [localizedprojects/CLPS-MOON-BROWSER](https://github.com/localizedprojects/CLPS-MOON-BROWSER). Web app: <https://localizedprojects.github.io/CLPS-MOON-BROWSER/>.
 
+### Get the app
+
+- **Web:** <https://localizedprojects.github.io/CLPS-MOON-BROWSER/>
+- **Android:** scan the code with your phone's camera, or download [lunar-horizon.apk](https://github.com/localizedprojects/CLPS-MOON-BROWSER/releases/latest/download/lunar-horizon.apk) from the [latest release](https://github.com/localizedprojects/CLPS-MOON-BROWSER/releases/latest). Open it and allow installing from your browser when Android asks (Android 5.0 or newer; signed with a development key, so it is installed directly, not from the Play Store).
+
+<img src="docs/android-download-qr.png" alt="QR code that downloads the Lunar Horizon Android app (APK) from the latest GitHub release" width="220">
+
 ### Screenshots
 
 Release web build, Next 12 months, 2 m lander, default rules: the MP1 landing window with Sky & time and the phone Sky & time from 13 October 2026 (the classic sky plot and timeline); Explore, Compare and the phone landing card from 12 October 2026.

@@ -6,8 +6,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:polar_horizon/main.dart';
+import 'package:polar_horizon/screens/site/overview.dart';
 import 'package:polar_horizon/screens/site/sky_time.dart';
 import 'package:polar_horizon/state/app_state.dart';
+import 'package:polar_horizon/widgets/chart_focus.dart';
 import 'package:polar_horizon/widgets/no_page_swipe.dart';
 import 'package:polar_horizon/widgets/time_bar.dart';
 import 'package:provider/provider.dart';
@@ -137,6 +139,75 @@ void main() {
     await done(tester);
   });
 
+  testWidgets('two quick chip taps: the tab never visits the page passed on the way', (tester) async {
+    size(tester, 390, 844);
+    await pumpSite(tester, SiteTab.overview);
+    final seen = <SiteTab>[];
+    void rec() => seen.add(state.siteTab);
+    state.addListener(rec);
+    addTearDown(() => state.removeListener(rec));
+    await tester.tap(find.widgetWithText(ChoiceChip, 'Sky & time'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 40));
+    await tester.tap(find.widgetWithText(ChoiceChip, 'Light & shadow'));
+    await settle(tester);
+    expect(pages(tester).page, 2);
+    expect(state.siteTab, SiteTab.light);
+    // one change per tap, none from the pages slid past
+    expect(seen.toSet(), {SiteTab.skyTime, SiteTab.light});
+    expect(seen.where((t) => t == SiteTab.skyTime).length, seen.indexOf(SiteTab.light));
+    await done(tester);
+  });
+
+  testWidgets('a drag past halfway changes nothing until released; back below halfway keeps the tab', (tester) async {
+    size(tester, 390, 844);
+    await pumpSite(tester, SiteTab.overview);
+    final seen = <SiteTab>[];
+    void rec() => seen.add(state.siteTab);
+    state.addListener(rec);
+    addTearDown(() => state.removeListener(rec));
+    final g = await tester.startGesture(freeSpot(tester));
+    for (var i = 0; i < 12; i++) {
+      await g.moveBy(const Offset(-20, 0));
+      await tester.pump(const Duration(milliseconds: 16));
+    }
+    // the neighbour is built as the drag starts, never a blank page
+    expect(find.byType(SkyTimeTab, skipOffstage: false), findsOneWidget);
+    expect(pages(tester).page!, greaterThan(0.5));
+    expect(state.siteTab, SiteTab.overview, reason: 'not committed mid-drag');
+    // slowly back below halfway, then let go
+    for (var i = 0; i < 10; i++) {
+      await g.moveBy(const Offset(20, 0));
+      await tester.pump(const Duration(milliseconds: 60));
+    }
+    await tester.pump(const Duration(milliseconds: 300));
+    await g.up();
+    await settle(tester);
+    expect(pages(tester).page, 0);
+    expect(state.siteTab, SiteTab.overview);
+    expect(seen.where((t) => t != SiteTab.overview), isEmpty);
+    await done(tester);
+  });
+
+  testWidgets('a right or left arrow scroll turns a whole page', (tester) async {
+    size(tester, 390, 844);
+    await pumpSite(tester, SiteTab.overview);
+    final inPage = tester.element(find.byType(SiteOverview));
+    Actions.invoke(inPage, const ScrollIntent(direction: AxisDirection.right));
+    await settle(tester);
+    expect(pages(tester).page, 1);
+    expect(state.siteTab, SiteTab.skyTime);
+    Actions.invoke(tester.element(find.byType(SkyTimeTab)), const ScrollIntent(direction: AxisDirection.left));
+    await settle(tester);
+    expect(pages(tester).page, 0);
+    expect(state.siteTab, SiteTab.overview);
+    // no page before the first
+    Actions.invoke(tester.element(find.byType(SiteOverview)), const ScrollIntent(direction: AxisDirection.left));
+    await settle(tester);
+    expect(pages(tester).page, 0);
+    await done(tester);
+  });
+
   testWidgets('reduce motion: a chip jumps to its page at once', (tester) async {
     size(tester, 390, 844);
     tester.platformDispatcher.accessibilityFeaturesTestValue = const FakeAccessibilityFeatures(disableAnimations: true);
@@ -169,6 +240,39 @@ void main() {
 
     // a mostly vertical drag scrolls the page
     await tester.dragFrom(freeSpot(tester), const Offset(30, -200));
+    await settle(tester);
+    expect(state.siteTab, SiteTab.skyTime);
+    expect(pages(tester).page, 1);
+    await done(tester);
+  });
+
+  testWidgets('a sideways drag on a chart or the hidden-controls strip never turns the page', (tester) async {
+    size(tester, 390, 844);
+    await pumpSite(tester, SiteTab.skyTime);
+    // the app provides a ChartHub, so the charts take their NoPageSwipe path
+    final chart = find.descendant(of: find.byType(SkyTimeTab), matching: find.byType(FocusableChart));
+    expect(chart, findsWidgets);
+    final c = chart.first;
+    await tester.ensureVisible(c);
+    await settle(tester);
+    expect(find.descendant(of: c, matching: find.byType(NoPageSwipe)).evaluate().isNotEmpty ||
+        find.ancestor(of: c, matching: find.byType(NoPageSwipe)).evaluate().isNotEmpty, isTrue);
+    await tester.dragFrom(tester.getCenter(c), const Offset(-250, 0));
+    await settle(tester);
+    expect(state.siteTab, SiteTab.skyTime);
+    expect(pages(tester).page, 1);
+    // close a full-screen chart a stray tap may have opened
+    if (find.byType(SkyTimeTab).evaluate().isEmpty) {
+      await tester.pageBack();
+      await settle(tester);
+    }
+
+    state.setTimeControlsHidden(true);
+    addTearDown(() => state.setTimeControlsHidden(false));
+    await settle(tester);
+    final strip = find.descendant(of: find.byType(SkyTimeTab), matching: find.byType(TimeStrip));
+    expect(strip, findsOneWidget);
+    await tester.dragFrom(tester.getCenter(strip), const Offset(250, 0));
     await settle(tester);
     expect(state.siteTab, SiteTab.skyTime);
     expect(pages(tester).page, 1);

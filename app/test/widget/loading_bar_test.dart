@@ -71,6 +71,10 @@ Widget _hostRm(Widget child) => _host(child, reduceMotion: _rm);
 
 double _bar(WidgetTester t) => t.widget<LoadingBar>(find.byType(LoadingBar)).value.value;
 
+/// The percentage shown with the bar, as text.
+String _shown(WidgetTester t) =>
+    t.widget<Text>(find.descendant(of: find.byKey(const ValueKey('loading-percent')), matching: find.byType(Text))).data!;
+
 void main() {
   test('the pace has holds and bursts, rises steadily and is full only at the end', () {
     var last = 0.0;
@@ -133,6 +137,12 @@ void main() {
       }
       expect(v, greaterThanOrEqualTo(last), reason: 'never backwards');
       if (ms <= 10000) expect(v, lessThan(1), reason: 'not full before the minimum time');
+      if (atDone == null) {
+        // the number is the bar's own value rounded down: never ahead of it or of the work
+        expect(_shown(tester), '${(v * 100).floor()}%', reason: 'at ${ms}ms');
+        expect(loadingPercent(v) / 100, lessThanOrEqualTo(s.work + 1e-9), reason: 'at ${ms}ms');
+        if (v < 1) expect(_shown(tester), isNot('100%'));
+      }
       if (ms == 1000) s.set(done: 0, total: 16);
       if (ms == 2000) s.set(done: 8);
       if (ms == 4000) s.set(done: 16, ranked: true, isReady: true); // ready long before the minimum
@@ -142,8 +152,7 @@ void main() {
     expect(atDone, 1, reason: 'full before the scene hands over');
     expect(fullAt, greaterThan(10000));
     expect(ms - fullAt, greaterThanOrEqualTo(1600), reason: 'full before the ending (1.6 s) starts');
-    expect(find.textContaining('%'), findsNothing);
-    expect(find.textContaining('percent'), findsNothing, reason: 'no numbers on screen, only for screen readers');
+    expect(find.textContaining('percent'), findsNothing, reason: 'the words say %, screen readers say percent');
     semantics.dispose();
     await tester.pumpWidget(const SizedBox());
   });
@@ -255,9 +264,12 @@ void main() {
     }
     final node = tester.getSemantics(find.byType(LoadingBar));
     expect(node.label, 'Loading');
-    expect(node.value, '${loadingSpoken(_bar(tester))} percent');
-    expect(loadingSpoken(0.479), 40, reason: 'in 10% steps, so it is not re-announced every frame');
-    expect(loadingSpoken(1), 100);
+    expect(node.value, '${loadingPercent(_bar(tester))} percent');
+    expect(_shown(tester), '${loadingPercent(_bar(tester))}%', reason: 'they hear what is shown');
+    expect(loadingPercent(0.479), 47, reason: 'rounded down, never above the bar');
+    expect(loadingPercent(0.999), 99, reason: '100 only when full');
+    expect(loadingPercent(1), 100);
+    expect(loadingPercent(double.nan), 0);
     semantics.dispose();
     await tester.pumpWidget(const SizedBox());
   });

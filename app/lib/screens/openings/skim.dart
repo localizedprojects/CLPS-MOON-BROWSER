@@ -1,4 +1,4 @@
-/// Opening candidate "Polar sunrise": at the Moon's south pole the Sun skims
+/// The opening played at start, "Polar sunrise": at the Moon's south pole the Sun skims
 /// sideways along the horizon instead of climbing.
 library;
 

@@ -32,7 +32,6 @@ import '../core/score.dart';
 import '../core/summary.dart';
 import '../core/timeseries.dart';
 import '../core/visibility.dart';
-import '../screens/openings/openings.dart' show defaultOpeningId;
 import '../widgets/map_view.dart' show MapLayers;
 import 'dem_load.dart';
 import 'light_engine.dart';
@@ -291,11 +290,16 @@ class AppState extends ChangeNotifier {
 
   static const _goalKey = 'goal';
 
+  /// Retired: preview builds saved the chosen opening here. Cleared at start;
+  /// never reuse this key name.
+  static const _retiredOpeningKey = 'opening';
+
   /// Read the goal saved last time and rank for it until the start question
   /// is answered. A missing or failing store keeps Balanced.
   Future<void> loadSavedGoal() async {
     try {
       final p = await SharedPreferences.getInstance();
+      if (p.containsKey(_retiredOpeningKey)) await p.remove(_retiredOpeningKey);
       final name = p.getString(_goalKey);
       final g = Goal.values.where((x) => x.name == name).firstOrNull;
       if (g == null) return;
@@ -308,32 +312,6 @@ class AppState extends ChangeNotifier {
     } catch (_) {
       // no store (a test host, a private browser window): Balanced, nothing marked
     }
-  }
-
-  /// Id of the opening animation played at start (see openings.dart).
-  String openingId = defaultOpeningId;
-
-  static const _openingKey = 'opening';
-
-  /// Read the opening saved by [setOpening]; a missing store keeps the default.
-  Future<void> loadSavedOpening() async {
-    try {
-      final id = (await SharedPreferences.getInstance()).getString(_openingKey);
-      if (id == null || id == openingId) return;
-      openingId = id;
-      notifyListeners();
-    } catch (_) {}
-  }
-
-  /// Play [id] at start from now on, and remember it.
-  void setOpening(String id) {
-    openingId = id;
-    notifyListeners();
-    unawaited(() async {
-      try {
-        await (await SharedPreferences.getInstance()).setString(_openingKey, id);
-      } catch (_) {}
-    }());
   }
 
   /// Whether the time bar of Sky & time and Light & shadow is folded to its

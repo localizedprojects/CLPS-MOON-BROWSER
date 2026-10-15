@@ -296,7 +296,7 @@ unchanged.
 
 - Title (subtitle 17, header): **"When should you land here?"**
 - Lead (muted 15; hidden when height < 700 and width < 600):
-  **"Finds the earliest landing in your dates when the Sun and Earth stay above the skyline for the whole mission."**
+  **"Finds the earliest landing in your dates with the Sun and Earth up the whole mission."**
 - Mission length: label **"How long is the surface mission? (days)"** over a Wrap of 5 equal
   segments **7 / 10 / 14 / 21 / Other**, 48 dp tall, at least 52 wide, numbers in Plex Mono, default
   14 (from `AppState.missionDays`), selected = neutral `selected` navy plus a check mark (never
@@ -325,7 +325,7 @@ grouped digits). Length controls are locked. No artificial delay.
 - Title: **"Best landing window in your dates"** (header, focus target).
 - Context line (muted 13): **"{L}-day mission · {goal} · {period label}"** plus a **"Change"** text
   button (48 dp hit area) that returns to idle with the values kept.
-- **"Land between"** (muted 13), then the span in Plex Mono:
+- **"Land any time between"** (muted 13; **"Land at"** for a single time), then the span in Plex Mono:
   **"{spanStart date, time} – {spanEnd date, time} UTC"**, for example
   "20 Oct 2026, 05:00 – 21 Oct 2026, 08:00 UTC" (MP1, 14 d, 2 m, default rules: span 27.0 h).
   When the span is a single landing time, show it alone.
@@ -340,15 +340,19 @@ grouped digits). Length controls are locked. No artificial delay.
     Otherwise: **"Some sunlight for all {L} days; for {halfSunHours} less than half the Sun is above the skyline (weakest about {minPower/full}% of full power)"**.
   - Earth: **"{earthMetricLabel} the whole time (its centre above the skyline)"**; with DSN on,
     "Earth contact (DSN) the whole time".
-  - Third row: **"No night and no Earth gap during the mission"**.
-- Slack line (muted): span >= 1 step: **"Any landing in this span covers the whole mission. The suggested time keeps the Sun and Earth furthest above the skyline."**
-  Single time: **"Only this exact time fits; landing later loses part of the mission."**
+  - Two rows only: the Sun and Earth rows already say "the whole time", so there is no separate
+    no-night row.
+- Slack line (muted), single time only: **"Only this exact time fits; landing later loses part of the mission."**
+  A span needs no slack line: its label "Land any time between" says it.
   When `marginRuleRelaxed` (no time in the span has both centres 0.25° up), add the muted line
   `marginFallbackText`: **"No landing time in this span has the Sun and Earth at least 0.25° above the hills; this is the closest."**
 - Actions (Wrap, min 48x48): Filled **"Show me the landing"**, Tonal **"Use these dates"**, Text
   **"Next window that fits ›"** (hidden when `nextSpanStartMs == null`; after the last one,
   the line **"No later window fits in your dates."**).
-- **FidelityBadge** (always, section 4), then the footnote (muted 13):
+- **FidelityBadge** (always, section 4), with `landingDetailsText` as its text. Visible until
+  More: `landingDetailsLead`, **"Approximate timing; Sun and Earth only, not terrain hazards or thermal limits."**
+  Behind More (screen readers hear it all): the timing detail, why the suggested time (a span
+  only), then the footnote:
   **"Model times every {everyStep(stepMs)}. Counts only when the Sun and Earth are above the modelled skyline at a {h} m lander, not slopes, rocks, ice, thermal limits or orbit and launch constraints."**
   With DSN on, add: "With the DSN rule on, Earth contact means a Deep Space Network station can see the Moon as well."
 - Expert mode only: **"Mission score {total} of 100 (same formula as Explore, applied to these {L} days; gaps measured against 30 days)"** and `formulaText(w)`.
@@ -356,9 +360,10 @@ grouped digits). Length controls are locked. No artificial delay.
 ### 3.5 Result, tier 2 (no full fit)
 
 - Title: **"No {L}-day window fits in your dates"**.
-- Sentence: **"The longest Sun-and-Earth stretch in your dates is {floor days} days."** plus
-  **" (It runs to the end of your dates and may be longer.)"** when truncated. If the longest run is
-  under a day: **"Here the Sun and Earth are never up together for a whole day in your dates."**
+- Sentence: **"Longest Sun-and-Earth stretch in your dates: {floor days} days."**, with
+  **" (may run past your dates)"** or **" (may have started before your dates)"** before the full
+  stop when truncated. If the longest run is under a day:
+  **"The Sun and Earth are never up together for a whole day in your dates."**
 - Actions: Filled **"Find a {floor days}-day window"** (sets L and runs; dropped when floor < 1),
   Tonal **"Search more dates"** (opens the Mission settings sheet).
 - Sunken inner panel **"Closest fit for {L} days"**, laid out like the result:
@@ -366,8 +371,8 @@ grouped digits). Length controls are locked. No artificial delay.
   **"Partial: Sun and Earth together {bothPct}% of the mission"**, fact rows
   **"Sunlight {sunPct}% of the time; longest night {duration}"**,
   **"{earthMetricLabel} {earthPct}% of the time; longest Earth gap {duration}"**, and when the
-  longest night is over 24 h: **"The lander would have to last {duration} of darkness on batteries."**
-  When `landingRuleRelaxed` (`relaxedText`): **"No landing time in your dates has the Sun and Earth up together, so this one lands {in darkness / without Earth in view}. It is the closest window anyway."**
+  longest night is over 24 h: **"Batteries must last {duration} of darkness."**
+  When `landingRuleRelaxed` (`relaxedText`): **"No landing time in your dates has the Sun and Earth up together, so this one lands {in darkness / without Earth in view}."**
 - **Touchdown safety margin (2.4).** The closest fit lands with the Sun's and Earth's centres at
   least 0.25° above the skyline (and DSN contact, with that rule on) whenever any landing time in
   the dates does; no extra line is shown then (the FidelityBadge explains it, section 4). When none
@@ -378,7 +383,7 @@ grouped digits). Length controls are locked. No artificial delay.
   1.4°, Earth about 0.4°, landing 13 Sep 2027 in a run on 12 Oct 2026) instead of at Earthrise (0.03°).
 - When `peak` starts later than the answer: **"The very best partial window starts {date}."** (the
   strict top among the same allowed touchdowns).
-- Text button **"Show me this landing"**. FidelityBadge and footnote as in 3.4.
+- Text button **"Show me this landing"**. FidelityBadge (with the footnote behind More) as in 3.4.
 - **Never** show "fits", "Excellent", "Good" or "Workable" here (C4). Real cases this covers: SR1
   14 d at 2 m (longest stretch 13.0 days; closest fit 23 h Earth gap), Haworth 14 d (5.3-day night).
 

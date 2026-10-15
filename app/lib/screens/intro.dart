@@ -1,8 +1,7 @@
-/// Start-up animations (user request 2026-10-14), drawn by Flutter so they
-/// play from the first frame: [IntroSplash] builds the logo (ridge, rising
-/// Sun, Earth), settles it and shows the name; [SpaceLoading] shows space
-/// objects drifting while the sites are ranked, with the real progress. Both
-/// are decorative (no data in the pictures) and still under "reduce motion".
+/// The loading screen (user request 2026-10-14), drawn by Flutter so it
+/// plays from the first frame: [SpaceLoading] shows space objects drifting
+/// while the sites are ranked, with the real progress. The pictures are
+/// decorative (no data in them) and still under "reduce motion".
 library;
 
 import 'dart:async';
@@ -16,102 +15,6 @@ import '../core/landing_wording.dart' show tryAgainText;
 import '../core/ranking.dart';
 import '../state/app_state.dart';
 import '../theme.dart';
-
-double _seg(double t, double a, double b) => ((t - a) / (b - a)).clamp(0.0, 1.0);
-
-/// The logo builds itself, settles in the middle, the name fades up beneath
-/// it, then [onDone]. A tap skips it.
-class IntroSplash extends StatefulWidget {
-  final VoidCallback onDone;
-  const IntroSplash({super.key, required this.onDone});
-  @override
-  State<IntroSplash> createState() => _IntroSplashState();
-}
-
-class _IntroSplashState extends State<IntroSplash> with SingleTickerProviderStateMixin {
-  late final AnimationController _c = AnimationController(vsync: this, duration: const Duration(milliseconds: 2800));
-  bool _done = false;
-  Timer? _still;
-
-  void _finish() {
-    if (_done) return;
-    _done = true;
-    widget.onDone();
-  }
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    if (_c.isAnimating || _c.isCompleted) return;
-    if (MediaQuery.disableAnimationsOf(context)) {
-      _c.value = 1; // the finished logo and name, briefly
-      _still = Timer(const Duration(milliseconds: 900), _finish);
-    } else {
-      _c.forward().whenComplete(() => mounted ? _finish() : null);
-    }
-  }
-
-  @override
-  void dispose() {
-    _still?.cancel();
-    _c.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) => Semantics(
-        label: 'Lunar Horizon',
-        hint: 'Tap to skip',
-        button: true,
-        onTap: _finish,
-        excludeSemantics: true,
-        child: GestureDetector(
-          behavior: HitTestBehavior.opaque,
-          onTap: _finish,
-          child: Material(
-            color: PH.bg, // a page under the text (no debug underline)
-            child: Center(
-              child: AnimatedBuilder(
-                animation: _c,
-                builder: (context, _) {
-                  final t = _c.value;
-                  // overlapping phases with soft curves (no bounces or snaps)
-                  final appear = Curves.easeOutCubic.transform(_seg(t, 0, 0.26));
-                  final settle = 1 + 0.035 * Curves.easeInOutSine.transform(1 - _seg(t, 0.7, 0.9));
-                  final name = Curves.easeOutCubic.transform(_seg(t, 0.62, 0.86));
-                  return Column(mainAxisSize: MainAxisSize.min, children: [
-                    Opacity(
-                      opacity: Curves.easeOut.transform(_seg(t, 0, 0.16)),
-                      child: Transform.scale(
-                        scale: (0.82 + 0.18 * appear) * (t < 0.7 ? 1.035 : settle),
-                        child: CustomPaint(
-                          key: const ValueKey('intro-logo'),
-                          size: const Size.square(112),
-                          painter: BrandMarkPainter(
-                            ridge: Curves.easeInOutCubic.transform(_seg(t, 0.1, 0.5)),
-                            sun: Curves.easeOutCubic.transform(_seg(t, 0.28, 0.66)),
-                            earth: Curves.easeOutBack.transform(_seg(t, 0.5, 0.74)),
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 22),
-                    Opacity(
-                      opacity: name,
-                      child: Transform.translate(
-                        offset: Offset(0, 14 * (1 - name)),
-                        child: const Text('Lunar Horizon',
-                            style: TextStyle(fontSize: 26, fontWeight: FontWeight.w600, letterSpacing: 0.4, color: PH.text)),
-                      ),
-                    ),
-                  ]);
-                },
-              ),
-            ),
-          ),
-        ),
-      );
-}
 
 /// Space objects drift while the sites are ranked for the chosen goal, with
 /// the real progress under them (words and a bar that never runs ahead of

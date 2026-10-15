@@ -2,8 +2,14 @@
 // skips; reduce motion shows the final picture; plus a contact sheet.
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:polar_horizon/screens/goal_page.dart';
 import 'package:polar_horizon/screens/openings/skim.dart';
+import 'package:polar_horizon/screens/shell.dart';
+import 'package:polar_horizon/state/app_state.dart';
+import 'package:polar_horizon/state/chart_hub.dart';
 import 'package:polar_horizon/theme.dart';
+import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'frame_sheet.dart';
 
@@ -61,4 +67,29 @@ void main() {
   testWidgets('contact sheet: skim', (tester) async {
     await writeContactSheets(tester, 'skim', (done) => SkimOpening(onDone: done));
   }, skip: sheetsDir == null);
+
+  testWidgets('the shell intro stage plays the opening, then a tap moves on to the goal page', (tester) async {
+    SharedPreferences.setMockInitialValues({});
+    final s = AppState()
+      ..askGoalOnStart = true
+      ..startStage = StartStage.intro;
+    final hub = ChartHub(onEvent: (_) {});
+    addTearDown(hub.dispose);
+    tester.view.physicalSize = const Size(400, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(ChangeNotifierProvider<AppState>.value(
+      value: s,
+      child: Provider<ChartHub>.value(value: hub, child: MaterialApp(theme: buildTheme(), home: const AppShell())),
+    ));
+    await tester.pump();
+    expect(find.byKey(const ValueKey('intro')), findsOneWidget);
+    expect(find.descendant(of: find.byKey(const ValueKey('intro')), matching: find.byType(SkimOpening)),
+        findsOneWidget);
+    await tester.tap(find.byType(SkimOpening));
+    await tester.pumpAndSettle();
+    expect(s.startStage, StartStage.goal);
+    expect(find.byType(SkimOpening), findsNothing);
+    expect(find.byType(GoalPage), findsOneWidget);
+  });
 }

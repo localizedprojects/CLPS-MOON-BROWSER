@@ -14,8 +14,6 @@
   powershell -ExecutionPolicy Bypass -File tools\install_android.ps1
 .EXAMPLE
   powershell -ExecutionPolicy Bypass -File tools\install_android.ps1 -SkipBuild -Serial <serial from adb devices>
-.EXAMPLE
-  powershell -ExecutionPolicy Bypass -File tools\install_android.ps1 -DartDefine PH_OPENINGS_PREVIEW=true
 #>
 param(
   [switch]$SkipBuild,                 # install the APK that is already built
@@ -24,7 +22,7 @@ param(
   [int]$WaitSeconds = 120,            # how long to wait for a device
   [switch]$Reinstall,                 # uninstall first (ERASES the app's data on the device); only for a signature mismatch
   [string]$Package = 'org.spaceapps.polarhorizon.polar_horizon',
-  [string[]]$DartDefine = @()        # extra build settings, e.g. -DartDefine PH_OPENINGS_PREVIEW=true
+  [string[]]$DartDefine = @()        # extra build settings, e.g. -DartDefine NAME=value
 )
 
 # 'Continue': Windows PowerShell 5.1 turns a native tool's stderr into errors, which 'Stop' would make fatal

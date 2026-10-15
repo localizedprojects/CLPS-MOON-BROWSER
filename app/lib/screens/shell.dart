@@ -23,7 +23,7 @@ import 'explore.dart';
 import 'goal_page.dart';
 import 'intro.dart';
 import 'learn.dart';
-import 'openings/openings.dart';
+import 'openings/skim.dart';
 import 'site/site_screen.dart';
 import 'validation_page.dart';
 
@@ -123,7 +123,7 @@ class _AppShellState extends State<AppShell> {
     // opens another destination skips it
     if (s.askGoalOnStart && s.startStage != StartStage.done && s.dest == Dest.explore) {
       final page = switch (s.startStage) {
-        StartStage.intro => KeyedSubtree(key: const ValueKey('intro'), child: openingById(s.openingId).build(s.finishIntro)),
+        StartStage.intro => KeyedSubtree(key: const ValueKey('intro'), child: SkimOpening(onDone: s.finishIntro)),
         StartStage.goal => GoalPage(key: const ValueKey('goal'), state: s),
         _ => SpaceLoading(key: const ValueKey('loading'), state: s, onDone: s.finishStartLoading),
       };

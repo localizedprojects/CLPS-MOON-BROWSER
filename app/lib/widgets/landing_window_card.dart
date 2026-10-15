@@ -699,14 +699,13 @@ class _Result extends StatelessWidget {
           );
 
     final findAgain = FilledButton(style: _action, onPressed: onFindAgain, child: const Text(findAgainText));
+    // the one disclosure: landingDetailsLead until More, then the timing
+    // detail, why the suggested time and the model footnote (screen readers
+    // get it all)
     final badge = FidelityBadge(
-        text: landingFidelityText(s.site, plan, key.observerHeightM,
-            ridgePeakDiff: s.ridgePeakSunlitDiff));
-    final foot = Padding(
-      padding: const EdgeInsets.only(top: 8),
-      child: Text(landingFootnote(plan, key.observerHeightM, requireDsn: dsn),
-          style: PHText.small.copyWith(color: PH.muted)),
-    );
+        text: landingDetailsText(s.site, plan, key.observerHeightM,
+            requireDsn: dsn, ridgePeakDiff: s.ridgePeakSunlitDiff));
+    final slack = slackText(plan);
     final expert = s.expert && !stale
         ? Padding(
             padding: const EdgeInsets.only(top: 8),
@@ -725,7 +724,7 @@ class _Result extends StatelessWidget {
         ?staleNote,
         const SizedBox(height: 4),
         facts([
-          Text(landBetweenLabel, style: PHText.small.copyWith(color: PH.muted)),
+          Text(spanLabel(plan), style: PHText.small.copyWith(color: PH.muted)),
           const SizedBox(height: 2),
           Text(spanDisplayText(plan), style: numStyle(size: 15)),
           const SizedBox(height: 12),
@@ -744,10 +743,12 @@ class _Result extends StatelessWidget {
           _Verdict(verdictText(plan)),
           const SizedBox(height: 4),
           _Fact(GlyphKind.sun, fullFitSunText(plan)),
-          _Fact(GlyphKind.earth, fullFitEarthText(requireDsn: dsn, earthRule: key.earthCriterion)),
-          const _Fact(GlyphKind.dark, noNightNoGapText, last: true),
-          const SizedBox(height: 4),
-          Text(slackText(plan), style: PHText.small.copyWith(color: PH.muted)),
+          // no "no night, no gap" row: the two rows above already say the whole time
+          _Fact(GlyphKind.earth, fullFitEarthText(requireDsn: dsn, earthRule: key.earthCriterion), last: true),
+          if (slack != null) ...[
+            const SizedBox(height: 4),
+            Text(slack, style: PHText.small.copyWith(color: PH.muted)),
+          ],
           if (marginNote != null) ...[
             const SizedBox(height: 6),
             Text(marginNote, style: PHText.small.copyWith(color: PH.muted)),
@@ -771,7 +772,6 @@ class _Result extends StatelessWidget {
             child: Text(noLaterWindowText, style: PHText.small.copyWith(color: PH.muted)),
           ),
         badge,
-        foot,
         ?expert,
       ]);
     }
@@ -838,7 +838,6 @@ class _Result extends StatelessWidget {
         ]),
       ),
       badge,
-      foot,
       ?expert,
     ]);
   }

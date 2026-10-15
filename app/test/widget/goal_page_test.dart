@@ -17,7 +17,7 @@ void main() {
     SharedPreferences.setMockInitialValues(saved);
     final s = AppState()
       ..askGoalOnStart = true
-      ..startStage = StartStage.goal; // the intro is tested in intro_test.dart
+      ..startStage = StartStage.goal; // the intro is tested in test/openings/skim_test.dart
     await s.loadSavedGoal();
     final hub = ChartHub(onEvent: (_) {});
     addTearDown(hub.dispose);

@@ -13,10 +13,13 @@ The same Flutter code runs as a web app and on Android.
 
 ### Get the app
 
-- **Web:** <https://localizedprojects.github.io/CLPS-MOON-BROWSER/>
-- **Android:** scan the code with your phone's camera, or download [lunar-horizon.apk](https://github.com/localizedprojects/CLPS-MOON-BROWSER/releases/latest/download/lunar-horizon.apk) from the [latest release](https://github.com/localizedprojects/CLPS-MOON-BROWSER/releases/latest). Open it and allow installing from your browser when Android asks (Android 5.0 or newer; signed with a development key, so it is installed directly, not from the Play Store).
+Scan the code with your phone's camera. It opens <https://localizedprojects.github.io/CLPS-MOON-BROWSER/get/>, which picks the right install for the device:
 
-<img src="docs/android-download-qr.png" alt="QR code that downloads the Lunar Horizon Android app (APK) from the latest GitHub release" width="220">
+- **Android:** downloads [lunar-horizon.apk](https://github.com/localizedprojects/CLPS-MOON-BROWSER/releases/latest/download/lunar-horizon.apk) from the [latest release](https://github.com/localizedprojects/CLPS-MOON-BROWSER/releases/latest). Open it and allow installing from your browser when Android asks (Android 5.0 or newer; signed with a development key, so it is installed directly, not from the Play Store).
+- **iPhone and iPad:** opens the web app in Safari; use Share, then *Add to Home Screen* to keep it as an app. (Installing an iOS app file needs a paid Apple Developer account; the page has one switch, `IOS_URL` in `app/web/get/index.html`, for a TestFlight or App Store link later, and the QR code stays the same.)
+- **Computers:** <https://localizedprojects.github.io/CLPS-MOON-BROWSER/>
+
+<img src="docs/get-app-qr.png" alt="QR code that opens the Lunar Horizon get-the-app page: Android installs the APK, iPhone and iPad open the web app" width="240">
 
 ### Screenshots
 

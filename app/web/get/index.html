@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Get Lunar Horizon</title>
+  <meta name="description" content="Download Lunar Horizon for Android, or add it to your iPhone or iPad home screen.">
+  <link rel="icon" type="image/png" href="../favicon.png">
+  <!-- The page behind the QR code: one link that sends each device to the right install.
+       Android gets the APK from the latest GitHub release; iPhone and iPad get the web app
+       with "Add to Home Screen" steps (installing an iOS app file needs a paid Apple account:
+       set IOS_URL to a TestFlight or App Store link to send iOS there instead). In-app
+       browsers (Instagram, Facebook...) are asked to open the page in a real browser first.
+       Test with ?as=android|ios|desktop and ?dry (shows the choice without redirecting). -->
+  <style>
+    :root { --bg: #060B16; --panel: #0C1528; --raised: #12203A; --line: #1E3050; --text: #E8EEF8; --muted: #9AA8BE; --ice: #9CC9FF; }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; background: var(--bg); color: var(--text);
+      font: 16px/1.5 "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      display: flex; align-items: center; justify-content: center; padding: 24px 16px; }
+    main { width: 100%; max-width: 440px; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 24px; }
+    .brand { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+    .brand img { width: 44px; height: 44px; border-radius: 10px; }
+    h1 { font-size: 22px; margin: 0; }
+    h2 { font-size: 17px; margin: 20px 0 8px; }
+    p, li { color: var(--muted); }
+    ol { padding-left: 22px; margin: 8px 0 0; }
+    li { margin: 6px 0; }
+    strong { color: var(--text); }
+    .button { display: flex; align-items: center; justify-content: center; width: 100%; min-height: 48px; margin: 12px 0 0;
+      padding: 10px 16px; border-radius: 8px; border: 0; background: var(--ice); color: #06101F; font: inherit; font-weight: 600;
+      text-decoration: none; cursor: pointer; }
+    .button.secondary { background: var(--raised); color: var(--text); border: 1px solid var(--line); }
+    .button:focus-visible { outline: 2px solid var(--ice); outline-offset: 3px; }
+    .note { font-size: 13px; margin-top: 16px; }
+    [hidden] { display: none !important; }
+  </style>
+</head>
+<body>
+  <main>
+    <div class="brand">
+      <img src="../icons/Icon-192.png" alt="">
+      <h1>Lunar Horizon</h1>
+    </div>
+    <p>Plan Moon south-pole landings by sunlight and Earth contact.</p>
+
+    <section id="android" hidden>
+      <h2>Android</h2>
+      <p id="android-status" role="status">Starting the download. If nothing happens, tap the button below.</p>
+      <a class="button" id="open-chrome" hidden
+         href="intent://localizedprojects.github.io/CLPS-MOON-BROWSER/get/#Intent;scheme=https;package=com.android.chrome;end">Open in Chrome</a>
+      <ol id="android-steps">
+        <li>If Chrome warns that the file might be harmful, tap <strong>Download anyway</strong> (it is not from the Play Store, so Android always warns).</li>
+        <li>Open the downloaded <strong>lunar-horizon.apk</strong>.</li>
+        <li>If Android asks, allow your browser to <strong>install unknown apps</strong>, then tap <strong>Install</strong>.
+          If Play Protect asks, tap <strong>More details</strong>, then <strong>Install anyway</strong>.</li>
+      </ol>
+      <a class="button" id="apk-link" href="https://github.com/localizedprojects/CLPS-MOON-BROWSER/releases/latest/download/lunar-horizon.apk">Download for Android (APK)</a>
+    </section>
+
+    <section id="ios" hidden>
+      <h2>iPhone and iPad</h2>
+      <p>Lunar Horizon runs in the browser and can sit on your home screen like an app.</p>
+      <ol>
+        <li id="ios-inapp" hidden>This page is open inside another app. Tap the <strong>…</strong> (or compass) button and choose
+          <strong>Open in Safari</strong>, or copy the link below and paste it into Safari.</li>
+        <li>Tap <strong>Open Lunar Horizon</strong> below.</li>
+        <li id="ios-share">Tap <strong>Share</strong> (in newer Safari it may be under the <strong>…</strong> menu), then <strong>Add to Home Screen</strong>.</li>
+        <li>Open it from its new icon.</li>
+      </ol>
+      <a class="button" href="../">Open Lunar Horizon</a>
+      <button class="button secondary" id="copy" type="button">Copy link</button>
+      <p class="note" id="copy-status" role="status"></p>
+    </section>
+
+    <section id="other">
+      <h2>Get the app</h2>
+      <div id="other-buttons">
+        <a class="button" id="other-web" href="../">Open the web app</a>
+        <a class="button secondary" id="other-apk" href="https://github.com/localizedprojects/CLPS-MOON-BROWSER/releases/latest/download/lunar-horizon.apk">Download for Android (APK)</a>
+      </div>
+      <p class="note">On an iPhone or iPad, open the web app in Safari and use Share, then Add to Home Screen.</p>
+    </section>
+
+    <p class="note" id="dry" role="status" hidden></p>
+  </main>
+  <script>
+    (function () {
+      var APK_URL = 'https://github.com/localizedprojects/CLPS-MOON-BROWSER/releases/latest/download/lunar-horizon.apk';
+      var IOS_URL = null; // a TestFlight or App Store link, once there is one
+      var PAGE_URL = 'https://localizedprojects.github.io/CLPS-MOON-BROWSER/get/';
+      var params = new URLSearchParams(location.search);
+      var forced = params.get('as');
+      var dry = params.has('dry');
+      var ua = navigator.userAgent || '';
+      var touch = navigator.maxTouchPoints > 1;
+      // iPadOS reports a Mac user agent; a touch screen gives it away
+      var ios = /iPhone|iPad|iPod/i.test(ua) || (navigator.platform === 'MacIntel' && touch);
+      // some Android tablets and "desktop site" mode send a Linux desktop user agent
+      var android = !ios && (/Android/i.test(ua) ||
+        (navigator.userAgentData && navigator.userAgentData.platform === 'Android') ||
+        (/Linux/i.test(ua) && !/CrOS/i.test(ua) && touch));
+      // in-app browsers (social and messaging apps) often cannot download or add to the home screen
+      var inApp = /FBAN|FBAV|Instagram|Line\/|LinkedInApp|Snapchat|; wv\)/i.test(ua);
+      var device = forced || (android ? 'android' : ios ? 'ios' : 'desktop');
+
+      function show(id) {
+        ['android', 'ios', 'other'].forEach(function (s) { document.getElementById(s).hidden = s !== id; });
+      }
+      function note(text) {
+        var n = document.getElementById('dry');
+        n.hidden = false;
+        n.textContent = text;
+      }
+      function go(url) {
+        if (dry) { note('Test mode (' + device + '): would open ' + url); } else { location.href = url; }
+      }
+      var nav = (performance.getEntriesByType && performance.getEntriesByType('navigation')[0]) || {};
+      var revisit = nav.type === 'reload' || nav.type === 'back_forward';
+
+      if (device === 'android') {
+        show('android');
+        var status = document.getElementById('android-status');
+        if (inApp) {
+          status.textContent = 'This app cannot download files. Open this page in Chrome to get Lunar Horizon.';
+          document.getElementById('open-chrome').hidden = false;
+        } else if (revisit) {
+          status.textContent = 'Tap the button below to download again.';
+        } else {
+          if (dry) status.textContent = 'Test mode: the download would start now.';
+          setTimeout(function () { go(APK_URL); }, 600);
+        }
+      } else if (device === 'ios') {
+        if (IOS_URL && !inApp) { go(IOS_URL); return; }
+        show('ios');
+        if (inApp) document.getElementById('ios-inapp').hidden = false;
+        if (/CriOS|FxiOS|EdgiOS/i.test(ua)) {
+          document.getElementById('ios-share').innerHTML =
+            'Tap <strong>Share</strong> (in Chrome it is in the address bar), then <strong>Add to Home Screen</strong>. If you cannot find it, open the page in Safari.';
+        }
+        document.getElementById('copy').addEventListener('click', function () {
+          var done = function (ok) { document.getElementById('copy-status').textContent = ok ? 'Link copied. Paste it into Safari.' : PAGE_URL; };
+          if (navigator.clipboard) { navigator.clipboard.writeText(PAGE_URL).then(function () { done(true); }, function () { done(false); }); }
+          else { done(false); }
+        });
+      } else {
+        show('other');
+        if (touch) {
+          // a touch device we could not identify: put the APK first
+          var box = document.getElementById('other-buttons');
+          box.insertBefore(document.getElementById('other-apk'), document.getElementById('other-web'));
+          document.getElementById('other-apk').className = 'button';
+          document.getElementById('other-web').className = 'button secondary';
+        }
+      }
+    })();
+  </script>
+</body>
+</html>

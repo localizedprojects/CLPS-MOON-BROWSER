@@ -39,6 +39,57 @@ const _sizes = [
 ];
 
 void main() {
+  test("the sites' places on the disc: lon 0 up, 90 E to the right", () {
+    final east = loadingSitePoint(-85, 90), up = loadingSitePoint(-85, 0);
+    expect(east.dx, greaterThan(0.1));
+    expect(east.dy.abs(), lessThan(1e-6));
+    expect(up.dy, lessThan(-0.1));
+    expect(up.dx.abs(), lessThan(1e-6));
+  });
+
+  test('the Sun sits where the relief is lit from, turning with the terrain', () {
+    for (final t in [0.0, 7.0, 40.0, 300.0]) {
+      // the map's light comes from upper left (-3 pi / 4), turned by the spin
+      final a = (LoadingSceneGeometry.sunAngle(t) - LoadingSceneGeometry.spin(t) + 3 * math.pi / 4) % (2 * math.pi);
+      expect(math.min(a, 2 * math.pi - a), lessThan(1e-9), reason: 'at $t s');
+    }
+  });
+
+  test("Earth's lit side faces the Sun (+x), new to full", () {
+    const er = 10.0;
+    bool lit(double elong, double x) => earthLitPath(er, elong).contains(Offset(x, 0));
+    expect(lit(math.pi / 2, 5), isTrue, reason: 'half: the Sun side lit');
+    expect(lit(math.pi / 2, -5), isFalse, reason: 'half: the far side dark');
+    expect(lit(0.3, 9.7), isTrue, reason: 'thin crescent on the Sun side');
+    expect(lit(0.3, -5), isFalse);
+    expect(lit(math.pi - 0.1, -5), isTrue, reason: 'nearly full');
+  });
+
+  testWidgets('the terrain caption keeps clear of the status bar, and the terrain is freed after', (tester) async {
+    final s = _Ranking();
+    addTearDown(s.dispose);
+    // decoded first, as the contact sheets do (real work, outside fake time)
+    await tester.runAsync(() => loadingTerrain());
+    await tester.pumpWidget(MaterialApp(
+        theme: buildTheme(),
+        home: Builder(
+            builder: (c) => MediaQuery(
+                data: MediaQuery.of(c).copyWith(padding: const EdgeInsets.only(top: 47, left: 30)),
+                child: SpaceLoading(state: s, onDone: () {})))));
+    // the job finished outside fake time, so its callback runs there too
+    await tester.runAsync(() => Future<void>.delayed(Duration.zero));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400)); // faded in
+    final st = tester.state(find.byType(SpaceLoading)) as dynamic;
+    final terrain = st.terrain as LoadingTerrain?;
+    expect(terrain, isNotNull);
+    final r = tester.getRect(find.text('Terrain: NASA LOLA'));
+    expect(r.top, greaterThanOrEqualTo(47));
+    expect(r.left, greaterThanOrEqualTo(30));
+    await tester.pumpWidget(const SizedBox());
+    expect(terrain!.image.debugDisposed, isTrue, reason: "the screen's copy is freed when it goes");
+  });
+
   testWidgets('the loading scene stays until the app is ready, with words for what is happening', (tester) async {
     final s = AppState();
     addTearDown(s.dispose);
@@ -52,7 +103,7 @@ void main() {
 
   for (final size in _sizes) {
     final name = '${size.width.toInt()}x${size.height.toInt()}';
-    test('$name: the Sun, Earth, satellite, lander, ring and comet stay on screen', () {
+    test('$name: the Sun, Earth and the Moon with its site lights stay on screen', () {
       final g = LoadingSceneGeometry.of(size);
       final m = math.max(12.0, 0.06 * math.min(size.width, size.height));
       expect(g.margin, m);
@@ -69,38 +120,33 @@ void main() {
         expect(p.dy + reach, lessThanOrEqualTo(safe.bottom + 1e-9), reason: why);
       }
 
-      // 200 moments over one whole Earth orbit (it is the slowest; the Sun
-      // goes round almost three times in it)
-      const earthYear = 2 * math.pi / 0.12;
+      // the Moon (the terrain and any site light on its edge) holds still
+      inside('the Moon', g.c, g.moonReach, 0);
+      // 200 moments over Earth's drift once round (it is the slowest; the
+      // Sun goes round several times in it)
+      const earthYear = 2 * math.pi / 0.03;
       for (var i = 0; i < 200; i++) {
-        final t = earthYear * i / 199, f = i / 199;
+        final t = earthYear * i / 199;
         inside('the Sun', g.sun(t), g.sunCore, i);
         // its faint glow may reach into the margin, not off the screen
         final sun = g.sun(t);
         expect(Rect.fromCircle(center: sun, radius: g.sunGlow).deflate(1e-9),
             predicate<Rect>((r) => (Offset.zero & size).contains(r.topLeft) && (Offset.zero & size).contains(r.bottomRight)),
             reason: "the Sun's glow at moment $i on $name");
-        // the Sun and Earth stay clear of the site lights and of each other
-        final ringOut = g.ringR + g.ringReach;
-        expect((sun - g.c).distance, greaterThanOrEqualTo(ringOut + g.sunCore), reason: 'the Sun at moment $i on $name');
-        expect((g.earth(t) - g.c).distance, greaterThanOrEqualTo(ringOut + g.earthR),
+        // the Sun and Earth stay clear of the Moon and of each other
+        expect((sun - g.c).distance, greaterThanOrEqualTo(g.moonReach + g.sunCore), reason: 'the Sun at moment $i on $name');
+        expect((g.earth(t) - g.c).distance, greaterThanOrEqualTo(g.moonReach + g.earthR),
             reason: 'Earth at moment $i on $name');
         inside('Earth', g.earth(t), g.earthR, i);
-        inside('the satellite', g.sat(t), g.satReach, i);
-        inside('the lander', g.lander(f), 1.7 * g.landerSize(f), i);
-        final a = 2 * math.pi * f;
-        inside('a site light', g.c + Offset(math.cos(a), math.sin(a)) * g.ringR, g.ringReach, i);
-        inside('the comet', g.comet(f), LoadingSceneGeometry.cometReach, i);
-        inside('the comet tail', g.comet(f) + g.cometBack, LoadingSceneGeometry.cometReach, i);
       }
-      // the Sun and Earth never overlap, at any pair of moments (Earth
-      // passes the Sun many times; the closest is sampled finely here)
-      for (var i = 0; i < 4000; i++) {
-        final t = earthYear * i / 3999;
+      // the Sun and Earth never overlap: over one whole lap of Earth past
+      // the Sun (the closest is sampled finely here)
+      const lap = 2 * math.pi / (0.03 - 0.025);
+      for (var i = 0; i < 6000; i++) {
+        final t = lap * i / 5999;
         expect((g.sun(t) - g.earth(t)).distance, greaterThanOrEqualTo(g.sunCore + g.earthR),
             reason: 'the Sun over Earth at ${t.toStringAsFixed(2)} s on $name');
       }
-      expect(g.landerReach, 1.7 * g.landerSize(0));
       // the light comes from the Sun you can see (within 1 degree)
       for (var i = 0; i < 200; i++) {
         final t = earthYear * i / 199;

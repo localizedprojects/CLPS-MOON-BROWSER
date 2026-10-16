@@ -3,6 +3,9 @@
 // AppState.siteTab. Sideways drags on the time bar stay the bar's, vertical
 // drags scroll, visited tabs stay alive, and from 1100 px wide the two-pane
 // layout has no pages.
+import 'dart:ui' as ui;
+
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:polar_horizon/main.dart';
@@ -276,6 +279,44 @@ void main() {
     await settle(tester);
     expect(state.siteTab, SiteTab.skyTime);
     expect(pages(tester).page, 1);
+    await done(tester);
+  });
+
+  testWidgets('a vertical drag that starts on a chart scrolls the page; a tap there opens it', (tester) async {
+    size(tester, 390, 844);
+    // an Android phone's touch slop (8 dp), smaller than Flutter's default
+    tester.view.gestureSettings = const ui.GestureSettings(physicalTouchSlop: 8);
+    await pumpSite(tester, SiteTab.skyTime);
+    final c = find.descendant(of: find.byType(SkyTimeTab), matching: find.byType(FocusableChart)).first;
+    await tester.ensureVisible(c);
+    await settle(tester);
+    final scroll =
+        tester.state<ScrollableState>(find.descendant(of: find.byType(SkyTimeTab), matching: find.byType(Scrollable)).first);
+    final before = scroll.position.pixels;
+    // a finger that wobbles 12 px sideways (past the 8 dp touch slop) before
+    // it goes up: the page still scrolls and does not turn
+    final g = await tester.startGesture(tester.getCenter(c), kind: PointerDeviceKind.touch);
+    for (var k = 0; k < 3; k++) {
+      await g.moveBy(const Offset(4, 0));
+      await tester.pump(const Duration(milliseconds: 16));
+    }
+    for (var k = 0; k < 20; k++) {
+      await g.moveBy(const Offset(1, -10));
+      await tester.pump(const Duration(milliseconds: 16));
+    }
+    await g.up();
+    await settle(tester);
+    expect(scroll.position.pixels, greaterThan(before), reason: 'the page scrolled');
+    expect(state.siteTab, SiteTab.skyTime);
+    expect(find.byType(ChartFocusPage), findsNothing, reason: 'a drag is not a tap');
+    // back in view (the pinned time bar may cover it now)
+    await tester.ensureVisible(c);
+    await settle(tester);
+    await tester.tapAt(tester.getCenter(c));
+    await settle(tester);
+    expect(find.byType(ChartFocusPage), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('chart-focus-close')));
+    await settle(tester);
     await done(tester);
   });
 

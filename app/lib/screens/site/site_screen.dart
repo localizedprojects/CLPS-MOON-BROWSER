@@ -5,6 +5,7 @@
 /// narrower, one tab shows at a time and a sideways swipe turns to the next.
 library;
 
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -12,6 +13,7 @@ import '../../core/wording.dart';
 import '../../state/app_state.dart';
 import '../../theme.dart';
 import '../../widgets/hide_on_scroll.dart';
+import '../../widgets/no_page_swipe.dart';
 import '../../widgets/sheets/site_picker_sheet.dart';
 import 'light_tab.dart';
 import 'overview.dart';
@@ -339,6 +341,20 @@ class _SwipeTabs extends StatefulWidget {
 
 class _SwipeTabsState extends State<_SwipeTabs> {
   late final PageController _pages = PageController(initialPage: widget.index);
+
+  /// Fingers down on a chart, a slider or the time bar (NoPageSwipe).
+  late final SwipeLock _lock = SwipeLock()..addListener(_held);
+
+  /// The devices that may drag the pages: emptied while a finger is down on
+  /// a NoPageSwipe, before the pages see the touch, so they never join that
+  /// gesture (a vertical scroll inside gets it, even with a sideways wobble).
+  final Set<PointerDeviceKind> _dragDevices = {};
+  Set<PointerDeviceKind> _usual = const {};
+
+  void _held() {
+    _dragDevices.clear();
+    if (_lock.value == 0) _dragDevices.addAll(_usual);
+  }
   final Set<int> _built = {};
 
   /// The tab last swiped to or asked for.
@@ -415,6 +431,7 @@ class _SwipeTabsState extends State<_SwipeTabs> {
   @override
   void dispose() {
     _pages.dispose();
+    _lock.dispose();
     super.dispose();
   }
 
@@ -422,6 +439,11 @@ class _SwipeTabsState extends State<_SwipeTabs> {
   Widget build(BuildContext context) {
     final i = widget.index;
     _built.add(i);
+    // the pages read _dragDevices itself (the same set, so a change is seen
+    // at once); the tabs inside get the usual behaviour back
+    final usual = ScrollConfiguration.of(context);
+    _usual = usual.dragDevices;
+    if (_lock.value == 0) _held();
     // a page inside still hides the bars above as it scrolls
     // the tab changes when the pages settle (_onScroll); arrow keys turn a
     // whole page (_PageArrowAction)
@@ -430,18 +452,27 @@ class _SwipeTabsState extends State<_SwipeTabs> {
         actions: {ScrollIntent: _arrows},
         child: NotificationListener<ScrollNotification>(
           onNotification: _onScroll,
-          child: PageView.builder(
-            controller: _pages,
-            itemCount: widget.children.length,
-            // no tickers, tooltips or focus on a tab that is not the current
-            // one (new-sun-earth-tooltip), as in _LazyTabs
-            itemBuilder: (context, k) => TickerMode(
-              enabled: k == i,
-              child: TooltipVisibility(
-                visible: k == i,
-                child: ExcludeFocus(
-                  excluding: k != i,
-                  child: _built.contains(k) ? _KeptPage(child: widget.children[k]()) : const SizedBox.expand(),
+          child: PageSwipeLock(
+            notifier: _lock,
+            child: ScrollConfiguration(
+              behavior: usual.copyWith(dragDevices: _dragDevices),
+              child: PageView.builder(
+                controller: _pages,
+                itemCount: widget.children.length,
+                // no tickers, tooltips or focus on a tab that is not the current
+                // one (new-sun-earth-tooltip), as in _LazyTabs
+                itemBuilder: (context, k) => TickerMode(
+                  enabled: k == i,
+                  child: TooltipVisibility(
+                    visible: k == i,
+                    child: ExcludeFocus(
+                      excluding: k != i,
+                      child: ScrollConfiguration(
+                        behavior: usual,
+                        child: _built.contains(k) ? _KeptPage(child: widget.children[k]()) : const SizedBox.expand(),
+                      ),
+                    ),
+                  ),
                 ),
               ),
             ),

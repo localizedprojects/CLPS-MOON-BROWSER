@@ -1,7 +1,7 @@
-/// "At the time shown" (the time-bar cursor): three chips (Sun, Earth, and
-/// power + contact together), each a shape glyph plus words, in a live region
-/// so a screen reader hears the change while scrubbing or playing. The Sun
-/// and Earth chips use the state words the charts use (charts spec 2.0).
+/// "At the time shown" (the time-bar cursor): one statement (power + contact
+/// together), a shape glyph plus words, in a live region so a screen reader
+/// hears the change while scrubbing or playing. Its label adds the Sun and
+/// Earth state words the charts use (charts spec 2.0).
 library;
 
 import 'package:flutter/material.dart';
@@ -14,7 +14,7 @@ import '../theme.dart';
 import 'chart_bridge.dart' show nowAt;
 import 'glyphs.dart';
 
-/// One body's chip text from its shared state word ([bodyStateShort], the
+/// One body's state text (read out after the statement) from its shared state word ([bodyStateShort], the
 /// `state` field of `nowAt`): "Sun up", "Earth below the horizon",
 /// "Sun partly up · 51% showing", "Earth up, but no DSN dish can reach it".
 String bodyChipText(String body, String state, double frac) {
@@ -52,7 +52,7 @@ String shownTimeLabel(double ms, {double? refMs}) {
   return '${t.day} ${months[t.month - 1]}$year ${two(t.hour)}:${two(t.minute)} UTC';
 }
 
-/// The three chip lines for one `nowAt` state (pure, tested).
+/// The statement and the Sun and Earth details for one `nowAt` state (pure, tested).
 ///
 /// Sun and Earth use the shared state words (Dart decides the state: the
 /// `state` field of `nowAt`, worked out here when a caller's map lacks it).
@@ -82,37 +82,70 @@ String shownTimeLabel(double ms, {double? refMs}) {
       earthVisible(earthRule, n(earth, 'frac'), n(earth, 'el'), n(earth, 'hz'));
   final sunText = bodyChipText('Sun', stateOf(sun), n(sun, 'frac'));
   final earthText = bodyChipText('Earth', stateOf(earth, terrainVisible: terrainEarth), n(earth, 'frac'));
-  final contact = requireDsn ? 'Earth contact' : 'Earth in view';
-  final (both, glyph) = switch ((sunUp, earthUp)) {
-    (true, true) => ('Power + $contact now', GlyphKind.both),
-    (true, false) => ('Power now, but no $contact', GlyphKind.sun),
-    (false, true) => ('$contact now, but no sunlight for power', GlyphKind.earth),
-    (false, false) => ('No power and no $contact now', GlyphKind.dark),
-  };
+  final (both, glyph) = nowStatement(
+      sunUp: sunUp, earthUp: earthUp, sunState: stateOf(sun), earthState: stateOf(earth, terrainVisible: terrainEarth),
+      requireDsn: requireDsn);
   return (sun: sunText, earth: earthText, both: both, bothGlyph: glyph);
+}
+
+/// The one statement for a Sun and Earth state. The Sun half says when the
+/// Sun is only partly up, or showing but too low to count; the Earth half
+/// says when Earth is up but no DSN dish can reach it, so the line never
+/// reads against the sky chart above it.
+(String, GlyphKind) nowStatement({
+  required bool sunUp,
+  required bool earthUp,
+  required String sunState,
+  required String earthState,
+  required bool requireDsn,
+}) {
+  final contact = requireDsn ? 'Earth contact' : 'Earth in view';
+  final partly = sunUp && sunState == 'partly' ? ' (Sun partly up)' : '';
+  final tooLow = !sunUp && sunState == 'notCounted';
+  final noDish = !earthUp && earthState == 'noDsn';
+  final noEarth = noDish ? 'no DSN dish can reach Earth' : 'no $contact';
+  final noPower = tooLow ? 'Sun too low to count for power' : 'no sunlight for power';
+  return switch ((sunUp, earthUp)) {
+    (true, true) => ('Power + $contact now$partly', GlyphKind.both),
+    (true, false) => ('Power now$partly, but $noEarth', GlyphKind.sun),
+    (false, true) => ('$contact now, but $noPower', GlyphKind.earth),
+    (false, false) => (
+        tooLow && noDish
+            ? 'Sun too low to count for power, and no DSN dish can reach Earth'
+            : tooLow
+                ? 'No $contact now, and Sun too low to count for power'
+                : noDish
+                    ? 'No power, and no DSN dish can reach Earth'
+                    : 'No power and no $contact now',
+        GlyphKind.dark),
+  };
 }
 
 /// The live region's sentence: "At the time shown (11 Oct 00:00 UTC): …".
 String nowStatusLabel(({String sun, String earth, String both, GlyphKind bothGlyph}) lines, String timeLabel) =>
     'At the time shown ($timeLabel): ${lines.both}. ${lines.sun}. ${lines.earth}.';
 
-/// Sun / Earth / power + contact at the cursor, as glyph + text chips.
+/// The one statement for the time shown: power + contact together, as a
+/// glyph and words. The Sun and Earth details are read out in its label.
 class NowStatus extends StatelessWidget {
   final AppState state;
 
-  /// One wrapped line instead of three chips (the same glyphs and words),
-  /// for a short phone pane (360 x 640), so the timeline's answer lines fit
-  /// above the time bar.
+  /// Tighter padding, for a short phone pane (360 x 640), so the timeline's
+  /// answer lines fit above the time bar.
   final bool dense;
 
   /// Keep the height of the longest wording, whatever the time shown, so
-  /// the charts below never move while Play steps the time (their words
+  /// the charts below never move while Play steps the time (the words
   /// change, and wrap to more or fewer lines, on every step).
   final bool reserve;
   const NowStatus({super.key, required this.state, this.dense = false, this.reserve = false});
 
-  /// The longest line each chip can show (for [reserve]).
-  static String _longest(Iterable<String> all) => all.reduce((a, b) => b.length > a.length ? b : a);
+  /// Every statement NowStatus can show, with its glyph (for [reserve]).
+  static List<(String, GlyphKind)> statements({required bool requireDsn}) => [
+        for (final (sunUp, sunState) in const [(true, 'up'), (true, 'partly'), (false, 'notCounted'), (false, 'belowHorizon')])
+          for (final (earthUp, earthState) in [(true, 'up'), if (requireDsn) (false, 'noDsn'), (false, 'belowHorizon')])
+            nowStatement(sunUp: sunUp, earthUp: earthUp, sunState: sunState, earthState: earthState, requireDsn: requireDsn),
+      ];
 
   @override
   Widget build(BuildContext context) {
@@ -122,63 +155,19 @@ class NowStatus extends StatelessWidget {
     final now = nowAt(eph, s.observer, s.mask, s.cursorMs, o);
     final lines = nowStatusLines(now,
         requireDsn: o.requireDsn, dsnInView: eph.dsnMask(s.cursorMs) != 0, sunRule: o.sunCriterion, earthRule: o.earthCriterion);
-    Widget chip(GlyphKind g, String text, {bool strong = false}) => Container(
-          constraints: const BoxConstraints(minHeight: 40),
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          decoration: BoxDecoration(color: strong ? PH.panelHi : PH.panel, borderRadius: BorderRadius.circular(999)),
-          child: Row(mainAxisSize: MainAxisSize.min, children: [
-            MeaningGlyph(g, size: 18, semantic: false),
-            const SizedBox(width: 8),
-            Flexible(
-              child: Text(text, style: strong ? PHText.body.copyWith(fontWeight: FontWeight.w600) : PHText.body),
-            ),
-          ]),
-        );
-    // Each glyph and its words are one unit, so a line never ends on a lone
-    // glyph (Flutter may break a line at an inline widget whatever character
-    // follows it); a long phrase still wraps inside its own unit.
-    final style = PHText.body.copyWith(height: 1.45);
-    Widget part(GlyphKind g, String text, {bool strong = false, bool last = false}) => Row(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Padding(padding: const EdgeInsets.only(top: 3, right: 6), child: MeaningGlyph(g, size: 16, semantic: false)),
-            Flexible(
-              child: Text.rich(TextSpan(children: [
-                TextSpan(text: text, style: strong ? const TextStyle(fontWeight: FontWeight.w600) : null),
-                if (!last) TextSpan(text: '  ·  ', style: TextStyle(color: PH.muted)),
-              ])),
-            ),
-          ],
-        );
-    Widget lay(String both, GlyphKind bothGlyph, String sun, String earth) => dense
-        ? DefaultTextStyle.merge(
-            style: style,
-            child: Wrap(children: [
-              part(bothGlyph, both, strong: true),
-              part(GlyphKind.sun, sun),
-              part(GlyphKind.earth, earth, last: true),
-            ]),
-          )
-        : Wrap(spacing: 8, runSpacing: 8, children: [
-            chip(bothGlyph, both, strong: true),
-            chip(GlyphKind.sun, sun),
-            chip(GlyphKind.earth, earth),
-          ]);
-    var body = lay(lines.both, lines.bothGlyph, lines.sun, lines.earth);
+    // the glyph beside the first line of its words, which may wrap
+    Widget line(GlyphKind g, String text) => Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Padding(padding: const EdgeInsets.only(top: 2, right: 8), child: MeaningGlyph(g, size: 18, semantic: false)),
+          Expanded(child: Text(text, style: PHText.body.copyWith(fontWeight: FontWeight.w600))),
+        ]);
+    Widget body = line(lines.bothGlyph, lines.both);
     if (reserve) {
-      const states = ['up', 'partly', 'notCounted', 'behindHills', 'belowHorizon', 'noDsn'];
-      final contact = o.requireDsn ? 'Earth contact' : 'Earth in view';
-      final longest = lay(
-        _longest(['Power + $contact now', 'Power now, but no $contact', '$contact now, but no sunlight for power',
-          'No power and no $contact now']),
-        GlyphKind.both,
-        _longest([for (final st in states.take(5)) bodyChipText('Sun', st, 0.99)]),
-        _longest([for (final st in states) bodyChipText('Earth', st, 0.99)]),
-      );
-      // the longest wording, unseen, holds the height; the real one on top
+      // every wording, unseen, holds the height of the tallest wrap; the real one on top
       body = Stack(children: [
-        ExcludeSemantics(child: Visibility(visible: false, maintainSize: true, maintainAnimation: true, maintainState: true, child: longest)),
+        for (final (text, g) in statements(requireDsn: o.requireDsn))
+          ExcludeSemantics(
+              child: Visibility(
+                  visible: false, maintainSize: true, maintainAnimation: true, maintainState: true, child: line(g, text))),
         body,
       ]);
     }
@@ -188,7 +177,7 @@ class NowStatus extends StatelessWidget {
       container: true,
       label: nowStatusLabel(lines, shownTimeLabel(s.cursorMs, refMs: s.rangeStartMs)),
       excludeSemantics: true,
-      child: Padding(padding: dense ? const EdgeInsets.fromLTRB(8, 4, 8, 2) : const EdgeInsets.fromLTRB(8, 8, 8, 4), child: body),
+      child: Padding(padding: dense ? const EdgeInsets.fromLTRB(8, 4, 8, 4) : const EdgeInsets.fromLTRB(8, 6, 8, 8), child: body),
     );
   }
 }

@@ -1,5 +1,5 @@
 /// Site › Sky & time: the two React charts from ChartHub, what is up at the
-/// time shown (NowStatus, just under the sky chart) and the pinned time bar.
+/// time shown (NowStatus, inside the sky chart's card, under the chart) and the pinned time bar.
 ///
 /// By default the charts are the CLASSIC sky plot and timeline (restored on
 /// 2026-10-12 at the user's request, as before M6 step 3): the sky plot
@@ -52,15 +52,14 @@ const skyTimeNarrowWidth = 600.0;
 const whenAnswerHeight = 120.0;
 
 /// Below this scroll-pane height (a 360 x 640 phone: about 210 px between
-/// the tabs and the time bar) NowStatus is one wrapped line instead of three
-/// chips, and the fidelity notes follow the timeline, so the "When" answer
-/// lines still fit above the time bar.
+/// the tabs and the time bar) NowStatus is tighter, and the fidelity notes
+/// follow the timeline, so the "When" answer lines still fit above the time bar.
 const skyTimeDensePaneHeight = 330.0;
 
 /// Height of the sky plot itself: about square on a phone (320-520), and on
 /// a wide, bounded pane (a desktop window under [skyTimeWideWidth]) at most
-/// the pane height minus 200, which leaves room for NowStatus under it and
-/// the top of the timeline.
+/// the pane height minus 200, which leaves room for NowStatus (in its card)
+/// and the top of the timeline.
 double skyPanelHeight(double width, double? paneHeight) {
   final h = width.clamp(320.0, 520.0);
   if (width < 600 || paneHeight == null || !paneHeight.isFinite) return h;
@@ -91,6 +90,28 @@ const chartCardChrome = 20.0;
 Widget _panel(Widget child) => Card(
       clipBehavior: Clip.antiAlias,
       child: Padding(padding: const EdgeInsets.all(4), child: child),
+    );
+
+/// The sky chart's card with [status] inside it, right under the chart (and
+/// its legend). The status is outside the chart, so a tap on it does not open
+/// full screen and the full-screen picture leaves it out. [chartHeight] null:
+/// the chart fills the card's height, but keeps [minChart].
+Widget _skyCard(Widget sky, Widget status, {double? chartHeight, double minChart = 0}) => Card(
+      clipBehavior: Clip.antiAlias,
+      child: Padding(
+        padding: const EdgeInsets.all(4),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          mainAxisSize: chartHeight == null ? MainAxisSize.max : MainAxisSize.min,
+          children: [
+            if (chartHeight != null)
+              SizedBox(height: chartHeight, child: sky)
+            else
+              Expanded(child: ConstrainedBox(constraints: BoxConstraints(minHeight: minChart), child: sky)),
+            status,
+          ],
+        ),
+      ),
     );
 
 /// The classic sky plot's Semantics label.
@@ -194,17 +215,12 @@ class _SkyTimeTabState extends State<SkyTimeTab> {
     );
   }
 
-  /// A wide pane's sky plot with NowStatus under it. NowStatus keeps its Play
-  /// height ([_reserve]), so the plot does not resize on each step. The plot
-  /// keeps at least [_skyMinHeight]: with large text the row grows and the
-  /// pane scrolls instead of squashing it.
-  Widget _skyWithStatus(Widget sky) => Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Expanded(child: ConstrainedBox(constraints: const BoxConstraints(minHeight: _skyMinHeight), child: _panel(sky))),
-          NowStatus(state: widget.state, reserve: _reserve),
-        ],
-      );
+  /// A wide pane's sky card with NowStatus inside it, under the plot.
+  /// NowStatus keeps its Play height ([_reserve]), so the plot does not
+  /// resize on each step. The plot keeps at least [_skyMinHeight]: with large
+  /// text the row grows and the pane scrolls instead of squashing it.
+  Widget _skyWithStatus(Widget sky) =>
+      _skyCard(sky, NowStatus(state: widget.state, reserve: _reserve), minChart: _skyMinHeight);
 
   static const _skyMinHeight = 260.0;
 
@@ -212,7 +228,7 @@ class _SkyTimeTabState extends State<SkyTimeTab> {
   Widget _switch(ChartHub hub, bool on) => SimpleViewSwitch(on: on, onChanged: hub.setSimpleView);
 
   /// The default: the classic sky plot, then the classic timeline (as before
-  /// M6 step 3). NowStatus sits just under the sky plot, so on a phone the
+  /// M6 step 3). NowStatus sits in the sky plot's card, so on a phone the
   /// plot's top is on screen above the time bar after "Show me".
   Widget _classicTab(BuildContext context, ChartHub hub) {
     final s = widget.state;
@@ -237,9 +253,13 @@ class _SkyTimeTabState extends State<SkyTimeTab> {
         // margins beside it take the mouse wheel (the chart, a web view on
         // the web, swallows it), and its height is capped so the timeline
         // peeks in
-        Center(child: SizedBox(width: math.min(width, skyH * 1.2), height: skyH, child: _panel(sky))),
-        // what is up now, read straight off the plot above it
-        NowStatus(state: s, dense: dense, reserve: _reserve),
+        // what is up now sits in the same card, read straight off the plot
+        Center(
+          child: SizedBox(
+            width: math.min(width, skyH * 1.2),
+            child: _skyCard(sky, NowStatus(state: s, dense: dense, reserve: _reserve), chartHeight: skyH - chartCardChrome),
+          ),
+        ),
         if (dense) ...notes,
         if (s.explainInline) explainTimeline,
         SizedBox(height: classicTimelineHeight, child: _panel(tl)),
@@ -281,7 +301,7 @@ class _SkyTimeTabState extends State<SkyTimeTab> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.stretch,
                               children: [
-                                // the switch stays at the top right; NowStatus is under the sky plot
+                                // the switch stays at the top right; NowStatus is in the sky plot's card
                                 Align(
                                   alignment: Alignment.centerRight,
                                   child: SizedBox(width: simpleSwitchWidth, child: _switch(hub, false)),
@@ -338,7 +358,7 @@ class _SkyTimeTabState extends State<SkyTimeTab> {
   }
 
   /// "Simple view" on: the timeline ("When") first, then the sky plot
-  /// ("Where to look") with NowStatus just under it, with the step-3 frame
+  /// ("Where to look") with NowStatus in its card, with the step-3 frame
   /// sizes.
   Widget _simpleTab(BuildContext context, ChartHub hub) {
     final s = widget.state;
@@ -365,15 +385,14 @@ class _SkyTimeTabState extends State<SkyTimeTab> {
         // on a wide pane the plot is centred, not full width: the margins
         // beside it take the mouse wheel (the chart, a web view on the web,
         // swallows it)
+        // what is up now sits in the same card, read straight off the plot
         Center(
           child: SizedBox(
             width: skyW,
-            height: skyFrameHeight(skyW - chartCardChrome, exact: exact) + chartCardChrome,
-            child: _panel(sky),
+            child: _skyCard(sky, NowStatus(state: s, dense: dense, reserve: _reserve),
+                chartHeight: skyFrameHeight(skyW - chartCardChrome, exact: exact)),
           ),
         ),
-        // what is up now, read straight off the plot above it
-        Center(child: SizedBox(width: skyW, child: NowStatus(state: s, dense: dense, reserve: _reserve))),
         if (exact) ExpertReadout(state: s),
         _switch(hub, true),
       ];
@@ -413,7 +432,7 @@ class _SkyTimeTabState extends State<SkyTimeTab> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.stretch,
                               children: [
-                                // the switch stays at the top right; NowStatus is under the sky plot
+                                // the switch stays at the top right; NowStatus is in the sky plot's card
                                 Align(
                                   alignment: Alignment.centerRight,
                                   child: SizedBox(width: simpleSwitchWidth, child: _switch(hub, true)),

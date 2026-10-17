@@ -49,6 +49,9 @@ class _WebChartState extends State<_WebChart> {
   late final web.HTMLIFrameElement _frame;
   JSFunction? _listener;
 
+  /// What the page has drawn of what this host posted ([ChartAcks]).
+  final _acks = ChartAcks();
+
   /// Has keyboard focus (Tab reached the frame): shows the ice ring and the
   /// page's first control takes the browser focus (a11y-1).
   bool _focused = false;
@@ -80,12 +83,14 @@ class _WebChartState extends State<_WebChart> {
           _leave(ev['dir'] == -1 ? -1 : 1);
           return;
         }
-        c.handleRaw(jsonEncode(ev));
+        if (ev is Map) _acks.handle(c, ev); // acks stop there; a 'ready' clears what an old page owed
       }
     }).toJS;
     web.window.addEventListener('message', _listener);
-    c.attach((json) {
-      final msg = {'source': 'ph-host', 'msg': jsonDecode(json)}.jsify();
+    // each message carries a number the page acks once it has drawn it:
+    // Play waits for the iframe, as it waits on runJavaScript on Android
+    _acks.attach(c, (json, n) {
+      final msg = {'source': 'ph-host', 'msg': jsonDecode(json), 'n': n}.jsify();
       _frame.contentWindow?.postMessage(msg, '*'.toJS);
     }, this);
   }
@@ -93,6 +98,7 @@ class _WebChartState extends State<_WebChart> {
   @override
   void dispose() {
     if (_listener != null) web.window.removeEventListener('message', _listener);
+    _acks.reset(); // a page that goes away never holds Play
     widget.controller.detach(this);
     _wrap.dispose();
     super.dispose();

@@ -7,6 +7,13 @@
  * JS -> Flutter : PH.postMessage(json)  (Android JavaScriptChannel)
  *                 or parent.postMessage({source:'ph-charts', event}) (web)
  *
+ * Acks: a host message may carry a sequence number n (the web host puts it
+ * on the envelope, {source:'ph-host', msg, n}; window.phRender(msg, n) takes
+ * it too). Once the page has run and drawn every message up to n it answers
+ * {type:'ack', n} on the same path as 'ready', so the host's Play can wait
+ * for the chart (ChartAcks in chart_bridge.dart). Messages without n (the
+ * Android host, which waits on runJavaScript instead) are never acked.
+ *
  * The charts are render-only: every number arrives from the Dart core.
  */
 
@@ -145,10 +152,12 @@ export type ChartEvent =
   | { type: 'detail'; exact: boolean }
   /** Tab left the page's last control (dir 1) or Shift+Tab its first (dir -1): the host moves focus on */
   | { type: 'focusExit'; dir: 1 | -1 }
+  /** every host message up to sequence number [n] has been run and drawn (see the header) */
+  | { type: 'ack'; n: number }
 
 declare global {
   interface Window {
-    phRender?: (msg: HostMessage | string) => void
+    phRender?: (msg: HostMessage | string, n?: number) => void
     PH?: { postMessage: (s: string) => void }
   }
 }
@@ -171,26 +180,61 @@ export function latest<T extends HostMessage['type']>(type: T): Extract<HostMess
   return (last[type] as Extract<HostMessage, { type: T }> | undefined) ?? null
 }
 
-function dispatch(raw: HostMessage | string) {
-  let m: HostMessage
+function dispatch(raw: HostMessage | string, n?: number) {
   try {
-    m = typeof raw === 'string' ? (JSON.parse(raw) as HostMessage) : raw
-  } catch (e) {
-    post({ type: 'error', message: `bad message: ${String(e)}` })
-    return
+    let m: HostMessage
+    try {
+      m = typeof raw === 'string' ? (JSON.parse(raw) as HostMessage) : raw
+    } catch (e) {
+      post({ type: 'error', message: `bad message: ${String(e)}` })
+      return
+    }
+    SEQ.set(m, ++seq)
+    // one-shot commands (a file export) are never replayed to a later subscriber
+    if (!ONE_SHOT.has(m.type)) last = { ...last, [m.type]: m }
+    handlers.forEach((h) => h(m))
+  } finally {
+    // acked even when it failed: a bad message must not hold the host's Play
+    if (typeof n === 'number' && Number.isFinite(n)) ackAfterDraw(n)
   }
-  SEQ.set(m, ++seq)
-  // one-shot commands (a file export) are never replayed to a later subscriber
-  if (!ONE_SHOT.has(m.type)) last = { ...last, [m.type]: m }
-  handlers.forEach((h) => h(m))
+}
+
+/** The newest sequence number run and not yet taken by an ack round (0: none). */
+let ackQueued = 0
+/** An ack round is under way (it waits two animation frames). */
+let ackRound = false
+
+/**
+ * Ack [n] once it is drawn. The views draw at most once per animation frame,
+ * in a frame callback asked for while the message is handled (before this
+ * one: frame callbacks run in the order asked), and a payload re-renders
+ * React in a task before the next frame. So the first frame takes every
+ * number queued so far, after their draws ran; the second starts once that
+ * frame is painted, and posts one ack for the newest of them. A message that
+ * arrives in between waits for the next round. Many messages in one frame
+ * give one ack (the newest number covers the older ones).
+ */
+function ackAfterDraw(n: number) {
+  if (n > ackQueued) ackQueued = n
+  if (ackRound) return
+  ackRound = true
+  requestAnimationFrame(() => {
+    const k = ackQueued
+    ackQueued = 0
+    requestAnimationFrame(() => {
+      ackRound = false
+      if (k) post({ type: 'ack', n: k })
+      if (ackQueued) ackAfterDraw(ackQueued)
+    })
+  })
 }
 
 /** Install the global entry points once. */
 export function installBridge() {
   window.phRender = dispatch
   window.addEventListener('message', (ev: MessageEvent) => {
-    const d = ev.data as { source?: string; msg?: HostMessage }
-    if (d && d.source === 'ph-host' && d.msg) dispatch(d.msg)
+    const d = ev.data as { source?: string; msg?: HostMessage; n?: unknown }
+    if (d && d.source === 'ph-host' && d.msg) dispatch(d.msg, typeof d.n === 'number' ? d.n : undefined)
   })
 }
 
@@ -209,10 +253,12 @@ export function subscribe(h: Handler): () => void {
 export function resetBridgeForTests() {
   last = {}
   handlers.clear()
+  ackQueued = 0
+  ackRound = false
 }
 
-/** Test hook: deliver [m] as the host would. */
-export const dispatchForTests = (m: HostMessage | string) => dispatch(m)
+/** Test hook: deliver [m] (with the host's sequence number [n], if any) as the host would. */
+export const dispatchForTests = (m: HostMessage | string, n?: number) => dispatch(m, n)
 
 export function post(ev: ChartEvent) {
   const json = JSON.stringify(ev)

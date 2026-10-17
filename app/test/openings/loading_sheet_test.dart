@@ -22,6 +22,8 @@ void main() {
     testWidgets('contact sheet: loading ${size.width.toInt()}x${size.height.toInt()}', (tester) async {
       final s = _Ranking();
       addTearDown(s.dispose);
+      // the real terrain is decoded first, as it is on a phone within a moment
+      await tester.runAsync(loadingTerrain);
       await writeContactSheets(tester, 'loading-${size.width.toInt()}x${size.height.toInt()}',
           (_) => SpaceLoading(state: s, onDone: () {}),
           total: const Duration(seconds: 18), frames: 16, phone: size, crop: Size(size.width * 0.6, size.height * 0.6));

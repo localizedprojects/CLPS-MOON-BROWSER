@@ -1,22 +1,26 @@
 /// The loading screen (user request 2026-10-14), drawn by Flutter so it
-/// plays from the first frame: [SpaceLoading] shows space objects drifting
-/// while the sites are ranked, with the real progress. The pictures are
-/// decorative (no data in them) and still under "reduce motion".
+/// plays from the first frame: [SpaceLoading] shows the real south-pole
+/// terrain (NASA LOLA) under the circling Sun while the sites are ranked,
+/// with the real progress; still under "reduce motion".
 library;
 
 import 'dart:async';
+import 'dart:convert';
 import 'dart:math' as math;
+import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
+
+import '../core/dem.dart' show latLonToXY;
 
 import '../core/landing_wording.dart' show tryAgainText;
 import '../core/ranking.dart';
 import '../state/app_state.dart';
 import '../theme.dart';
 
-/// Space objects drift while the sites are ranked for the chosen goal, with
+/// The Moon's south pole turns under the low Sun while the sites are ranked for the chosen goal, with
 /// the real progress under them (words and a bar that never runs ahead of
 /// the work); [onDone] once the app is ready and [minShow]
 /// (10 s, user decision 2026-10-14) has passed.
@@ -65,8 +69,8 @@ double loadingPace(double x) {
 }
 
 class _SpaceLoadingState extends State<SpaceLoading> with TickerProviderStateMixin {
-  /// The ending (1.6 s): the lander touches down, the site lights flash round
-  /// the ring, and the view zooms into the Moon as it fades; then [onDone].
+  /// The ending (1.6 s): the site lights flash one by one and the view
+  /// zooms into the terrain as it fades; then [onDone].
   late final AnimationController _outro = AnimationController(vsync: this, duration: const Duration(milliseconds: 1600));
   late final Ticker _ticker = createTicker(_tick);
   // seconds of scene time (2.3: a pleasant still frame under reduce motion);
@@ -80,10 +84,17 @@ class _SpaceLoadingState extends State<SpaceLoading> with TickerProviderStateMix
   Duration _elapsed = Duration.zero, _last = Duration.zero, _base = Duration.zero;
   Duration _paceBase = Duration.zero; // when the pace started (the last retry)
   bool _stopped = false; // loading failed: the bar stops where it is
+  LoadingTerrain? _terrain; // this screen's own copy of the terrain, once decoded (a plain disc until then)
+  // the terrain fades in over the plain disc instead of popping in
+  late final AnimationController _fadeIn = AnimationController(vsync: this, duration: const Duration(milliseconds: 300));
 
   /// Where the scene's things go, as last laid out (for tests).
   @visibleForTesting
   LoadingSceneGeometry? get geometry => _geo;
+
+  /// This screen's copy of the terrain, once decoded (for tests).
+  @visibleForTesting
+  LoadingTerrain? get terrain => _terrain;
   LoadingSceneGeometry? _geo;
   Duration? _fullAt; // when the bar filled up
   bool _done = false, _minPassed = false;
@@ -190,6 +201,17 @@ class _SpaceLoadingState extends State<SpaceLoading> with TickerProviderStateMix
     super.initState();
     _stopped = _failed;
     widget.state.addListener(_onState);
+    _terrainUsers++;
+    // the app's own full map when it is already in, so it is not decoded twice
+    loadingTerrain(have: widget.state.mapLayers?.hillshade).then((t) {
+      if (!mounted) return;
+      setState(() => _terrain = LoadingTerrain(t.image.clone(), t.sites));
+      if (MediaQuery.disableAnimationsOf(context)) {
+        _fadeIn.value = 1;
+      } else {
+        _fadeIn.forward();
+      }
+    }, onError: (Object e) => debugPrint('loading scene: plain Moon ($e)'));
     _minTimer = Timer(widget.minShow, () {
       _minPassed = true;
       _onState();
@@ -199,6 +221,9 @@ class _SpaceLoadingState extends State<SpaceLoading> with TickerProviderStateMix
   @override
   void dispose() {
     widget.state.removeListener(_onState);
+    _terrain?.image.dispose();
+    if (--_terrainUsers == 0) _releaseTerrain();
+    _fadeIn.dispose();
     _minTimer?.cancel();
     _steps?.cancel();
     _outro.dispose();
@@ -243,7 +268,20 @@ class _SpaceLoadingState extends State<SpaceLoading> with TickerProviderStateMix
               child: RepaintBoundary(
                   child: CustomPaint(
                       painter: _SpaceScene(_t,
-                          done: s.rankProgress, total: s.rankTotal, outro: _outro, wordsHeight: words)))),
+                          done: s.rankProgress,
+                          total: s.rankTotal,
+                          terrain: _terrain,
+                          outro: _outro,
+                          fadeIn: _fadeIn,
+                          wordsHeight: words)))),
+          // where the picture comes from, small and out of the way
+          if (_terrain != null)
+            // clear of the status bar, the notch and a side cutout
+            Positioned(
+              left: (_geo?.margin ?? 12) + MediaQuery.paddingOf(context).left,
+              top: (_geo?.margin ?? 12) / 2 + MediaQuery.paddingOf(context).top,
+              child: Text('Terrain: NASA LOLA', style: PHText.small.copyWith(color: PH.muted.withValues(alpha: 0.7))),
+            ),
           Align(
             alignment: const Alignment(0, 0.86),
             child: Padding(
@@ -408,29 +446,124 @@ class _BarPainter extends CustomPainter {
   bool shouldRepaint(covariant _BarPainter old) => old.value != value || old.stopped != stopped;
 }
 
+/// The real south-pole terrain for the loading scene: the bundled LOLA
+/// hillshade (decoded small, it only fills a disc) and the catalogue sites
+/// on it, as fractions of the disc's radius (x right, y down, the map's way up).
+class LoadingTerrain {
+  final ui.Image image;
+  final List<Offset> sites;
+  const LoadingTerrain(this.image, this.sites);
+}
+
+// the map's half width (map.json halfWidthM): the disc shows all of it
+const _mapHalfM = 304000.0;
+Future<LoadingTerrain>? _terrainJob;
+int _terrainUsers = 0; // loading screens up (one may still be fading out)
+
+/// Loads the terrain once (local and quick), from [have] (the app's map,
+/// copied) when given; each screen draws its own copy of the result. A
+/// failure leaves the plain disc and is tried again next time.
+@visibleForTesting
+Future<LoadingTerrain> loadingTerrain({ui.Image? have}) => _terrainJob ??= _loadTerrain(have).catchError((Object e) {
+      _terrainJob = null;
+      throw e;
+    });
+
+/// Where a site at [lat], [lon] sits on the loading disc, as a fraction of
+/// its radius (x right, y down): lon 0 up, 90 E to the right.
+@visibleForTesting
+Offset loadingSitePoint(double lat, double lon) {
+  final (x, y) = latLonToXY(lat, lon);
+  return Offset(x / _mapHalfM, -y / _mapHalfM);
+}
+
+/// Frees the shared terrain once the last loading screen has gone.
+void _releaseTerrain() {
+  final job = _terrainJob;
+  _terrainJob = null;
+  job?.then((t) => t.image.dispose(), onError: (_) {});
+}
+
+Future<LoadingTerrain> _loadTerrain(ui.Image? have) async {
+  final ui.Image image;
+  if (have != null) {
+    image = have.clone();
+  } else {
+    final codec = await ui.instantiateImageCodec(await loadAsset('map/hillshade.webp'), targetWidth: 1024);
+    image = (await codec.getNextFrame()).image;
+    codec.dispose();
+  }
+  final sites = <Offset>[];
+  try {
+    // not loadString: its cache would be shared with the app's own load
+    final j = jsonDecode(utf8.decode(await loadAsset('sites.json'))) as Map<String, dynamic>;
+    for (final s in j['sites'] as List) {
+      final p = loadingSitePoint((s['lat'] as num).toDouble(), (s['lon'] as num).toDouble());
+      if (p.distance <= 0.98) sites.add(p);
+    }
+  } catch (e) {
+    debugPrint('loading scene: no site positions ($e)');
+  }
+  return LoadingTerrain(image, sites);
+}
+
 /// The loading scene at [t] seconds, looking down on the Moon's south pole:
-/// craters turning slowly while the Sun's light sweeps around the pole (as it
-/// does there), a ring of one light per landing site that lights up as that
-/// site is ranked ([done] of [total], the real progress), a satellite on an
-/// orbit that passes in front of and behind the Moon, Earth drifting on its
-/// orbit, a lander coming down to the pole with a touchdown pulse, sunbeams,
-/// a comet and drifting dust. Decorative apart from the ring's count.
+/// the real LOLA terrain turning slowly, lit by the low Sun as it circles the
+/// horizon (as it does there), a light at each real landing site that comes
+/// on as the sites are ranked ([done] of [total], the real progress), and
+/// Earth near the horizon showing its phase. Until the terrain is decoded
+/// the Moon is a plain shaded disc.
 class _SpaceScene extends CustomPainter {
   final ValueListenable<double> time;
   final int done, total;
+  final LoadingTerrain? terrain;
 
   /// The ending's progress (0 until it starts): see [_SpaceLoadingState._outro].
   final Animation<double>? outro;
+  /// How far the terrain has faded in over the plain disc (0..1).
+  final Animation<double>? fadeIn;
   /// Room under the scene for the words and the bar: see [LoadingSceneGeometry.wordsHeight].
   final double wordsHeight;
   _SpaceScene(this.time,
-      {this.done = 0, this.total = 0, this.outro, this.wordsHeight = LoadingSceneGeometry.defaultWordsHeight})
-      : super(repaint: outro == null ? time : Listenable.merge([time, outro]));
+      {this.done = 0,
+      this.total = 0,
+      this.terrain,
+      this.outro,
+      this.fadeIn,
+      this.wordsHeight = LoadingSceneGeometry.defaultWordsHeight})
+      : super(repaint: Listenable.merge([time, outro, fadeIn]));
   LoadingSceneGeometry? _geo;
+  // shaders in the Moon's own frame (Sun along +x), made once per size; the
+  // canvas is turned toward the Sun instead of making new ones each frame
+  double _shadedR = 0;
+  late Paint _night, _limb, _warm, _plain;
+  final _terrainPaint = Paint()
+    ..filterQuality = FilterQuality.medium
+    // a touch cooler and dimmer than the map's relief: grey regolith
+    ..colorFilter = const ColorFilter.mode(Color(0xFFC4CCD8), BlendMode.modulate);
 
-  static double _rnd(int i, int k) {
-    final x = math.sin(i * 12.9898 + k * 78.233) * 43758.5453;
-    return x - x.floorToDouble();
+  void _shaders(double r) {
+    if (_shadedR == r) return;
+    _shadedR = r;
+    final box = Rect.fromCircle(center: Offset.zero, radius: r);
+    // the Sun is on the horizon: the near side catches it, the far side
+    // falls into long shadow
+    _night = Paint()
+      ..shader = const LinearGradient(colors: [
+        Color(0xF7060B16), Color(0xE0060B16), Color(0x80060B16), Color(0x00060B16)
+      ], stops: [0.0, 0.3, 0.55, 0.85])
+          .createShader(box);
+    _limb = Paint()
+      ..shader = const RadialGradient(colors: [Color(0x00060B16), Color(0x00060B16), Color(0x99060B16)], stops: [0, 0.62, 1])
+          .createShader(box);
+    _warm = Paint()
+      ..shader = RadialGradient(
+              center: const Alignment(1, 0), radius: 1.1, colors: [PH.sun.withValues(alpha: 0.14), PH.sun.withValues(alpha: 0)])
+          .createShader(box);
+    _plain = Paint()
+      ..shader = const RadialGradient(
+              center: Alignment(0.5, 0), radius: 1.05, colors: [Color(0xFF7D8696), Color(0xFF3C4350), Color(0xFF10151E)])
+          .createShader(box);
   }
 
   @override
@@ -442,150 +575,94 @@ class _SpaceScene extends CustomPainter {
         : (_geo = LoadingSceneGeometry.of(size, wordsHeight: wordsHeight));
     final u = g.u, c = g.c, r = g.r; // the scale and the Moon
     final o = outro?.value ?? 0;
+    _shaders(r);
     // the Sun circles the pole's horizon; light comes from where it is drawn
     final sun = g.sun(t), sunDir = g.sunLight(t);
     final sunAng = math.atan2(sunDir.dy, sunDir.dx);
 
-    // dust, nearer specks faster
-    final speck = Paint();
-    for (var i = 0; i < 60; i++) {
-      final depth = 0.25 + 0.75 * _rnd(i, 3);
-      var x = (_rnd(i, 1) * w - t * 12 * depth) % w;
-      if (x < 0) x += w;
-      speck.color = PH.muted.withValues(alpha: (0.12 + 0.45 * depth) * (0.75 + 0.25 * math.sin(t * 2 + i)));
-      canvas.drawCircle(Offset(x, _rnd(i, 2) * h), 0.5 + 1.2 * depth, speck);
-    }
-
-    // sunbeams from the Sun's side, sweeping with it
-    for (var k = -1; k <= 1; k++) {
-      final a = sunAng + math.pi + k * 0.16 + 0.04 * math.sin(t * 0.9 + k);
-      final end = sun + Offset(math.cos(a), math.sin(a)) * (u * 1.4);
-      canvas.drawLine(
-          sun,
-          end,
-          Paint()
-            ..strokeWidth = u * 0.05
-            ..shader = LinearGradient(colors: [PH.sun.withValues(alpha: 0.10), PH.sun.withValues(alpha: 0)])
-                .createShader(Rect.fromPoints(sun, end)));
-    }
+    // the Sun: a small white-hot disc with a soft glare, no beams
     canvas.drawCircle(
         sun,
         g.sunGlow,
         Paint()
-          ..shader = RadialGradient(colors: [PH.sun.withValues(alpha: 0.45), PH.sun.withValues(alpha: 0)])
-              .createShader(Rect.fromCircle(center: sun, radius: g.sunGlow)));
-    canvas.drawCircle(sun, u * 0.028, Paint()..color = PH.sun);
-
-    // Earth on a wide orbit, behind everything near the Moon
-    final earth = g.earth(t);
-    _dashedOval(canvas, g.earthOrbit, PH.line.withValues(alpha: 0.9));
-    canvas.drawCircle(earth, g.earthR, Paint()..color = PH.earth);
-    canvas.drawCircle(earth - sunDir * g.earthShadowShift, g.earthShadowR, Paint()..color = PH.bg.withValues(alpha: 0.5));
-
-    // the satellite's orbit: the far half is drawn before the Moon
-    final sa = LoadingSceneGeometry.satAngle(t);
-    final sat = g.sat(t);
-    final behind = math.sin(sa) < 0;
-    if (behind) _satellite(canvas, sat, u * 0.016, sa);
-
-    // the Moon from above the south pole, lit from the Sun's side
-    final moon = Rect.fromCircle(center: c, radius: r);
-    canvas.drawCircle(
-        c,
-        r,
-        Paint()
           ..shader = RadialGradient(
-            center: Alignment(sunDir.dx * 0.55, sunDir.dy * 0.55),
-            radius: 1.05,
-            colors: const [Color(0xFF9AA8BE), Color(0xFF4A5874), Color(0xFF121C30)],
-            stops: const [0.0, 0.55, 1.0],
-          ).createShader(moon));
-    // craters turning about the pole, rims lit toward the Sun
+                  colors: [PH.sun.withValues(alpha: 0.38), PH.sun.withValues(alpha: 0.08), PH.sun.withValues(alpha: 0)],
+                  stops: const [0, 0.35, 1])
+              .createShader(Rect.fromCircle(center: sun, radius: g.sunGlow)));
+    canvas.drawCircle(sun, u * 0.02, Paint()..color = const Color(0xFFFFF6E2));
+
+    // Earth near the horizon, lit on the side facing the Sun: its phase is
+    // the angle between the Sun and Earth as seen from the Moon
+    final earth = g.earth(t), er = g.earthR;
+    final toEarth = earth - c;
+    final elong = (math.atan2(toEarth.dy, toEarth.dx) - sunAng + 3 * math.pi) % (2 * math.pi) - math.pi;
+    canvas.drawCircle(earth, er, Paint()..color = const Color(0xFF0E1A2E)); // the night side, faint
     canvas.save();
-    canvas.clipPath(Path()..addOval(moon));
-    for (var i = 0; i < 16; i++) {
-      final rr = r * (0.12 + 0.8 * math.sqrt(_rnd(i, 5)));
-      final a = _rnd(i, 6) * 2 * math.pi + t * 0.08;
-      final p = c + Offset(math.cos(a), math.sin(a)) * rr;
-      final cr = r * (0.05 + 0.09 * _rnd(i, 7)) * (1 - 0.35 * rr / r);
-      final fore = 1 - 0.45 * (rr / r); // foreshortened toward the limb
-      final oval = Rect.fromCenter(center: p, width: cr * 2, height: cr * 2 * fore);
-      canvas.drawOval(oval, Paint()..color = const Color(0xFF26324A).withValues(alpha: 0.75));
-      canvas.drawArc(
-          oval,
-          sunAng - 1.2,
-          2.4,
-          false,
-          Paint()
-            ..color = const Color(0xFFC9D4E6).withValues(alpha: 0.55)
-            ..style = PaintingStyle.stroke
-            ..strokeWidth = math.max(1, cr * 0.18));
-    }
+    canvas.translate(earth.dx, earth.dy);
+    // toward the Sun as seen from Earth (the Sun is far: the same way)
+    canvas.rotate(sunAng);
+    // terminator: an ellipse from full (Sun behind us) to new (Sun behind Earth)
+    canvas.drawPath(
+        earthLitPath(er, elong),
+        Paint()
+          ..shader = const RadialGradient(center: Alignment(0.4, -0.2), colors: [Color(0xFFE8F1FF), Color(0xFF6FA6F0)])
+              .createShader(Rect.fromCircle(center: Offset.zero, radius: er)));
     canvas.restore();
-    // the pole, where the lander comes down
-    // in the ending the lander comes in to land for good
-    final landing = o > 0 ? math.max((t % 7) / 7, 0.55 + 0.45 * Curves.easeOut.transform((o / 0.4).clamp(0.0, 1.0))) : (t % 7) / 7;
-    final lp = Curves.easeInOut.transform((landing / 0.7).clamp(0.0, 1.0));
-    final lander = g.lander(lp);
-    if (o > 0.4) {
-      // touchdown: two widening rings of light
-      for (final lag in [0.0, 0.18]) {
-        final q = ((o - 0.4 - lag) / 0.5).clamp(0.0, 1.0);
-        canvas.drawCircle(
-            c,
-            r * 0.08 + r * 1.2 * Curves.easeOut.transform(q),
-            Paint()
-              ..color = PH.ice.withValues(alpha: 0.7 * (1 - q))
-              ..style = PaintingStyle.stroke
-              ..strokeWidth = 2);
-      }
-    } else if (landing > 0.7) {
-      final pulse = (landing - 0.7) / 0.3;
-      canvas.drawCircle(
-          c,
-          r * 0.1 + r * 0.5 * pulse,
-          Paint()
-            ..color = PH.ice.withValues(alpha: 0.6 * (1 - pulse))
-            ..style = PaintingStyle.stroke
-            ..strokeWidth = 1.5);
+
+    // the Moon from above the south pole: the real terrain, turning slowly
+    final spin = LoadingSceneGeometry.spin(t);
+    canvas.save();
+    canvas.translate(c.dx, c.dy);
+    canvas.clipPath(Path()..addOval(Rect.fromCircle(center: Offset.zero, radius: r)));
+    final img = terrain?.image;
+    final shown = img == null ? 0.0 : fadeIn?.value ?? 1;
+    if (shown < 1) {
+      // the plain disc, lit from the Sun's side, under the terrain as it fades in
+      canvas.save();
+      canvas.rotate(sunAng);
+      canvas.drawCircle(Offset.zero, r, _plain);
+      canvas.restore();
     }
-    _lander(canvas, lander, g.landerSize(lp), t, firing: landing < 0.7);
+    if (img != null && shown > 0) {
+      _terrainPaint.color = Color.fromRGBO(0, 0, 0, shown);
+      canvas.save();
+      canvas.rotate(spin);
+      canvas.drawImageRect(img, Rect.fromLTWH(0, 0, img.width.toDouble(), img.height.toDouble()),
+          Rect.fromCircle(center: Offset.zero, radius: r), _terrainPaint);
+      canvas.restore();
+    }
+    // light from the Sun's side, deep shadow away from it, a darker limb
+    canvas.rotate(sunAng);
+    final disc = Rect.fromCircle(center: Offset.zero, radius: r);
+    canvas.drawRect(disc, _warm);
+    canvas.drawRect(disc, _night);
+    canvas.drawRect(disc, _limb);
+    canvas.restore();
 
-    // the near half of the satellite's orbit
-    if (!behind) _satellite(canvas, sat, u * 0.016, sa);
-
-    // the ring of landing sites: one light per site, lit once ranked
-    final n = total > 0 ? total : 16;
-    final ring = g.ringR;
+    // the landing sites at their real places, lit as the ranking goes on
+    final sites = terrain?.sites ?? const <Offset>[];
+    final n = sites.length;
+    final on = total > 0 ? (n * done / total).floor() : 0;
+    final cs = math.cos(spin), sn = math.sin(spin);
     for (var i = 0; i < n; i++) {
-      final a = -math.pi / 2 + 2 * math.pi * i / n + t * 0.05;
-      final p = c + Offset(math.cos(a), math.sin(a)) * ring;
-      final lit = i < done || o > 0;
-      // in the ending a flash runs round the ring, site by site
+      final q = sites[i];
+      final p = c + Offset(q.dx * cs - q.dy * sn, q.dx * sn + q.dy * cs) * r;
+      final lit = i < on || o > 0;
+      // in the ending a flash runs over the sites, one by one
       final flash = o > 0 ? (1 - ((o * 1.6 - i / n).abs() * 6)).clamp(0.0, 1.0) : 0.0;
       if (lit) {
+        final gr = g.siteReach * (1 + 1.2 * flash);
         canvas.drawCircle(
             p,
-            u * (0.022 + 0.03 * flash),
+            gr,
             Paint()
-              ..shader = RadialGradient(colors: [PH.ice.withValues(alpha: 0.5), PH.ice.withValues(alpha: 0)])
-                  .createShader(Rect.fromCircle(center: p, radius: u * 0.022)));
+              ..shader = RadialGradient(colors: [PH.ice.withValues(alpha: 0.55), PH.ice.withValues(alpha: 0)])
+                  .createShader(Rect.fromCircle(center: p, radius: gr)));
       }
-      canvas.drawCircle(p, u * (lit ? 0.007 : 0.005), Paint()..color = lit ? PH.ice : PH.line);
+      canvas.drawCircle(p, u * (lit ? 0.0065 : 0.0045),
+          Paint()..color = lit ? PH.ice : PH.muted.withValues(alpha: 0.45));
     }
 
-    // a comet now and then, its tail a fading trail of specks
-    final cp = (t % 6.5) / 1.6;
-    if (cp <= 1) {
-      // it fades in and out at the ends of its run, inside the screen
-      final head = g.comet(cp), back = g.cometBack;
-      final seen = math.min(1.0, math.min(cp, 1 - cp) * 6);
-      for (var k = 0; k < 14; k++) {
-        final f = k / 14;
-        canvas.drawCircle(head + back * f + Offset(0, math.sin(k + t * 9) * 1.5), 2.2 * (1 - f),
-            Paint()..color = PH.ice.withValues(alpha: 0.9 * (1 - f) * seen));
-      }
-    }
     // a soft fade at the bottom, so the progress words stay readable
     final fade = Rect.fromLTWH(0, h * 0.72, w, h * 0.28);
     canvas.drawRect(
@@ -596,50 +673,20 @@ class _SpaceScene extends CustomPainter {
               .createShader(fade));
   }
 
-  void _dashedOval(Canvas canvas, Rect oval, Color color) {
-    final p = Paint()
-      ..color = color
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1;
-    for (var a = 0.0; a < 2 * math.pi; a += 0.09) {
-      canvas.drawArc(oval, a, 0.045, false, p);
-    }
-  }
-
-  void _satellite(Canvas canvas, Offset p, double s, double angle) {
-    canvas.save();
-    canvas.translate(p.dx, p.dy);
-    canvas.rotate(angle * 0.5);
-    final panel = Paint()..color = PH.ice.withValues(alpha: 0.85);
-    canvas.drawRect(Rect.fromCenter(center: Offset(-s * 1.7, 0), width: s * 2, height: s * 0.8), panel);
-    canvas.drawRect(Rect.fromCenter(center: Offset(s * 1.7, 0), width: s * 2, height: s * 0.8), panel);
-    canvas.drawRect(Rect.fromCenter(center: Offset.zero, width: s, height: s), Paint()..color = PH.text);
-    canvas.restore();
-  }
-
-  void _lander(Canvas canvas, Offset p, double s, double t, {required bool firing}) {
-    final body = Paint()..color = PH.text;
-    final leg = Paint()
-      ..color = PH.text
-      ..strokeWidth = 1.4;
-    canvas.drawRRect(
-        RRect.fromRectAndRadius(Rect.fromCenter(center: p, width: s * 1.6, height: s), Radius.circular(s * 0.2)), body);
-    canvas.drawLine(p.translate(-s * 0.6, s * 0.4), p.translate(-s * 1.1, s * 1.0), leg);
-    canvas.drawLine(p.translate(s * 0.6, s * 0.4), p.translate(s * 1.1, s * 1.0), leg);
-    if (!firing) return;
-    final flame = s * (0.8 + 0.35 * math.sin(t * 31));
-    canvas.drawPath(
-        Path()
-          ..moveTo(p.dx - s * 0.32, p.dy + s * 0.5)
-          ..lineTo(p.dx + s * 0.32, p.dy + s * 0.5)
-          ..lineTo(p.dx, p.dy + s * 0.5 + flame)
-          ..close(),
-        Paint()..color = PH.text.withValues(alpha: 0.6));
-  }
-
   @override
   bool shouldRepaint(covariant _SpaceScene old) =>
-      old.done != done || old.total != total || old.wordsHeight != wordsHeight;
+      old.done != done || old.total != total || old.wordsHeight != wordsHeight || old.terrain != terrain;
+}
+
+/// Earth's lit part, radius [er], seen [elong] radians from the Sun, with
+/// the Sun along +x: a terminator ellipse from new (0) to full (pi).
+@visibleForTesting
+Path earthLitPath(double er, double elong) {
+  final xt = er * math.cos(elong); // where the terminator crosses the middle
+  return Path()
+    ..moveTo(0, -er)
+    ..arcToPoint(Offset(0, er), radius: Radius.circular(er))
+    ..arcToPoint(Offset(0, -er), radius: Radius.elliptical(xt.abs() + 1e-6, er), clockwise: xt < 0);
 }
 
 /// Where the loading scene's moving things go on a [size] screen: every
@@ -675,79 +722,53 @@ class LoadingSceneGeometry {
     final floor = 0.93 * (h - wordsHeight);
     final safe = Rect.fromLTRB(m, m, w - m, math.max(m + 1, floor - m));
     final hx = safe.width / 2, hy = safe.height / 2;
-    // the scale: the Sun's oval has to clear Earth's, and Earth's the ring
-    // of site lights, each by its own size and a gap, so 0.58u each way
-    // (the satellite and the lander need less)
+    // the scale: the Sun's oval has to clear Earth's, and Earth's the Moon
+    // (with its site lights), each by its own size and a gap, so 0.58u each way
     final u = math.max(1.0, math.min(math.min(w, h), math.min(hx, hy) / 0.58));
-    final core = 0.06 * u, earthR = 0.045 * u, glow = 0.13 * u;
+    final core = 0.06 * u, earthR = 0.04 * u, glow = 0.13 * u;
     // the Sun sweeps an oval as wide as the room allows (its glow stays on
     // screen), not too stretched; Earth's runs inside it, clear of the Sun
     var sunRx = math.min(math.min(hx - core, hx + m - glow), math.min(0.87 * u, 1.6 * (hy - core)));
     final sunRy = math.min(math.min(hy - core, hy + m - glow), math.min(0.87 * u, 1.25 * sunRx));
     sunRx = math.min(sunRx, 1.6 * sunRy);
     final d = core + earthR + 2 * gap * u;
-    return LoadingSceneGeometry._(size, m, safe, safe.center, 0.24 * u, u, math.max(0, sunRx), math.max(0, sunRy),
+    return LoadingSceneGeometry._(size, m, safe, safe.center, 0.3 * u, u, math.max(0, sunRx), math.max(0, sunRy),
         math.max(0, sunRx - d), math.max(0, sunRy - d), wordsHeight);
   }
 
   const LoadingSceneGeometry._(this.size, this.margin, this.safe, this.c, this.r, this.u, this.sunRx, this.sunRy,
       this.earthRx, this.earthRy, this.wordsHeight);
 
-  double get sunCore => 0.06 * u; // the bright middle of the Sun's glow
-  double get sunGlow => 0.13 * u; // the glow's faint edge
-  double get earthR => 0.045 * u;
-  double get earthShadowShift => 0.018 * u; // Earth's night side, away from the Sun
-  double get earthShadowR => 0.042 * u;
-  double get satSize => 0.016 * u;
-  double get satReach => 2.75 * satSize; // to a panel's far corner
-  double get ringR => 1.32 * r; // the ring of landing-site lights
-  double get ringReach => 0.022 * u; // a lit site's glow
-  double landerSize(double lp) => u * (0.03 - 0.012 * lp); // smaller as it nears the pole
-  double get landerReach => 1.7 * landerSize(0); // legs and flame at full size
+  double get sunCore => 0.06 * u; // the room kept round the Sun's bright middle
+  double get sunGlow => 0.13 * u; // the glare's faint edge
+  double get earthR => 0.04 * u;
+  double get siteReach => 0.02 * u; // a lit site's glow
+  double get moonReach => r + 1.2 * siteReach; // the Moon and a flashing site on its edge
 
-  /// The Sun's angle round the pole at [t] seconds.
-  static double sunAngle(double t) => t * 0.35;
+  /// How far the terrain has turned at [t] seconds (slowly).
+  static double spin(double t) => t * 0.025;
+
+  /// The Sun's angle at [t] seconds. From above the pole the Sun stays put
+  /// and the Moon turns under it; it sits where the map's relief is lit
+  /// from (upper left, map.json lightAzimuthDeg 315), turned with the terrain,
+  /// so the craters, the shadow and the Sun always agree.
+  static double sunAngle(double t) => spin(t) - 3 * math.pi / 4;
   Offset sun(double t) {
     final a = sunAngle(t);
     return c + Offset(math.cos(a) * sunRx, math.sin(a) * sunRy);
   }
 
   /// The way the Sun's light comes from at [t]: toward the Sun as drawn on
-  /// its oval (a unit vector), for the shading, crater rims and beams.
+  /// its oval (a unit vector), for the shading and Earth's phase.
   Offset sunLight(double t) {
     final d = sun(t) - c;
     return d.distance > 0 ? d / d.distance : const Offset(1, 0);
   }
 
-  Rect get earthOrbit => Rect.fromCenter(center: c, width: earthRx * 2, height: earthRy * 2);
+  /// Earth's angle at [t]: it hangs near the horizon, drifting slowly.
+  static double earthAngle(double t) => t * 0.03 + 2.2;
   Offset earth(double t) {
-    final a = t * 0.12 + 2.2;
+    final a = earthAngle(t);
     return c + Offset(math.cos(a) * earthRx, math.sin(a) * earthRy);
-  }
-
-  /// The satellite's angle at [t] seconds (it is behind the Moon while its
-  /// sine is negative).
-  static double satAngle(double t) => t * 0.9;
-  Offset sat(double t) {
-    final a = satAngle(t);
-    return c + Offset(math.cos(a) * r * 1.55, math.sin(a) * r * 0.42 - r * 0.12);
-  }
-
-  /// The lander [lp] of the way down (0 high up, 1 on the pole).
-  Offset lander(double lp) =>
-      Offset.lerp(c + Offset(-u * 0.38, -u * 0.36), c, lp)! + Offset(0, -math.sin(lp * math.pi) * u * 0.06);
-
-  /// The comet's tail, from its head back to the far end.
-  Offset get cometBack => Offset(math.min(0.18 * size.width, safe.width * 0.3), -math.min(0.045 * size.height, safe.height * 0.15));
-  static const cometReach = 3.7; // the head's speck and its wobble
-
-  /// The comet's head [cp] of the way across (0..1), right to left and
-  /// a little down, its tail inside the safe area too.
-  Offset comet(double cp) {
-    final b = cometBack;
-    final x0 = safe.right - b.dx - cometReach, x1 = safe.left + cometReach;
-    final y0 = safe.top + cometReach - b.dy;
-    final drop = math.max(0.0, math.min(0.25 * size.height, safe.bottom - cometReach - y0));
-    return Offset(x0 + (x1 - x0) * cp, y0 + drop * cp);
   }
 }

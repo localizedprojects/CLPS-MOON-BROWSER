@@ -645,6 +645,68 @@ void main() {
       expect(LightMap.framePending.value, isFalse, reason: 'a removed map holds nothing');
       engine.finishAll();
     });
+
+    testWidgets('a failing shadow engine (offline) does not hold Play', (tester) async {
+      final engine = _SlowEngine();
+      state.lightEngineForTest = engine;
+      state.goTo(Dest.site, siteTab: SiteTab.light);
+      state.holdPlay = () => LightMap.framePending.value;
+      addTearDown(() {
+        state.pausePlay();
+        state.holdPlay = null;
+      });
+      await tester.pumpWidget(MaterialApp(
+        theme: buildTheme(),
+        home: Scaffold(
+          body: ListenableBuilder(
+            listenable: state,
+            builder: (_, _) => SizedBox(width: 400, height: 800, child: LightMap(state: state, active: true, onSelect: (_) {})),
+          ),
+        ),
+      ));
+      await tester.pump(const Duration(milliseconds: 100));
+      state.togglePlay(); // Play asks for a coarse frame while the first still computes
+      await tester.pump(const Duration(milliseconds: 100));
+      engine.failAll(); // the frame fails with the newer request still queued
+      await tester.pump(const Duration(milliseconds: 60));
+      expect(LightMap.framePending.value, isFalse, reason: 'a map that only shows an error holds nothing');
+      final t = state.cursorMs;
+      await tester.pump(const Duration(milliseconds: 500));
+      expect(state.cursorMs, greaterThan(t), reason: 'Play steps every tick, not once per 3 s');
+      state.pausePlay();
+      await tester.pumpWidget(const SizedBox());
+      engine.finishAll();
+    });
+
+    testWidgets('a replaced map (rotation) leaves the pending flag to its successor', (tester) async {
+      final engine = _SlowEngine();
+      state.lightEngineForTest = engine;
+      state.goTo(Dest.site, siteTab: SiteTab.light);
+      Widget app(String layout) => MaterialApp(
+            theme: buildTheme(),
+            home: Scaffold(
+              body: SizedBox(
+                  width: 400,
+                  height: 800,
+                  child: LightMap(key: ValueKey(layout), state: state, active: true, onSelect: (_) {})),
+            ),
+          );
+      await tester.pumpWidget(app('portrait'));
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(engine.waiting, hasLength(1), reason: 'the first map computes its frame');
+      await tester.pumpWidget(app('landscape')); // a new map State; the old one's frame still computes
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(engine.waiting, hasLength(2), reason: 'the new map asks for its own frame');
+      expect(LightMap.framePending.value, isTrue);
+      final (q, old) = engine.waiting.removeAt(0);
+      old.complete(LightFrame(q, 8, 400, 0, 0, Uint8List(64), Uint8List(64), 0)); // only the old map's frame finishes
+      await tester.pump(const Duration(milliseconds: 60));
+      expect(LightMap.framePending.value, isTrue, reason: "the new map's frame is still computing");
+      engine.finishAll();
+      await tester.pump(const Duration(milliseconds: 60));
+      expect(LightMap.framePending.value, isFalse);
+      await tester.pumpWidget(const SizedBox());
+    });
   });
 }
 
@@ -662,6 +724,13 @@ class _SlowEngine extends _CountingEngine {
   void finishAll() {
     for (final (q, c) in waiting) {
       c.complete(LightFrame(q, 8, 400, 0, 0, Uint8List(64), Uint8List(64), 0));
+    }
+    waiting.clear();
+  }
+
+  void failAll() {
+    for (final (_, c) in waiting) {
+      c.completeError(StateError('the shadow engine failed'));
     }
     waiting.clear();
   }

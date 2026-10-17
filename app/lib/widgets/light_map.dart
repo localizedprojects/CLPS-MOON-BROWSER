@@ -441,9 +441,13 @@ class _LightMapState extends State<LightMap> {
     }
   }
 
-  /// Tell Play whether this map is still behind the time bar.
+  /// Tell Play whether this map is still behind the time bar. Not while the
+  /// shadow engine is failing (offline, say): Play must not wait on a map
+  /// that only shows an error. A replaced map (rotation) leaves the flag to
+  /// its successor; [dispose] clears it when the map goes away.
   void _reportPending() {
-    LightMap.framePending.value = mounted && widget.active && (_busy || _queued != null);
+    if (!mounted) return;
+    LightMap.framePending.value = widget.active && _error == null && (_busy || _queued != null);
   }
 
   @override

@@ -375,6 +375,12 @@ adb exec-out screencap -p > shot.png       # screenshot
 powershell -ExecutionPolicy Bypass -File tools\install_android.ps1
 ```
 
+**On an iPhone or iPad (macOS):** pull, build the iOS release and install and open it on every connected device in one step (`--device <name>` picks one, `--list` shows them, `--no-pull` builds the code as it is). Choose a signing team once in Xcode first (Runner target, Signing & Capabilities; a free Apple ID works for your own devices, for 7 days at a time). Started over SSH, it runs itself in the Mac's Terminal, where signing works.
+
+```bash
+bash tools/install_ios.sh
+```
+
 Windows notes:
 
 - **adb location.** `adb` is in `%LOCALAPPDATA%\Android\Sdk\platform-tools`.

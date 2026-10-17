@@ -84,6 +84,10 @@ class ChartController {
   /// Raw JSON event from the page.
   void handleRaw(String raw) {
     final ev = jsonDecode(raw) as Map<String, dynamic>;
+    // the web host's own bookkeeping ([ChartAcks] takes acks before they get
+    // here); the Android host waits on runJavaScript and sends no numbers,
+    // so an ack that reaches a controller anyway means nothing
+    if (ev['type'] == 'ack') return;
     if (ev['type'] == 'detail') {
       // a tap inside the chart: replay that mode after a reload of this page
       // only (the app's expert mode is not changed)
@@ -119,6 +123,77 @@ class ChartController {
   }
 
   void _deliver(String json) => _sink?.call(json);
+}
+
+/// The web host's view of what its page has drawn (charts/src/bridge.ts,
+/// "Acks"). Every message the host posts gets the next sequence number
+/// ([next]); the page answers `{type: 'ack', n}` once it has run and drawn
+/// everything up to n. [busy], the controller's busy test on the web, is
+/// true while a message is not acked yet, so Play waits for a slow page
+/// there as it waits on runJavaScript on Android.
+///
+/// A page that was loaded again (a new `ready`) or went away ([reset], on
+/// detach) owes nothing: what the old page was sent no longer holds Play.
+/// A page that stops answering holds Play for [staleMs] at most: [busy]
+/// turns false once nothing was acked for that long, until an ack shows the
+/// page is drawing again. Pure Dart, so it is tested on the VM.
+class ChartAcks {
+  ChartAcks({int Function()? clockMs, this.staleMs = 3000}) : _clock = clockMs ?? _wallMs;
+
+  static int _wallMs() => DateTime.now().millisecondsSinceEpoch;
+
+  final int Function() _clock;
+
+  /// After this long without an ack the page counts as not drawing (ms).
+  final int staleMs;
+
+  int _sent = 0, _acked = 0, _since = 0;
+
+  /// The newest number sent and the newest the page acked. Never reset to 0:
+  /// a late ack from a page that was replaced can then never clear a newer
+  /// page's messages.
+  int get sent => _sent;
+  int get acked => _acked;
+
+  /// The sequence number of the next message to the page.
+  int next() {
+    if (_acked >= _sent) _since = _clock(); // the wait starts now
+    return ++_sent;
+  }
+
+  /// Nothing sent so far is waited for any more.
+  void reset() => _acked = _sent;
+
+  bool get busy => _acked < _sent && _clock() - _since < staleMs;
+
+  /// One event from the page. An ack is taken here (true: it goes no
+  /// further). A `ready` (the page was loaded or loaded again) first
+  /// forgets what any earlier page owed: the controller then replays its
+  /// buffer to the new page, and those messages are waited for.
+  bool take(Map<dynamic, dynamic> ev) {
+    switch (ev['type']) {
+      case 'ack':
+        final n = ev['n'];
+        if (n is num && n > _acked) {
+          _acked = n.toInt() < _sent ? n.toInt() : _sent;
+          _since = _clock(); // the page is drawing
+        }
+        return true;
+      case 'ready':
+        reset();
+    }
+    return false;
+  }
+
+  /// Attach [c] to a page that acks: [post] delivers one message JSON with
+  /// its sequence number, and Play waits on [busy].
+  void attach(ChartController c, void Function(String json, int n) post, Object owner) =>
+      c.attach((json) => post(json, next()), owner, busy: () => busy);
+
+  /// Route one event from the page: acks stop here, the rest go to [c].
+  void handle(ChartController c, Map<dynamic, dynamic> ev) {
+    if (!take(ev)) c.handleRaw(jsonEncode(ev));
+  }
 }
 
 final _fmt = DateFormat('yyyy-MM-dd HH:mm');

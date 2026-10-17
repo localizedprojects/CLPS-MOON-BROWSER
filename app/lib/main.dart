@@ -5,8 +5,11 @@ import 'screens/shell.dart';
 import 'state/app_state.dart';
 import 'state/chart_hub.dart';
 import 'theme.dart';
+import 'widgets/save_file.dart';
 
 void main() {
+  WidgetsFlutterBinding.ensureInitialized();
+  initSaveFiles(); // iPad share popover anchors at the last tap
   runApp(
     ChangeNotifierProvider(
       create: (_) {

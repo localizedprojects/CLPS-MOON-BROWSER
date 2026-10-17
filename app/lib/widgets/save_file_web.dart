@@ -21,3 +21,6 @@ Future<void> saveFiles(List<SaveFile> files) async {
     Future<void>.delayed(const Duration(seconds: 2), () => web.URL.revokeObjectURL(url));
   }
 }
+
+/// Nothing to set up on web.
+void saveFilesInit() {}

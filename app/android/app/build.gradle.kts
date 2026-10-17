@@ -1,7 +1,18 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
+}
+
+// Release signing: app/android/key.properties (git-ignored, see docs/release_signing.md)
+// names the upload key. Without it, release builds fall back to the debug key so local
+// builds keep working (such a build cannot be uploaded to Google Play).
+val keystoreProperties = Properties()
+val keystorePropertiesFile = rootProject.file("key.properties")
+if (keystorePropertiesFile.exists()) {
+    keystorePropertiesFile.inputStream().use { keystoreProperties.load(it) }
 }
 
 android {
@@ -31,12 +42,35 @@ android {
         unitTests.isReturnDefaultValues = true
     }
 
+    signingConfigs {
+        if (keystorePropertiesFile.exists()) {
+            create("release") {
+                keyAlias = keystoreProperties.getProperty("keyAlias")
+                keyPassword = keystoreProperties.getProperty("keyPassword")
+                storeFile = keystoreProperties.getProperty("storeFile")?.let { file(it) }
+                storePassword = keystoreProperties.getProperty("storePassword")
+            }
+        }
+    }
+
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = if (keystorePropertiesFile.exists()) {
+                signingConfigs.getByName("release")
+            } else {
+                logger.warn("key.properties not found: release is signed with the DEBUG key, not uploadable to Play")
+                signingConfigs.getByName("debug")
+            }
         }
+    }
+}
+
+// A Play upload (.aab) must never be debug-signed: fail bundleRelease when key.properties is missing,
+// but keep debug/profile builds, release APKs (GitHub release, emulator tests) and CI's tests working.
+gradle.taskGraph.whenReady {
+    if (!keystorePropertiesFile.exists() && allTasks.any { it.name == "bundleRelease" }) {
+        throw GradleException(
+            "bundleRelease needs android/key.properties (see docs/release_signing.md); refusing to build a debug-signed App Bundle.")
     }
 }
 

@@ -21,3 +21,6 @@ class SaveFile {
 Future<void> saveFiles(List<SaveFile> files) => files.isEmpty ? Future.value() : impl.saveFiles(files);
 
 Future<void> saveBytes(String fileName, Uint8List bytes, String mimeType) => saveFiles([SaveFile(fileName, bytes, mimeType)]);
+
+/// Call once at start-up (after the binding exists) so the iPad share popover can point at the tapped button.
+void initSaveFiles() => impl.saveFilesInit();

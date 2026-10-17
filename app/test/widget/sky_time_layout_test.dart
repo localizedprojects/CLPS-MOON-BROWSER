@@ -9,6 +9,7 @@
 library;
 
 import 'dart:io';
+import 'dart:math' as math;
 
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
@@ -137,11 +138,11 @@ void main() {
       expect(view.bottom, lessThanOrEqualTo(bar.top + 0.5), reason: 'the bar is pinned below the scroll view, never over it');
       expect(r.top, lessThan(tester.getRect(tl).top), reason: 'sky plot, then timeline (as before M6 step 3)');
 
-      // reading order: NowStatus, then the sky plot
+      // reading order: the sky plot, then NowStatus under it
       final labels = labelsInOrder(tester);
-      final iNow = labels.indexWhere((l) => l.startsWith('At the time shown ('));
-      expect(iNow, isNonNegative);
-      expect(labels.indexWhere((l) => l.startsWith(skyChartLabel)), greaterThan(iNow));
+      final iSky = labels.indexWhere((l) => l.startsWith(skyChartLabel));
+      expect(iSky, isNonNegative);
+      expect(labels.indexWhere((l) => l.startsWith('At the time shown (')), greaterThan(iSky));
 
       // the end of the column (the timeline and the switch) scrolls clear of the bar
       final scroll = tester.state<ScrollableState>(scrollable);
@@ -187,11 +188,12 @@ void main() {
       expect(view.bottom, lessThanOrEqualTo(bar.top + 0.5), reason: 'the bar is pinned below the scroll view, never over it');
       expect(tester.getRect(when).top, lessThan(tester.getRect(where).top));
 
-      // reading order: NowStatus, then When
+      // reading order: When, Where to look, then NowStatus under it
       var labels = labelsInOrder(tester);
-      final iNow = labels.indexWhere((l) => l.startsWith('At the time shown ('));
-      expect(iNow, isNonNegative, reason: 'NowStatus says "At the time shown (…)"');
-      expect(labels.indexWhere((l) => l.startsWith(whenChartLabel)), greaterThan(iNow));
+      final iWhere0 = labels.indexWhere((l) => l.startsWith(whereChartLabel));
+      expect(labels.indexWhere((l) => l.startsWith(whenChartLabel)), allOf(isNonNegative, lessThan(iWhere0)));
+      expect(labels.indexWhere((l) => l.startsWith('At the time shown (')), greaterThan(iWhere0),
+          reason: 'NowStatus says "At the time shown (…)", after the sky plot');
 
       // scrolling reveals the timeline's bottom edge above the bar
       final ctx = tester.element(when);
@@ -235,6 +237,60 @@ void main() {
     state.openAt(state.rangeStartMs, SiteTab.skyTime);
     await tester.pump();
     expect(scroll.position.pixels, 0);
+    await done(tester);
+  });
+
+  // NowStatus sits directly under the sky chart (user, 2026-10-16), in both
+  // views, on a phone in portrait and landscape, a two-pane window whose Sky &
+  // time pane is still one column (1400: about 872 px) and the wide side-by-
+  // side pane (1700: about 1172 px, over skyTimeWideWidth)
+  for (final size in const [Size(390, 844), Size(844, 390), Size(1400, 900), Size(1700, 1000)]) {
+    final name = '${size.width.round()}x${size.height.round()}';
+    testWidgets('$name: NowStatus is under the sky chart in both views', (tester) async {
+      await showMe(tester, size);
+      final now = find.descendant(of: find.byType(SkyTimeTab), matching: find.byType(NowStatus));
+      for (final (simple, label) in const [(false, skyChartLabel), (true, whereChartLabel)]) {
+        hubOf(tester).setSimpleView(simple);
+        await tester.pump();
+        expect(now, findsOneWidget);
+        final skyRect = tester.getRect(chart(label)), nowRect = tester.getRect(now);
+        expect(nowRect.top, greaterThanOrEqualTo(skyRect.bottom - 0.5),
+            reason: '${simple ? 'Simple' : 'classic'}: NowStatus (top ${nowRect.top}) is below the sky chart (bottom ${skyRect.bottom})');
+        expect(nowRect.top - skyRect.bottom, lessThan(40), reason: 'directly under it');
+        if (size.width >= 1700) {
+          // really side by side, with the switch alone above the charts at the right
+          final other = tester.getRect(chart(simple ? whenChartLabel : timelineChartLabel));
+          expect(simple ? other.right <= skyRect.left + 0.5 : other.left >= skyRect.right - 0.5, isTrue,
+              reason: 'the wide pane puts the charts side by side');
+          final sw = tester.getRect(find.byType(SimpleViewSwitch));
+          expect(sw.bottom, lessThanOrEqualTo(math.min(skyRect.top, other.top) + 0.5));
+          expect(sw.right, greaterThan(math.max(skyRect.right, other.right) - 60), reason: 'the switch sits at the right');
+        }
+        expect(tester.takeException(), isNull);
+      }
+      hubOf(tester).setSimpleView(false);
+      await done(tester);
+    });
+  }
+
+  // the wide pane with text at 2x while Play runs (NowStatus keeps its longest
+  // wording): the sky plot keeps a usable height and nothing overflows
+  testWidgets('1700x1000, text 2x, playing: the sky plot stays at least 240 tall', (tester) async {
+    tester.platformDispatcher.textScaleFactorTestValue = 2;
+    addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+    await showMe(tester, const Size(1700, 1000));
+    state.togglePlay();
+    for (var i = 0; i < 3; i++) {
+      await tester.pump(const Duration(milliseconds: 200));
+    }
+    for (final (simple, label) in const [(false, skyChartLabel), (true, whereChartLabel)]) {
+      hubOf(tester).setSimpleView(simple);
+      await tester.pump();
+      expect(tester.getRect(chart(label)).height, greaterThanOrEqualTo(240), reason: simple ? 'Simple' : 'classic');
+      expect(tester.takeException(), isNull);
+    }
+    if (state.playing) state.togglePlay();
+    hubOf(tester).setSimpleView(false);
     await done(tester);
   });
 

@@ -21,6 +21,8 @@ import 'package:polar_horizon/screens/site/sky_time.dart';
 import 'package:polar_horizon/state/app_state.dart';
 import 'package:polar_horizon/state/chart_hub.dart';
 import 'package:polar_horizon/widgets/best_window_card.dart' show showMeLabel;
+import 'package:polar_horizon/widgets/chart_bridge.dart' show nowAt;
+import 'package:polar_horizon/widgets/chart_focus.dart' show ChartFocusPage;
 import 'package:polar_horizon/widgets/chart_view.dart';
 import 'package:polar_horizon/widgets/now_status.dart';
 import 'package:polar_horizon/widgets/time_bar.dart';
@@ -240,13 +242,14 @@ void main() {
     await done(tester);
   });
 
-  // NowStatus sits directly under the sky chart (user, 2026-10-16), in both
-  // views, on a phone in portrait and landscape, a two-pane window whose Sky &
+  // NowStatus sits inside the sky chart card, directly under the chart and
+  // its legend (user, 2026-10-16/17), as one statement, in both views, on a phone in portrait and landscape, a two-pane window whose Sky &
   // time pane is still one column (1400: about 872 px) and the wide side-by-
   // side pane (1700: about 1172 px, over skyTimeWideWidth)
   for (final size in const [Size(390, 844), Size(844, 390), Size(1400, 900), Size(1700, 1000)]) {
     final name = '${size.width.round()}x${size.height.round()}';
-    testWidgets('$name: NowStatus is under the sky chart in both views', (tester) async {
+    testWidgets('$name: NowStatus is one statement in the sky chart card, under the chart, in both views', (tester) async {
+      final semantics = tester.ensureSemantics();
       await showMe(tester, size);
       final now = find.descendant(of: find.byType(SkyTimeTab), matching: find.byType(NowStatus));
       for (final (simple, label) in const [(false, skyChartLabel), (true, whereChartLabel)]) {
@@ -257,6 +260,19 @@ void main() {
         expect(nowRect.top, greaterThanOrEqualTo(skyRect.bottom - 0.5),
             reason: '${simple ? 'Simple' : 'classic'}: NowStatus (top ${nowRect.top}) is below the sky chart (bottom ${skyRect.bottom})');
         expect(nowRect.top - skyRect.bottom, lessThan(40), reason: 'directly under it');
+        // the same card holds the chart and the status
+        final card = find.ancestor(of: chart(label), matching: find.byType(Card)).first;
+        expect(find.descendant(of: card, matching: find.byType(NowStatus)), findsOneWidget,
+            reason: '${simple ? 'Simple' : 'classic'}: NowStatus is inside the sky chart card');
+        // one statement (one glyph, one line of words), and one live sentence
+        expect(find.descendant(of: now, matching: find.byType(Text)), findsOneWidget);
+        final live = labelsInOrder(tester).where((l) => l.startsWith('At the time shown (')).toList();
+        expect(live, hasLength(1));
+        expect(tester.getSemantics(now).getSemanticsData().flagsCollection.isLiveRegion, isTrue);
+        // a tap on the status does not open the chart full screen
+        await tester.tap(now, warnIfMissed: false);
+        await tester.pump(const Duration(milliseconds: 300));
+        expect(find.byType(ChartFocusPage), findsNothing);
         if (size.width >= 1700) {
           // really side by side, with the switch alone above the charts at the right
           final other = tester.getRect(chart(simple ? whenChartLabel : timelineChartLabel));
@@ -269,9 +285,65 @@ void main() {
         expect(tester.takeException(), isNull);
       }
       hubOf(tester).setSimpleView(false);
+      semantics.dispose();
       await done(tester);
     });
   }
+
+  // the short phone panes with text at 2x: the status stays in the sky card
+  // and nothing overflows, in both views
+  for (final size in const [Size(320, 640), Size(360, 640)]) {
+    final name = '${size.width.round()}x${size.height.round()}';
+    testWidgets('$name, text 2x: NowStatus stays in the sky chart card, no overflow', (tester) async {
+      tester.platformDispatcher.textScaleFactorTestValue = 2;
+      addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+      await showMe(tester, size);
+      final now = find.descendant(of: find.byType(SkyTimeTab), matching: find.byType(NowStatus));
+      for (final (simple, label) in const [(false, skyChartLabel), (true, whereChartLabel)]) {
+        hubOf(tester).setSimpleView(simple);
+        await tester.pump();
+        expect(now, findsOneWidget);
+        final card = find.ancestor(of: chart(label), matching: find.byType(Card)).first;
+        expect(find.descendant(of: card, matching: find.byType(NowStatus)), findsOneWidget, reason: simple ? 'Simple' : 'classic');
+        expect(tester.takeException(), isNull, reason: simple ? 'Simple' : 'classic');
+      }
+      hubOf(tester).setSimpleView(false);
+      await done(tester);
+    });
+  }
+
+  // while Play runs the status holds the height of its tallest wording, so
+  // the sky card keeps one size whatever Sun / Earth line is showing
+  testWidgets('390x844, playing: the sky card keeps its size through every Sun / Earth line', (tester) async {
+    await showMe(tester, const Size(390, 844));
+    final o = state.options, eph = state.eph!;
+    final times = <String, double>{};
+    for (var t = state.rangeStartMs; t < state.rangeEndMs && times.length < 4; t += 3600e3) {
+      final now = nowAt(eph, state.observer, state.mask, t, o);
+      times.putIfAbsent(nowStatusLines(now, requireDsn: o.requireDsn, dsnInView: eph.dsnMask(t) != 0,
+          sunRule: o.sunCriterion, earthRule: o.earthCriterion).both, () => t);
+    }
+    expect(times.length, greaterThanOrEqualTo(3), reason: '$times');
+    state.togglePlay();
+    await tester.pump(const Duration(milliseconds: 200));
+    for (final (simple, label) in const [(false, skyChartLabel), (true, whereChartLabel)]) {
+      hubOf(tester).setSimpleView(simple);
+      await tester.pump();
+      final card = find.ancestor(of: chart(label), matching: find.byType(Card)).first;
+      Size? first;
+      for (final MapEntry(key: line, value: t) in times.entries) {
+        state.setCursor(t);
+        await tester.pump();
+        final size = tester.getSize(card);
+        first ??= size;
+        expect(size, first, reason: '${simple ? 'Simple' : 'classic'}: "$line"');
+      }
+      expect(tester.takeException(), isNull);
+    }
+    if (state.playing) state.togglePlay();
+    hubOf(tester).setSimpleView(false);
+    await done(tester);
+  });
 
   // the wide pane with text at 2x while Play runs (NowStatus keeps its longest
   // wording): the sky plot keeps a usable height and nothing overflows

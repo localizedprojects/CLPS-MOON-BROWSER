@@ -1,5 +1,5 @@
-// Site › Sky & time parts that need no web view: the NowStatus chips (pure
-// lines and the live region), the time bar (two-line UTC label, next good
+// Site › Sky & time parts that need no web view: NowStatus (its one
+// statement, pure lines and the live region), the time bar (two-line UTC label, next good
 // stretch, 48 dp targets, 320 px at 2x text) and the sky explanation.
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -9,6 +9,7 @@ import 'package:polar_horizon/core/visibility.dart';
 import 'package:polar_horizon/screens/site/sky_time.dart';
 import 'package:polar_horizon/state/app_state.dart';
 import 'package:polar_horizon/theme.dart';
+import 'package:polar_horizon/widgets/chart_bridge.dart' show nowAt;
 import 'package:polar_horizon/widgets/glyphs.dart';
 import 'package:polar_horizon/widgets/now_status.dart';
 import 'package:polar_horizon/widgets/time_bar.dart';
@@ -24,6 +25,23 @@ void main() {
       expect(l.bothGlyph, GlyphKind.both);
       expect(l.sun, 'Sun up');
       expect(l.earth, 'Earth up');
+    });
+
+    test('one statement for each Sun / Earth combination, with its own glyph', () {
+      final up = _body(), down = _body(el: -3, frac: 0, visible: false);
+      for (final (sun, earth, dsn, want, glyph) in [
+        (up, _body(rho: 0.95), false, 'Power + Earth in view now', GlyphKind.both),
+        (up, down, false, 'Power now, but no Earth in view', GlyphKind.sun),
+        (down, _body(rho: 0.95), false, 'Earth in view now, but no sunlight for power', GlyphKind.earth),
+        (down, down, false, 'No power and no Earth in view now', GlyphKind.dark),
+        (up, _body(rho: 0.95), true, 'Power + Earth contact now', GlyphKind.both),
+        (down, down, true, 'No power and no Earth contact now', GlyphKind.dark),
+      ]) {
+        final l = nowStatusLines({'sun': sun, 'earth': earth}, requireDsn: dsn, dsnInView: true);
+        expect(l.both, want);
+        expect(l.bothGlyph, glyph);
+        expect(NowStatus.statements(requireDsn: dsn).map((e) => e.$1), contains(want));
+      }
     });
 
     test('Earth above the flat horizon but under the hills: "behind the hills"', () {
@@ -45,17 +63,28 @@ void main() {
           requireDsn: true, dsnInView: false, earthRule: EarthCriterion.center);
       expect(l.earth, 'Earth up, but no DSN dish can reach it');
       expect(l.sun, 'Sun below the horizon');
-      expect(l.both, 'No power and no Earth contact now');
+      expect(l.both, 'No power, and no DSN dish can reach Earth');
       expect(l.bothGlyph, GlyphKind.dark);
+      final p = nowStatusLines({'sun': _body(), 'earth': _body(rho: 0.95, visible: false)},
+          requireDsn: true, dsnInView: false, earthRule: EarthCriterion.center);
+      expect(p.both, 'Power now, but no DSN dish can reach Earth');
+      expect(p.bothGlyph, GlyphKind.sun);
     });
 
     test('partly up: counted says "partly up", not counted says so', () {
       final counted = nowStatusLines({'sun': _body(frac: 0.51), 'earth': _body(rho: 0.95)}, requireDsn: false, dsnInView: true);
       expect(counted.sun, 'Sun partly up · 51% showing');
+      expect(counted.both, 'Power + Earth in view now (Sun partly up)');
       final l = nowStatusLines({'sun': _body(frac: 0.4, visible: false), 'earth': _body(rho: 0.95)},
           requireDsn: false, dsnInView: true, sunRule: SunCriterion.fullDisk);
       expect(l.sun, 'Sun 40% showing, not counted');
-      expect(l.both, 'Earth in view now, but no sunlight for power');
+      expect(l.both, 'Earth in view now, but Sun too low to count for power');
+      final dark = nowStatusLines({'sun': _body(frac: 0.4, visible: false), 'earth': _body(el: -3, frac: 0, visible: false)},
+          requireDsn: false, dsnInView: true, sunRule: SunCriterion.fullDisk);
+      expect(dark.both, 'No Earth in view now, and Sun too low to count for power');
+      // every wording is in statements(), so the reserved height covers it
+      final all = NowStatus.statements(requireDsn: false).map((e) => e.$1);
+      expect(all, containsAll([counted.both, l.both, dark.both]));
     });
 
     test('the chips use the state Dart sent (nowAt "state") when there is one', () {
@@ -141,6 +170,9 @@ void main() {
       final semantics = tester.ensureSemantics();
       await pump(tester, SingleChildScrollView(child: NowStatus(state: state)));
       expect(find.text('Power + Earth in view now'), findsOneWidget);
+      // only the one statement: no separate Sun or Earth chips
+      expect(find.descendant(of: find.byType(NowStatus), matching: find.byType(Text)), findsOneWidget);
+      expect(find.textContaining('Sun up'), findsNothing);
       final node = tester.getSemantics(find.byType(NowStatus));
       expect(node.getSemanticsData().flagsCollection.isLiveRegion, isTrue);
       expect(node.label, startsWith('At the time shown ('));
@@ -148,13 +180,66 @@ void main() {
       semantics.dispose();
     });
 
-    testWidgets('dense status line on a phone: every glyph stays on the line of its words (QA 1807 S3)', (tester) async {
-      // the QA run's moments: the Earth glyph was left alone at the end of line 1
+    testWidgets('each Sun / Earth combination at the time shown: one statement, its glyph, one live sentence', (tester) async {
+      final semantics = tester.ensureSemantics();
+      final o = state.options, eph = state.eph!;
+      final seen = <String>{};
+      for (var t = state.rangeStartMs; t < state.rangeEndMs && seen.length < 4; t += 3600e3) {
+        final now = nowAt(eph, state.observer, state.mask, t, o);
+        final l = nowStatusLines(now, requireDsn: o.requireDsn, dsnInView: eph.dsnMask(t) != 0,
+            sunRule: o.sunCriterion, earthRule: o.earthCriterion);
+        if (!seen.add(l.both)) continue;
+        state.setCursor(t);
+        await pump(tester, SingleChildScrollView(child: NowStatus(state: state)));
+        final texts = find.descendant(of: find.byType(NowStatus), matching: find.byType(Text));
+        expect(texts, findsOneWidget, reason: l.both);
+        expect(tester.widget<Text>(texts).data, l.both);
+        final glyphs = find.descendant(of: find.byType(NowStatus), matching: find.byType(MeaningGlyph));
+        expect(glyphs, findsOneWidget);
+        expect(tester.widget<MeaningGlyph>(glyphs).kind, l.bothGlyph);
+        final node = tester.getSemantics(find.byType(NowStatus));
+        expect(node.getSemanticsData().flagsCollection.isLiveRegion, isTrue);
+        expect(node.label, contains('): ${l.both}. '));
+      }
+      expect(seen.length, greaterThanOrEqualTo(3), reason: 'the default site shows most combinations: $seen');
+      semantics.dispose();
+    });
+
+    testWidgets('DSN rule on, Earth over the terrain but no dish: the line says why (nowAt path)', (tester) async {
+      final semantics = tester.ensureSemantics();
+      await tester.runAsync(() => state.setRequireDsn(true));
+      try {
+        final o = state.options, eph = state.eph!;
+        expect(o.requireDsn, isTrue);
+        double? hit;
+        for (var t = state.rangeStartMs; t < state.rangeEndMs; t += 1800e3) {
+          final earth = nowAt(eph, state.observer, state.mask, t, o)['earth'] as Map<String, dynamic>;
+          if (earth['terrainVisible'] == true && eph.dsnMask(t) == 0) {
+            hit = t;
+            break;
+          }
+        }
+        expect(hit, isNotNull, reason: 'the default site has a time with Earth up and no DSN dish');
+        state.setCursor(hit!);
+        await pump(tester, SingleChildScrollView(child: NowStatus(state: state)));
+        final text = tester.widget<Text>(find.descendant(of: find.byType(NowStatus), matching: find.byType(Text))).data!;
+        expect(text, contains('no DSN dish can reach Earth'));
+        expect(NowStatus.statements(requireDsn: true).map((e) => e.$1), contains(text));
+        final label = tester.getSemantics(find.byType(NowStatus)).label;
+        expect(label, contains('): $text. '));
+        expect(label, contains('Earth up, but no DSN dish can reach it'));
+      } finally {
+        await tester.runAsync(() => state.setRequireDsn(false));
+        semantics.dispose();
+      }
+    });
+
+    testWidgets('dense status line on a phone: the glyph stays on the line of its words (QA 1807 S3)', (tester) async {
       for (final day in [20, 23, 25]) {
         state.setCursor(DateTime.utc(2026, 10, day, 19).millisecondsSinceEpoch.toDouble());
         await pump(tester, SingleChildScrollView(child: NowStatus(state: state, dense: true)), w: 360, h: 640);
         final glyphs = find.descendant(of: find.byType(NowStatus), matching: find.byType(MeaningGlyph));
-        expect(glyphs, findsNWidgets(3));
+        expect(glyphs, findsOneWidget);
         for (final g in glyphs.evaluate()) {
           final row = find.ancestor(of: find.byWidget(g.widget), matching: find.byType(Row)).first;
           final words = find.descendant(of: row, matching: find.byType(RichText)).last;

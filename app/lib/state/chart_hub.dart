@@ -200,6 +200,28 @@ class ChartHub {
 
   Map<String, dynamic> _now(AppState s, _Shown v) => nowAt(s.eph!, v.observer, v.mask, s.cursorMs, v.options);
 
+  /// True while the shown sky plot or timeline has not yet run the last
+  /// cursor sent to it (a slow web view). [AppState] Play holds its next
+  /// step until they catch up, so the charts stay within one step of the
+  /// time bar instead of drawing seconds behind it.
+  bool get chartsBehind {
+    final s = _state;
+    if (s == null || !chartsVisible(s)) return false;
+    // a newer cursor still waiting for the coalescing timer counts too
+    final unsent = _cursorTimer != null && s.cursorMs != _sentCursor;
+    return unsent || sky.behind || timeline.behind;
+  }
+
+  /// Send the current cursor again, even if it was sent before: the app
+  /// came back to the foreground, where a web view may have dropped or
+  /// redrawn its state while it was paused.
+  void resync() {
+    _cursorTimer?.cancel();
+    _cursorTimer = null;
+    _sentCursor = double.nan;
+    _flushCursor();
+  }
+
   /// Send the newest cursor now, then at most once per [cursorInterval].
   void _flushCursor() {
     final s = _state, shown = _shown;

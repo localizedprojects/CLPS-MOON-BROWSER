@@ -1,6 +1,7 @@
 // Light & shadow map: arrow wording under the stricter rules, the overlay
 // image keeper (per-layer reuse, no work off screen, the web cap), the phone
 // landscape layout, the reduced-motion spinner, and no recompute on return.
+import 'dart:async';
 import 'dart:math' as math;
 import 'dart:typed_data';
 
@@ -595,4 +596,73 @@ void main() {
       await tester.pump(const Duration(milliseconds: 100));
     });
   });
+
+  group('Play waits for a slow shadow frame (play lag)', () {
+    late AppState state;
+    setUpAll(() async {
+      state = AppState();
+      await state.init();
+    });
+    tearDownAll(() => state.dispose());
+
+    testWidgets('the map is pending while a frame computes, and Play holds on it', (tester) async {
+      final engine = _SlowEngine();
+      state.lightEngineForTest = engine;
+      state.goTo(Dest.site, siteTab: SiteTab.light);
+      state.holdPlay = () => LightMap.framePending.value;
+      addTearDown(() {
+        state.pausePlay();
+        state.holdPlay = null;
+      });
+      await tester.pumpWidget(MaterialApp(
+        theme: buildTheme(),
+        home: Scaffold(
+          body: ListenableBuilder(
+            listenable: state,
+            builder: (_, _) => SizedBox(width: 400, height: 800, child: LightMap(state: state, active: true, onSelect: (_) {})),
+          ),
+        ),
+      ));
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(engine.waiting, isNotEmpty, reason: 'the first frame is computing');
+      expect(LightMap.framePending.value, isTrue);
+      state.togglePlay();
+      final t = state.cursorMs;
+      await tester.pump(const Duration(milliseconds: 500));
+      expect(state.cursorMs, t, reason: 'no step while the map is still computing');
+      // the frames finish (Play starting asks for a coarse one too)
+      for (var i = 0; i < 4; i++) {
+        engine.finishAll();
+        await tester.pump(const Duration(milliseconds: 60));
+      }
+      expect(state.cursorMs, greaterThan(t), reason: 'the map caught up: Play steps again');
+      // a frame that never finishes holds each step for 3 s only
+      final t2 = state.cursorMs;
+      await tester.pump(const Duration(milliseconds: 3200));
+      expect(state.cursorMs, greaterThan(t2));
+      state.pausePlay();
+      await tester.pumpWidget(const SizedBox());
+      expect(LightMap.framePending.value, isFalse, reason: 'a removed map holds nothing');
+      engine.finishAll();
+    });
+  });
+}
+
+/// A shadow engine whose frames finish only when the test says so.
+class _SlowEngine extends _CountingEngine {
+  final waiting = <(LightRequest, Completer<LightFrame>)>[];
+
+  @override
+  Future<LightFrame> compute(LightRequest q) {
+    final c = Completer<LightFrame>();
+    waiting.add((q, c));
+    return c.future;
+  }
+
+  void finishAll() {
+    for (final (q, c) in waiting) {
+      c.complete(LightFrame(q, 8, 400, 0, 0, Uint8List(64), Uint8List(64), 0));
+    }
+    waiting.clear();
+  }
 }

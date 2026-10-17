@@ -5,6 +5,7 @@ import 'screens/shell.dart';
 import 'state/app_state.dart';
 import 'state/chart_hub.dart';
 import 'theme.dart';
+import 'widgets/light_map.dart';
 import 'widgets/save_file.dart';
 
 void main() {
@@ -42,15 +43,29 @@ class _LunarHorizonAppState extends State<LunarHorizonApp> {
   final _back = RootBackButtonDispatcher();
   late final ChartHub _hub = ChartHub(onEvent: _onChartEvent);
   late final ShellRouterDelegate _router;
+  late final AppLifecycleListener _life;
 
   @override
   void initState() {
     super.initState();
-    _router = ShellRouterDelegate(context.read<AppState>());
+    final s = context.read<AppState>();
+    _router = ShellRouterDelegate(s);
+    // Play steps only as fast as the charts and the light map draw them
+    s.holdPlay = () => _hub.chartsBehind || LightMap.framePending.value;
+    _life = AppLifecycleListener(
+      // HOME, another app or a hidden browser tab: Play pauses, so nothing advances unseen
+      onHide: s.pausePlay,
+      // back on screen: the charts get the time bar's time again
+      onShow: _hub.resync,
+      // inactive alone (iOS Control Center or a call banner, Android split
+      // screen or the share sheet) deliberately does not pause: the app is
+      // still on screen
+    );
   }
 
   @override
   void dispose() {
+    _life.dispose();
     _router.dispose();
     _hub.dispose(); // cancels the cursor-coalescing and PNG-batch timers
     super.dispose();

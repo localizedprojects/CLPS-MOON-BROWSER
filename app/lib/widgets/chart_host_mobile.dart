@@ -151,7 +151,7 @@ class _MobileChartState extends State<_MobileChart> {
     c.attach((json) {
       _queue.add(json);
       _pump();
-    }, this);
+    }, this, busy: () => _busy || !_queue.isEmpty);
   }
 
   void _abandonPage() {

@@ -235,6 +235,15 @@ class AppState extends ChangeNotifier {
   bool playing = false;
   Timer? _timer;
 
+  /// True while the charts have not drawn the last step yet ([ChartHub.chartsBehind]);
+  /// set by the app. Play then skips its step, up to [_maxHeldTicks] in a row.
+  bool Function()? holdPlay;
+  int _heldTicks = 0;
+
+  /// At most 3 s of waiting per step (a slow emulator's web view can take
+  /// that long), so a stuck web view never stops Play.
+  static const _maxHeldTicks = 30;
+
   /// Map layers (LOLA hillshade + overlays); null until loaded, and while a
   /// failed load waits for its retry ([ensureMap]).
   MapLayers? mapLayers;
@@ -886,6 +895,10 @@ class AppState extends ChangeNotifier {
 
   Future<LightEngine>? _light;
 
+  /// Tests hand in their own shadow engine (a slow fake, say).
+  @visibleForTesting
+  set lightEngineForTest(LightEngine e) => _light = Future.value(e);
+
   /// Shadow engine behind the light & shadow map (started on first use; a
   /// failed start, e.g. the DEM fetch going offline, is tried again on the
   /// next call instead of failing for good, async-7).
@@ -1123,6 +1136,11 @@ class AppState extends ChangeNotifier {
   /// One playback step of 1/400 of the period as it is now (it may change
   /// while playing); stops at the end.
   void _tick() {
+    if (_heldTicks < _maxHeldTicks && (holdPlay?.call() ?? false)) {
+      _heldTicks++;
+      return; // the charts are still drawing the previous step
+    }
+    _heldTicks = 0;
     final last = _lastCursorMs;
     final dt = playStepMs;
     if (cursorMs + dt >= last) {
@@ -1134,8 +1152,17 @@ class AppState extends ChangeNotifier {
     }
   }
 
+  /// Pause Play if it is running (the app left the foreground: nothing
+  /// advances unseen, and the time bar shows it paused on return).
+  void pausePlay() {
+    if (!playing) return;
+    _stopPlay();
+    notifyListeners();
+  }
+
   void _stopPlay() {
     playing = false;
+    _heldTicks = 0;
     _timer?.cancel();
     _timer = null;
   }

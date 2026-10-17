@@ -131,4 +131,47 @@ void main() {
       expect(collected(pages.single), isTrue, reason: 'the disposed page is still referenced');
     });
   });
+
+  group('MobileChartHost reports when it is behind (Play waits on it)', () {
+    const ready = '{"type":"ready","view":"sky"}';
+
+    testWidgets('behind while a run is in flight or queued, not after it finishes', (tester) async {
+      final c = ChartController('sky');
+      final page = _StuckPage();
+      await tester.pumpWidget(MobileChartHost(controller: c, newPage: (_) => page));
+      c.handleRaw(ready);
+      await tester.pump();
+      for (final r in List.of(_unanswered)) {
+        if (!r.isCompleted) r.complete();
+      }
+      _unanswered.clear();
+      await tester.pump();
+      expect(c.behind, isFalse);
+      c.send({'type': 'cursor', 'tMs': 1});
+      await tester.pump();
+      expect(c.behind, isTrue, reason: 'the run has not finished');
+      c.send({'type': 'cursor', 'tMs': 2});
+      _unanswered.removeLast().complete(); // the first run finishes, the second starts
+      await tester.pump();
+      expect(c.behind, isTrue, reason: 'the queued cursor is running now');
+      _unanswered.removeLast().complete();
+      await tester.pump();
+      expect(c.behind, isFalse);
+      await tester.pumpWidget(const SizedBox());
+    });
+
+    testWidgets('not behind after a render-process death replaces a stuck page', (tester) async {
+      final c = ChartController('sky');
+      await tester.pumpWidget(MobileChartHost(controller: c, newPage: (_) => _StuckPage()));
+      c.handleRaw(ready);
+      c.send({'type': 'cursor', 'tMs': 1});
+      await tester.pump();
+      expect(c.behind, isTrue);
+      chartRenderGone.value++;
+      await tester.pump();
+      await tester.pump();
+      expect(c.behind, isFalse, reason: 'Play must not wait 3 s on every step for a dead page');
+      await tester.pumpWidget(const SizedBox());
+    });
+  });
 }

@@ -56,11 +56,19 @@ class ChartController {
   /// Called by the platform host [owner] once it can deliver messages to its
   /// page. A newer host replaces the current one; its page must report
   /// `ready` before anything is delivered (the buffered messages then are).
-  void attach(void Function(String json) sink, Object owner) {
+  void attach(void Function(String json) sink, Object owner, {bool Function()? busy}) {
     _sink = sink;
     _owner = owner;
+    _busy = busy;
     _ready.value = false;
   }
+
+  bool Function()? _busy;
+
+  /// True while a ready page has not yet run everything sent to it (the
+  /// host's queue is not empty or a message is still in flight). Play waits
+  /// on it so the chart never falls steps behind the time bar.
+  bool get behind => _ready.value && (_busy?.call() ?? false);
 
   /// Called by [owner] when it goes away. Ignored if another host has
   /// attached since: when a chart is rebuilt elsewhere in the tree, Flutter
@@ -69,6 +77,7 @@ class ChartController {
     if (!identical(owner, _owner)) return;
     _sink = null;
     _owner = null;
+    _busy = null;
     _ready.value = false;
   }
 

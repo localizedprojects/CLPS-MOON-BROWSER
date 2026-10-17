@@ -381,6 +381,11 @@ class LightMap extends StatefulWidget {
 
   @override
   State<LightMap> createState() => _LightMapState();
+
+  /// True while the shown map is still computing a frame or has a newer one
+  /// queued. Play waits on it (as on the charts), so the map's time stays
+  /// within one step of the time bar on a slow phone.
+  static final framePending = ValueNotifier<bool>(false);
 }
 
 class _LightMapState extends State<LightMap> {
@@ -432,12 +437,23 @@ class _LightMapState extends State<LightMap> {
       // picked up by _maybeRequest); only a failed one is retried
       if (widget.active && _error != null) _sentKey = null;
       _images.update(active: widget.active);
+      _reportPending();
     }
+  }
+
+  /// Tell Play whether this map is still behind the time bar. Not while the
+  /// shadow engine is failing (offline, say): Play must not wait on a map
+  /// that only shows an error. A replaced map (rotation) leaves the flag to
+  /// its successor; [dispose] clears it when the map goes away.
+  void _reportPending() {
+    if (!mounted) return;
+    LightMap.framePending.value = widget.active && _error == null && (_busy || _queued != null);
   }
 
   @override
   void dispose() {
     _debounce?.cancel();
+    if (widget.active) LightMap.framePending.value = false;
     _images.dispose();
     super.dispose();
   }
@@ -458,6 +474,7 @@ class _LightMapState extends State<LightMap> {
     if (q.key == _sentKey) return;
     _sentKey = q.key;
     _queued = q;
+    _reportPending();
     _debounce?.cancel();
     // playback already paces itself; only scrubbing is debounced
     _debounce = Timer(s.playing ? Duration.zero : const Duration(milliseconds: 60), _pump);
@@ -495,6 +512,7 @@ class _LightMapState extends State<LightMap> {
   Future<void> _pump() async {
     if (_busy) return;
     _busy = true;
+    _reportPending();
     if (mounted) setState(() {});
     try {
       final engine = _engine ??= await widget.state.lightEngine();
@@ -512,6 +530,7 @@ class _LightMapState extends State<LightMap> {
       _error = '$e';
     } finally {
       _busy = false;
+      _reportPending();
       if (mounted) setState(() {});
     }
   }

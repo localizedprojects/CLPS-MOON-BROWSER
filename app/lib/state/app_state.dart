@@ -997,17 +997,20 @@ class AppState extends ChangeNotifier {
 
   /// Place a custom site: horizon from the 400 m LOLA DEM computed on the device.
   /// A spot outside the DEM's coverage (the outermost edge of the -80° circle)
-  /// is refused with [customSiteEdgeText].
-  Future<void> addCustomSite(double lat, double lon) async {
+  /// is refused with [customSiteEdgeText]. True once the spot is added and
+  /// selected (the full-screen map hands it back only then); false when it was
+  /// refused or failed ([error] says why).
+  Future<bool> addCustomSite(double lat, double lon) async {
     placingCustom = true;
     notifyListeners();
+    var placed = false;
     try {
       final grid = await dem();
       if (!grid.coversLatLon(lat, lon)) {
         placingCustom = false;
         error = customSiteEdgeText;
         notifyListeners();
-        return;
+        return false;
       }
       final h = computeCoarseHorizon(grid, lat, lon, observerHeightsM: catalog!.heightsM);
       // never reuse a removed spot's id: its cached results are keyed by it
@@ -1029,12 +1032,15 @@ class AppState extends ChangeNotifier {
       _customMasks[id] = h.masks;
       placingCustom = false;
       await selectSite(id);
+      placed = true;
       // the new site joins the ranking (the others are cached)
       await _rankAll();
+      return true;
     } catch (e) {
       placingCustom = false;
       error = 'Could not place site: $e';
       notifyListeners();
+      return placed;
     }
   }
 

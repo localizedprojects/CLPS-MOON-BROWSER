@@ -37,6 +37,16 @@ export default defineConfig(({ command }) => ({
   build: {
     outDir: '../app/assets/charts',
     emptyOutDir: true,
+    // The app supports Android 7.0+, whose stock WebView is Chrome 69: newer
+    // syntax (?? ?. ||= &&= ??=) is a SyntaxError there and every chart
+    // stays blank. So the whole bundle (the libraries too) is lowered to what
+    // Chrome 69 parses; the CSS follows the same target. No polyfill is
+    // needed: the runtime APIs newer than Chrome 69 that the bundle names are
+    // feature-tested first (globalThis, queueMicrotask, reportError) or on a
+    // path Chrome 69 never takes (Promise.allSettled, in React's
+    // startViewTransition). src/bundleTarget.test.ts checks both. Sorting
+    // (stable only from Chrome 70) goes through format.ts sortedStable.
+    target: ['es2018', 'chrome69'],
     chunkSizeWarningLimit: 6000,
     rolldownOptions: {
       output: {

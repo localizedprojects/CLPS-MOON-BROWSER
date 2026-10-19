@@ -9,6 +9,7 @@ library;
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart' show BuildContext, TickerMode, TickerModeData;
 import 'package:intl/intl.dart';
 
 import '../core/catalog.dart';
@@ -136,7 +137,15 @@ class ChartController {
 /// detach) owes nothing: what the old page was sent no longer holds Play.
 /// A page that stops answering holds Play for [staleMs] at most: [busy]
 /// turns false once nothing was acked for that long, until an ack shows the
-/// page is drawing again. Pure Dart, so it is tested on the VM.
+/// page is drawing again.
+///
+/// A hidden chart never holds Play. One kept alive off stage (Sky & time
+/// behind Site > Overview on a narrow screen, a destination behind another;
+/// [followTickerMode]) or whose frame is not in the document ([attach]'s
+/// `reachable`) may get no animation frames or no messages at all, so it
+/// would never ack. The page also acks without a frame once none came for a
+/// moment (ACK_FALLBACK_MS in bridge.ts), for what the host cannot see.
+/// Tested on the VM.
 class ChartAcks {
   ChartAcks({int Function()? clockMs, this.staleMs = 3000}) : _clock = clockMs ?? _wallMs;
 
@@ -164,7 +173,44 @@ class ChartAcks {
   /// Nothing sent so far is waited for any more.
   void reset() => _acked = _sent;
 
-  bool get busy => _acked < _sent && _clock() - _since < staleMs;
+  bool _onStage = true;
+
+  /// Whether the chart is on screen. Off stage it never holds Play, and going
+  /// off stage forgets what it owed. What it is sent meanwhile is still
+  /// numbered (the page acks it once it draws, or on its fallback), so back
+  /// on stage Play waits only for what is not drawn yet.
+  bool get onStage => _onStage;
+  set onStage(bool v) {
+    if (!v) reset();
+    _onStage = v;
+  }
+
+  bool get busy => _onStage && _acked < _sent && _clock() - _since < staleMs;
+
+  ValueListenable<TickerModeData>? _tickers;
+
+  /// Keep [onStage] in step with the TickerMode at [context], the host's
+  /// (call it from didChangeDependencies and activate, as
+  /// TickerProviderStateMixin does: a host moved by its GlobalKey gets the
+  /// new place's). Every tab, destination or page kept alive off stage mutes
+  /// its tickers (_LazyTabs, _SwipeTabs, the shell), so no layout rule (the
+  /// 1100 px two-pane Overview) has to be repeated here.
+  void followTickerMode(BuildContext context) {
+    final t = TickerMode.getValuesNotifier(context);
+    if (!identical(t, _tickers)) {
+      _tickers?.removeListener(_followStage);
+      _tickers = t..addListener(_followStage);
+    }
+    _followStage();
+  }
+
+  void _followStage() => onStage = _tickers?.value.enabled ?? true;
+
+  /// Stop following the TickerMode (the host's dispose).
+  void unfollow() {
+    _tickers?.removeListener(_followStage);
+    _tickers = null;
+  }
 
   /// One event from the page. An ack is taken here (true: it goes no
   /// further). A `ready` (the page was loaded or loaded again) first
@@ -186,9 +232,22 @@ class ChartAcks {
   }
 
   /// Attach [c] to a page that acks: [post] delivers one message JSON with
-  /// its sequence number, and Play waits on [busy].
-  void attach(ChartController c, void Function(String json, int n) post, Object owner) =>
-      c.attach((json) => post(json, next()), owner, busy: () => busy);
+  /// its sequence number, and Play waits on [busy]. While [reachable] says
+  /// no (the iframe is not in the document, so it has no window to post to)
+  /// a message is dropped without a number, the page owes nothing and it
+  /// never holds Play: no ack can come for what it never got (the
+  /// controller replays its buffer when the page reports `ready` again).
+  void attach(ChartController c, void Function(String json, int n) post, Object owner, {bool Function()? reachable}) {
+    bool can() {
+      if (reachable?.call() ?? true) return true;
+      reset();
+      return false;
+    }
+
+    c.attach((json) {
+      if (can()) post(json, next());
+    }, owner, busy: () => can() && busy);
+  }
 
   /// Route one event from the page: acks stop here, the rest go to [c].
   void handle(ChartController c, Map<dynamic, dynamic> ev) {

@@ -205,6 +205,31 @@ let ackQueued = 0
 let ackRound = false
 
 /**
+ * How long an ack waits for an animation frame (ms). A page that is not
+ * rendered (its frame is kept alive off screen, display:none, scrolled out
+ * of view and throttled by the browser) gets no frames for as long as it
+ * stays so: an ack waiting for one would hold the host's Play until its 3 s
+ * cap, every time. A page that is drawing gets its frame long before this.
+ */
+export const ACK_FALLBACK_MS = 250
+
+/**
+ * [f] at the next animation frame (framed: true), or after
+ * [ACK_FALLBACK_MS] if no frame comes first (framed: false), never both.
+ */
+function frameOrFallback(f: (framed: boolean) => void) {
+  let done = false
+  const run = (framed: boolean) => {
+    if (done) return
+    done = true
+    clearTimeout(timer)
+    f(framed)
+  }
+  const timer = setTimeout(() => run(false), ACK_FALLBACK_MS)
+  requestAnimationFrame(() => run(true))
+}
+
+/**
  * Ack [n] once it is drawn. The views draw at most once per animation frame,
  * in a frame callback asked for while the message is handled (before this
  * one: frame callbacks run in the order asked), and a payload re-renders
@@ -213,19 +238,25 @@ let ackRound = false
  * frame is painted, and posts one ack for the newest of them. A message that
  * arrives in between waits for the next round. Many messages in one frame
  * give one ack (the newest number covers the older ones).
+ *
+ * A page that gets no frame within [ACK_FALLBACK_MS] is not being rendered,
+ * so there is no draw to wait for: it acks everything it has run at once
+ * (and a late frame for that round does nothing).
  */
 function ackAfterDraw(n: number) {
   if (n > ackQueued) ackQueued = n
   if (ackRound) return
   ackRound = true
-  requestAnimationFrame(() => {
+  const done = (k: number) => {
+    ackRound = false
+    if (k) post({ type: 'ack', n: k })
+    if (ackQueued) ackAfterDraw(ackQueued)
+  }
+  frameOrFallback((framed) => {
     const k = ackQueued
     ackQueued = 0
-    requestAnimationFrame(() => {
-      ackRound = false
-      if (k) post({ type: 'ack', n: k })
-      if (ackQueued) ackAfterDraw(ackQueued)
-    })
+    if (framed) frameOrFallback(() => done(k))
+    else done(k)
   })
 }
 

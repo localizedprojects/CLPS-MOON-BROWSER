@@ -126,3 +126,13 @@ export function edgeTip(run: readonly [number, number], range: readonly [number,
   if (e.end) return `at least ${d} (goes on past your chosen dates)`
   return d
 }
+
+/**
+ * [xs] sorted by [cmp] into a new array, equal items kept in their order.
+ * Array.prototype.sort is stable only from Chrome 70 (ES2019): Android 7.0's
+ * stock WebView (Chrome 69) sorts more than 10 items unstably, so equal
+ * scores or times could come out in another order there.
+ */
+export function sortedStable<T>(xs: readonly T[], cmp: (a: T, b: T) => number): T[] {
+  return xs.map((x, i) => ({ x, i })).sort((a, b) => cmp(a.x, b.x) || a.i - b.i).map((e) => e.x)
+}

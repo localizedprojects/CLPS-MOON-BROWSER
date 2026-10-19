@@ -4,6 +4,7 @@
 // wires it; it runs on the VM.
 import 'dart:convert';
 
+import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:polar_horizon/widgets/chart_bridge.dart';
 
@@ -87,6 +88,75 @@ void main() {
     expect(c.behind, isFalse);
   });
 
+  testWidgets('a chart kept alive off stage never holds Play (its tab mutes its tickers)', (tester) async {
+    ready();
+    cursor(1);
+    final shown = ValueNotifier(true);
+    addTearDown(shown.dispose);
+    await tester.pumpWidget(ValueListenableBuilder<bool>(
+      valueListenable: shown,
+      builder: (_, on, _) => TickerMode(enabled: on, child: _Host(acks)),
+    ));
+    expect(acks.onStage, isTrue);
+    expect(c.behind, isTrue, reason: 'on screen: Play waits for it');
+    // Site > Overview on a narrow screen: Sky & time stays alive off stage,
+    // where its iframe gets no animation frames, so no ack would come
+    shown.value = false;
+    await tester.pump();
+    expect(acks.onStage, isFalse);
+    expect(c.behind, isFalse, reason: 'going off stage forgets what it owed');
+    cursor(2);
+    cursor(3);
+    expect(posted.map((p) => p.n), [1, 2, 3], reason: 'still delivered: the page draws them when it shows');
+    expect(c.behind, isFalse, reason: 'off stage it never holds Play');
+    now = 1000;
+    shown.value = true;
+    await tester.pump();
+    expect(acks.onStage, isTrue);
+    expect(c.behind, isTrue, reason: 'back on stage: the newest cursor is not drawn yet');
+    ack(3);
+    expect(c.behind, isFalse);
+  });
+
+  testWidgets('a host moved by its GlobalKey follows the TickerMode of its new place', (tester) async {
+    ready();
+    final key = GlobalKey();
+    Widget at({required bool hidden}) => Row(textDirection: TextDirection.ltr, children: [
+          TickerMode(enabled: false, child: hidden ? _Host(acks, key: key) : const SizedBox()),
+          TickerMode(enabled: true, child: hidden ? const SizedBox() : _Host(acks, key: key)),
+        ]);
+    await tester.pumpWidget(at(hidden: true));
+    cursor(1);
+    expect(c.behind, isFalse);
+    await tester.pumpWidget(at(hidden: false));
+    cursor(2);
+    expect(acks.onStage, isTrue);
+    expect(c.behind, isTrue);
+    await tester.pumpWidget(at(hidden: true));
+    expect(c.behind, isFalse);
+  });
+
+  test('an iframe out of the document (no window) gets no numbers and never holds Play', () {
+    var inDocument = true;
+    acks.attach(c, (json, n) => posted.add((msg: jsonDecode(json) as Map<String, dynamic>, n: n)), host,
+        reachable: () => inDocument);
+    ready();
+    cursor(1);
+    expect(c.behind, isTrue);
+    inDocument = false; // the platform view is not painted: its iframe left the document
+    expect(c.behind, isFalse, reason: 'its page is gone, and what it was sent with it');
+    cursor(2);
+    expect(posted.map((p) => p.n), [1], reason: 'a message it cannot get takes no number');
+    inDocument = true; // painted again: the iframe loads its page again
+    expect(c.behind, isFalse, reason: 'nothing it never got is waited for');
+    ready(); // the reloaded page: the buffer is replayed, numbered and waited for
+    expect(posted.map((p) => p.n), [1, 2]);
+    expect(posted.last.msg, {'type': 'cursor', 't': 2});
+    expect(c.behind, isTrue);
+    ack(2);
+    expect(c.behind, isFalse);
+  });
+
   test('acks past the newest number or without one change nothing', () {
     ready();
     cursor(1);
@@ -114,4 +184,36 @@ void main() {
     expect(ev.map((e) => e['type']), ['ready']);
     expect(got, hasLength(1));
   });
+}
+
+/// The TickerMode wiring of chart_host_web.dart's host state (the web host
+/// itself does not run on the VM).
+class _Host extends StatefulWidget {
+  const _Host(this.acks, {super.key});
+  final ChartAcks acks;
+  @override
+  State<_Host> createState() => _HostState();
+}
+
+class _HostState extends State<_Host> {
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    widget.acks.followTickerMode(context);
+  }
+
+  @override
+  void activate() {
+    super.activate();
+    widget.acks.followTickerMode(context);
+  }
+
+  @override
+  void dispose() {
+    widget.acks.unfollow();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => const SizedBox();
 }

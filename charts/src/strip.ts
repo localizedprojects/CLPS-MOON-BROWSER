@@ -12,7 +12,7 @@
  */
 import type { TimelineData } from './bridge'
 import { pctText } from './compare'
-import { DAY_MS, edgeOf, edgeTip, fmtDate, fmtDur, touchesEdge } from './format'
+import { DAY_MS, edgeOf, edgeTip, fmtDate, fmtDur, sortedStable, touchesEdge } from './format'
 import type { Glyph, Run } from './timelineAnswer'
 import { answerText, comingUp, DEFAULT_EARTH, gaps, longestDark, nextRun, rowPct, runAt, runDur } from './timelineAnswer'
 import { C, FONT, HOVER, MONO, utcIso } from './theme'
@@ -297,7 +297,7 @@ export function placeFlags(flags: Flag[], plot: { l: number; w: number }, rowTop
   for (const f of flags) byRow.set(f.row, [...(byRow.get(f.row) ?? []), f])
   for (const [row, fs] of byRow) {
     const placed: { a: number; b: number; line: number }[] = []
-    for (const f0 of [...fs].sort((p, q) => p.x - q.x)) {
+    for (const f0 of sortedStable(fs, (p, q) => p.x - q.x)) {
       const f = { ...f0, text: fitFlag(f0.text, plot.w) }
       const w = flagW(f.text)
       const flip = f.x + w > plot.l + plot.w

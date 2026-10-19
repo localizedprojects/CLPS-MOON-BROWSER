@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { compass16, edgePlus, edgeTip, fmtDate, fmtDur, fmtIn, needsYear, scoreDecimals, touchesEdge } from './format'
+import type { CompareData } from './bridge'
+import { ranked } from './compare'
+import { compass16, edgePlus, edgeTip, fmtDate, fmtDur, fmtIn, needsYear, scoreDecimals, sortedStable, touchesEdge } from './format'
 
 const M = 60e3, H = 3600e3, D = 86400e3
 
@@ -92,5 +94,35 @@ describe('edge +', () => {
     expect(edgeTip([0, 102 * D + H], range)).toBe('at least 102 d 1 h (starts before your chosen dates)')
     expect(edgeTip([300 * D, 365 * D], range)).toBe('at least 65 d (goes on past your chosen dates)')
     expect(edgeTip([D, 2 * D], range)).toBe('1 d')
+  })
+})
+
+describe('sortedStable: equal items keep their order on Chrome 69 too', () => {
+  /** [f] with an Array.prototype.sort that, like V8 before 7.0 (Chrome 69) on more than 10 items, swaps equal items. */
+  function withUnstableSort(f: () => void) {
+    const sort = Array.prototype.sort
+    ;(Array.prototype as { sort: unknown }).sort = function (this: unknown[], cmp?: (a: unknown, b: unknown) => number) {
+      const r = sort.call([...this].reverse(), cmp)
+      r.forEach((x, i) => { this[i] = x })
+      return this
+    }
+    try { f() } finally { Array.prototype.sort = sort }
+  }
+  const xs = Array.from({ length: 12 }, (_, i) => ({ k: i % 3, i }))
+  it('keeps ties in input order whatever the engine sort does with them', () => {
+    withUnstableSort(() => {
+      expect([...xs].sort((a, b) => a.k - b.k).map((x) => x.i).slice(0, 4)).toEqual([9, 6, 3, 0]) // the simulated engine
+      expect(sortedStable(xs, (a, b) => a.k - b.k).map((x) => x.i)).toEqual([0, 3, 6, 9, 1, 4, 7, 10, 2, 5, 8, 11])
+    })
+    expect(xs.map((x) => x.i)).toEqual([...Array(12).keys()]) // a new array: the input is untouched
+  })
+  it('Compare ranks equal scores in the order the app sent them', () => {
+    const rows = Array.from({ length: 12 }, (_, i) => ({
+      id: `s${i}`, name: `S${i}`, score: i % 2 ? 80 : 60, pctSunlit: 1, pctEarth: 1, pctBoth: 1, longestDarkH: 1,
+    }))
+    withUnstableSort(() => {
+      expect(ranked({ rows } as unknown as CompareData).map((r) => r.id)).toEqual(
+        ['s1', 's3', 's5', 's7', 's9', 's11', 's0', 's2', 's4', 's6', 's8', 's10'])
+    })
   })
 })

@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { BodyNow, ChartEvent, HostMessage } from './bridge'
-import { dispatchForTests, installBridge, latest, resetBridgeForTests, subscribe, viewFromLocation } from './bridge'
+import { ACK_FALLBACK_MS, dispatchForTests, installBridge, latest, resetBridgeForTests, subscribe, viewFromLocation } from './bridge'
 import { skyNowData, timelineCursor } from './cursor'
 
 const body = (o: Partial<BodyNow> = {}): BodyNow => ({ az: 10, el: 1, rho: 0.27, frac: 1, hz: 0.2, visible: true, ...o })
@@ -96,10 +96,15 @@ describe('ack: the page tells the host what it has drawn (web Play waits on it)'
     frames = []
     sent = []
     vi.stubGlobal('requestAnimationFrame', (f: FrameRequestCallback) => frames.push(f))
+    // the fallback timer (frames stay in the hand of frame() above)
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
     // the Android JavaScript channel (the web path is checked below)
     vi.stubGlobal('window', { PH: { postMessage: (s: string) => sent.push(JSON.parse(s) as ChartEvent) } })
   })
-  afterEach(() => vi.unstubAllGlobals())
+  afterEach(() => {
+    vi.useRealTimers()
+    vi.unstubAllGlobals()
+  })
   const acks = () => sent.filter((e) => e.type === 'ack')
 
   it('acks a numbered message two frames on, after the view drew it', () => {
@@ -133,6 +138,41 @@ describe('ack: the page tells the host what it has drawn (web Play waits on it)'
     frame()
     frame()
     expect(acks()).toEqual([{ type: 'ack', n: 1 }, { type: 'ack', n: 2 }])
+  })
+  it('a page that gets no animation frames (kept alive off screen) still acks, after ACK_FALLBACK_MS', () => {
+    dispatchForTests({ type: 'cursor', t: 1 }, 4)
+    dispatchForTests({ type: 'cursor', t: 2 }, 5)
+    vi.advanceTimersByTime(ACK_FALLBACK_MS - 1)
+    expect(acks()).toEqual([])
+    vi.advanceTimersByTime(1)
+    expect(acks()).toEqual([{ type: 'ack', n: 5 }]) // at once: no frame to wait to be painted
+    expect(ACK_FALLBACK_MS).toBeLessThanOrEqual(300) // well under the host's 3 s cap
+    dispatchForTests({ type: 'cursor', t: 3 }, 6) // every message, not only the first
+    vi.advanceTimersByTime(ACK_FALLBACK_MS)
+    expect(acks()).toEqual([{ type: 'ack', n: 5 }, { type: 'ack', n: 6 }])
+    // the frames come when the page shows again: those rounds are over
+    frame()
+    frame()
+    expect(acks()).toHaveLength(2)
+    expect(frames).toEqual([])
+  })
+  it('a page that is drawing acks on its frames: the fallback never fires early or twice', () => {
+    dispatchForTests({ type: 'cursor', t: 1 }, 1)
+    vi.advanceTimersByTime(ACK_FALLBACK_MS - 50) // a slow first frame
+    frame()
+    vi.advanceTimersByTime(ACK_FALLBACK_MS - 50) // past the first wait's deadline, not the second's
+    expect(acks()).toEqual([])
+    frame()
+    expect(acks()).toEqual([{ type: 'ack', n: 1 }])
+    vi.advanceTimersByTime(10 * ACK_FALLBACK_MS)
+    expect(acks()).toHaveLength(1)
+    expect(vi.getTimerCount()).toBe(0)
+  })
+  it('a page hidden between its two frames acks after the fallback', () => {
+    dispatchForTests({ type: 'cursor', t: 1 }, 2)
+    frame() // drawn; then no frame comes
+    vi.advanceTimersByTime(ACK_FALLBACK_MS)
+    expect(acks()).toEqual([{ type: 'ack', n: 2 }])
   })
   it('never acks a message without a number (the Android host waits on runJavaScript)', () => {
     dispatchForTests(JSON.stringify({ type: 'cursor', t: 1 }))

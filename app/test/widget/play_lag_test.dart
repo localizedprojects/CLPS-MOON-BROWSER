@@ -202,6 +202,37 @@ void main() {
     await tester.pump(const Duration(milliseconds: 250));
   });
 
+  testWidgets('on the web charts kept alive off stage never hold Play (narrow Site > Overview)', (tester) async {
+    final hub = ChartHub(onEvent: (_) {});
+    addTearDown(hub.dispose);
+    // a narrow screen: Overview is shown, Sky & time (both charts) is kept
+    // alive off stage; its iframes get no animation frames, so never ack
+    state.goTo(Dest.site, siteTab: SiteTab.overview);
+    state.setCursor(state.rangeStartMs);
+    final web = [for (final c in [hub.sky, hub.timeline]) (c: c, acks: ChartAcks(), sent: <int>[])];
+    for (final w in web) {
+      w.acks.attach(w.c, (_, n) => w.sent.add(n), Object());
+      w.acks.handle(w.c, {'type': 'ready', 'view': w.c.view});
+      w.acks.onStage = false; // the host follows its TickerMode
+    }
+    void sync() => hub.sync(state);
+    state.addListener(sync);
+    addTearDown(() => state.removeListener(sync));
+    hub.sync(state);
+    state.holdPlay = () => hub.chartsBehind;
+
+    state.togglePlay();
+    var t = state.cursorMs;
+    for (var i = 0; i < 4; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(state.cursorMs, greaterThan(t), reason: 'step ${i + 1}: no freeze waiting for a hidden chart');
+      t = state.cursorMs;
+    }
+    expect(web.every((w) => w.sent.isNotEmpty), isTrue, reason: 'the hidden charts still get the time');
+    state.pausePlay();
+    await tester.pump(const Duration(milliseconds: 250));
+  });
+
   testWidgets('a cursor still waiting for a slow coalescing timer holds Play too', (tester) async {
     final hub = ChartHub(onEvent: (_) {}, cursorInterval: const Duration(milliseconds: 250));
     addTearDown(hub.dispose);

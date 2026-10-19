@@ -6,7 +6,7 @@
  * the wall clock. Durations are floored (format.ts `fmtDur`).
  */
 import type { TimelineData } from './bridge'
-import { edgePlus, fmtDate, fmtDur, fmtIn, HOUR_MS, touchesEdge } from './format'
+import { edgePlus, fmtDate, fmtDur, fmtIn, HOUR_MS, sortedStable, touchesEdge } from './format'
 import type { DurOpts } from './format'
 
 export type Run = [number, number]
@@ -221,7 +221,7 @@ export function comingUp(d: TimelineData, t: number, n: number): ComingEvent[] {
   }
   // same time: the answer (Sun + Earth) first, then Earth, then Sun
   const rank = { both: 0, earth: 1, sun: 2, dark: 2 }
-  return out.sort((a, b) => a.t - b.t || rank[a.key] - rank[b.key]).slice(0, n)
+  return sortedStable(out, (a, b) => a.t - b.t || rank[a.key] - rank[b.key]).slice(0, n)
 }
 
 /** Every run boundary (all rows), sorted: ←/→ on the strip step through them. */

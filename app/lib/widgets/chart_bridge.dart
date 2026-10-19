@@ -9,7 +9,7 @@ library;
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
-import 'package:flutter/widgets.dart' show BuildContext, TickerMode, TickerModeData;
+import 'package:flutter/widgets.dart' show BuildContext, State, StatefulWidget, TickerMode, TickerModeData;
 import 'package:intl/intl.dart';
 
 import '../core/catalog.dart';
@@ -252,6 +252,36 @@ class ChartAcks {
   /// Route one event from the page: acks stop here, the rest go to [c].
   void handle(ChartController c, Map<dynamic, dynamic> ev) {
     if (!take(ev)) c.handleRaw(jsonEncode(ev));
+  }
+}
+
+/// The lifecycle wiring of a State that hosts a page that acks (the web
+/// chart host, and the VM tests' host, so the tested wiring is the shipped
+/// one): [acks] follows the TickerMode where the host sits, from
+/// didChangeDependencies and activate as TickerProviderStateMixin does (a
+/// host moved by its GlobalKey gets the new place's), and a host that goes
+/// away stops following it and never holds Play.
+mixin ChartAcksHost<T extends StatefulWidget> on State<T> {
+  /// What the page has drawn of what this host posted.
+  ChartAcks get acks;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    acks.followTickerMode(context);
+  }
+
+  @override
+  void activate() {
+    super.activate();
+    acks.followTickerMode(context);
+  }
+
+  @override
+  void dispose() {
+    acks.unfollow();
+    acks.reset(); // a page that goes away never holds Play
+    super.dispose();
   }
 }
 

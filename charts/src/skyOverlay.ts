@@ -91,7 +91,7 @@ export function skyOverlaySvg(dyn: SkyDynamic, g: SkyGeom): string {
   const paths = dyn.paths.map((p) =>
     `<text data-path x="${n(g.cx + p.x * g.k)}" y="${n(g.cy - p.y * g.k)}" text-anchor="middle" dominant-baseline="central" ` +
     `font-family="${esc(SANS)}" font-size="12" fill="${p.color}" stroke="${C.bg}" stroke-width="4" paint-order="stroke">${esc(p.text)}</text>`).join('')
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="100%" height="100%" style="position:absolute;inset:0;overflow:visible" aria-hidden="true">` +
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="100%" height="100%" style="position:absolute;top:0;right:0;bottom:0;left:0;overflow:visible" aria-hidden="true">` +
     `<g data-rings="${dyn.ringAz}">${rings}</g><g data-paths>${paths}</g>${bodySvg(dyn.sun, g)}${bodySvg(dyn.earth, g)}</svg>`
 }
 

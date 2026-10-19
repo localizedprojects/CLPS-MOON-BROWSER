@@ -63,14 +63,43 @@ Offset mapFractionOf(MapLayers l, double lat, double lon) {
 class MapViewController {
   _MapViewState? _state;
 
+  /// The point [centreOn] last asked for (and whether to animate), kept until
+  /// the user moves the map: a map laid out only later (offstage under the
+  /// full-screen map, or a new one for a new layout after a rotation) is
+  /// centred on it at its first layout, and a resize mid-move goes on toward
+  /// it instead of stopping.
+  (MapCamera, bool)? _want;
+
+  /// The layer and "Show site names" choice, carried between the page's map
+  /// and the full-screen one (and kept for a map rebuilt for a new layout).
+  (MapOverlay, bool)? _layers;
+
   /// The attached map's view, or null before it is laid out.
   MapCamera? get camera => _state?._camera;
+
+  MapOverlay get overlay => _state?.overlay ?? _layers?.$1 ?? MapOverlay.none;
+  bool get labels => _state?.labels ?? _layers?.$2 ?? false;
+
+  /// Show [overlay] (and the site names when [labels]) on the map.
+  void setLayers(MapOverlay overlay, bool labels) {
+    _layers = (overlay, labels);
+    _state?._takeLayers();
+  }
 
   /// Centre the map on [c]'s point at [c]'s zoom (kept within 1x to
   /// [mapMaxZoom]), zooming in just enough when the point cannot be in the
   /// middle at that zoom (near the region's edge at 1x). Animated unless
-  /// [animate] is false.
-  void centreOn(MapCamera c, {bool animate = true}) => _state?._centreOn(c, animate: animate);
+  /// [animate] is false. A map not laid out yet does it at its first layout.
+  void centreOn(MapCamera c, {bool animate = true}) {
+    _want = (c, animate);
+    final s = _state;
+    if (s != null && s._side > 0) s._centreOn(c, animate: animate);
+  }
+
+  /// The map's Layers sheet and its coordinates dialog (the full-screen map's
+  /// compact buttons).
+  Future<void> openLayers() async => _state?._openLayers();
+  Future<void> askCoordinates() async => _state?._askCoordinates();
 }
 
 Widget _expandIf(bool on, Widget child) => on ? Expanded(child: child) : child;
@@ -204,9 +233,17 @@ class MapView extends StatefulWidget {
   /// Shown over the bottom of the map, just above the scale bar (the
   /// full-screen map's "selected" chip).
   final Widget? overlay;
+
+  /// Told when a dropped pin starts (true) or stops (false) waiting for
+  /// "Check this spot": the full-screen map does not close meanwhile.
+  final ValueChanged<bool>? onPinChanged;
+
+  /// Told after the layer or "Show site names" changes.
+  final VoidCallback? onLayersChanged;
   const MapView({super.key, required this.layers, required this.sites, required this.selectedId,
       required this.onSelect, required this.onPlaceCustom, this.highlightId, this.showControls = true, this.belowMap,
-      this.controller, this.initialCamera, this.fill = false, this.onExpand, this.overlay});
+      this.controller, this.initialCamera, this.fill = false, this.onExpand, this.overlay, this.onPinChanged,
+      this.onLayersChanged});
   @override
   State<MapView> createState() => _MapViewState();
 }
@@ -246,8 +283,11 @@ class _MapViewState extends State<MapView> with SingleTickerProviderStateMixin {
       ..setEntry(1, 3, axis(t.dy, _vp.height));
   }
 
+  /// The user's own view change (gesture or button): it ends any move toward a
+  /// point asked for by [MapViewController.centreOn].
   void _setView(double s, Offset t) {
     _move?.stop();
+    widget.controller?._want = null;
     _tc.value = _viewFor(s, t);
   }
 
@@ -325,6 +365,35 @@ class _MapViewState extends State<MapView> with SingleTickerProviderStateMixin {
   void initState() {
     super.initState();
     widget.controller?._state = this;
+    if (widget.controller?._layers case (final o, final l)?) {
+      overlay = o;
+      labels = l;
+    }
+  }
+
+  void _takeLayers() {
+    if (widget.controller?._layers case (final o, final l)? when mounted) {
+      setState(() {
+        overlay = o;
+        labels = l;
+      });
+    }
+  }
+
+  void _layersTo(MapOverlay o, bool l) {
+    setState(() {
+      overlay = o;
+      labels = l;
+    });
+    widget.controller?._layers = (o, l);
+    widget.onLayersChanged?.call();
+  }
+
+  /// Drop ([p]) or lift (null) the pin waiting for "Check this spot".
+  void _setPin((double, double)? p) {
+    final was = _pin != null;
+    setState(() => _pin = p);
+    if (was != (p != null)) widget.onPinChanged?.call(p != null);
   }
 
   @override
@@ -367,14 +436,14 @@ class _MapViewState extends State<MapView> with SingleTickerProviderStateMixin {
       }
     }
     if (best != null) {
-      setState(() => _pin = null);
+      _setPin(null);
       widget.onSelect(best);
       return;
     }
     final h = widget.layers.halfWidthM;
     final (lat, lon) = xyToLatLon((p.dx / size - 0.5) * 2 * h, (0.5 - p.dy / size) * 2 * h);
     if (lat > customMaxLat) return; // outside the terrain map
-    setState(() => _pin = (lat, lon));
+    _setPin((lat, lon));
     // bring the confirm card into view (the map may sit in a scrolling list)
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final c = _confirmKey.currentContext;
@@ -385,14 +454,16 @@ class _MapViewState extends State<MapView> with SingleTickerProviderStateMixin {
   void _confirmPin() {
     final p = _pin;
     if (p == null) return;
-    setState(() => _pin = null);
+    _setPin(null);
     widget.onPlaceCustom(p.$1, p.$2);
   }
 
   /// Keyboard / screen-reader path for placing a custom site (WCAG 2.1.1).
   Future<void> _askCoordinates() async {
     final r = await showDialog<(double, double)>(context: context, builder: (_) => const CoordinatesDialog());
-    if (r != null && mounted) widget.onPlaceCustom(r.$1, r.$2);
+    if (r == null || !mounted) return;
+    _setPin(null); // the typed spot replaces a dropped pin
+    widget.onPlaceCustom(r.$1, r.$2);
   }
 
   @override
@@ -406,15 +477,24 @@ class _MapViewState extends State<MapView> with SingleTickerProviderStateMixin {
         final old = _vp, oldSide = _side;
         _vp = vp;
         _side = size;
+        final want = widget.controller?._want;
         if (old == Size.zero) {
           // the first layout (nothing listens to the view yet): the start view
           if (widget.initialCamera != null || widget.fill) {
             _show(widget.initialCamera ?? (zoom: 1.0, centre: const Offset(0.5, 0.5)));
           }
-        } else if (old != vp && (_scale > 1.001 || widget.fill)) {
-          // rotation / window resize while zoomed: rescale the shift and re-clamp
+          // a point asked for before this map was laid out (a new map for a
+          // new layout, made while the full-screen map was open)
+          if (want != null && size > 0) _centreOn(want.$1, animate: want.$2);
+        } else if (old != vp && (_scale > 1.001 || widget.fill || want != null)) {
+          // rotation / window resize while zoomed: rescale the shift and re-clamp;
+          // a move toward a point asked for goes on toward it in the new size
+          // (it is not stopped), and a point reached is centred again
+          final moving = _move?.isAnimating ?? false;
           WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (mounted) _setView(_scale, _shift * (size / oldSide));
+            if (!mounted) return;
+            _tc.value = _viewFor(_scale, _shift * (size / oldSide));
+            if (widget.controller?._want case (final c, final animate)?) _centreOn(c, animate: animate && moving);
           });
         }
         Widget zoomButton(IconData icon, String label, bool enabled, VoidCallback onTap) => Semantics(
@@ -541,7 +621,7 @@ class _MapViewState extends State<MapView> with SingleTickerProviderStateMixin {
           lat: pin.$1,
           lon: pin.$2,
           onConfirm: _confirmPin,
-          onCancel: () => setState(() => _pin = null),
+          onCancel: () => _setPin(null),
         ),
       if (widget.belowMap case final below?) Padding(padding: const EdgeInsets.only(top: 12), child: below),
       if (widget.showControls) ...[
@@ -586,7 +666,7 @@ class _MapViewState extends State<MapView> with SingleTickerProviderStateMixin {
       (ctx) => StatefulBuilder(
         builder: (ctx, setSheet) {
           void pick(MapOverlay o) {
-            setState(() => overlay = o);
+            _layersTo(o, labels);
             setSheet(() {});
           }
 
@@ -611,7 +691,7 @@ class _MapViewState extends State<MapView> with SingleTickerProviderStateMixin {
                   title: const Text('Show site names'),
                   value: labels,
                   onChanged: (v) {
-                    setState(() => labels = v);
+                    _layersTo(overlay, v);
                     setSheet(() {});
                   },
                 ),

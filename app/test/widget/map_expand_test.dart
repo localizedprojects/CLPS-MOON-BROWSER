@@ -34,7 +34,16 @@ void main() {
   final placed = <(double, double)>[];
 
   /// The page map (with the expand button) in a scrolling page, as on Explore.
-  Future<void> pumpPage(WidgetTester tester, {Size size = const Size(360, 780), bool reduce = false, double text = 1}) async {
+  /// A spot is added after [placeDelay] ([accept]) or refused as at the map's
+  /// edge; from [swapAt] wide the map sits in another parent (a new map, as
+  /// Explore's phone and two-pane layouts make).
+  Future<void> pumpPage(WidgetTester tester,
+      {Size size = const Size(360, 780),
+      bool reduce = false,
+      double text = 1,
+      bool accept = true,
+      Duration placeDelay = Duration.zero,
+      double? swapAt}) async {
     tester.view.physicalSize = size;
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
@@ -57,18 +66,26 @@ void main() {
           body: SingleChildScrollView(
             child: Padding(
               padding: const EdgeInsets.all(12),
-              child: Builder(
-                builder: (context) => MapView(
+              child: Builder(builder: (context) {
+                Future<bool> place(double a, double b) async {
+                  placed.add((a, b));
+                  if (placeDelay > Duration.zero) await Future<void>.delayed(placeDelay);
+                  if (!accept) state.error = AppState.customSiteEdgeText;
+                  return accept;
+                }
+
+                final map = MapView(
                   layers: state.mapLayers!,
                   sites: state.allSites,
                   selectedId: state.selectedId,
                   onSelect: (_) {},
                   onPlaceCustom: (_, _) {},
                   controller: inline,
-                  onExpand: () => openMapFocus(context,
-                      inline: inline, onSelect: picked.add, onPlaceCustom: (a, b) => placed.add((a, b))),
-                ),
-              ),
+                  onExpand: () => openMapFocus(context, inline: inline, onSelect: picked.add, onPlaceCustom: place),
+                );
+                final wide = swapAt != null && MediaQuery.sizeOf(context).width >= swapAt;
+                return wide ? Row(children: [Expanded(child: map)]) : map;
+              }),
             ),
           ),
         ),
@@ -339,6 +356,148 @@ void main() {
     await tester.pumpAndSettle();
     expect(state.dest, Dest.explore);
     expectCentredOn(tester, fracOf(site), site.short);
+    expect(tester.takeException(), isNull);
+  });
+
+  // findings 1-4 (map-expand review, 2026-10-19)
+  testWidgets('a pin dropped after choosing a site keeps the map open until it is checked, and replaces the site',
+      (tester) async {
+    await pumpPage(tester);
+    await expand(tester);
+    final site = isolatedSite(tester);
+    await tester.tapAt(at(tester, fracOf(site)));
+    await tester.pump();
+    expect(find.text('${site.short} selected · returning to Explore'), findsOneWidget);
+    await tester.tapAt(terrainPoint(tester));
+    await tester.pump();
+    expect(find.widgetWithText(FilledButton, 'Check this spot'), findsOneWidget);
+    expect(find.textContaining('selected'), findsNothing, reason: 'the pin replaces the earlier choice and its chip');
+    await tester.pump(const Duration(seconds: 3));
+    expect(find.byType(MapFocusPage), findsOneWidget, reason: 'it does not close under a pin waiting to be checked');
+    expect(find.widgetWithText(FilledButton, 'Check this spot'), findsOneWidget);
+    await tester.tap(find.widgetWithText(FilledButton, 'Check this spot'));
+    await tester.pump();
+    expect(placed, hasLength(1));
+    expect(find.text('Your spot selected · returning to Explore'), findsOneWidget);
+    await tester.pump(const Duration(milliseconds: 2100));
+    await tester.pumpAndSettle();
+    expectCentredOn(tester, mapFractionOf(state.mapLayers!, placed.single.$1, placed.single.$2), 'the new spot');
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('a spot that is not added shows why, full screen, and nothing is handed back', (tester) async {
+    await pumpPage(tester, accept: false, placeDelay: const Duration(milliseconds: 300));
+    addTearDown(() => state.error = null);
+    final before = inline.camera!;
+    await expand(tester);
+    await tester.tapAt(terrainPoint(tester));
+    await tester.pump();
+    await tester.tap(find.widgetWithText(FilledButton, 'Check this spot'));
+    await tester.pump();
+    expect(find.byKey(const ValueKey('map-focus-placing')), findsOneWidget, reason: 'being checked, not selected yet');
+    expect(find.textContaining('selected'), findsNothing);
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.text(AppState.customSiteEdgeText), findsOneWidget, reason: 'the reason, over the full-screen map');
+    expect(find.textContaining('returning to Explore'), findsNothing);
+    await tester.pump(const Duration(seconds: 3));
+    expect(find.byType(MapFocusPage), findsOneWidget, reason: 'nothing to hand back: it stays open');
+    await tester.tap(find.byTooltip('Close full screen'));
+    await tester.pumpAndSettle();
+    expect(inline.camera, before);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('a spot added slowly starts the 2 s only once it is added', (tester) async {
+    await pumpPage(tester, placeDelay: const Duration(seconds: 1));
+    await expand(tester);
+    await tester.tapAt(terrainPoint(tester));
+    await tester.pump();
+    await tester.tap(find.widgetWithText(FilledButton, 'Check this spot'));
+    await tester.pump(const Duration(milliseconds: 900));
+    expect(find.byKey(const ValueKey('map-focus-placing')), findsOneWidget);
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(find.text('Your spot selected · returning to Explore'), findsOneWidget);
+    await tester.pump(const Duration(milliseconds: 1900));
+    expect(find.byType(MapFocusPage), findsOneWidget, reason: '2.9 s after Check this spot, 1.9 s after it was added');
+    await tester.pump(const Duration(milliseconds: 200));
+    await tester.pumpAndSettle();
+    expectCentredOn(tester, mapFractionOf(state.mapLayers!, placed.single.$1, placed.single.$2), 'the new spot');
+  });
+
+  testWidgets('the page map still ends centred when it is resized during its move', (tester) async {
+    await pumpPage(tester);
+    await expand(tester);
+    final site = isolatedSite(tester);
+    await tester.tapAt(at(tester, fracOf(site)));
+    await tester.pump(const Duration(milliseconds: 2100));
+    await tester.pump(); // the move's first tick (its ticker was off while the page was hidden)
+    await tester.pump(const Duration(milliseconds: 200));
+    expect(find.byType(MapFocusPage), findsNothing);
+    expect(inline.camera!.zoom, greaterThan(1.001), reason: 'mid-move');
+    tester.view.physicalSize = const Size(560, 780);
+    await tester.pumpAndSettle();
+    expectCentredOn(tester, fracOf(site), site.short);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('rotated as the full-screen map closes, with a new page map for the new layout, it is still centred',
+      (tester) async {
+    await pumpPage(tester, swapAt: 600);
+    await expand(tester);
+    final site = isolatedSite(tester);
+    await tester.tapAt(at(tester, fracOf(site)));
+    await tester.pump(const Duration(milliseconds: 1900));
+    // the hand-back comes before the page is laid out (and rebuilt) at the new size
+    tester.view.physicalSize = const Size(700, 900);
+    await tester.pump(const Duration(milliseconds: 200));
+    expect(find.byType(MapFocusPage), findsNothing);
+    await tester.pumpAndSettle();
+    expect(find.ancestor(of: viewport(), matching: find.byType(Row)), findsOneWidget, reason: 'the wide layout');
+    expectCentredOn(tester, fracOf(site), site.short);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('the layer and site names go full screen and back; full screen has Layers and the coordinates entry',
+      (tester) async {
+    await pumpPage(tester);
+    dynamic painter() => tester.widget<CustomPaint>(find.descendant(of: viewport(), matching: find.byType(CustomPaint)).first).painter;
+    Future<void> pickLayers(Finder button, MapOverlay o, {required bool names}) async {
+      await tester.tap(button);
+      await tester.pumpAndSettle();
+      final radio = find.widgetWithText(RadioListTile<MapOverlay>, overlayName(o));
+      await tester.ensureVisible(radio);
+      await tester.pumpAndSettle();
+      await tester.tap(radio);
+      await tester.pump();
+      expect(tester.widget<RadioGroup<MapOverlay>>(find.byType(RadioGroup<MapOverlay>)).groupValue, o, reason: 'picked');
+      if (tester.widget<SwitchListTile>(find.byType(SwitchListTile)).value != names) {
+        await tester.ensureVisible(find.byType(SwitchListTile));
+        await tester.pumpAndSettle();
+        await tester.tap(find.byType(SwitchListTile));
+        await tester.pump();
+      }
+      Navigator.of(tester.element(find.byType(SwitchListTile))).pop();
+      await tester.pumpAndSettle();
+    }
+
+    final one = MapOverlay.values[1], two = MapOverlay.values[2];
+    await pickLayers(find.byIcon(Icons.layers_outlined), one, names: true);
+    expect(painter().overlay, one);
+    await expand(tester);
+    expect(painter().overlay, one, reason: 'the layer goes full screen');
+    expect(painter().labels, isTrue, reason: 'and the site names');
+    expect(find.byTooltip('Map layers: ${overlayName(one)}, names shown'), findsOneWidget);
+    await tester.tap(find.byTooltip('Add a spot by coordinates'));
+    await tester.pumpAndSettle();
+    expect(find.byType(CoordinatesDialog), findsOneWidget, reason: 'the coordinates entry, full screen');
+    Navigator.of(tester.element(find.byType(CoordinatesDialog))).pop();
+    await tester.pumpAndSettle();
+    await pickLayers(find.byKey(const ValueKey('map-focus-layers')), two, names: false);
+    expect(painter().overlay, two);
+    await tester.tap(find.byTooltip('Close full screen'));
+    await tester.pumpAndSettle();
+    expect(painter().overlay, two, reason: 'and back to the page map');
+    expect(painter().labels, isFalse);
     expect(tester.takeException(), isNull);
   });
 }

@@ -321,7 +321,7 @@ void main() {
   // logic-3
   test('a custom site at the edge of the terrain map is refused in plain words', () async {
     final n = s.customSites.length, selected = s.selectedId;
-    await s.addCustomSite(-80.0, 0.0);
+    expect(await s.addCustomSite(-80.0, 0.0), isFalse, reason: 'it says it was not placed (the full-screen map hands nothing back)');
     expect(s.error, AppState.customSiteEdgeText);
     expect(s.customSites, hasLength(n));
     expect(s.placingCustom, isFalse);
@@ -331,7 +331,7 @@ void main() {
   // logic-6 (removal)
   test('a custom spot can be removed again: sites, shortlist, selection and ranking follow', () async {
     final n = s.customSites.length, shortlist = [...s.compareIds];
-    await s.addCustomSite(-89.2, 120.0);
+    expect(await s.addCustomSite(-89.2, 120.0), isTrue, reason: 'placed and selected');
     final id = s.customSites.last.id;
     expect(s.selectedId, id);
     s.toggleCompare(id);

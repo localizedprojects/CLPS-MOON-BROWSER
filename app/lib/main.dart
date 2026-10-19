@@ -17,6 +17,7 @@ void main() {
         final s = AppState()
           ..askGoalOnStart = true // "What matters most?" first, every time
           ..loadSavedGoal()
+          ..loadTourSeen() // the tutorial shows once, after the intro, on a first launch
           ..loadTimeControlsHidden();
         // the heavy first load (data, ranking) waits while the intro builds the
         // logo, so its frames are smooth; the question and the loading scene

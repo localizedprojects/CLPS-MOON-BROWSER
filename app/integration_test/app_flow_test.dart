@@ -1,5 +1,6 @@
-// End-to-end flow on a device: the real app (main()) from the goal page to
-// Learn, through every main screen, with no exceptions on the way.
+// End-to-end flow on a device: the real app (main()) from the first-launch
+// tutorial and the goal page to Learn, through every main screen, with no
+// exceptions on the way.
 // Run: flutter test integration_test/app_flow_test.dart -d <device>
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -8,6 +9,7 @@ import 'package:polar_horizon/main.dart' as app;
 import 'package:polar_horizon/state/chart_hub.dart';
 import 'package:polar_horizon/widgets/site_card.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 /// Pumps frames until [f] finds something (or [timeout] passes); the app has
 /// endless animations, so pumpAndSettle is not used for waits.
@@ -42,14 +44,24 @@ Future<void> tapText(WidgetTester t, String text) async {
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
-  testWidgets('goal -> loading -> Explore -> site tabs -> Compare -> Learn', (t) async {
+  testWidgets('tutorial -> goal -> loading -> Explore -> site tabs -> Compare -> Learn', (t) async {
+    // a fresh install: the tutorial has not been seen
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('tourSeen');
     app.main();
 
-    // the intro (a tap skips it), then the goal page
+    // the intro (a tap skips it), then the first-launch tutorial, then the goal page
     await t.pump(const Duration(milliseconds: 500));
     if (find.byKey(const ValueKey('intro')).evaluate().isNotEmpty) {
       await t.tapAt(const Offset(100, 100));
     }
+    expect(await waitFor(t, find.byKey(const ValueKey('tour'))), isTrue, reason: 'tutorial on a first launch');
+    expect(find.text('Find a place to land'), findsOneWidget);
+    noError(t, 'tutorial');
+    await t.tap(find.byKey(const ValueKey('tour-skip')));
+    await settle(t);
+    expect(find.byKey(const ValueKey('tour')), findsNothing, reason: 'Skip closes the tutorial');
+    expect(prefs.getBool('tourSeen'), isTrue, reason: 'Skip remembers it, so it shows only once');
     expect(await waitFor(t, find.byKey(const ValueKey('goal-balanced'))), isTrue, reason: 'goal page');
     expect(find.text('Lunar Horizon'), findsWidgets);
     noError(t, 'goal page');
@@ -138,5 +150,14 @@ void main() {
     await settle(t, 20);
     expect(find.text('Go to Explore'), findsWidgets, reason: 'Learn content');
     noError(t, 'Learn');
+
+    // Learn replays the tutorial on request
+    await tapText(t, 'Show the tutorial again');
+    expect(await waitFor(t, find.byKey(const ValueKey('tour'))), isTrue, reason: 'tutorial replay');
+    await t.tap(find.byKey(const ValueKey('tour-skip')));
+    await settle(t);
+    expect(find.byKey(const ValueKey('tour')), findsNothing);
+    expect(find.text('Show the tutorial again'), findsWidgets, reason: 'back on Learn');
+    noError(t, 'tutorial replay');
   });
 }

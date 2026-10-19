@@ -150,7 +150,7 @@ class LandingEntry {
 }
 
 /// The start sequence ([AppState.startStage]).
-enum StartStage { intro, goal, loading, done }
+enum StartStage { intro, tour, goal, loading, done }
 
 class AppState extends ChangeNotifier {
   // ---- navigation (owned by the shell) ----
@@ -297,8 +297,41 @@ class AppState extends ChangeNotifier {
 
   void finishIntro() {
     if (startStage != StartStage.intro) return;
-    startStage = StartStage.goal;
+    startStage = tourPending ? StartStage.tour : StartStage.goal;
     notifyListeners();
+  }
+
+  // ---- the first-launch tutorial (user request 2026-10-19) ----
+
+  /// The tutorial has not been seen on this device yet: the start sequence
+  /// shows it once, between the intro and the start question. False until
+  /// [loadTourSeen] reads the store, so tests and other hosts never see it.
+  bool tourPending = false;
+
+  static const _tourKey = 'tourSeen';
+
+  /// Read whether the tutorial was seen. A missing or failing store does not
+  /// show it: it could not be remembered, so it would come back every launch.
+  Future<void> loadTourSeen() async {
+    try {
+      final seen = (await SharedPreferences.getInstance()).getBool(_tourKey) ?? false;
+      if (tourPending == !seen) return;
+      tourPending = !seen;
+      notifyListeners();
+    } catch (_) {}
+  }
+
+  /// Skip or Done on the tutorial: remember it, and in the start sequence go
+  /// on to the start question.
+  void finishTour() {
+    tourPending = false;
+    if (startStage == StartStage.tour) startStage = StartStage.goal;
+    notifyListeners();
+    unawaited(() async {
+      try {
+        await (await SharedPreferences.getInstance()).setBool(_tourKey, true);
+      } catch (_) {}
+    }());
   }
 
   void finishStartLoading() {

@@ -224,6 +224,17 @@ void main() {
     // (in the app they arrive asynchronously, one file at a time)
     await t.repo.range(_utc(2025, 1, 1), t.manifest!.lastSampleUnixMs);
     final computedBefore = t.seriesComputeCount;
+    // Structural, so CPU load cannot fail it (release 1.3.0): the app's slices
+    // stay short (20 ms), and here they are cut to 2 ms so the count of
+    // event-loop turns per site is large; a lost slicing gives about one turn
+    // per site whatever the slice budget. Load only adds turns (each slice
+    // ends after its wall-clock budget, so a slower CPU makes more of them),
+    // and a CPU burst lengthens one turn without removing any. The old check,
+    // a wall-clock bound on the longest turn, failed whenever the OS paused
+    // this process for seconds under the full suite.
+    expect(AppState.defaultSliceBudget, lessThanOrEqualTo(const Duration(milliseconds: 25)));
+    AppState.sliceBudget = const Duration(milliseconds: 2);
+    addTearDown(() => AppState.sliceBudget = AppState.defaultSliceBudget);
     final sw = Stopwatch()..start();
     var lastTick = 0, worst = 0, ticks = 0;
     final meter = Timer.periodic(const Duration(milliseconds: 1), (_) {
@@ -239,29 +250,13 @@ void main() {
     expect(t.series!.n, greaterThan(90000));
     expectConsistent(t);
     // this attempt really computed every site's 11-year series (a cold cache)
-    expect(t.seriesComputeCount - computedBefore, t.allSites.length);
-    // Structural, load-independent: the work hands the event loop back many
-    // times (about 300 ticks on a laptop, 97 to 100 on the faster CI runners);
-    // yielding only once per site would give about 16 to 20.
-    expect(ticks, greaterThan(50), reason: 'the computation must yield between slices');
-    // Wall-clock, scaled by the machine's current speed (queue item 18): time a
-    // fixed synchronous job (metrics of the 11-year series, about 10 ms idle) and
-    // allow 25 of those. Idle that is 250 ms; a one-shot 11-year series blocks
-    // for 0.5 to 2.6 s idle, so a lost slicing still fails, while CPU load from
-    // parallel test files slows both sides alike and never fails the gate.
-    var calib = 0;
-    for (var i = 0; i < 3; i++) {
-      final c = Stopwatch()..start();
-      computeMetrics(t.series!);
-      calib = math.max(calib, c.elapsedMilliseconds);
-    }
-    final bound = math.max(250, 25 * calib);
-    debugPrint('worst gap $worst ms, load-scaled bound $bound ms (metrics job $calib ms)');
-    expect(worst, lessThan(bound), reason: 'a long blocked turn (CPU load from parallel test files, or lost slicing)');
-    // A lost slicing blocks every attempt (and fails the tick count every
-    // time), while a CPU burst from parallel test files (a 3 s gap under the
-    // full suite) does not repeat: retry twice, each from a cold cache.
-  }, timeout: const Timeout(Duration(minutes: 3)), retry: 2);
+    final sites = t.seriesComputeCount - computedBefore;
+    expect(sites, t.allSites.length);
+    // An 11-year series is 0.1 to 0.4 s of work per site, so 2 ms slices hand
+    // the event loop back dozens of times per site; the worst gap is printed
+    // above for information only (it is wall-clock, so load decides it).
+    expect(ticks, greaterThan(8 * sites), reason: 'the computation must yield between short slices, not once per site');
+  }, timeout: const Timeout(Duration(minutes: 3)));
 
   // async-7, logic-4
   test('playback pauses when leaving Site, restarts from the beginning at the end, and follows the period', () async {

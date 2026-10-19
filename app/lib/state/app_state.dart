@@ -554,7 +554,13 @@ class AppState extends ChangeNotifier {
   final Map<String, Future<SiteSeries?>> _jobs = {};
 
   /// Longest stretch of work per event-loop turn in a series computation.
-  static const sliceBudget = Duration(milliseconds: 20);
+  static const defaultSliceBudget = Duration(milliseconds: 20);
+
+  /// [defaultSliceBudget], except in a test that shortens it to count the
+  /// slices (a structural check that CPU load cannot fail, unlike a
+  /// millisecond budget on the longest turn).
+  @visibleForTesting
+  static Duration sliceBudget = defaultSliceBudget;
 
   int _rankGen = 0, _updateGen = 0, _rankProgress = 0, _rankTotal = 0, _resultsStamp = 0;
   bool _rankingDone = false, _ready = false, _userPicked = false, _disposed = false;

@@ -1,7 +1,9 @@
 /// The loading screen (user request 2026-10-14), drawn by Flutter so it
 /// plays from the first frame: [SpaceLoading] shows the real south-pole
 /// terrain (NASA LOLA) under the circling Sun while the sites are ranked,
-/// with the real progress; still under "reduce motion".
+/// with the real progress; still under "reduce motion". A first launch
+/// shows it after the goal question; a returning one goes from the opening
+/// logo straight to Explore (user request 2026-10-19).
 library;
 
 import 'dart:async';

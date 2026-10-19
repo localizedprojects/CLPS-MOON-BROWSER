@@ -120,23 +120,39 @@ class _AppShellState extends State<AppShell> {
   @override
   Widget build(BuildContext context) {
     final s = context.watch<AppState>();
-    // the start question first (it also covers the first load); a link that
+    // the start sequence first (it also covers the first load); a link that
     // opens another destination skips it
+    final Widget page;
     if (s.askGoalOnStart && s.startStage != StartStage.done && s.dest == Dest.explore) {
-      final page = switch (s.startStage) {
+      page = switch (s.startStage) {
+        // every launch; a returning one holds on its logo until the app is ready
         StartStage.intro => KeyedSubtree(key: const ValueKey('intro'), child: SkimOpening(onDone: s.finishIntro)),
         // first launch only: the tutorial, so the question and the app make sense
         StartStage.tour => FirstRunTour(key: const ValueKey('tour'), sites: s.catalog?.sites.length, onDone: s.finishTour),
         StartStage.goal => GoalPage(key: const ValueKey('goal'), state: s),
         _ => SpaceLoading(key: const ValueKey('loading'), state: s, onDone: s.finishStartLoading),
       };
-      return AnimatedSwitcher(
-          duration: MediaQuery.disableAnimationsOf(context) ? Duration.zero : const Duration(milliseconds: 550),
-          switchInCurve: Curves.easeOutCubic,
-          switchOutCurve: Curves.easeInCubic,
-          child: page);
+    } else if (!s.ready) {
+      page = _Loading(key: const ValueKey('wait'), state: s);
+    } else {
+      page = KeyedSubtree(key: const ValueKey('app'), child: _app(context, s));
     }
-    if (!s.ready) return _Loading(state: s);
+    // each step cross-fades into the next, the app itself too, over the start
+    // pages' own background (nothing lighter shows between them)
+    return ColoredBox(
+      color: PH.bg,
+      child: AnimatedSwitcher(
+        duration: MediaQuery.disableAnimationsOf(context) ? Duration.zero : const Duration(milliseconds: 550),
+        switchInCurve: Curves.easeOutCubic,
+        switchOutCurve: Curves.easeInCubic,
+        layoutBuilder: (current, previous) => Stack(fit: StackFit.expand, children: [...previous, ?current]),
+        child: page,
+      ),
+    );
+  }
+
+  /// The app once it is ready: the destinations, the app bar and the navigation.
+  Widget _app(BuildContext context, AppState s) {
     final hub = context.read<ChartHub>();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) hub.sync(s);
@@ -313,7 +329,7 @@ class _AppShellState extends State<AppShell> {
 /// (no placeholder numbers), or the error with "Try again".
 class _Loading extends StatelessWidget {
   final AppState state;
-  const _Loading({required this.state});
+  const _Loading({super.key, required this.state});
 
   @override
   Widget build(BuildContext context) {

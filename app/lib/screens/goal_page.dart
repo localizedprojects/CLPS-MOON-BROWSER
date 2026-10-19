@@ -1,8 +1,10 @@
-/// The start page: "What matters most?" (user decision 2026-10-13). The app
-/// opens on it every time; the four ranking goals are big cards, the last
-/// choice is marked, and one tap ranks the sites for that goal and opens
-/// Explore. The sites are ranked in the background meanwhile, so the page
-/// also covers the first load (its progress shows under the cards).
+/// The start page: "What matters most?" (user decision 2026-10-13). A first
+/// launch asks it after the tutorial; later launches rank for the saved goal
+/// and open on Explore (user request 2026-10-19), where the goal chips change
+/// it. The ranking goals are big cards, the last choice is marked, and one
+/// tap ranks the sites for that goal and opens the loading scene. The sites
+/// are ranked in the background meanwhile, so the page also covers the first
+/// load (its progress shows under the cards).
 library;
 
 import 'package:flutter/material.dart';

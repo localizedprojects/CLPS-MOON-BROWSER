@@ -1,5 +1,6 @@
-// The start page (user decision 2026-10-13): "What matters most?" every time
-// the app opens; one tap ranks for that goal, opens Explore and is remembered.
+// The start page (user decision 2026-10-13): "What matters most?" on a first
+// launch; one tap ranks for that goal, opens the loading scene and is
+// remembered, so later launches skip it (test/widget/start_sequence_test.dart).
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:polar_horizon/core/ranking.dart';
@@ -32,7 +33,7 @@ void main() {
     return s;
   }
 
-  testWidgets('the app opens on the question; one tap ranks for that goal, leaves the page and is remembered',
+  testWidgets('a first launch asks the question; one tap ranks for that goal, leaves the page and is remembered',
       (tester) async {
     final s = await pumpShell(tester);
     expect(find.byType(GoalPage), findsOneWidget);

@@ -752,7 +752,9 @@ void main() {
       expect(LightMap.framePending.value, isTrue, reason: 'the map still shows an older moment');
       await tester.pump(const Duration(seconds: 4));
       expect(state.cursorMs, t, reason: 'no step while the picture of this step is still being made');
-      await _drawn(tester, engine);
+      // the picture is decoded in real time: wait for it (however busy the CPU)
+      // and for Play's step, well inside the 30 s safety cap
+      await _drawn(tester, engine, () => state.cursorMs > t);
       await tester.pump(const Duration(milliseconds: 150)); // the next Play tick
       expect(state.cursorMs, greaterThan(t), reason: 'the picture is in: Play steps again');
       // the safety cap: a frame that never finishes holds Play 30 s at most
@@ -815,8 +817,16 @@ void main() {
 
 /// Lets the overlay pictures decode (real async) and the map show them;
 /// with [e], its held overlays are let go first, round after round.
-Future<void> _drawn(WidgetTester tester, [_SlowOverlayEngine? e]) async {
-  for (var i = 0; i < 6; i++) {
+/// Let the map's overlay pictures be made. They are decoded by the engine in
+/// real time ([ui.decodeImageFromPixels]), so a fixed number of real 10 ms
+/// waits is too short when the CPU is busy (other test files running): wait
+/// at least the six rounds, then until [until] holds (by default: the map is
+/// no longer behind, [LightMap.framePending] false), for up to 400 rounds
+/// (8 s of fake time, far below Play's 30 s safety cap, so a step seen after
+/// this wait is never the cap's).
+Future<void> _drawn(WidgetTester tester, [_SlowOverlayEngine? e, bool Function()? until]) async {
+  bool done() => until?.call() ?? !LightMap.framePending.value;
+  for (var i = 0; i < 6 || (i < 400 && !done()); i++) {
     e?.finishOverlays();
     await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 10)));
     await tester.pump(const Duration(milliseconds: 20));

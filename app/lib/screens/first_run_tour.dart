@@ -32,7 +32,7 @@ class FirstRunTour extends StatefulWidget {
           title: 'Find a place to land',
           body: 'Lunar Horizon ranks ${sites == null ? 'the' : 'all $sites'} landing sites near the Moon\'s south pole '
               'for what matters most to your mission. On Explore, tap a site on the map to open it, or tap anywhere on '
-              'the map to test a spot of your own.',
+              'the map to test a spot of your own; open the map full screen to place it precisely.',
         ),
         (
           title: 'Sunlight for power, Earth for radio',

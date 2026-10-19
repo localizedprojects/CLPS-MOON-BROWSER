@@ -330,8 +330,11 @@ class AppState extends ChangeNotifier {
   bool tourPending = false;
 
   /// The first-launch tutorial is on screen in the start sequence: links
-  /// wait for its Skip or Done (the shell's router holds them).
-  bool get inStartTour => askGoalOnStart && startStage == StartStage.tour;
+  /// wait for its Skip or Done (the shell's router holds them). The shell
+  /// shows it only over Explore, so a link opened during the intro's wait
+  /// for the flag (dest Compare, say) is not held: the tutorial shows when
+  /// Explore is reached, as the start question does.
+  bool get inStartTour => askGoalOnStart && startStage == StartStage.tour && dest == Dest.explore;
 
   static const _tourKey = 'tourSeen';
 

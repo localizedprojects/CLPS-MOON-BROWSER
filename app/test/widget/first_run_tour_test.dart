@@ -144,6 +144,50 @@ void main() {
     });
   });
 
+  group('a link during the wait for the tutorial flag', () {
+    late AppState state;
+
+    setUpAll(() async {
+      SharedPreferences.setMockInitialValues({});
+      state = AppState()..askGoalOnStart = true;
+      await state.init(); // ready: links are applied at once
+    });
+    tearDownAll(() => state.dispose());
+
+    testWidgets('opens Compare; the tutorial (not shown there) does not hold later links', (tester) async {
+      const slow = Duration(milliseconds: 700); // a slow first read on the web
+      state.openPrefs = () async {
+        await Future<void>.delayed(slow);
+        return SharedPreferences.getInstance();
+      };
+      unawaited(state.loadTourSeen());
+      state.finishIntro(); // the intro waits for the flag
+      expect(state.startStage, StartStage.intro);
+      final delegate = ShellRouterDelegate(state, home: const SizedBox.shrink());
+      addTearDown(delegate.dispose);
+      final provider =
+          PlatformRouteInformationProvider(initialRouteInformation: RouteInformation(uri: Uri.parse('/compare')));
+      addTearDown(provider.dispose);
+      await tester.pumpWidget(MaterialApp.router(
+        routerDelegate: delegate,
+        routeInformationParser: const ShellRouteParser(),
+        routeInformationProvider: provider,
+      ));
+      await tester.pump();
+      await tester.pump();
+      expect(state.dest, Dest.compare, reason: 'no tutorial yet: the link opens during the wait');
+      await tester.pump(slow); // the flag arrives: a first launch
+      expect(state.tourPending, isTrue);
+      expect(state.inStartTour, isFalse, reason: 'the tutorial is not on screen over Compare');
+      unawaited(provider.didPushRouteInformation(RouteInformation(uri: Uri.parse('/learn')))); // Back, a hash edit
+      await tester.pump();
+      await tester.pump();
+      expect(state.dest, Dest.learn, reason: 'the second link opens at once');
+      expect(delegate.currentConfiguration.dest, Dest.learn, reason: 'the URL and the screen agree');
+      expect(await _seen(), isNull, reason: 'not seen yet: it still shows over Explore, or next launch');
+    });
+  });
+
   group('start sequence', () {
     testWidgets('a first launch shows the tutorial after the intro; Skip remembers it and asks the goal',
         (tester) async {

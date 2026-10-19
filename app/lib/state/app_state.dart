@@ -379,25 +379,7 @@ class AppState extends ChangeNotifier {
   /// Opens the store the tutorial flag and the goal live in (tests swap in a
   /// slow, hung or failing one).
   @visibleForTesting
-  Future<SharedPreferences> Function() openPrefs = _openStore;
-
-  /// [SharedPreferences.getInstance], where a store that cannot open (no
-  /// plugin: a test host; site data blocked in a browser) fails only the
-  /// returned future: getInstance also leaves a failed future of its own that
-  /// nothing listens to, kept here out of the app's uncaught errors. Callers
-  /// share one open while it is under way: an error does not cross into
-  /// another zone, so a second guarded open waiting on getInstance's pending
-  /// future would never hear of the failure (and every store read goes
-  /// through here for the same reason).
-  static Future<SharedPreferences> _openStore() => _opening ??= () {
-        final store = Completer<SharedPreferences>();
-        runZonedGuarded(() {
-          SharedPreferences.getInstance().then(store.complete, onError: store.completeError);
-        }, (_, _) {});
-        return store.future.whenComplete(() => _opening = null); // a failure is tried again next time
-      }();
-
-  static Future<SharedPreferences>? _opening;
+  Future<SharedPreferences> Function() openPrefs = SharedPreferences.getInstance;
 
   /// Read whether the tutorial was seen. A missing or failing store does not
   /// show it: it could not be remembered, so it would come back every launch.
@@ -476,7 +458,7 @@ class AppState extends ChangeNotifier {
   /// Read the saved [timeControlsHidden]; a missing store keeps the bar shown.
   Future<void> loadTimeControlsHidden() async {
     try {
-      final v = (await openPrefs()).getBool(_timeControlsKey);
+      final v = (await SharedPreferences.getInstance()).getBool(_timeControlsKey);
       if (v == null || v == timeControlsHidden) return;
       timeControlsHidden = v;
       notifyListeners();
@@ -490,7 +472,7 @@ class AppState extends ChangeNotifier {
     notifyListeners();
     unawaited(() async {
       try {
-        await (await openPrefs()).setBool(_timeControlsKey, hidden);
+        await (await SharedPreferences.getInstance()).setBool(_timeControlsKey, hidden);
       } catch (_) {}
     }());
   }

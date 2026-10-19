@@ -225,7 +225,12 @@ void main() {
 
   testWidgets('reduce motion: the bar folds at once', (tester) async {
     await open(tester, 400, 800, SiteTab.skyTime, reduceMotion: true);
-    expect(find.ancestor(of: full, matching: find.byType(AnimatedSwitcher)), findsNothing);
+    // the bar's own switcher (the shell's, round the whole app, has no fade here either)
+    expect(
+        find.ancestor(
+            of: full,
+            matching: find.descendant(of: find.byKey(const ValueKey('app')), matching: find.byType(AnimatedSwitcher))),
+        findsNothing);
     await tester.tap(hide);
     await tester.pump(); // one frame, no fade
     expect(full, findsNothing);

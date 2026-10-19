@@ -65,6 +65,7 @@ void main() {
     s.askGoalOnStart = false;
     s.goTo(Dest.explore);
     await tester.pump();
+    await tester.pump(const Duration(milliseconds: 600)); // the cross-fade
     expect(find.byType(GoalPage), findsNothing);
   });
 

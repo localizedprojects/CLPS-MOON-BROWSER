@@ -205,27 +205,56 @@ let ackQueued = 0
 let ackRound = false
 
 /**
- * How long an ack waits for an animation frame (ms). A page that is not
- * rendered (its frame is kept alive off screen, display:none, scrolled out
- * of view and throttled by the browser) gets no frames for as long as it
- * stays so: an ack waiting for one would hold the host's Play until its 3 s
- * cap, every time. A page that is drawing gets its frame long before this.
+ * How long an ack waits for an animation frame while the page is free (ms).
+ * A page that is not rendered (its frame is kept alive off screen,
+ * display:none, scrolled out of view and throttled by the browser) gets no
+ * frames for as long as it stays so: an ack waiting for one would hold the
+ * host's Play until its 3 s cap, every time. A page that is drawing gets its
+ * frame long before this.
  */
 export const ACK_FALLBACK_MS = 250
 
 /**
- * [f] at the next animation frame (framed: true), or after
- * [ACK_FALLBACK_MS] if no frame comes first (framed: false), never both.
+ * The fallback fires by this long after it was armed (ms), however busy the
+ * page: under the host's 3 s cap (a hidden page's timers may run only once a
+ * second, and each such tick looks late).
+ */
+export const ACK_FALLBACK_CAP_MS = 2000
+
+/** The fallback looks at the clock this often while it waits (ms). */
+const TICK_MS = 50
+/** A tick this much later than asked ran after a long task (ms). */
+const LATE_MS = 25
+
+/**
+ * [f] at the next animation frame (framed: true), or (framed: false) once no
+ * frame came in [ACK_FALLBACK_MS] in which the page was free, never both.
+ * The wait counts from the end of the last long task, not from the call: a
+ * long task (a 400 ms React or Plotly redraw on a slow laptop) holds the
+ * frame back too, and a timer that fell due in it would run before the frame
+ * that draws, and ack too early. Short ticks see such a task (one runs late)
+ * and start the wait again after it.
  */
 function frameOrFallback(f: (framed: boolean) => void) {
   let done = false
+  let timer: ReturnType<typeof setTimeout> | undefined
   const run = (framed: boolean) => {
     if (done) return
     done = true
     clearTimeout(timer)
     f(framed)
   }
-  const timer = setTimeout(() => run(false), ACK_FALLBACK_MS)
+  const armed = performance.now()
+  let last = armed
+  let free = armed
+  const tick = () => {
+    const t = performance.now()
+    if (t - last > TICK_MS + LATE_MS) free = t // a long task ran: the frame after it may still come
+    last = t
+    if (t - free >= ACK_FALLBACK_MS || t - armed >= ACK_FALLBACK_CAP_MS) run(false)
+    else timer = setTimeout(tick, TICK_MS)
+  }
+  timer = setTimeout(tick, TICK_MS)
   requestAnimationFrame(() => run(true))
 }
 
@@ -239,7 +268,7 @@ function frameOrFallback(f: (framed: boolean) => void) {
  * arrives in between waits for the next round. Many messages in one frame
  * give one ack (the newest number covers the older ones).
  *
- * A page that gets no frame within [ACK_FALLBACK_MS] is not being rendered,
+ * A page that gets no frame in [ACK_FALLBACK_MS] free of long tasks is not rendered,
  * so there is no draw to wait for: it acks everything it has run at once
  * (and a late frame for that round does nothing).
  */

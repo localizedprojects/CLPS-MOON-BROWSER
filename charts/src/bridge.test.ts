@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { BodyNow, ChartEvent, HostMessage } from './bridge'
-import { ACK_FALLBACK_MS, dispatchForTests, installBridge, latest, resetBridgeForTests, subscribe, viewFromLocation } from './bridge'
+import { ACK_FALLBACK_CAP_MS, ACK_FALLBACK_MS, dispatchForTests, installBridge, latest, resetBridgeForTests, subscribe, viewFromLocation } from './bridge'
 import { skyNowData, timelineCursor } from './cursor'
 
 const body = (o: Partial<BodyNow> = {}): BodyNow => ({ az: 10, el: 1, rho: 0.27, frac: 1, hz: 0.2, visible: true, ...o })
@@ -96,8 +96,10 @@ describe('ack: the page tells the host what it has drawn (web Play waits on it)'
     frames = []
     sent = []
     vi.stubGlobal('requestAnimationFrame', (f: FrameRequestCallback) => frames.push(f))
-    // the fallback timer (frames stay in the hand of frame() above)
-    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+    // the fallback's timers and clock (frames stay in the hand of frame() above)
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] })
+    lag = 0
+    vi.stubGlobal('performance', { now: () => Date.now() + lag })
     // the Android JavaScript channel (the web path is checked below)
     vi.stubGlobal('window', { PH: { postMessage: (s: string) => sent.push(JSON.parse(s) as ChartEvent) } })
   })
@@ -106,6 +108,52 @@ describe('ack: the page tells the host what it has drawn (web Play waits on it)'
     vi.unstubAllGlobals()
   })
   const acks = () => sent.filter((e) => e.type === 'ack')
+  /** The page's clock runs ahead of the timers by this much (ms): see longTask. */
+  let lag = 0
+  /**
+   * A task that holds the page for [ms] (a slow React or Plotly redraw): the
+   * clock moves on and no timer or frame runs meanwhile, so the timers that
+   * fall due in it run late.
+   */
+  const longTask = (ms: number) => { lag += ms }
+
+  it('a long task (a 400 ms redraw) never makes a drawing page ack before the frame that draws it', () => {
+    dispatchForTests({ type: 'cursor', t: 1 }, 3)
+    longTask(400)
+    vi.advanceTimersByTime(ACK_FALLBACK_MS) // the deadline counted from the dispatch is long past
+    expect(acks()).toEqual([])
+    frame() // the frame after the long task draws the cursor
+    vi.advanceTimersByTime(ACK_FALLBACK_MS - 1)
+    longTask(400) // and one between the two frames
+    vi.advanceTimersByTime(ACK_FALLBACK_MS)
+    expect(acks()).toEqual([])
+    frame()
+    expect(acks()).toEqual([{ type: 'ack', n: 3 }])
+    vi.advanceTimersByTime(10 * ACK_FALLBACK_MS)
+    expect(acks()).toHaveLength(1)
+    expect(vi.getTimerCount()).toBe(0)
+  })
+  it('after a long task a page with no frames acks once it was free for ACK_FALLBACK_MS', () => {
+    dispatchForTests({ type: 'cursor', t: 1 }, 3)
+    longTask(400)
+    vi.advanceTimersByTime(ACK_FALLBACK_MS)
+    expect(acks()).toEqual([])
+    vi.advanceTimersByTime(ACK_FALLBACK_MS)
+    expect(acks()).toEqual([{ type: 'ack', n: 3 }])
+    expect(vi.getTimerCount()).toBe(0)
+  })
+  it("a page busy all the time still acks by ACK_FALLBACK_CAP_MS, under the host's 3 s cap", () => {
+    dispatchForTests({ type: 'cursor', t: 1 }, 3)
+    const t0 = performance.now()
+    for (let i = 0; i < 100 && !acks().length; i++) {
+      longTask(200)
+      vi.advanceTimersByTime(50)
+    }
+    expect(acks()).toEqual([{ type: 'ack', n: 3 }])
+    expect(performance.now() - t0).toBeGreaterThanOrEqual(ACK_FALLBACK_CAP_MS)
+    expect(performance.now() - t0).toBeLessThan(ACK_FALLBACK_CAP_MS + 300)
+    expect(ACK_FALLBACK_CAP_MS).toBeLessThan(3000)
+  })
 
   it('acks a numbered message two frames on, after the view drew it', () => {
     const drawn: number[] = []

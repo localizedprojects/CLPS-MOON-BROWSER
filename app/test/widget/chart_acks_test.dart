@@ -136,6 +136,28 @@ void main() {
     expect(c.behind, isFalse);
   });
 
+  testWidgets('a host that goes away never holds Play and stops following the TickerMode it left', (tester) async {
+    ready();
+    final on = ValueNotifier(true), shown = ValueNotifier(true);
+    addTearDown(on.dispose);
+    addTearDown(shown.dispose);
+    await tester.pumpWidget(ValueListenableBuilder<bool>(
+      valueListenable: on,
+      builder: (_, e, _) => TickerMode(
+        enabled: e,
+        child: ValueListenableBuilder<bool>(valueListenable: shown, builder: (_, s, _) => s ? _Host(acks) : const SizedBox()),
+      ),
+    ));
+    cursor(1);
+    expect(acks.busy, isTrue);
+    shown.value = false; // the host goes, its TickerMode stays
+    await tester.pump();
+    expect(acks.busy, isFalse, reason: 'a page that goes away never holds Play');
+    on.value = false;
+    await tester.pump();
+    expect(acks.onStage, isTrue, reason: 'no longer following the TickerMode it left');
+  });
+
   test('an iframe out of the document (no window) gets no numbers and never holds Play', () {
     var inDocument = true;
     acks.attach(c, (json, n) => posted.add((msg: jsonDecode(json) as Map<String, dynamic>, n: n)), host,
@@ -155,6 +177,22 @@ void main() {
     expect(c.behind, isTrue);
     ack(2);
     expect(c.behind, isFalse);
+  });
+
+  testWidgets('a host attaches through ChartAcksHost: while its page is unreachable nothing is numbered or waited for', (tester) async {
+    var inDocument = true;
+    await tester.pumpWidget(_Host(acks,
+        controller: c,
+        reachable: () => inDocument,
+        post: (json, n) => posted.add((msg: jsonDecode(json) as Map<String, dynamic>, n: n))));
+    ready();
+    cursor(1);
+    expect(posted.map((p) => p.n), [1]);
+    expect(c.behind, isTrue, reason: 'Play waits for the page it posted to');
+    inDocument = false; // pageReachable says no: the iframe left the document
+    expect(c.behind, isFalse, reason: 'a page the host cannot reach never holds Play');
+    cursor(2);
+    expect(posted.map((p) => p.n), [1], reason: 'a message it cannot get takes no number');
   });
 
   test('acks past the newest number or without one change nothing', () {
@@ -186,32 +224,35 @@ void main() {
   });
 }
 
-/// The TickerMode wiring of chart_host_web.dart's host state (the web host
-/// itself does not run on the VM).
+/// A chart host on the VM, wired as chart_host_web.dart's (which does not
+/// run on the VM) by the same [ChartAcksHost], so the tested wiring is the
+/// shipped one.
 class _Host extends StatefulWidget {
-  const _Host(this.acks, {super.key});
+  const _Host(this.acks, {super.key, this.controller, this.post, this.reachable});
   final ChartAcks acks;
+
+  /// Attached in initState through [ChartAcksHost.attachAcks], when given.
+  final ChartController? controller;
+  final void Function(String json, int n)? post;
+
+  /// Its [ChartAcksHost.pageReachable] (the web host: the iframe has a window).
+  final bool Function()? reachable;
   @override
   State<_Host> createState() => _HostState();
 }
 
-class _HostState extends State<_Host> {
+class _HostState extends State<_Host> with ChartAcksHost<_Host> {
   @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    widget.acks.followTickerMode(context);
-  }
+  ChartAcks get acks => widget.acks;
 
   @override
-  void activate() {
-    super.activate();
-    widget.acks.followTickerMode(context);
-  }
+  bool get pageReachable => widget.reachable?.call() ?? true;
 
   @override
-  void dispose() {
-    widget.acks.unfollow();
-    super.dispose();
+  void initState() {
+    super.initState();
+    final c = widget.controller;
+    if (c != null) attachAcks(c, widget.post!);
   }
 
   @override

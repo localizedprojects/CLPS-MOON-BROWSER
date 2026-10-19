@@ -44,13 +44,15 @@ class _WebChart extends StatefulWidget {
   State<_WebChart> createState() => _WebChartState();
 }
 
-class _WebChartState extends State<_WebChart> {
+class _WebChartState extends State<_WebChart> with ChartAcksHost<_WebChart> {
   late final String _viewType;
   late final web.HTMLIFrameElement _frame;
   JSFunction? _listener;
 
   /// What the page has drawn of what this host posted ([ChartAcks]).
   final _acks = ChartAcks();
+  @override
+  ChartAcks get acks => _acks;
 
   /// Has keyboard focus (Tab reached the frame): shows the ice ring and the
   /// page's first control takes the browser focus (a11y-1).
@@ -91,31 +93,25 @@ class _WebChartState extends State<_WebChart> {
     // Play waits for the iframe, as it waits on runJavaScript on Android.
     // An iframe out of the document (a platform view not painted) has no
     // window: what it cannot get is not numbered and never holds Play.
-    _acks.attach(c, (json, n) {
+    attachAcks(c, (json, n) {
       final msg = {'source': 'ph-host', 'msg': jsonDecode(json), 'n': n}.jsify();
       _frame.contentWindow?.postMessage(msg, '*'.toJS);
-    }, this, reachable: () => _frame.contentWindow != null);
+    });
   }
+
+  /// Its iframe has a window only while it is in the document.
+  @override
+  bool get pageReachable => _frame.contentWindow != null;
 
   // a chart kept alive off stage (its tab or destination mutes its tickers)
-  // never holds Play: its iframe may get no animation frames, so no acks
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    _acks.followTickerMode(context);
-  }
-
-  @override
-  void activate() {
-    super.activate();
-    _acks.followTickerMode(context); // moved by its GlobalKey: the new place's
-  }
+  // never holds Play: its iframe may get no animation frames, so no acks.
+  // ChartAcksHost keeps acks.onStage in step with the TickerMode here (and
+  // at a new place after a GlobalKey move), and its dispose forgets what the
+  // page owed.
 
   @override
   void dispose() {
     if (_listener != null) web.window.removeEventListener('message', _listener);
-    _acks.unfollow();
-    _acks.reset(); // a page that goes away never holds Play
     widget.controller.detach(this);
     _wrap.dispose();
     super.dispose();

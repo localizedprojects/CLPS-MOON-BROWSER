@@ -55,7 +55,7 @@ function Caption({ d }: { d: SkyData }) {
       {(['Sun', 'Earth'] as const).map((name) => {
         const l = captionLine(name, name === 'Sun' ? d.now.sun : d.now.earth)
         return (
-          <div key={name} data-caption={name} style={{ display: 'flex', gap: 6, alignItems: 'flex-start' }}>
+          <div key={name} data-caption={name} className="ph-row6" style={{ display: 'flex', alignItems: 'flex-start' }}>
             <Glyph name={name} counted={l.counted} />
             <span><b style={{ fontWeight: 600 }}>{l.head}</b>{l.rest.length ? ` · ${l.rest.join(' · ')}` : ''}</span>
           </div>
@@ -71,7 +71,7 @@ function ExactBlock({ d }: { d: SkyData }) {
       {(['Sun', 'Earth'] as const).map((name) => {
         const b = name === 'Sun' ? d.now.sun : d.now.earth
         return (
-          <div key={name} data-exact={name} style={{ display: 'flex', gap: 6, alignItems: 'flex-start' }}>
+          <div key={name} data-exact={name} className="ph-row6" style={{ display: 'flex', alignItems: 'flex-start' }}>
             <Glyph name={name} counted={b.visible} />
             <span>
               <span style={{ fontFamily: MONO, fontSize: 12.5 }}>{exactLine(name, b)}</span>
@@ -89,13 +89,13 @@ function ExactBlock({ d }: { d: SkyData }) {
 function Legend({ maskApprox }: { maskApprox?: boolean }) {
   const n = legendNames(maskApprox)
   const item = (sample: React.ReactNode, text: string) => (
-    <span style={{ display: 'inline-flex', gap: 6, alignItems: 'center' }}>{sample}<span>{text}</span></span>
+    <span className="ph-row6" style={{ display: 'inline-flex', alignItems: 'center' }}>{sample}<span>{text}</span></span>
   )
   const line = (color: string, dash?: string) => (
     <svg width="22" height="10" aria-hidden="true"><line x1="1" y1="5" x2="21" y2="5" stroke={color} strokeWidth="2" strokeDasharray={dash} /></svg>
   )
   return (
-    <div data-legend style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 14px', color: C.muted, fontSize: 12 }}>
+    <div data-legend className="ph-wrap-legend" style={{ display: 'flex', flexWrap: 'wrap', color: C.muted, fontSize: 12 }}>
       {item(<span style={{ width: 18, height: 10, background: C.terrain, border: `1px solid ${C.terrainEdge}`, display: 'inline-block' }} />, n.hills)}
       {item(line(C.sun), n.sun)}
       {item(line(C.earth, '2 3'), n.earth)}
@@ -142,13 +142,13 @@ export function SkyView() {
   const h = skyHeader(d)
   const range = fig!.range
   return (
-    <div ref={root} style={{ height: '100%', overflowY: 'auto', overflowX: 'hidden', boxSizing: 'border-box', padding: `4px ${PAD}px 8px`,
-      display: 'flex', flexDirection: 'column', gap: 4, fontSize: 13, lineHeight: 1.3, color: C.text }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, minHeight: 40 }}>
+    <div ref={root} className="ph-col4" style={{ height: '100%', overflowY: 'auto', overflowX: 'hidden', boxSizing: 'border-box', padding: `4px ${PAD}px 8px`,
+      display: 'flex', flexDirection: 'column', fontSize: 13, lineHeight: 1.3, color: C.text }}>
+      <div className="ph-row8" style={{ display: 'flex', alignItems: 'center', minHeight: 40 }}>
         <SkyHeader title={h.title} site={h.site} time={h.time} tip={`${h.title} · ${h.site} · ${d.timeLabel}`} />
         <DetailToggle exact={exact} onChange={setExact} />
       </div>
-      <div data-captions aria-live={live} style={{ display: 'grid', gap: 3 }}>
+      <div data-captions aria-live={live} className="ph-grid3">
         {exact ? <ExactBlock d={d} /> : <Caption d={d} />}
       </div>
       <div role="img" aria-label={skyAlt(d)} style={{ position: 'relative', width: side, height: side, flex: 'none', alignSelf: 'center' }}>

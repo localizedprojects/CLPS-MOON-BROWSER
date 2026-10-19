@@ -394,6 +394,13 @@ class _SwipeTabsState extends State<_SwipeTabs> {
     });
   }
 
+  /// Page [k] overlaps the viewport (a drag or a slide is under way): it is
+  /// out of view only a whole page away.
+  bool _inView(int k) {
+    final p = _pages.hasClients && _pages.positions.length == 1 ? _pages.page : null;
+    return p != null && (p - k).abs() < 0.999;
+  }
+
   /// The pages' own scroll (not a list or chart inside a page).
   bool _ours(ScrollNotification n) => n.depth == 0 && n.metrics.axis == Axis.horizontal;
 
@@ -459,10 +466,13 @@ class _SwipeTabsState extends State<_SwipeTabs> {
               child: PageView.builder(
                 controller: _pages,
                 itemCount: widget.children.length,
-                // no tickers, tooltips or focus on a tab that is not the current
-                // one (new-sun-earth-tooltip), as in _LazyTabs
-                itemBuilder: (context, k) => TickerMode(
-                  enabled: k == i,
+                // no tooltips or focus on a tab that is not the current one
+                // (new-sun-earth-tooltip), as in _LazyTabs; no tickers on one
+                // out of view, but a page in view runs them, the one a drag
+                // brings in too (its charts are on stage: Play waits for them)
+                itemBuilder: (context, k) => ListenableBuilder(
+                  listenable: _pages,
+                  builder: (context, page) => TickerMode(enabled: k == i || _inView(k), child: page!),
                   child: TooltipVisibility(
                     visible: k == i,
                     child: ExcludeFocus(

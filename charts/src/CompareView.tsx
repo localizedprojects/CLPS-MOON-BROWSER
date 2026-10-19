@@ -32,7 +32,7 @@ export function CompareView() {
   if (!m) return <Waiting what="comparison data" />
   return (
     <div style={col}>
-      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, padding: narrow ? '6px 4px 2px 6px' : '8px 8px 4px 6px' }}>
+      <div className="ph-row8" style={{ display: 'flex', alignItems: 'flex-start', padding: narrow ? '6px 4px 2px 6px' : '8px 8px 4px 6px' }}>
         <div aria-live={live} style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontWeight: 600, fontSize: narrow ? 14 : 15, lineHeight: 1.35, color: C.text }}>{headline(m.data, exact)}</div>
           <div style={{ color: C.muted, fontSize: 12.5, lineHeight: 1.4, marginTop: 2 }}>Bars: share of your chosen dates</div>

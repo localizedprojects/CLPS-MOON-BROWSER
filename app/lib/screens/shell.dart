@@ -471,7 +471,10 @@ class ShellRouterDelegate extends RouterDelegate<ShellLocation>
       : ShellLocation(state.dest);
 
   void _onState() {
-    if (!state.ready) return;
+    // a link waits for the first ranking, and for the first-launch tutorial:
+    // it opens on Skip or Done ([AppState.finishTour]), so the cards are not
+    // pulled away half-read and the tutorial is still remembered as seen
+    if (!state.ready || (_pending != null && state.inStartTour)) return;
     final link = _pending;
     if (link != null) {
       _pending = null;

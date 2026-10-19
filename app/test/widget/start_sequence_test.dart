@@ -7,6 +7,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:polar_horizon/core/ranking.dart';
 import 'package:polar_horizon/screens/explore.dart';
@@ -190,6 +191,53 @@ void main() {
     final s = await launch({});
     s.goTo(Dest.compare);
     expect(s.startStage, StartStage.intro, reason: 'the tutorial and the question show over Explore');
+  });
+
+  testWidgets('a first launch ranked before the answer: Explore waits under the loading scene, out of reach', (tester) async {
+    final s = await launch({'tourSeen': true});
+    await tester.runAsync(s.init); // ranked during the logo, as on most devices
+    await show(tester, s);
+    await tester.pump(opening);
+    await tester.pump(fade);
+    expect(find.byType(GoalPage), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('goal-balanced')));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
+    // the question fades into the loading scene over a plain backdrop, not over Explore
+    expect(find.byType(ExploreScreen), findsOneWidget);
+    expect(find.byKey(const ValueKey('start-backdrop')), findsOneWidget);
+    await tester.pump(fade);
+    expect(find.byKey(const ValueKey('start-backdrop')), findsNothing);
+    // the keyboard cannot reach the hidden Explore
+    bool focusInExplore() {
+      var found = false;
+      FocusManager.instance.primaryFocus?.context?.visitAncestorElements((e) => !(found = e.widget is ExploreScreen));
+      return found;
+    }
+
+    for (var i = 0; i < 6; i++) {
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      await tester.pump();
+      expect(focusInExplore(), isFalse, reason: 'Tab $i');
+    }
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tester.pump();
+    expect(s.dest, Dest.explore);
+    expect(s.startStage, StartStage.loading);
+    // the scene's ground fades with it, so its ending shows Explore
+    expect(
+        find.ancestor(
+            of: find.byKey(const ValueKey('loading-ground')),
+            matching: find.descendant(of: find.byType(SpaceLoading), matching: find.byType(Opacity))),
+        findsOneWidget);
+    for (var i = 0; i < 30 && s.startStage != StartStage.done; i++) {
+      await tester.pump(const Duration(milliseconds: 500));
+    }
+    expect(s.startStage, StartStage.done);
+    await uncover(tester);
+    await tester.pump();
+    expect(find.byType(SpaceLoading), findsNothing);
+    expect(FocusManager.instance.primaryFocus?.debugLabel, 'page', reason: "the page's focus, for Site's shortcuts");
   });
 
   testWidgets('a first launch: the logo, the tutorial, the question and the loading scene, which fades into Explore',

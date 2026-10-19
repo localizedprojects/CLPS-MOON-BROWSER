@@ -256,8 +256,10 @@ class _SpaceLoadingState extends State<SpaceLoading> with TickerProviderStateMix
             : s.ready
                 ? (_barFull ? 'Ready' : 'Getting ready…')
                 : 'Loading the sites…';
+    // the ground is part of the scene, so the ending fades the whole scene
+    // away and shows what is under it (the app, in the start sequence)
     return Material(
-      color: PH.bg,
+      type: MaterialType.transparency,
       child: LayoutBuilder(builder: (context, box) {
         final longest = ranking ? 'Ranking $total sites for ${goalLabel(s.goal)}: $total of $total' : line;
         final words = loadingWordsHeight(context, [line, longest], width: box.maxWidth, stopped: _stopped);
@@ -275,6 +277,7 @@ class _SpaceLoadingState extends State<SpaceLoading> with TickerProviderStateMix
             );
           },
           child: Stack(fit: StackFit.expand, children: [
+          const ColoredBox(key: ValueKey('loading-ground'), color: PH.bg),
           ExcludeSemantics(
               child: RepaintBoundary(
                   child: CustomPaint(

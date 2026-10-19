@@ -141,6 +141,10 @@ class _AppShellState extends State<AppShell> {
           _lastStart = null;
           _uncovering = false;
         });
+        // the page's autofocus could not reach it while it was covered
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted && _lastStart == null && !_page.hasFocus) _page.requestFocus();
+        });
       });
       WidgetsBinding.instance.scheduleFrame();
     });
@@ -182,9 +186,14 @@ class _AppShellState extends State<AppShell> {
     }
     final covered = cover != null;
     return Stack(fit: StackFit.expand, children: [
-      // hidden under a start page: no taps, nothing for screen readers
-      IgnorePointer(ignoring: covered, child: ExcludeSemantics(excluding: covered, child: base)),
-      // each start page cross-fades into the next; the last one fades out over the app
+      // hidden under a start page: no taps, no keyboard focus, nothing for screen readers
+      IgnorePointer(
+        ignoring: covered,
+        child: ExcludeFocus(excluding: covered, child: ExcludeSemantics(excluding: covered, child: base)),
+      ),
+      // each start page cross-fades into the next over a plain backdrop (the
+      // app may be built under them already); the last one fades out over
+      // the app, evenly, so a slow device still shows the steps between
       IgnorePointer(
         ignoring: !covered,
         child: ExcludeSemantics(
@@ -192,8 +201,12 @@ class _AppShellState extends State<AppShell> {
           child: AnimatedSwitcher(
             duration: MediaQuery.disableAnimationsOf(context) ? Duration.zero : const Duration(milliseconds: 550),
             switchInCurve: Curves.easeOutCubic,
-            switchOutCurve: Curves.easeInCubic,
-            layoutBuilder: (current, previous) => Stack(fit: StackFit.expand, children: [...previous, ?current]),
+            switchOutCurve: Curves.easeInOut,
+            layoutBuilder: (current, previous) => Stack(fit: StackFit.expand, children: [
+              if (covered && previous.isNotEmpty) const ColoredBox(key: ValueKey('start-backdrop'), color: PH.bg),
+              ...previous,
+              ?current,
+            ]),
             child: cover ?? const SizedBox.shrink(key: ValueKey('none')),
           ),
         ),

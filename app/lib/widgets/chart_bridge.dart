@@ -255,15 +255,26 @@ class ChartAcks {
   }
 }
 
-/// The lifecycle wiring of a State that hosts a page that acks (the web
-/// chart host, and the VM tests' host, so the tested wiring is the shipped
-/// one): [acks] follows the TickerMode where the host sits, from
+/// The wiring of a State that hosts a page that acks (the web chart host,
+/// and the VM tests' host, so the tested wiring is the shipped one):
+/// [attachAcks] attaches the controller with [pageReachable] as the page's
+/// reachability, [acks] follows the TickerMode where the host sits, from
 /// didChangeDependencies and activate as TickerProviderStateMixin does (a
 /// host moved by its GlobalKey gets the new place's), and a host that goes
 /// away stops following it and never holds Play.
 mixin ChartAcksHost<T extends StatefulWidget> on State<T> {
   /// What the page has drawn of what this host posted.
   ChartAcks get acks;
+
+  /// Whether the page can be posted to now (on the web: the iframe is in the
+  /// document, so it has a window). While it cannot, what is sent takes no
+  /// number and never holds Play ([ChartAcks.attach]'s `reachable`).
+  bool get pageReachable;
+
+  /// Attach [c] to this host's page: [post] delivers one message JSON with
+  /// its number, while [pageReachable] says the page can get it.
+  void attachAcks(ChartController c, void Function(String json, int n) post) =>
+      acks.attach(c, post, this, reachable: () => pageReachable);
 
   @override
   void didChangeDependencies() {

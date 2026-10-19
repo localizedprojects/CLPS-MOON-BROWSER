@@ -179,6 +179,22 @@ void main() {
     expect(c.behind, isFalse);
   });
 
+  testWidgets('a host attaches through ChartAcksHost: while its page is unreachable nothing is numbered or waited for', (tester) async {
+    var inDocument = true;
+    await tester.pumpWidget(_Host(acks,
+        controller: c,
+        reachable: () => inDocument,
+        post: (json, n) => posted.add((msg: jsonDecode(json) as Map<String, dynamic>, n: n))));
+    ready();
+    cursor(1);
+    expect(posted.map((p) => p.n), [1]);
+    expect(c.behind, isTrue, reason: 'Play waits for the page it posted to');
+    inDocument = false; // pageReachable says no: the iframe left the document
+    expect(c.behind, isFalse, reason: 'a page the host cannot reach never holds Play');
+    cursor(2);
+    expect(posted.map((p) => p.n), [1], reason: 'a message it cannot get takes no number');
+  });
+
   test('acks past the newest number or without one change nothing', () {
     ready();
     cursor(1);
@@ -212,8 +228,15 @@ void main() {
 /// run on the VM) by the same [ChartAcksHost], so the tested wiring is the
 /// shipped one.
 class _Host extends StatefulWidget {
-  const _Host(this.acks, {super.key});
+  const _Host(this.acks, {super.key, this.controller, this.post, this.reachable});
   final ChartAcks acks;
+
+  /// Attached in initState through [ChartAcksHost.attachAcks], when given.
+  final ChartController? controller;
+  final void Function(String json, int n)? post;
+
+  /// Its [ChartAcksHost.pageReachable] (the web host: the iframe has a window).
+  final bool Function()? reachable;
   @override
   State<_Host> createState() => _HostState();
 }
@@ -221,6 +244,16 @@ class _Host extends StatefulWidget {
 class _HostState extends State<_Host> with ChartAcksHost<_Host> {
   @override
   ChartAcks get acks => widget.acks;
+
+  @override
+  bool get pageReachable => widget.reachable?.call() ?? true;
+
+  @override
+  void initState() {
+    super.initState();
+    final c = widget.controller;
+    if (c != null) attachAcks(c, widget.post!);
+  }
 
   @override
   Widget build(BuildContext context) => const SizedBox();

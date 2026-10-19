@@ -195,7 +195,7 @@ void main() {
   testWidgets('a page swiped into view is on stage mid-drag: its tickers run, so Play waits for its charts', (tester) async {
     size(tester, 390, 844);
     await pumpSite(tester, SiteTab.overview);
-    bool ticking(Type t) => TickerMode.of(tester.element(find.byType(t, skipOffstage: false)));
+    bool ticking(Type t) => TickerMode.valuesOf(tester.element(find.byType(t, skipOffstage: false))).enabled;
     final g = await tester.startGesture(freeSpot(tester));
     for (var i = 0; i < 6; i++) {
       await g.moveBy(const Offset(-20, 0));

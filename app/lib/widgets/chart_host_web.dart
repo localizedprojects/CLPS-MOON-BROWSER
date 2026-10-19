@@ -93,11 +93,15 @@ class _WebChartState extends State<_WebChart> with ChartAcksHost<_WebChart> {
     // Play waits for the iframe, as it waits on runJavaScript on Android.
     // An iframe out of the document (a platform view not painted) has no
     // window: what it cannot get is not numbered and never holds Play.
-    _acks.attach(c, (json, n) {
+    attachAcks(c, (json, n) {
       final msg = {'source': 'ph-host', 'msg': jsonDecode(json), 'n': n}.jsify();
       _frame.contentWindow?.postMessage(msg, '*'.toJS);
-    }, this, reachable: () => _frame.contentWindow != null);
+    });
   }
+
+  /// Its iframe has a window only while it is in the document.
+  @override
+  bool get pageReachable => _frame.contentWindow != null;
 
   // a chart kept alive off stage (its tab or destination mutes its tickers)
   // never holds Play: its iframe may get no animation frames, so no acks.

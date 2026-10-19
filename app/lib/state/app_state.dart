@@ -376,10 +376,22 @@ class AppState extends ChangeNotifier {
 
   static const _tourKey = 'tourSeen';
 
-  /// Opens the store the tutorial flag lives in (tests swap in a slow, hung
-  /// or failing one).
+  /// Opens the store the tutorial flag and the goal live in (tests swap in a
+  /// slow, hung or failing one).
   @visibleForTesting
-  Future<SharedPreferences> Function() openPrefs = SharedPreferences.getInstance;
+  Future<SharedPreferences> Function() openPrefs = _openStore;
+
+  /// [SharedPreferences.getInstance], where a store that cannot open (no
+  /// plugin: a test host, an unusual embedding) fails only the returned
+  /// future: getInstance also leaves a failed future of its own that nothing
+  /// listens to, kept here out of the app's uncaught errors.
+  static Future<SharedPreferences> _openStore() {
+    final store = Completer<SharedPreferences>();
+    runZonedGuarded(() {
+      SharedPreferences.getInstance().then(store.complete, onError: store.completeError);
+    }, (_, _) {});
+    return store.future;
+  }
 
   /// Read whether the tutorial was seen. A missing or failing store does not
   /// show it: it could not be remembered, so it would come back every launch.

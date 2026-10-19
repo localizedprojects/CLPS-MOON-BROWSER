@@ -20,6 +20,7 @@ Future<void> main() async {
         final s = AppState()
           ..askGoalOnStart = true // "What matters most?" first, every time
           ..loadSavedGoal()
+          ..loadTourSeen() // the tutorial shows once, after the intro, on a first launch
           ..loadTimeControlsHidden();
         // the heavy first load (data, ranking) waits while the intro builds the
         // logo, so its frames are smooth; the question and the loading scene
@@ -54,7 +55,8 @@ class _LunarHorizonAppState extends State<LunarHorizonApp> {
     final s = context.read<AppState>();
     _router = ShellRouterDelegate(s);
     // Play steps only as fast as the charts and the light map draw them
-    s.holdPlay = () => _hub.chartsBehind || LightMap.framePending.value;
+    s.holdPlay = () => _hub.chartsBehind;
+    s.holdPlayForMap = () => LightMap.framePending.value;
     _life = AppLifecycleListener(
       // HOME, another app or a hidden browser tab: Play pauses, so nothing advances unseen
       onHide: s.pausePlay,

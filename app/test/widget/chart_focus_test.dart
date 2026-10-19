@@ -8,6 +8,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:polar_horizon/state/chart_hub.dart';
 import 'package:polar_horizon/theme.dart';
+import 'package:polar_horizon/widgets/chart_bridge.dart';
 import 'package:polar_horizon/widgets/chart_focus.dart';
 import 'package:polar_horizon/widgets/chart_view.dart';
 import 'package:provider/provider.dart';
@@ -122,6 +123,56 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('chart-focus-close')));
     await tester.pumpAndSettle();
     expect(calls.last, isEmpty, reason: 'the device and app orientations apply again');
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('a chart whose web view cannot run it says why, in its card and full screen, not "try again" (Android 7)',
+      (tester) async {
+    hub.timeline.detach('test');
+    hub.timeline.attach((_) {}, 'old web view');
+    hub.timeline.pageLoaded();
+    hub.timeline.pageError('Uncaught SyntaxError: Unexpected token ?');
+    await pumpPage(tester);
+    expect(find.textContaining('newer Android System WebView'), findsOneWidget, reason: 'the card says it, not blank');
+    await tester.tap(find.byType(ChartView));
+    await tester.pumpAndSettle();
+    expect(picture(), findsNothing);
+    expect(find.textContaining('could not be made'), findsNothing);
+    expect(find.textContaining('newer Android System WebView'), findsWidgets);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('the full-screen view follows its chart while open: a message comes and goes, then the picture',
+      (tester) async {
+    // a page that has loaded but not reported ready yet; it answers exports once ready
+    hub.timeline.detach('test');
+    hub.timeline.attach((json) {
+      final m = jsonDecode(json) as Map<String, dynamic>;
+      if (m['type'] == 'exportPng') {
+        Future<void>.microtask(() => hub.timeline.handleRaw(
+            jsonEncode({'type': 'png', 'id': m['id'], 'dataUrl': 'data:image/png;base64,$_png'})));
+      }
+    }, 'slow page');
+    hub.timeline.pageLoaded();
+    await pumpPage(tester);
+    await tester.tap(find.byType(ChartView));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('could not be made'), findsOneWidget);
+    // still not ready after the timeout: says so in the open view at once
+    await tester.pump(ChartController.readyTimeout);
+    await tester.pump();
+    expect(find.text(chartSlowText), findsWidgets);
+    expect(find.textContaining('could not be made'), findsNothing);
+    // then the evidence that this web view is too old
+    hub.timeline.pageError('Uncaught SyntaxError: Unexpected token ?');
+    await tester.pump();
+    expect(find.textContaining('newer Android System WebView'), findsWidgets);
+    expect(find.text(chartSlowText), findsNothing);
+    // and the chart draws after all: the message goes and the picture comes
+    hub.timeline.handleRaw('{"type":"ready","view":"timeline"}');
+    await tester.pumpAndSettle();
+    expect(find.textContaining('newer Android System WebView'), findsNothing);
+    expect(picture(), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 

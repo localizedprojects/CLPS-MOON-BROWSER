@@ -150,7 +150,7 @@ class LandingEntry {
 }
 
 /// The start sequence ([AppState.startStage]).
-enum StartStage { intro, goal, loading, done }
+enum StartStage { intro, tour, goal, loading, done }
 
 class AppState extends ChangeNotifier {
   // ---- navigation (owned by the shell) ----
@@ -244,6 +244,20 @@ class AppState extends ChangeNotifier {
   /// that long), so a stuck web view never stops Play.
   static const _maxHeldTicks = 30;
 
+  /// True while the Light & shadow map has not shown the last step yet
+  /// ([LightMap.framePending]: its frame or its overlay picture is still
+  /// being made); set by the app. Play then skips its step, up to
+  /// [_maxMapHeldTicks] in a row. The map is made on the device, so unlike a
+  /// web view it cannot hang for good: it finishes or fails, and a failing
+  /// engine stops holding at once. The cap only guards against a flag left
+  /// set by mistake.
+  bool Function()? holdPlayForMap;
+
+  /// At most 30 s of waiting per step for the light map. An Android 7
+  /// emulator takes several seconds per frame; the charts' 3 s let its map
+  /// fall up to four steps (40 h) behind the time bar.
+  static const _maxMapHeldTicks = 300;
+
   /// Map layers (LOLA hillshade + overlays); null until loaded, and while a
   /// failed load waits for its retry ([ensureMap]).
   MapLayers? mapLayers;
@@ -281,10 +295,78 @@ class AppState extends ChangeNotifier {
   /// animation, the question, the loading scene, then the app.
   StartStage startStage = StartStage.intro;
 
+  /// The end of the intro (its animation, a tap on it, or reduced motion's
+  /// short timer): the tutorial on a first launch, else the start question.
+  /// While [loadTourSeen] is still reading (a tap right away, a slow cold
+  /// start) it waits for the answer, up to [tourFlagWait], so a first launch
+  /// never skips the tutorial; a store that never answers goes on without it.
   void finishIntro() {
-    if (startStage != StartStage.intro) return;
-    startStage = StartStage.goal;
+    if (startStage != StartStage.intro || _introEnding) return;
+    final flag = _tourFlag;
+    if (flag == null) return _endIntro();
+    _introEnding = true;
+    unawaited(flag.timeout(tourFlagWait, onTimeout: () {}).whenComplete(_endIntro));
+  }
+
+  void _endIntro() {
+    _introEnding = false;
+    if (_disposed || startStage != StartStage.intro) return;
+    startStage = tourPending ? StartStage.tour : StartStage.goal;
     notifyListeners();
+  }
+
+  /// How long the end of the intro waits for the tutorial flag.
+  static const tourFlagWait = Duration(seconds: 2);
+
+  /// [loadTourSeen] while it is reading (null before and after).
+  Future<void>? _tourFlag;
+  bool _introEnding = false;
+
+  // ---- the first-launch tutorial (user request 2026-10-19) ----
+
+  /// The tutorial has not been seen on this device yet: the start sequence
+  /// shows it once, between the intro and the start question. False until
+  /// [loadTourSeen] reads the store, so tests and other hosts never see it.
+  bool tourPending = false;
+
+  /// The first-launch tutorial is on screen in the start sequence: links
+  /// wait for its Skip or Done (the shell's router holds them). The shell
+  /// shows it only over Explore, so a link opened during the intro's wait
+  /// for the flag (dest Compare, say) is not held: the tutorial shows when
+  /// Explore is reached, as the start question does.
+  bool get inStartTour => askGoalOnStart && startStage == StartStage.tour && dest == Dest.explore;
+
+  static const _tourKey = 'tourSeen';
+
+  /// Opens the store the tutorial flag lives in (tests swap in a slow, hung
+  /// or failing one).
+  @visibleForTesting
+  Future<SharedPreferences> Function() openPrefs = SharedPreferences.getInstance;
+
+  /// Read whether the tutorial was seen. A missing or failing store does not
+  /// show it: it could not be remembered, so it would come back every launch.
+  Future<void> loadTourSeen() => _tourFlag ??= _readTourSeen().whenComplete(() => _tourFlag = null);
+
+  Future<void> _readTourSeen() async {
+    try {
+      final seen = (await openPrefs()).getBool(_tourKey) ?? false;
+      if (_disposed || tourPending == !seen) return;
+      tourPending = !seen;
+      notifyListeners();
+    } catch (_) {}
+  }
+
+  /// Skip or Done on the tutorial: remember it, and in the start sequence go
+  /// on to the start question (a link that came during it opens now).
+  void finishTour() {
+    tourPending = false;
+    if (startStage == StartStage.tour) startStage = StartStage.goal;
+    notifyListeners();
+    unawaited(() async {
+      try {
+        await (await openPrefs()).setBool(_tourKey, true);
+      } catch (_) {}
+    }());
   }
 
   void finishStartLoading() {
@@ -1136,9 +1218,10 @@ class AppState extends ChangeNotifier {
   /// One playback step of 1/400 of the period as it is now (it may change
   /// while playing); stops at the end.
   void _tick() {
-    if (_heldTicks < _maxHeldTicks && (holdPlay?.call() ?? false)) {
+    final charts = _heldTicks < _maxHeldTicks && (holdPlay?.call() ?? false);
+    if (charts || (_heldTicks < _maxMapHeldTicks && (holdPlayForMap?.call() ?? false))) {
       _heldTicks++;
-      return; // the charts are still drawing the previous step
+      return; // the charts or the light map are still drawing the previous step
     }
     _heldTicks = 0;
     final last = _lastCursorMs;

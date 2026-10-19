@@ -20,6 +20,7 @@ import '../widgets/hide_on_scroll.dart';
 import '../widgets/sheets/export_sheet.dart';
 import 'compare.dart';
 import 'explore.dart';
+import 'first_run_tour.dart';
 import 'goal_page.dart';
 import 'intro.dart';
 import 'learn.dart';
@@ -124,6 +125,8 @@ class _AppShellState extends State<AppShell> {
     if (s.askGoalOnStart && s.startStage != StartStage.done && s.dest == Dest.explore) {
       final page = switch (s.startStage) {
         StartStage.intro => KeyedSubtree(key: const ValueKey('intro'), child: SkimOpening(onDone: s.finishIntro)),
+        // first launch only: the tutorial, so the question and the app make sense
+        StartStage.tour => FirstRunTour(key: const ValueKey('tour'), sites: s.catalog?.sites.length, onDone: s.finishTour),
         StartStage.goal => GoalPage(key: const ValueKey('goal'), state: s),
         _ => SpaceLoading(key: const ValueKey('loading'), state: s, onDone: s.finishStartLoading),
       };
@@ -468,7 +471,10 @@ class ShellRouterDelegate extends RouterDelegate<ShellLocation>
       : ShellLocation(state.dest);
 
   void _onState() {
-    if (!state.ready) return;
+    // a link waits for the first ranking, and for the first-launch tutorial:
+    // it opens on Skip or Done ([AppState.finishTour]), so the cards are not
+    // pulled away half-read and the tutorial is still remembered as seen
+    if (!state.ready || (_pending != null && state.inStartTour)) return;
     final link = _pending;
     if (link != null) {
       _pending = null;

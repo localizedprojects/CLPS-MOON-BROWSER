@@ -201,6 +201,7 @@ class _SpaceLoadingState extends State<SpaceLoading> with TickerProviderStateMix
     super.initState();
     _stopped = _failed;
     widget.state.addListener(_onState);
+    _bar.addListener(_onBar);
     _terrainUsers++;
     // the app's own full map when it is already in, so it is not decoded twice
     loadingTerrain(have: widget.state.mapLayers?.hillshade).then((t) {
@@ -216,6 +217,14 @@ class _SpaceLoadingState extends State<SpaceLoading> with TickerProviderStateMix
       _minPassed = true;
       _onState();
     });
+  }
+
+  /// The words say "Ready" only once the bar shows 100% (Android 7: "Ready"
+  /// over a bar at 17%; the bar keeps its pace after the work is done).
+  bool _barFull = false;
+  void _onBar() {
+    final full = _bar.value >= 1;
+    if (full != _barFull && mounted) setState(() => _barFull = full);
   }
 
   @override
@@ -243,7 +252,7 @@ class _SpaceLoadingState extends State<SpaceLoading> with TickerProviderStateMix
         : ranking
             ? 'Ranking $total sites for ${goalLabel(s.goal)}: $done of $total'
             : s.ready
-                ? 'Ready'
+                ? (_barFull ? 'Ready' : 'Getting ready…')
                 : 'Loading the sites…';
     return Material(
       color: PH.bg,

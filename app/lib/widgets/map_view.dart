@@ -99,17 +99,17 @@ class MapLegend extends StatelessWidget {
       container: true,
       label: 'Map key: ${[for (final (shape, _, words) in mapLegendEntries) '${shape.name}, $words'].join('; ')}',
       excludeSemantics: true,
-      // one run of text with the shapes inline, so it wraps at any width and text size
-      child: Text.rich(TextSpan(style: style, children: [
-        for (final (i, (shape, colour, words)) in mapLegendEntries.indexed) ...[
-          if (i > 0) const TextSpan(text: '    '),
-          WidgetSpan(
-            alignment: PlaceholderAlignment.middle,
-            child: CustomPaint(size: Size.square(size), painter: _LegendMarker(shape, colour)),
-          ),
-          TextSpan(text: ' $words'),
-        ],
-      ])),
+      // each shape keeps its words on its line; whole entries wrap at any
+      // width and text size (Android 7: "your spot" fell onto the next line,
+      // away from its diamond)
+      child: Wrap(spacing: 16, runSpacing: 4, children: [
+        for (final (shape, colour, words) in mapLegendEntries)
+          Row(key: ValueKey('legend-${shape.name}'), mainAxisSize: MainAxisSize.min, children: [
+            CustomPaint(size: Size.square(size), painter: _LegendMarker(shape, colour)),
+            const SizedBox(width: 4),
+            Flexible(child: Text(words, style: style)),
+          ]),
+      ]),
     );
   }
 }

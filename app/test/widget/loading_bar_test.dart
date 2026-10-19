@@ -157,6 +157,25 @@ void main() {
     await tester.pumpWidget(const SizedBox());
   });
 
+  testWidgets('the words say Ready only once the bar shows 100% (Android 7: "Ready" over 17%)', (tester) async {
+    final s = _Progress();
+    addTearDown(s.dispose);
+    var done = false;
+    await tester.pumpWidget(_host(SpaceLoading(state: s, onDone: () => done = true)));
+    var ms = 0, saidReady = false;
+    while (!done && ms < 16000) {
+      await tester.pump(const Duration(milliseconds: 50));
+      ms += 50;
+      if (ms == 500) s.set(done: 16, total: 16, ranked: true, isReady: true); // the work is done early
+      if (!done && find.text('Ready').evaluate().isNotEmpty) {
+        saidReady = true;
+        expect(_shown(tester), '100%', reason: '"Ready" at ${ms}ms');
+      }
+    }
+    expect(saidReady, isTrue, reason: 'Ready once the bar is full');
+    await tester.pumpWidget(const SizedBox());
+  });
+
   testWidgets('a slow device: ready only at 14 s, the bar waits for it', (tester) async {
     final s = _Progress()..set(done: 0, total: 16);
     addTearDown(s.dispose);

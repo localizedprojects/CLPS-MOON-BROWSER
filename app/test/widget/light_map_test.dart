@@ -4,9 +4,12 @@
 import 'dart:async';
 import 'dart:math' as math;
 import 'dart:typed_data';
+import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:polar_horizon/core/catalog.dart';
+import 'package:polar_horizon/core/dem.dart';
 import 'package:polar_horizon/core/geo.dart';
 import 'package:polar_horizon/core/shadow.dart';
 import 'package:polar_horizon/core/visibility.dart';
@@ -609,10 +612,10 @@ void main() {
       final engine = _SlowEngine();
       state.lightEngineForTest = engine;
       state.goTo(Dest.site, siteTab: SiteTab.light);
-      state.holdPlay = () => LightMap.framePending.value;
+      state.holdPlayForMap = () => LightMap.framePending.value;
       addTearDown(() {
         state.pausePlay();
-        state.holdPlay = null;
+        state.holdPlayForMap = null;
       });
       await tester.pumpWidget(MaterialApp(
         theme: buildTheme(),
@@ -635,10 +638,15 @@ void main() {
         engine.finishAll();
         await tester.pump(const Duration(milliseconds: 60));
       }
+      await _drawn(tester); // and their overlay pictures are made
+      await tester.pump(const Duration(milliseconds: 150)); // the next Play tick
       expect(state.cursorMs, greaterThan(t), reason: 'the map caught up: Play steps again');
-      // a frame that never finishes holds each step for 3 s only
+      // a frame that never finishes holds each step for 30 s at most (a
+      // local frame is waited for longer than a web view's 3 s)
       final t2 = state.cursorMs;
       await tester.pump(const Duration(milliseconds: 3200));
+      expect(state.cursorMs, t2);
+      await tester.pump(const Duration(seconds: 27));
       expect(state.cursorMs, greaterThan(t2));
       state.pausePlay();
       await tester.pumpWidget(const SizedBox());
@@ -650,10 +658,10 @@ void main() {
       final engine = _SlowEngine();
       state.lightEngineForTest = engine;
       state.goTo(Dest.site, siteTab: SiteTab.light);
-      state.holdPlay = () => LightMap.framePending.value;
+      state.holdPlayForMap = () => LightMap.framePending.value;
       addTearDown(() {
         state.pausePlay();
-        state.holdPlay = null;
+        state.holdPlayForMap = null;
       });
       await tester.pumpWidget(MaterialApp(
         theme: buildTheme(),
@@ -704,10 +712,137 @@ void main() {
       expect(LightMap.framePending.value, isTrue, reason: "the new map's frame is still computing");
       engine.finishAll();
       await tester.pump(const Duration(milliseconds: 60));
+      await _drawn(tester);
       expect(LightMap.framePending.value, isFalse);
       await tester.pumpWidget(const SizedBox());
     });
+
+    testWidgets('Play waits for the overlay picture too, and for a frame slower than 3 s (Android 7: 40 h behind)',
+        (tester) async {
+      final engine = _SlowOverlayEngine();
+      state.lightEngineForTest = engine;
+      state.goTo(Dest.site, siteTab: SiteTab.light);
+      state.holdPlayForMap = () => LightMap.framePending.value;
+      addTearDown(() {
+        state.pausePlay();
+        state.holdPlayForMap = null;
+      });
+      await tester.pumpWidget(MaterialApp(
+        theme: buildTheme(),
+        home: Scaffold(
+          body: ListenableBuilder(
+            listenable: state,
+            builder: (_, _) => SizedBox(width: 400, height: 800, child: LightMap(state: state, active: true, onSelect: (_) {})),
+          ),
+        ),
+      ));
+      await tester.pump(const Duration(milliseconds: 100));
+      state.togglePlay();
+      await tester.pump(const Duration(milliseconds: 100));
+      final t = state.cursorMs;
+      // a slow device: the frame takes 5 s, more than the charts' 3 s cap
+      await tester.pump(const Duration(seconds: 5));
+      expect(state.cursorMs, t, reason: 'a frame still computing after 5 s still holds Play');
+      for (var i = 0; i < 4; i++) {
+        engine.finishAll();
+        await tester.pump(const Duration(milliseconds: 60));
+      }
+      expect(engine.waiting, isEmpty, reason: 'every frame is computed');
+      expect(engine.overlaysWaiting, isNotEmpty, reason: 'its overlay picture is still being made');
+      expect(LightMap.framePending.value, isTrue, reason: 'the map still shows an older moment');
+      await tester.pump(const Duration(seconds: 4));
+      expect(state.cursorMs, t, reason: 'no step while the picture of this step is still being made');
+      await _drawn(tester, engine);
+      await tester.pump(const Duration(milliseconds: 150)); // the next Play tick
+      expect(state.cursorMs, greaterThan(t), reason: 'the picture is in: Play steps again');
+      // the safety cap: a frame that never finishes holds Play 30 s at most
+      final t2 = state.cursorMs;
+      await tester.pump(const Duration(seconds: 31));
+      expect(state.cursorMs, greaterThan(t2));
+      state.pausePlay();
+      await tester.pumpWidget(const SizedBox());
+      engine.finishAll();
+      engine.finishOverlays();
+    });
   });
+
+  group('arrow labels keep clear of the scale bar (Android 7 run)', () {
+    setUpAll(loadPlexFonts);
+
+    testWidgets('no Sun or Earth label covers the "km" scale, paused or playing', (tester) async {
+      final hill = (await tester.runAsync(() => createTestImage(width: 8, height: 8)))!;
+      addTearDown(hill.dispose);
+      const site = Site(
+          id: 's', name: 'Spot', short: 'Spot', group: 'illumination', kind: 'k', confidence: 'c', notes: '',
+          lat: -89.5, lon: 0, terrainHeightM: 0);
+      // a phone-width close-up with the site low on the left, near the scale bar
+      const side = 354.0, ext = 100000.0, k = side / ext;
+      final (x, y) = latLonToXY(site.lat, site.lon);
+      final view = (x0: x - 70 / k, y0: y + 250 / k, ext: ext);
+      // the scale bar as the painter draws it (20 km here) with its words above
+      const barPx = 20000 * k, y0 = side - 18;
+      final scale = Rect.fromLTRB(8, y0 - 18, 14 + barPx + 6, y0 + 6);
+      Map<String, dynamic> body(double az) => {'az': az, 'el': 4.0, 'hz': 0.0, 'rho': 0.27, 'frac': 1.0, 'visible': true};
+      final log = <String>[];
+      for (final playing in [false, true]) {
+        final kept = ArrowLabelMemory();
+        for (var az = 0.0; az < 360; az += 5) {
+          // paused: a fresh layout each time; playing: labels remember their spots
+          final m = playing ? kept : ArrowLabelMemory();
+          final rec = ui.PictureRecorder();
+          LightFramePainter(
+                  hillshade: hill,
+                  halfWidthM: 304000,
+                  images: null,
+                  view: view,
+                  sites: const [site],
+                  selected: site,
+                  now: {'sun': body(az), 'earth': body(20)},
+                  closeUp: true,
+                  labelMemory: m)
+              .paint(Canvas(rec), const Size(side, side));
+          rec.endRecording().dispose();
+          for (var i = 0; i < m.centres.length; i++) {
+            final b = Rect.fromCenter(center: m.centres[i], width: m.sizes[i].width, height: m.sizes[i].height);
+            if (b.overlaps(scale)) log.add('${playing ? 'playing' : 'paused'}, Sun az $az: label $i $b covers $scale');
+          }
+        }
+      }
+      expect(log, isEmpty);
+    });
+  });
+}
+
+/// Lets the overlay pictures decode (real async) and the map show them;
+/// with [e], its held overlays are let go first, round after round.
+Future<void> _drawn(WidgetTester tester, [_SlowOverlayEngine? e]) async {
+  for (var i = 0; i < 6; i++) {
+    e?.finishOverlays();
+    await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 10)));
+    await tester.pump(const Duration(milliseconds: 20));
+  }
+}
+
+/// A shadow engine whose frames and overlay pictures finish only when the
+/// test says so (a slow phone).
+class _SlowOverlayEngine extends _SlowEngine {
+  final overlaysWaiting = <Completer<void>>[];
+
+  @override
+  Future<LightOverlay> overlay(LightFrame f, LightLayer layer, int w, double scale) async {
+    final c = Completer<void>();
+    overlaysWaiting.add(c);
+    await c.future;
+    return super.overlay(f, layer, w, scale);
+  }
+
+  void finishOverlays() {
+    final all = [...overlaysWaiting];
+    overlaysWaiting.clear();
+    for (final c in all) {
+      c.complete();
+    }
+  }
 }
 
 /// A shadow engine whose frames finish only when the test says so.

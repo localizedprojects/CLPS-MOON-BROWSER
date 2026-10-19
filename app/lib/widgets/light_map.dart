@@ -147,6 +147,11 @@ class LightImageKeeper {
     return f != null && _error == null && (s == null || !identical(s.frame, f) || s.layer != _layer);
   }
 
+  /// Whether [pending] work will actually run: the keeper is active and has
+  /// an engine and a size (a map never laid out builds nothing, so Play must
+  /// not wait on it).
+  bool get catchingUp => pending && _active && !_disposed && _engine != null && _deviceSide > 0;
+
   /// Number of overlays built so far (for tests).
   int builds = 0;
 
@@ -382,9 +387,12 @@ class LightMap extends StatefulWidget {
   @override
   State<LightMap> createState() => _LightMapState();
 
-  /// True while the shown map is still computing a frame or has a newer one
-  /// queued. Play waits on it (as on the charts), so the map's time stays
-  /// within one step of the time bar on a slow phone.
+  /// True while the shown map is still computing a frame, has a newer one
+  /// queued, or is still building the overlay picture of its latest frame
+  /// (the moment "Showing <time>" names). Play waits on it
+  /// ([AppState.holdPlayForMap]), so the picture stays within one step of
+  /// the time bar on a slow phone (Android 7 emulator: the overlay build
+  /// after the compute was not covered, and the map fell up to 40 h behind).
   static final framePending = ValueNotifier<bool>(false);
 }
 
@@ -402,7 +410,9 @@ class _LightMapState extends State<LightMap> {
 
   LightEngine? _engine;
   late final _images = LightImageKeeper(onChange: () {
-    if (mounted) setState(() {});
+    if (!mounted) return;
+    setState(() {});
+    _reportPending(); // an overlay came in (or failed): Play may step again
   });
   LightRequest? _queued;
   bool _busy = false;
@@ -447,7 +457,10 @@ class _LightMapState extends State<LightMap> {
   /// its successor; [dispose] clears it when the map goes away.
   void _reportPending() {
     if (!mounted) return;
-    LightMap.framePending.value = widget.active && _error == null && (_busy || _queued != null);
+    LightMap.framePending.value = widget.active &&
+        _error == null &&
+        _images.error == null &&
+        (_busy || _queued != null || _images.catchingUp);
   }
 
   @override
@@ -683,6 +696,7 @@ class _LightMapState extends State<LightMap> {
           setState(() => layer = v.first);
           _remember(_layerId, layer);
           _images.update(layer: v.first);
+          _reportPending();
         },
       ),
     ]);
@@ -1522,6 +1536,12 @@ class LightFramePainter extends CustomPainter {
       canvas.drawLine(Offset(14 + barPx, y0 - 4), Offset(14 + barPx, y0 + 4), bar);
     }
     text('${(nice / 1000).round()} km', Offset(14 + barPx / 2, y0 - 10), fs: 12);
+    // the bar and its words: the arrow labels keep clear of them (Android 7
+    // run: "Sun 4° above the hills" printed over "25 km" while playing)
+    final scaleWords = label('${(nice / 1000).round()} km', fs: 12);
+    final scaleArea = Rect.fromLTRB(14 - 6.0, y0 - 6, 14 + barPx + 6, y0 + 6)
+        .expandToInclude(boxAt(scaleWords, Offset(14 + barPx / 2, y0 - 10)));
+    scaleWords.dispose();
 
     // Sun and Earth direction arrows from the selected site (map bearing of
     // the true azimuth: az is measured from local north = away from the pole).
@@ -1561,6 +1581,7 @@ class LightFramePainter extends CustomPainter {
         boxAt(siteLabel, siteAt),
         ?poleBadge,
         ?noteArea,
+        scaleArea,
       ],
     );
     final placed = <Rect>[

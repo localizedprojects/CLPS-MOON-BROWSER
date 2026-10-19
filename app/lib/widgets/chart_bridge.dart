@@ -6,6 +6,7 @@
 /// side never computes science).
 library;
 
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
@@ -32,6 +33,22 @@ class ChartController {
   Object? _owner;
   final ValueNotifier<bool> _ready = ValueNotifier(false);
 
+  /// Why this chart has not drawn, or null. [ChartIssue.tooOld] only on real
+  /// evidence that this web view cannot run the chart bundle: a JavaScript
+  /// syntax error before `ready`, or a Chrome (Android System WebView) older
+  /// than [chartMinChromeMajor] (Android 7's stock web view, Chrome 69: the
+  /// cards stayed blank). A page that has loaded but not reported `ready`
+  /// within [readyTimeout] is only [ChartIssue.slow]: a cold start on a slow
+  /// but up-to-date phone can take longer (every chart web view shares one
+  /// renderer, and the ranking and light map run at the same time). The card
+  /// and the full-screen view say it; a later `ready` clears it.
+  final ValueNotifier<ChartIssue?> _issue = ValueNotifier(null);
+  Timer? _readyTimer;
+
+  /// How long a loaded page may take to report `ready` before the card says
+  /// it is still loading.
+  static const readyTimeout = Duration(seconds: 15);
+
   /// Latest message per type, in the order of their last update (a replay
   /// then delivers them in the order they were sent: a cursor sent before a
   /// new payload is replayed before it, so the page knows it is older).
@@ -53,6 +70,45 @@ class ChartController {
   /// Notifies when the page becomes ready or goes away (export menus listen).
   ValueListenable<bool> get readyListenable => _ready;
 
+  /// See [_issue].
+  ChartIssue? get issue => _issue.value;
+  ValueListenable<ChartIssue?> get issueListenable => _issue;
+
+  /// What the card says for [issue], or null.
+  String? get problem => _issue.value?.text;
+
+  /// The host's page has loaded: after [readyTimeout] without `ready` the
+  /// card says it is still loading (never that the web view is too old).
+  void pageLoaded() {
+    if (_ready.value) return;
+    _readyTimer?.cancel();
+    _readyTimer = Timer(readyTimeout, () {
+      _readyTimer = null;
+      if (!_ready.value && _issue.value == null) _issue.value = ChartIssue.slow;
+    });
+  }
+
+  /// A JavaScript error from the page's console. A syntax error before
+  /// `ready` means this web view cannot parse the chart bundle at all.
+  void pageError(String message) {
+    if (_ready.value || !message.contains('SyntaxError')) return;
+    _tooOld();
+  }
+
+  /// The loaded page's `navigator.userAgent`: a Chrome older than
+  /// [chartMinChromeMajor] cannot run the bundle. Not Chrome (iOS): no verdict.
+  void pageUserAgent(String userAgent) {
+    final major = chromeMajor(userAgent);
+    if (_ready.value || major == null || major >= chartMinChromeMajor) return;
+    _tooOld();
+  }
+
+  void _tooOld() {
+    _readyTimer?.cancel();
+    _readyTimer = null;
+    _issue.value = ChartIssue.tooOld;
+  }
+
   /// Called by the platform host [owner] once it can deliver messages to its
   /// page. A newer host replaces the current one; its page must report
   /// `ready` before anything is delivered (the buffered messages then are).
@@ -61,6 +117,8 @@ class ChartController {
     _owner = owner;
     _busy = busy;
     _ready.value = false;
+    _readyTimer?.cancel(); // the new page gets its own time to report ready
+    _readyTimer = null;
   }
 
   bool Function()? _busy;
@@ -79,6 +137,8 @@ class ChartController {
     _owner = null;
     _busy = null;
     _ready.value = false;
+    _readyTimer?.cancel();
+    _readyTimer = null;
   }
 
   /// Raw JSON event from the page.
@@ -93,6 +153,9 @@ class ChartController {
     if (ev['type'] == 'ready') {
       final firstReady = !_ready.value;
       _ready.value = true;
+      _readyTimer?.cancel();
+      _readyTimer = null;
+      _issue.value = null;
       if (ev['view'] != view) {
         _deliver(jsonEncode({'type': 'setView', 'view': view}));
       } else if (firstReady || _pending.isNotEmpty) {
@@ -120,6 +183,38 @@ class ChartController {
 
   void _deliver(String json) => _sink?.call(json);
 }
+
+/// The oldest Chrome (Android System WebView) major version that can parse
+/// the chart bundle. The one place the app reads it: a branch whose bundle is
+/// built for older web views lowers it (to 69 for Android 7's stock one).
+const chartMinChromeMajor = 85;
+
+/// The Chrome major version in a user agent string, or null (not Chrome).
+/// The string may come JSON-quoted from runJavaScriptReturningResult.
+int? chromeMajor(String userAgent) {
+  final m = RegExp(r'Chrome/(\d+)\.').firstMatch(userAgent);
+  return m == null ? null : int.parse(m.group(1)!);
+}
+
+/// Why a chart has not drawn ([ChartController.issue]).
+enum ChartIssue {
+  /// Loaded, not ready after [ChartController.readyTimeout]: still loading.
+  slow,
+
+  /// This web view cannot run the chart bundle (a syntax error, or an old Chrome).
+  tooOld;
+
+  String get text => this == tooOld ? chartTooOldText() : chartSlowText;
+}
+
+/// What a chart says while its page is loaded but has not drawn yet.
+const chartSlowText = 'Still loading the chart…';
+
+/// What a chart says when its page cannot run on this device's web view.
+String chartTooOldText() => defaultTargetPlatform == TargetPlatform.iOS
+    ? 'This chart needs a newer version of iOS. Update iOS in Settings, then open the app again.'
+    : 'This chart needs a newer Android System WebView. Update Android System WebView or Chrome '
+        'from the Play Store, then open the app again.';
 
 final _fmt = DateFormat('yyyy-MM-dd HH:mm');
 String utcLabel(double ms) => '${_fmt.format(DateTime.fromMillisecondsSinceEpoch(ms.round(), isUtc: true))} UTC';

@@ -137,6 +137,10 @@ class _ChartFocusPageState extends State<ChartFocusPage> {
   @override
   void initState() {
     super.initState();
+    // a message that comes or goes while this is open shows at once, and a
+    // chart that becomes ready after all gets its picture
+    widget.controller.issueListenable.addListener(_chartChanged);
+    widget.controller.readyListenable.addListener(_chartChanged);
     if (widget.landscape) {
       Future<void>.delayed(const Duration(milliseconds: 1500), () {
         if (mounted) setState(() => _turnWaitOver = true);
@@ -144,8 +148,20 @@ class _ChartFocusPageState extends State<ChartFocusPage> {
     }
   }
 
+  void _chartChanged() {
+    if (!mounted) return;
+    setState(() {
+      if (_png == null && widget.controller.ready) {
+        _asked = null; // ask again: the next layout pass does
+        _failed = false;
+      }
+    });
+  }
+
   @override
   void dispose() {
+    widget.controller.issueListenable.removeListener(_chartChanged);
+    widget.controller.readyListenable.removeListener(_chartChanged);
     if (widget.landscape) _turnSideways(false);
     final hub = widget.hub;
     // the page's charts show again (and turned back): let them redraw at their size
@@ -218,11 +234,15 @@ class _ChartFocusPageState extends State<ChartFocusPage> {
                                 key: const ValueKey('chart-focus-picture'), fit: BoxFit.contain, gaplessPlayback: true),
                           );
                         }
+                        // a chart whose page has not drawn says why (it cannot run
+                        // here, or is still loading), not "try again"
+                        final problem = widget.controller.problem;
                         return Center(
                           child: Text(
-                            _failed
-                                ? 'The full-screen picture could not be made. Close this and try again once the chart has drawn.'
-                                : 'Preparing the full-screen chart…',
+                            problem ??
+                                (_failed
+                                    ? 'The full-screen picture could not be made. Close this and try again once the chart has drawn.'
+                                    : 'Preparing the full-screen chart…'),
                             textAlign: TextAlign.center,
                             style: PHText.body.copyWith(color: PH.muted),
                           ),

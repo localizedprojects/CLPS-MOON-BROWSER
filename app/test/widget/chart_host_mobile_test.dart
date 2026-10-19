@@ -4,7 +4,7 @@ import 'dart:async';
 
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:polar_horizon/widgets/chart_bridge.dart' show ChartController;
+import 'package:polar_horizon/widgets/chart_bridge.dart' show ChartController, ChartIssue, chartMinChromeMajor;
 import 'package:polar_horizon/widgets/chart_host_mobile.dart'
     show ChartPage, Coalescer, MobileChartHost, chartRenderGone;
 
@@ -13,8 +13,11 @@ import 'package:polar_horizon/widgets/chart_host_mobile.dart'
 final _unanswered = <Completer<void>>[];
 
 /// A page on a dead render process: runJavaScript never completes.
-class _StuckPage implements ChartPage {
+class _StuckPage extends ChartPage {
   final runs = <String>[];
+
+  @override
+  Future<Object> evaluate(String js) => Completer<Object>().future;
 
   @override
   Future<void> run(String js) {
@@ -27,6 +30,34 @@ class _StuckPage implements ChartPage {
   @override
   Widget view(Key key) => SizedBox(key: key);
 }
+
+/// A page that loads, writes to its console and reports [userAgent] (as
+/// runJavaScriptReturningResult gives it on Android: JSON-quoted), as the real
+/// web view page does through its NavigationDelegate and console callbacks.
+class _LoadingPage extends ChartPage {
+  _LoadingPage(this.userAgent);
+  final String userAgent;
+  final evaluated = <String>[];
+
+  void load() => onLoaded!();
+  void console(String message) => onConsoleError!(message);
+
+  @override
+  Future<void> run(String js) async {}
+
+  @override
+  Future<Object> evaluate(String js) async {
+    evaluated.add(js);
+    return '"$userAgent"';
+  }
+
+  @override
+  Widget view(Key key) => SizedBox(key: key);
+}
+
+String _android(int chrome) =>
+    'Mozilla/5.0 (Linux; Android 7.0; sdk_gphone) AppleWebKit/537.36 (KHTML, like Gecko) '
+    'Version/4.0 Chrome/$chrome.0.3497.100 Mobile Safari/537.36';
 
 /// Allocates until [ref] is cleared by a garbage collection (or gives up).
 bool collected(WeakReference<Object> ref) {
@@ -171,6 +202,45 @@ void main() {
       await tester.pump();
       await tester.pump();
       expect(c.behind, isFalse, reason: 'Play must not wait 3 s on every step for a dead page');
+      await tester.pumpWidget(const SizedBox());
+    });
+  });
+  // c2f45b7 review: the host, not only the controller, must report the page's
+  // load, its console errors and its Chrome version (the card's message)
+  group('MobileChartHost reports why a page has not drawn (Android 7)', () {
+    testWidgets('a loaded page that does not report ready is "still loading", never "too old"', (tester) async {
+      final c = ChartController('sky');
+      final page = _LoadingPage(_android(120));
+      await tester.pumpWidget(MobileChartHost(controller: c, newPage: (_) => page));
+      page.load();
+      await tester.pump();
+      expect(page.evaluated, ['navigator.userAgent']);
+      expect(c.issue, isNull, reason: 'an up-to-date web view: no verdict yet');
+      await tester.pump(ChartController.readyTimeout + const Duration(seconds: 1));
+      expect(c.issue, ChartIssue.slow, reason: 'the load reached the controller: its timer ran');
+      c.handleRaw('{"type":"ready","view":"sky"}');
+      expect(c.issue, isNull);
+      await tester.pumpWidget(const SizedBox());
+    });
+
+    testWidgets('an old Chrome says "too old" as soon as the page loads', (tester) async {
+      final c = ChartController('timeline');
+      final page = _LoadingPage(_android(chartMinChromeMajor - 1));
+      await tester.pumpWidget(MobileChartHost(controller: c, newPage: (_) => page));
+      page.load();
+      await tester.pump();
+      expect(c.issue, ChartIssue.tooOld);
+      await tester.pumpWidget(const SizedBox());
+    });
+
+    testWidgets('a syntax error on the console says "too old" at once; other errors do not', (tester) async {
+      final c = ChartController('compare');
+      final page = _LoadingPage(_android(120));
+      await tester.pumpWidget(MobileChartHost(controller: c, newPage: (_) => page));
+      page.console('Uncaught ReferenceError: x is not defined');
+      expect(c.issue, isNull);
+      page.console('Uncaught SyntaxError: Unexpected token ?');
+      expect(c.issue, ChartIssue.tooOld);
       await tester.pumpWidget(const SizedBox());
     });
   });

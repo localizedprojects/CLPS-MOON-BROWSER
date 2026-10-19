@@ -633,6 +633,39 @@ void main() {
   testWidgets('a cancelled full-screen coordinates dialog holds the 2 s while open, and the map still returns',
       (tester) => heldWhileOpen(tester, 'map-focus-coordinates', CoordinatesDialog));
 
+  testWidgets('the coordinates dialog opened from the full-screen Layers sheet holds the 2 s; a full 2 s follow its Cancel',
+      (tester) async {
+    await pumpPage(tester);
+    await expand(tester);
+    final site = isolatedSite(tester);
+    await tester.tapAt(at(tester, fracOf(site)));
+    await tester.pump();
+    expect(find.text('${site.short} selected · returning to Explore'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('map-focus-layers')));
+    await tester.pumpAndSettle();
+    final row = find.text('Add a spot by coordinates…');
+    await tester.ensureVisible(row); // the sheet's last row
+    await tester.pumpAndSettle();
+    await tester.tap(row);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.byType(CoordinatesDialog), findsOneWidget, reason: 'the dialog is open over the map');
+    await tester.pump(const Duration(milliseconds: 3600)); // 3.9 s after the row was tapped
+    expect(find.byType(SwitchListTile), findsNothing, reason: 'the sheet has closed');
+    expect(find.byType(MapFocusPage), findsOneWidget, reason: 'held while the dialog is open');
+    await tester.tap(find.text('Cancel'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 1600));
+    expect(find.byType(CoordinatesDialog), findsNothing, reason: 'cancelled');
+    expect(find.byType(MapFocusPage), findsOneWidget, reason: 'a full 2 s after the dialog closes, not a timer left from under it');
+    await tester.pump(const Duration(milliseconds: 500));
+    await tester.pump(const Duration(milliseconds: 60));
+    expect(find.byType(MapFocusPage), findsNothing, reason: 'then it returns to Explore');
+    await tester.pumpAndSettle();
+    expectCentredOn(tester, fracOf(site), site.short);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('once the page map has reached the chosen point, a new page map for a new layout shows it at once',
       (tester) async {
     await pumpPage(tester, swapAt: 600);

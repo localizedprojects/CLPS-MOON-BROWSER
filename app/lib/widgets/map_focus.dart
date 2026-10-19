@@ -111,12 +111,19 @@ class _MapFocusPageState extends State<MapFocusPage> {
   /// the map's touch listener) is open over the map: no closing meanwhile.
   int _aside = 0;
 
+  /// Another route (a sheet or dialog) is over this page: no closing
+  /// meanwhile, and once this page is on top again a fresh full wait starts.
+  bool _covered = false;
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
     final held = MediaQuery.accessibleNavigationOf(context);
-    if (held == _held) return;
+    // rebuilt (this is called again) whenever the route's isCurrent changes
+    final covered = !(ModalRoute.isCurrentOf(context) ?? true);
+    if (held == _held && covered == _covered) return;
     _held = held;
+    _covered = covered;
     _wait();
   }
 
@@ -138,11 +145,13 @@ class _MapFocusPageState extends State<MapFocusPage> {
 
   /// (Re)start the wait before closing: only after a choice, not after
   /// "Stay", and not while a finger is on the map, a pin waits to be checked
-  /// or a spot is being added, or the Layers sheet or coordinates dialog is
-  /// open.
+  /// or a spot is being added, or the Layers sheet, the coordinates dialog or
+  /// anything else is open over the page.
   void _wait() {
     _timer?.cancel();
-    if (_chosen == null || _stay || _held || _down > 0 || _pinPending || _placing > 0 || _aside > 0) return;
+    if (_chosen == null || _stay || _held || _down > 0 || _pinPending || _placing > 0 || _aside > 0 || _covered) {
+      return;
+    }
     _timer = Timer(mapFocusAutoClose, _close);
   }
 
@@ -206,9 +215,12 @@ class _MapFocusPageState extends State<MapFocusPage> {
   void _close() {
     _timer?.cancel();
     if (!mounted) return;
-    // something else is over the map (the coordinates dialog opened from the
-    // Layers sheet, say): wait again rather than never closing
-    if (!(ModalRoute.of(context)?.isCurrent ?? false)) return _wait();
+    // something else is over the map: held until this page is on top again
+    // (then [didChangeDependencies] starts a fresh full wait)
+    if (!(ModalRoute.isCurrentOf(context) ?? false)) {
+      _covered = true;
+      return;
+    }
     final chosen = _chosen;
     Navigator.of(context).pop<MapFocusResult>((
       camera: chosen == null ? null : (zoom: _map.camera?.zoom ?? 1.0, centre: chosen.$1),

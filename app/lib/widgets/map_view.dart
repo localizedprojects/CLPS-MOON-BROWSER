@@ -691,7 +691,11 @@ class _MapViewState extends State<MapView> with SingleTickerProviderStateMixin {
     ]);
   }
 
+  /// The Layers sheet; its coordinates row closes it and opens the
+  /// coordinates dialog, and this ends only once that dialog is closed too (so
+  /// a caller holding something while the sheet is open holds it through both).
   Future<void> _openLayers() async {
+    var ask = false;
     await showPhSheet<void>(
       context,
       (ctx) => StatefulBuilder(
@@ -730,8 +734,8 @@ class _MapViewState extends State<MapView> with SingleTickerProviderStateMixin {
                   leading: const Icon(Icons.add_location_alt_outlined),
                   title: const Text('Add a spot by coordinates…'),
                   onTap: () {
+                    ask = true;
                     Navigator.pop(ctx);
-                    _askCoordinates();
                   },
                 ),
               ]),
@@ -740,6 +744,7 @@ class _MapViewState extends State<MapView> with SingleTickerProviderStateMixin {
         },
       ),
     );
+    if (ask && mounted) await _askCoordinates();
   }
 }
 

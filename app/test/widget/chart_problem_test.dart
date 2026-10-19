@@ -1,8 +1,10 @@
 // A chart page that has not drawn says why in its card instead of staying
 // blank: that this web view is too old only on evidence (a syntax error, or
-// a Chrome older than the bundle needs; Android 7's stock web view, Chrome
-// 69, cannot parse it), otherwise that it is still loading. A later ready
+// a Chrome older than the bundle is built for: Chrome 69, Android 7's stock
+// web view, runs it), otherwise that it is still loading. A later ready
 // takes the message away.
+import 'dart:io' show File;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:polar_horizon/theme.dart';
@@ -39,6 +41,29 @@ void main() {
     expect(slow, findsNothing, reason: 'the chart drew after all');
     expect(c.problem, isNull);
     expect(tester.takeException(), isNull);
+  });
+
+  test('the minimum Chrome equals the chart bundle build target (Chrome 69, the stock web view of Android 7)', () {
+    final vite = File('../charts/vite.config.ts').readAsStringSync();
+    final target = RegExp(r"target: \[[^\]]*'chrome(\d+)'").firstMatch(vite);
+    expect(target, isNotNull, reason: 'charts/vite.config.ts names a chrome build target');
+    expect(chartMinChromeMajor, int.parse(target!.group(1)!));
+    expect(chartMinChromeMajor, 69);
+  });
+
+  testWidgets('the stock web view of Android 7 (Chrome 69) gets no "too old" verdict', (tester) async {
+    final c = ChartController('sky');
+    c.attach((_) {}, 'page');
+    await pumpChart(tester, c);
+    c.pageLoaded();
+    c.pageUserAgent('Mozilla/5.0 (Linux; Android 7.0; sdk_gphone) AppleWebKit/537.36 (KHTML, like Gecko) '
+        'Version/4.0 Chrome/69.0.3497.100 Mobile Safari/537.36');
+    await tester.pump();
+    expect(c.issue, isNull);
+    expect(problem, findsNothing);
+    c.handleRaw('{"type":"ready","view":"sky"}');
+    await tester.pump();
+    expect(c.issue, isNull);
   });
 
   testWidgets('an old Chrome says to update the web view (the minimum is one constant); a new one does not',

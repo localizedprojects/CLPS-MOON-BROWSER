@@ -1,3 +1,5 @@
+// first: what Chrome 69 (Android 7.0's WebView) lacks, before any library runs
+import './polyfills'
 import '@fontsource/ibm-plex-sans/latin-400.css'
 import '@fontsource/ibm-plex-sans/latin-500.css'
 import '@fontsource/ibm-plex-sans/latin-600.css'

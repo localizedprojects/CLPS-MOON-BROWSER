@@ -56,6 +56,11 @@ class MainActivity : FlutterActivity() {
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
         channel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "polar_horizon/webview")
+        // android7-timeline: Dart shows chart WebViews with Hybrid Composition on old
+        // Android (their default texture repainted only part of a chart there)
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "polar_horizon/device").setMethodCallHandler { call, result ->
+            if (call.method == "sdkInt") result.success(Build.VERSION.SDK_INT) else result.notImplemented()
+        }
     }
 
     override fun onPostCreate(savedInstanceState: Bundle?) {

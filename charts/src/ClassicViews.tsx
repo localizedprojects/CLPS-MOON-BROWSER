@@ -64,7 +64,7 @@ export function ClassicSkyView() {
     <div ref={wrap} data-classic="sky" style={{ ...box, position: 'relative' }} role="img" tabIndex={0}
       aria-label={skyAlt(skyNowData(m, nowMsg.current))}>
       <div ref={ref} style={box} />
-      <div ref={overlay} style={{ position: 'absolute', inset: 0, pointerEvents: 'none', overflow: 'hidden' }} />
+      <div ref={overlay} style={{ position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, pointerEvents: 'none', overflow: 'hidden' }} />
     </div>
   )
 }

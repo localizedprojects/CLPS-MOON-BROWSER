@@ -16,7 +16,7 @@
  * number and formats. No causal claims ("because", "mostly from").
  */
 import type { CompareData, CompareRow } from './bridge'
-import { edgePlus, fmtDur, HOUR_MS, scoreDecimals } from './format'
+import { edgePlus, fmtDur, HOUR_MS, scoreDecimals, sortedStable } from './format'
 import { C, FONT, HOVER, MONO, TICK } from './theme'
 
 export const DEFAULT_EARTH_LABEL = 'Earth in view'
@@ -40,8 +40,8 @@ export function scoreLine(w: CompareData['weights']): string {
     `${pctNum(w.both)}% Sun + Earth together. Power and comms are sub-scores, so the bars alone do not add up to the score.`
 }
 
-/** Rows best first (stable for equal scores). */
-export const ranked = (d: CompareData): CompareRow[] => [...d.rows].sort((a, b) => b.score - a.score)
+/** Rows best first (equal scores keep their order, on Chrome 69 too). */
+export const ranked = (d: CompareData): CompareRow[] => sortedStable(d.rows, (a, b) => b.score - a.score)
 
 /** Score text with the shared tie-aware decimals ([scoreDecimals] over every row). */
 export function scoreTexts(rows: CompareRow[]): string[] {

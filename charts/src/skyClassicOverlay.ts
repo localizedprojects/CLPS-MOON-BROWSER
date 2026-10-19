@@ -73,7 +73,7 @@ export function skyOverlaySvg(dyn: SkyDynamic, g: SkyGeom): string {
   const rings = dyn.rings.map((r) =>
     `<text x="${n(g.cx + r.x * g.k)}" y="${n(g.cy - r.y * g.k)}" dominant-baseline="central" font-family="${esc(MONO)}" font-size="11" ` +
     `fill="${C.text}" stroke="${C.bg}" stroke-width="3" paint-order="stroke">${esc(r.text)}</text>`).join('')
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="100%" height="100%" style="position:absolute;inset:0;overflow:visible" aria-hidden="true">` +
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="100%" height="100%" style="position:absolute;top:0;right:0;bottom:0;left:0;overflow:visible" aria-hidden="true">` +
     `<g data-rings="${dyn.ringAz}">${rings}</g>${bodySvg(dyn.sun, g)}${bodySvg(dyn.earth, g)}</svg>`
 }
 
@@ -83,8 +83,8 @@ export function skyHeaderHtml(d: Pick<SkyData, 'siteName' | 'timeLabel' | 'zoom'
   // the site name in full: the first line wraps between the name and the
   // time (never an ellipsis), and the time keeps its year (yyyy-MM-dd)
   return `<div data-header style="position:absolute;left:${n(g.left)}px;top:4px;right:8px;font:12px/1.3 ${esc(SANS)};color:${C.text}" aria-hidden="true">` +
-    `<div style="display:flex;flex-wrap:wrap;column-gap:8px"><b data-site style="font-weight:600;overflow-wrap:anywhere">${esc(h.site)}</b>` +
-    `<span data-time style="font-family:${esc(MONO)};white-space:nowrap">${esc(h.time)}</span></div>` +
+    `<div style="display:flex;flex-wrap:wrap;margin-right:-8px"><b data-site style="font-weight:600;overflow-wrap:anywhere;margin-right:8px">${esc(h.site)}</b>` +
+    `<span data-time style="font-family:${esc(MONO)};white-space:nowrap;margin-right:8px">${esc(h.time)}</span></div>` +
     `<div style="color:${C.muted}">${esc(h.scale)}</div><div style="color:${C.muted}">${esc(h.orient)}</div></div>`
 }
 

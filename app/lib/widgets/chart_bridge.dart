@@ -10,6 +10,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart' show BuildContext, State, StatefulWidget, TickerMode, TickerModeData;
 import 'package:intl/intl.dart';
 
 import '../core/catalog.dart';
@@ -36,9 +37,10 @@ class ChartController {
   /// Why this chart has not drawn, or null. [ChartIssue.tooOld] only on real
   /// evidence that this web view cannot run the chart bundle: a JavaScript
   /// syntax error before `ready`, or a Chrome (Android System WebView) older
-  /// than [chartMinChromeMajor] (Android 7's stock web view, Chrome 69: the
-  /// cards stayed blank). A page that has loaded but not reported `ready`
-  /// within [readyTimeout] is only [ChartIssue.slow]: a cold start on a slow
+  /// than [chartMinChromeMajor] (the bundle is built for Chrome 69, Android
+  /// 7's stock web view, where the cards used to stay blank). A page that has
+  /// loaded but not reported `ready` within [readyTimeout] is only
+  /// [ChartIssue.slow]: a cold start on a slow
   /// but up-to-date phone can take longer (every chart web view shares one
   /// renderer, and the ranking and light map run at the same time). The card
   /// and the full-screen view say it; a later `ready` clears it.
@@ -144,6 +146,10 @@ class ChartController {
   /// Raw JSON event from the page.
   void handleRaw(String raw) {
     final ev = jsonDecode(raw) as Map<String, dynamic>;
+    // the web host's own bookkeeping ([ChartAcks] takes acks before they get
+    // here); the Android host waits on runJavaScript and sends no numbers,
+    // so an ack that reaches a controller anyway means nothing
+    if (ev['type'] == 'ack') return;
     if (ev['type'] == 'detail') {
       // a tap inside the chart: replay that mode after a reload of this page
       // only (the app's expert mode is not changed)
@@ -184,10 +190,181 @@ class ChartController {
   void _deliver(String json) => _sink?.call(json);
 }
 
-/// The oldest Chrome (Android System WebView) major version that can parse
-/// the chart bundle. The one place the app reads it: a branch whose bundle is
-/// built for older web views lowers it (to 69 for Android 7's stock one).
-const chartMinChromeMajor = 85;
+/// The web host's view of what its page has drawn (charts/src/bridge.ts,
+/// "Acks"). Every message the host posts gets the next sequence number
+/// ([next]); the page answers `{type: 'ack', n}` once it has run and drawn
+/// everything up to n. [busy], the controller's busy test on the web, is
+/// true while a message is not acked yet, so Play waits for a slow page
+/// there as it waits on runJavaScript on Android.
+///
+/// A page that was loaded again (a new `ready`) or went away ([reset], on
+/// detach) owes nothing: what the old page was sent no longer holds Play.
+/// A page that stops answering holds Play for [staleMs] at most: [busy]
+/// turns false once nothing was acked for that long, until an ack shows the
+/// page is drawing again.
+///
+/// A hidden chart never holds Play. One kept alive off stage (Sky & time
+/// behind Site > Overview on a narrow screen, a destination behind another;
+/// [followTickerMode]) or whose frame is not in the document ([attach]'s
+/// `reachable`) may get no animation frames or no messages at all, so it
+/// would never ack. The page also acks without a frame once none came for a
+/// moment (ACK_FALLBACK_MS in bridge.ts), for what the host cannot see.
+/// Tested on the VM.
+class ChartAcks {
+  ChartAcks({int Function()? clockMs, this.staleMs = 3000}) : _clock = clockMs ?? _wallMs;
+
+  static int _wallMs() => DateTime.now().millisecondsSinceEpoch;
+
+  final int Function() _clock;
+
+  /// After this long without an ack the page counts as not drawing (ms).
+  final int staleMs;
+
+  int _sent = 0, _acked = 0, _since = 0;
+
+  /// The newest number sent and the newest the page acked. Never reset to 0:
+  /// a late ack from a page that was replaced can then never clear a newer
+  /// page's messages.
+  int get sent => _sent;
+  int get acked => _acked;
+
+  /// The sequence number of the next message to the page.
+  int next() {
+    if (_acked >= _sent) _since = _clock(); // the wait starts now
+    return ++_sent;
+  }
+
+  /// Nothing sent so far is waited for any more.
+  void reset() => _acked = _sent;
+
+  bool _onStage = true;
+
+  /// Whether the chart is on screen. Off stage it never holds Play, and going
+  /// off stage forgets what it owed. What it is sent meanwhile is still
+  /// numbered (the page acks it once it draws, or on its fallback), so back
+  /// on stage Play waits only for what is not drawn yet.
+  bool get onStage => _onStage;
+  set onStage(bool v) {
+    if (!v) reset();
+    _onStage = v;
+  }
+
+  bool get busy => _onStage && _acked < _sent && _clock() - _since < staleMs;
+
+  ValueListenable<TickerModeData>? _tickers;
+
+  /// Keep [onStage] in step with the TickerMode at [context], the host's
+  /// (call it from didChangeDependencies and activate, as
+  /// TickerProviderStateMixin does: a host moved by its GlobalKey gets the
+  /// new place's). Every tab, destination or page kept alive off stage mutes
+  /// its tickers (_LazyTabs, _SwipeTabs, the shell), so no layout rule (the
+  /// 1100 px two-pane Overview) has to be repeated here.
+  void followTickerMode(BuildContext context) {
+    final t = TickerMode.getValuesNotifier(context);
+    if (!identical(t, _tickers)) {
+      _tickers?.removeListener(_followStage);
+      _tickers = t..addListener(_followStage);
+    }
+    _followStage();
+  }
+
+  void _followStage() => onStage = _tickers?.value.enabled ?? true;
+
+  /// Stop following the TickerMode (the host's dispose).
+  void unfollow() {
+    _tickers?.removeListener(_followStage);
+    _tickers = null;
+  }
+
+  /// One event from the page. An ack is taken here (true: it goes no
+  /// further). A `ready` (the page was loaded or loaded again) first
+  /// forgets what any earlier page owed: the controller then replays its
+  /// buffer to the new page, and those messages are waited for.
+  bool take(Map<dynamic, dynamic> ev) {
+    switch (ev['type']) {
+      case 'ack':
+        final n = ev['n'];
+        if (n is num && n > _acked) {
+          _acked = n.toInt() < _sent ? n.toInt() : _sent;
+          _since = _clock(); // the page is drawing
+        }
+        return true;
+      case 'ready':
+        reset();
+    }
+    return false;
+  }
+
+  /// Attach [c] to a page that acks: [post] delivers one message JSON with
+  /// its sequence number, and Play waits on [busy]. While [reachable] says
+  /// no (the iframe is not in the document, so it has no window to post to)
+  /// a message is dropped without a number, the page owes nothing and it
+  /// never holds Play: no ack can come for what it never got (the
+  /// controller replays its buffer when the page reports `ready` again).
+  void attach(ChartController c, void Function(String json, int n) post, Object owner, {bool Function()? reachable}) {
+    bool can() {
+      if (reachable?.call() ?? true) return true;
+      reset();
+      return false;
+    }
+
+    c.attach((json) {
+      if (can()) post(json, next());
+    }, owner, busy: () => can() && busy);
+  }
+
+  /// Route one event from the page: acks stop here, the rest go to [c].
+  void handle(ChartController c, Map<dynamic, dynamic> ev) {
+    if (!take(ev)) c.handleRaw(jsonEncode(ev));
+  }
+}
+
+/// The wiring of a State that hosts a page that acks (the web chart host,
+/// and the VM tests' host, so the tested wiring is the shipped one):
+/// [attachAcks] attaches the controller with [pageReachable] as the page's
+/// reachability, [acks] follows the TickerMode where the host sits, from
+/// didChangeDependencies and activate as TickerProviderStateMixin does (a
+/// host moved by its GlobalKey gets the new place's), and a host that goes
+/// away stops following it and never holds Play.
+mixin ChartAcksHost<T extends StatefulWidget> on State<T> {
+  /// What the page has drawn of what this host posted.
+  ChartAcks get acks;
+
+  /// Whether the page can be posted to now (on the web: the iframe is in the
+  /// document, so it has a window). While it cannot, what is sent takes no
+  /// number and never holds Play ([ChartAcks.attach]'s `reachable`).
+  bool get pageReachable;
+
+  /// Attach [c] to this host's page: [post] delivers one message JSON with
+  /// its number, while [pageReachable] says the page can get it.
+  void attachAcks(ChartController c, void Function(String json, int n) post) =>
+      acks.attach(c, post, this, reachable: () => pageReachable);
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    acks.followTickerMode(context);
+  }
+
+  @override
+  void activate() {
+    super.activate();
+    acks.followTickerMode(context);
+  }
+
+  @override
+  void dispose() {
+    acks.unfollow();
+    acks.reset(); // a page that goes away never holds Play
+    super.dispose();
+  }
+}
+
+/// The oldest Chrome (Android System WebView) major version that can run
+/// the chart bundle: charts/vite.config.ts builds it for Chrome 69 (es2018,
+/// Android 7's stock web view). The one place the app reads it; it must equal
+/// the bundle's build target (test/widget/chart_problem_test.dart checks).
+const chartMinChromeMajor = 69;
 
 /// The Chrome major version in a user agent string, or null (not Chrome).
 /// The string may come JSON-quoted from runJavaScriptReturningResult.

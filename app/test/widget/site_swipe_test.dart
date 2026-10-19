@@ -192,6 +192,31 @@ void main() {
     await done(tester);
   });
 
+  testWidgets('a page swiped into view is on stage mid-drag: its tickers run, so Play waits for its charts', (tester) async {
+    size(tester, 390, 844);
+    await pumpSite(tester, SiteTab.overview);
+    bool ticking(Type t) => TickerMode.valuesOf(tester.element(find.byType(t, skipOffstage: false))).enabled;
+    final g = await tester.startGesture(freeSpot(tester));
+    for (var i = 0; i < 6; i++) {
+      await g.moveBy(const Offset(-20, 0));
+      await tester.pump(const Duration(milliseconds: 16));
+    }
+    expect(pages(tester).page!, inExclusiveRange(0.05, 0.5));
+    expect(state.siteTab, SiteTab.overview, reason: 'not committed mid-drag');
+    expect(ticking(SiteOverview), isTrue);
+    expect(ticking(SkyTimeTab), isTrue, reason: 'partly on screen: not off stage');
+    for (var i = 0; i < 6; i++) {
+      await g.moveBy(const Offset(20, 0));
+      await tester.pump(const Duration(milliseconds: 16));
+    }
+    await g.up();
+    await settle(tester);
+    expect(pages(tester).page, 0);
+    expect(ticking(SiteOverview), isTrue);
+    expect(ticking(SkyTimeTab), isFalse, reason: 'out of view again');
+    await done(tester);
+  });
+
   testWidgets('a right or left arrow scroll turns a whole page', (tester) async {
     size(tester, 390, 844);
     await pumpSite(tester, SiteTab.overview);

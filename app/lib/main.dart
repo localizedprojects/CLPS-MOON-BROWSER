@@ -5,11 +5,14 @@ import 'screens/shell.dart';
 import 'state/app_state.dart';
 import 'state/chart_hub.dart';
 import 'theme.dart';
+import 'widgets/chart_composition.dart';
 import 'widgets/light_map.dart';
 import 'widgets/save_file.dart';
 
-void main() {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // chart web views pick how they are composited from it (android7-timeline)
+  await loadAndroidSdk();
   initSaveFiles(); // iPad share popover anchors at the last tap
   runApp(
     ChangeNotifierProvider(

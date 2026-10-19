@@ -62,7 +62,7 @@ const keep = (s: string) => s.replace(UNIT_AFTER, '$1\u00a0$2').replace(NUM_AFTE
 
 function Line({ l }: { l: AnswerLine }) {
   return (
-    <div style={{ display: 'flex', gap: 8, alignItems: 'baseline', lineHeight: 1.35 }}>
+    <div className="ph-row8" style={{ display: 'flex', alignItems: 'baseline', lineHeight: 1.35 }}>
       <span style={{ flex: '0 0 auto', transform: 'translateY(2px)' }}><GlyphIcon kind={l.key} on={l.on} /></span>
       <span>
         {l.label && <b style={{ fontWeight: 600 }}>{l.label} </b>}
@@ -192,7 +192,7 @@ export function TimelineView() {
           {events.map((ev) => (
             <li key={`${ev.t}-${ev.key}-${ev.mark}`}>
               <button type="button" onClick={() => post({ type: 'seek', t: ev.t })} aria-label={`${ev.text}. Move the time there.`}
-                style={{ display: 'flex', gap: 8, alignItems: 'center', width: '100%', minHeight: 48, padding: '0 4px', background: 'transparent', border: 0,
+                className="ph-row8" style={{ display: 'flex', alignItems: 'center', width: '100%', minHeight: 48, padding: '0 4px', background: 'transparent', border: 0,
                   borderTop: `1px solid ${C.grid}`, color: C.text, font: `400 13px 'IBM Plex Sans', sans-serif`, textAlign: 'left', cursor: 'pointer' }}>
                 <span aria-hidden="true" style={{ flex: '0 0 auto', width: 14, color: ev.key === 'both' ? C.both : ev.key === 'earth' ? C.earth : C.sun }}>{ev.mark}</span>
                 <span>{keep(ev.text)}</span>
@@ -202,17 +202,17 @@ export function TimelineView() {
     </div>)
 
   return (
-    <div style={{ ...box, overflowY: 'auto', boxSizing: 'border-box', padding: '4px 12px 4px', display: 'flex', flexDirection: 'column', gap: narrow ? 4 : 6, fontSize: 13.5, color: C.text }}
+    <div className={narrow ? 'ph-col4' : 'ph-col6'} style={{ ...box, overflowY: 'auto', boxSizing: 'border-box', padding: '4px 12px 4px', display: 'flex', flexDirection: 'column', fontSize: 13.5, color: C.text }}
       aria-label={`${fig.alt} Shown time ${fmtDate(tNow, { year: true })} UTC.`} role="group">
       <div style={{ color: C.muted, fontSize: 12.5 }}>When · all times UTC</div>
-      <div aria-live={live} style={{ display: 'grid', gap: narrow ? 4 : '4px 18px', gridTemplateColumns: narrow ? '1fr' : '1fr 1fr' }}>
+      <div aria-live={live} className={narrow ? 'ph-facts' : 'ph-facts-wide'}>
         {lines.map((l) => <Line key={l.key} l={l} />)}
       </div>
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center', justifyContent: 'space-between' }}>
+      <div className="ph-wrap8" style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between' }}>
         <Presets value={span} onChange={pickSpan} narrow={narrow} />
         <DetailToggle exact={exact} onChange={setExact} />
       </div>
-      <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start' }}>
+      <div className="ph-row16" style={{ display: 'flex', alignItems: 'flex-start' }}>
         <div style={{ flex: '1 1 auto', minWidth: 0 }}>
           {/* a slider, not an image: assistive tech then passes the arrow keys through (charts-1) */}
           <div style={{ position: 'relative', height: sh }} tabIndex={0} role="slider" aria-orientation="horizontal"

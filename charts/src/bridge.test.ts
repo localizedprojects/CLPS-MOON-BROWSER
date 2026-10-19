@@ -1,6 +1,6 @@
-import { beforeEach, describe, expect, it } from 'vitest'
-import type { BodyNow, HostMessage } from './bridge'
-import { dispatchForTests, latest, resetBridgeForTests, subscribe, viewFromLocation } from './bridge'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import type { BodyNow, ChartEvent, HostMessage } from './bridge'
+import { ACK_FALLBACK_CAP_MS, ACK_FALLBACK_MS, dispatchForTests, installBridge, latest, resetBridgeForTests, subscribe, viewFromLocation } from './bridge'
 import { skyNowData, timelineCursor } from './cursor'
 
 const body = (o: Partial<BodyNow> = {}): BodyNow => ({ az: 10, el: 1, rho: 0.27, frac: 1, hz: 0.2, visible: true, ...o })
@@ -83,5 +83,172 @@ describe('detail mode (charts spec 4.4)', () => {
   it('arrives as JSON from Android too', () => {
     dispatchForTests(JSON.stringify({ type: 'detail', exact: true }))
     expect(latest('detail')).toEqual({ type: 'detail', exact: true })
+  })
+})
+
+describe('ack: the page tells the host what it has drawn (web Play waits on it)', () => {
+  let frames: FrameRequestCallback[] = []
+  let sent: ChartEvent[] = []
+  /** Run one animation frame: the callbacks asked for before it, in order. */
+  const frame = () => frames.splice(0).forEach((f) => f(0))
+  beforeEach(() => {
+    resetBridgeForTests()
+    frames = []
+    sent = []
+    vi.stubGlobal('requestAnimationFrame', (f: FrameRequestCallback) => frames.push(f))
+    // the fallback's timers and clock (frames stay in the hand of frame() above)
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] })
+    lag = 0
+    vi.stubGlobal('performance', { now: () => Date.now() + lag })
+    // the Android JavaScript channel (the web path is checked below)
+    vi.stubGlobal('window', { PH: { postMessage: (s: string) => sent.push(JSON.parse(s) as ChartEvent) } })
+  })
+  afterEach(() => {
+    vi.useRealTimers()
+    vi.unstubAllGlobals()
+  })
+  const acks = () => sent.filter((e) => e.type === 'ack')
+  /** The page's clock runs ahead of the timers by this much (ms): see longTask. */
+  let lag = 0
+  /**
+   * A task that holds the page for [ms] (a slow React or Plotly redraw): the
+   * clock moves on and no timer or frame runs meanwhile, so the timers that
+   * fall due in it run late.
+   */
+  const longTask = (ms: number) => { lag += ms }
+
+  it('a long task (a 400 ms redraw) never makes a drawing page ack before the frame that draws it', () => {
+    dispatchForTests({ type: 'cursor', t: 1 }, 3)
+    longTask(400)
+    vi.advanceTimersByTime(ACK_FALLBACK_MS) // the deadline counted from the dispatch is long past
+    expect(acks()).toEqual([])
+    frame() // the frame after the long task draws the cursor
+    vi.advanceTimersByTime(ACK_FALLBACK_MS - 1)
+    longTask(400) // and one between the two frames
+    vi.advanceTimersByTime(ACK_FALLBACK_MS)
+    expect(acks()).toEqual([])
+    frame()
+    expect(acks()).toEqual([{ type: 'ack', n: 3 }])
+    vi.advanceTimersByTime(10 * ACK_FALLBACK_MS)
+    expect(acks()).toHaveLength(1)
+    expect(vi.getTimerCount()).toBe(0)
+  })
+  it('after a long task a page with no frames acks once it was free for ACK_FALLBACK_MS', () => {
+    dispatchForTests({ type: 'cursor', t: 1 }, 3)
+    longTask(400)
+    vi.advanceTimersByTime(ACK_FALLBACK_MS)
+    expect(acks()).toEqual([])
+    vi.advanceTimersByTime(ACK_FALLBACK_MS)
+    expect(acks()).toEqual([{ type: 'ack', n: 3 }])
+    expect(vi.getTimerCount()).toBe(0)
+  })
+  it("a page busy all the time still acks by ACK_FALLBACK_CAP_MS, under the host's 3 s cap", () => {
+    dispatchForTests({ type: 'cursor', t: 1 }, 3)
+    const t0 = performance.now()
+    for (let i = 0; i < 100 && !acks().length; i++) {
+      longTask(200)
+      vi.advanceTimersByTime(50)
+    }
+    expect(acks()).toEqual([{ type: 'ack', n: 3 }])
+    expect(performance.now() - t0).toBeGreaterThanOrEqual(ACK_FALLBACK_CAP_MS)
+    expect(performance.now() - t0).toBeLessThan(ACK_FALLBACK_CAP_MS + 300)
+    expect(ACK_FALLBACK_CAP_MS).toBeLessThan(3000)
+  })
+
+  it('acks a numbered message two frames on, after the view drew it', () => {
+    const drawn: number[] = []
+    // as useLatest: the view asks for a frame while it handles the message
+    subscribe((m) => { if (m.type === 'cursor') requestAnimationFrame(() => drawn.push(m.t)) })
+    dispatchForTests({ type: 'cursor', t: 5 }, 1)
+    expect(acks()).toEqual([])
+    frame()
+    expect(drawn).toEqual([5])
+    expect(acks()).toEqual([]) // not before the drawn frame is painted
+    frame()
+    expect(acks()).toEqual([{ type: 'ack', n: 1 }])
+    frame()
+    expect(acks()).toHaveLength(1)
+  })
+  it('gives one ack, for the newest number, to a burst in one frame', () => {
+    dispatchForTests({ type: 'cursor', t: 1 }, 7)
+    dispatchForTests({ type: 'skyNow', now: { sun: body(), earth: body() }, timeLabel: 'x' }, 8)
+    dispatchForTests({ type: 'cursor', t: 2 }, 9)
+    frame()
+    frame()
+    expect(acks()).toEqual([{ type: 'ack', n: 9 }])
+  })
+  it('a message that arrives after the round took its numbers waits for the next round', () => {
+    dispatchForTests({ type: 'cursor', t: 1 }, 1)
+    frame() // the round takes n = 1
+    dispatchForTests({ type: 'cursor', t: 2 }, 2) // drawn in the next frame
+    frame()
+    expect(acks()).toEqual([{ type: 'ack', n: 1 }])
+    frame()
+    frame()
+    expect(acks()).toEqual([{ type: 'ack', n: 1 }, { type: 'ack', n: 2 }])
+  })
+  it('a page that gets no animation frames (kept alive off screen) still acks, after ACK_FALLBACK_MS', () => {
+    dispatchForTests({ type: 'cursor', t: 1 }, 4)
+    dispatchForTests({ type: 'cursor', t: 2 }, 5)
+    vi.advanceTimersByTime(ACK_FALLBACK_MS - 1)
+    expect(acks()).toEqual([])
+    vi.advanceTimersByTime(1)
+    expect(acks()).toEqual([{ type: 'ack', n: 5 }]) // at once: no frame to wait to be painted
+    expect(ACK_FALLBACK_MS).toBeLessThanOrEqual(300) // well under the host's 3 s cap
+    dispatchForTests({ type: 'cursor', t: 3 }, 6) // every message, not only the first
+    vi.advanceTimersByTime(ACK_FALLBACK_MS)
+    expect(acks()).toEqual([{ type: 'ack', n: 5 }, { type: 'ack', n: 6 }])
+    // the frames come when the page shows again: those rounds are over
+    frame()
+    frame()
+    expect(acks()).toHaveLength(2)
+    expect(frames).toEqual([])
+  })
+  it('a page that is drawing acks on its frames: the fallback never fires early or twice', () => {
+    dispatchForTests({ type: 'cursor', t: 1 }, 1)
+    vi.advanceTimersByTime(ACK_FALLBACK_MS - 50) // a slow first frame
+    frame()
+    vi.advanceTimersByTime(ACK_FALLBACK_MS - 50) // past the first wait's deadline, not the second's
+    expect(acks()).toEqual([])
+    frame()
+    expect(acks()).toEqual([{ type: 'ack', n: 1 }])
+    vi.advanceTimersByTime(10 * ACK_FALLBACK_MS)
+    expect(acks()).toHaveLength(1)
+    expect(vi.getTimerCount()).toBe(0)
+  })
+  it('a page hidden between its two frames acks after the fallback', () => {
+    dispatchForTests({ type: 'cursor', t: 1 }, 2)
+    frame() // drawn; then no frame comes
+    vi.advanceTimersByTime(ACK_FALLBACK_MS)
+    expect(acks()).toEqual([{ type: 'ack', n: 2 }])
+  })
+  it('never acks a message without a number (the Android host waits on runJavaScript)', () => {
+    dispatchForTests(JSON.stringify({ type: 'cursor', t: 1 }))
+    frame()
+    frame()
+    expect(frames).toEqual([])
+    expect(acks()).toEqual([])
+  })
+  it('acks a message it could not read, so a bad message never holds Play', () => {
+    dispatchForTests('{not json', 3)
+    expect(sent.map((e) => e.type)).toEqual(['error'])
+    frame()
+    frame()
+    expect(acks()).toEqual([{ type: 'ack', n: 3 }])
+  })
+  it('on the web: the number rides on the envelope and the ack goes to the parent like ready', () => {
+    const toParent: unknown[] = []
+    let onMessage: ((ev: MessageEvent) => void) | undefined
+    vi.stubGlobal('window', {
+      parent: { postMessage: (d: unknown) => toParent.push(d) },
+      addEventListener: (type: string, f: (ev: MessageEvent) => void) => { if (type === 'message') onMessage = f },
+    })
+    installBridge()
+    onMessage!({ data: { source: 'ph-host', msg: { type: 'cursor', t: 4 }, n: 12 } } as MessageEvent)
+    onMessage!({ data: { source: 'ph-host', msg: { type: 'focusFirst' } } } as MessageEvent) // posted by the host itself: no number
+    expect(latest('cursor')?.t).toBe(4)
+    frame()
+    frame()
+    expect(toParent).toEqual([{ source: 'ph-charts', event: { type: 'ack', n: 12 } }])
   })
 })

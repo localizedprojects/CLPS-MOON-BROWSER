@@ -5,8 +5,10 @@ import 'dart:io' show Platform;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show MethodChannel;
 import 'package:webview_flutter/webview_flutter.dart';
+import 'package:webview_flutter_android/webview_flutter_android.dart';
 
 import 'chart_bridge.dart';
+import 'chart_composition.dart';
 import 'chart_host_stub.dart' as stub;
 
 /// Android/iOS host: the single-file React bundle loaded from Flutter assets,
@@ -124,8 +126,16 @@ class _WebViewPage extends ChartPage {
   @override
   Future<Object> evaluate(String js) => _wc.runJavaScriptReturningResult(js);
 
+  /// Old Android shows the web view with Hybrid Composition: its default
+  /// texture repainted only part of a chart (android7-timeline, see
+  /// [useHybridComposition]).
   @override
-  Widget view(Key key) => WebViewWidget(key: key, controller: _wc);
+  Widget view(Key key) => useHybridComposition(androidSdk)
+      ? WebViewWidget.fromPlatformCreationParams(
+          key: key,
+          params: AndroidWebViewWidgetCreationParams(controller: _wc.platform, displayWithHybridComposition: true),
+        )
+      : WebViewWidget(key: key, controller: _wc);
 }
 
 class _MobileChart extends StatefulWidget {

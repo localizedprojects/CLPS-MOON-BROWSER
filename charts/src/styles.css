@@ -114,3 +114,22 @@ button:focus-visible,
     animation-duration: 0s !important;
   }
 }
+
+/* Flex gaps without `gap`: flex gap is Chrome 84, and the Android 7.0
+   WebView is Chrome 69 (the items of a row would touch there). A row: a
+   left margin on every item after the first; a column: a top margin; a
+   wrapping row: a right and bottom margin on every item, taken back by the
+   box, so the edges and the wrap points stay where gap puts them. Grid gap
+   is Chrome 66: the grids keep it. */
+.ph-row6 > * + * { margin-left: 6px; }
+.ph-row8 > * + * { margin-left: 8px; }
+.ph-row16 > * + * { margin-left: 16px; }
+.ph-col4 > * + * { margin-top: 4px; }
+.ph-col6 > * + * { margin-top: 6px; }
+.ph-wrap8 { margin-right: -8px; margin-bottom: -8px; }
+.ph-wrap8 > * { margin-right: 8px; margin-bottom: 8px; }
+.ph-wrap-legend { margin-right: -14px; margin-bottom: -4px; }
+.ph-wrap-legend > * { margin-right: 14px; margin-bottom: 4px; }
+.ph-grid3 { display: grid; gap: 3px; }
+.ph-facts { display: grid; gap: 4px; grid-template-columns: 1fr; }
+.ph-facts-wide { display: grid; gap: 4px 18px; grid-template-columns: 1fr 1fr; }

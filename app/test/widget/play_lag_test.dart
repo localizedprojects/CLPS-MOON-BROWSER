@@ -128,6 +128,111 @@ void main() {
     await tester.pumpWidget(const SizedBox());
   });
 
+  testWidgets('back on screen, the app sends the charts the time bar\'s time again (onShow resync)', (tester) async {
+    await tester.pumpWidget(ChangeNotifierProvider<AppState>.value(value: state, child: const LunarHorizonApp()));
+    await tester.pump();
+    state.goTo(Dest.site, siteTab: SiteTab.skyTime); // after the router's first route: the sky plot and timeline are on screen
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 250));
+    expect(ChartHub.chartsVisible(state), isTrue);
+    // the app's own hub, with a ready page behind each chart (widget tests
+    // have no web views: the stub host never attaches)
+    final hub = Provider.of<ChartHub>(tester.element(find.byType(MaterialApp)), listen: false);
+    final sky = page(hub.sky), tl = page(hub.timeline);
+    expect(tl.where((m) => m['type'] == 'cursor'), isNotEmpty, reason: 'the replay carries the cursor');
+    Iterable<Map<String, dynamic>> cursors() => [...sky, ...tl].where((m) => m['type'] == 'skyNow' || m['type'] == 'cursor');
+    sky.clear();
+    tl.clear();
+    await tester.pump(const Duration(milliseconds: 250));
+    expect(cursors(), isEmpty, reason: 'the same time is not sent twice');
+
+    for (final s in [AppLifecycleState.inactive, AppLifecycleState.hidden]) {
+      tester.binding.handleAppLifecycleStateChanged(s);
+    }
+    await tester.pump(const Duration(milliseconds: 250));
+    expect(cursors(), isEmpty);
+    for (final s in [AppLifecycleState.inactive, AppLifecycleState.resumed]) {
+      tester.binding.handleAppLifecycleStateChanged(s);
+    }
+    // main.dart's AppLifecycleListener(onShow: _hub.resync)
+    expect(sky.where((m) => m['type'] == 'skyNow'), hasLength(1));
+    expect(tl.where((m) => m['type'] == 'cursor').single['t'], state.cursorMs);
+    await tester.pump(const Duration(milliseconds: 250));
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('on the web Play waits for the chart iframes to ack what they drew', (tester) async {
+    final hub = ChartHub(onEvent: (_) {});
+    addTearDown(hub.dispose);
+    state.goTo(Dest.site, siteTab: SiteTab.skyTime);
+    state.setCursor(state.rangeStartMs);
+    // both charts wired as chart_host_web.dart wires them: numbered posts, acks back
+    final web = [
+      for (final c in [hub.sky, hub.timeline]) (c: c, acks: ChartAcks(), sent: <int>[]),
+    ];
+    for (final w in web) {
+      w.acks.attach(w.c, (_, n) => w.sent.add(n), Object());
+      w.acks.handle(w.c, {'type': 'ready', 'view': w.c.view});
+    }
+    void drawn() {
+      for (final w in web) {
+        if (w.sent.isNotEmpty) w.acks.handle(w.c, {'type': 'ack', 'n': w.sent.last});
+      }
+    }
+
+    void sync() => hub.sync(state);
+    state.addListener(sync);
+    addTearDown(() => state.removeListener(sync));
+    hub.sync(state);
+    drawn();
+    expect(hub.chartsBehind, isFalse);
+    state.holdPlay = () => hub.chartsBehind;
+
+    state.togglePlay();
+    await tester.pump(const Duration(milliseconds: 100));
+    final t1 = state.cursorMs;
+    expect(t1, greaterThan(state.rangeStartMs), reason: 'pages that acked everything do not hold Play');
+    expect(hub.chartsBehind, isTrue, reason: 'the new time is not acked yet');
+    await tester.pump(const Duration(milliseconds: 500));
+    expect(state.cursorMs, t1, reason: 'no step until the iframes have drawn the last one');
+    drawn();
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(state.cursorMs, greaterThan(t1));
+    state.pausePlay();
+    await tester.pump(const Duration(milliseconds: 250));
+  });
+
+  testWidgets('on the web charts kept alive off stage never hold Play (narrow Site > Overview)', (tester) async {
+    final hub = ChartHub(onEvent: (_) {});
+    addTearDown(hub.dispose);
+    // a narrow screen: Overview is shown, Sky & time (both charts) is kept
+    // alive off stage; its iframes get no animation frames, so never ack
+    state.goTo(Dest.site, siteTab: SiteTab.overview);
+    state.setCursor(state.rangeStartMs);
+    final web = [for (final c in [hub.sky, hub.timeline]) (c: c, acks: ChartAcks(), sent: <int>[])];
+    for (final w in web) {
+      w.acks.attach(w.c, (_, n) => w.sent.add(n), Object());
+      w.acks.handle(w.c, {'type': 'ready', 'view': w.c.view});
+      w.acks.onStage = false; // the host follows its TickerMode
+    }
+    void sync() => hub.sync(state);
+    state.addListener(sync);
+    addTearDown(() => state.removeListener(sync));
+    hub.sync(state);
+    state.holdPlay = () => hub.chartsBehind;
+
+    state.togglePlay();
+    var t = state.cursorMs;
+    for (var i = 0; i < 4; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(state.cursorMs, greaterThan(t), reason: 'step ${i + 1}: no freeze waiting for a hidden chart');
+      t = state.cursorMs;
+    }
+    expect(web.every((w) => w.sent.isNotEmpty), isTrue, reason: 'the hidden charts still get the time');
+    state.pausePlay();
+    await tester.pump(const Duration(milliseconds: 250));
+  });
+
   testWidgets('a cursor still waiting for a slow coalescing timer holds Play too', (tester) async {
     final hub = ChartHub(onEvent: (_) {}, cursorInterval: const Duration(milliseconds: 250));
     addTearDown(hub.dispose);

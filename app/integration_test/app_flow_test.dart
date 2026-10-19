@@ -5,7 +5,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:polar_horizon/main.dart' as app;
+import 'package:polar_horizon/state/chart_hub.dart';
 import 'package:polar_horizon/widgets/site_card.dart';
+import 'package:provider/provider.dart';
 
 /// Pumps frames until [f] finds something (or [timeout] passes); the app has
 /// endless animations, so pumpAndSettle is not used for waits.
@@ -89,6 +91,16 @@ void main() {
     // Sky & time; Play a few steps, the bars hide, then Pause
     await tapText(t, 'Sky & time');
     expect(await waitFor(t, find.byIcon(Icons.play_arrow)), isTrue, reason: 'Play button');
+    // the chart must really draw: on Android 7 the old web view could not
+    // parse the chart bundle, every chart stayed blank and this test still
+    // passed. Its page reports ready once it has drawn.
+    final hub = Provider.of<ChartHub>(t.element(find.byType(Scaffold).first), listen: false);
+    final skyBy = DateTime.now().add(const Duration(seconds: 30));
+    while (!hub.sky.ready && DateTime.now().isBefore(skyBy)) {
+      await t.pump(const Duration(milliseconds: 200));
+    }
+    expect(hub.sky.ready, isTrue, reason: 'the Sky & time chart never reported ready (a blank chart)');
+    expect(find.byKey(const ValueKey('chart-problem')), findsNothing, reason: 'no "needs a newer web view" message');
     await t.tap(find.byIcon(Icons.play_arrow).first, warnIfMissed: false);
     await settle(t, 20);
     noError(t, 'Play');

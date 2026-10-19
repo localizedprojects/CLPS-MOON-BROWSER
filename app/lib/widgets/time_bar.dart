@@ -197,23 +197,45 @@ class _TimeScrubberState extends State<TimeScrubber> {
         padding: const EdgeInsets.fromLTRB(4, 2, 8, 2),
         child: LayoutBuilder(builder: (context, c) {
           final scaler = MediaQuery.textScalerOf(context);
+          // measured in the style the label's Text really gets (the ambient
+          // style merged in), so the fixed box below always holds it
+          final shownStyle = DefaultTextStyle.of(context).style.merge(labelStyle);
           double width(String t) {
             final tp = TextPainter(
-                text: TextSpan(text: t, style: labelStyle), textDirection: TextDirection.ltr, textScaler: scaler, maxLines: 1)
+                text: TextSpan(text: t, style: shownStyle), textDirection: TextDirection.ltr, textScaler: scaler, maxLines: 1)
               ..layout();
             final w = tp.width;
             tp.dispose();
             return w;
           }
 
-          final labelWidth = math.max(width(dayText), width(timeText)) + 8;
+          // the widest day of the year, not this one: the label (and the day
+          // arrows round it) never moves while Play turns "4 Nov" into
+          // "13 Apr", and the bar never flips between one and two rows
+          final year = DateTime.fromMillisecondsSinceEpoch(s.cursorMs.round(), isUtc: true).year;
+          var widestDay = width(dayText);
+          for (var m = 1; m <= 12; m++) {
+            widestDay = math.max(widestDay, width(date(DateTime.utc(year, m, 28).millisecondsSinceEpoch.toDouble())));
+          }
+          final labelWidth = math.max(widestDay, width(timeText)) + 8;
           final buttons = 48.0 * (compact ? 5 : 4); // with the hide chevron
           final inline = c.maxWidth - buttons - labelWidth >= TimeScrubber.minSliderWidth;
           final time = Semantics(
             label: 'Time shown: $label',
             excludeSemantics: true,
-            child: Text('$dayText\n$timeText',
-                key: const ValueKey('scrubber-time'), textAlign: TextAlign.center, style: labelStyle.copyWith(height: 1.3)),
+            child: SizedBox(
+              // (2 px to spare: text laid out at exactly its own width can wrap)
+              width: labelWidth - 6,
+              // always its two lines: a third would make the bar taller, and
+              // the bar is pinned by its bottom edge, so Pause would jump up
+              child: Text('$dayText\n$timeText',
+                  key: const ValueKey('scrubber-time'),
+                  textAlign: TextAlign.center,
+                  softWrap: false,
+                  maxLines: 2,
+                  overflow: TextOverflow.visible,
+                  style: labelStyle.copyWith(height: 1.3)),
+            ),
           );
           final nextIcon = IconButton(tooltip: nextText, onPressed: goNext, icon: const Icon(Icons.skip_next));
           final nextButton = TextButton(

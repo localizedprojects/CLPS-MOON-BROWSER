@@ -125,6 +125,22 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('a chart whose web view cannot run it says why, in its card and full screen, not "try again" (Android 7)',
+      (tester) async {
+    hub.timeline.detach('test');
+    hub.timeline.attach((_) {}, 'old web view');
+    hub.timeline.pageLoaded();
+    hub.timeline.pageError('Uncaught SyntaxError: Unexpected token ?');
+    await pumpPage(tester);
+    expect(find.textContaining('newer Android System WebView'), findsOneWidget, reason: 'the card says it, not blank');
+    await tester.tap(find.byType(ChartView));
+    await tester.pumpAndSettle();
+    expect(picture(), findsNothing);
+    expect(find.textContaining('could not be made'), findsNothing);
+    expect(find.textContaining('newer Android System WebView'), findsWidgets);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('a chart that is not ready says so instead of a picture', (tester) async {
     hub.timeline.detach('test');
     await pumpPage(tester);

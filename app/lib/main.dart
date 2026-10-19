@@ -51,7 +51,8 @@ class _LunarHorizonAppState extends State<LunarHorizonApp> {
     final s = context.read<AppState>();
     _router = ShellRouterDelegate(s);
     // Play steps only as fast as the charts and the light map draw them
-    s.holdPlay = () => _hub.chartsBehind || LightMap.framePending.value;
+    s.holdPlay = () => _hub.chartsBehind;
+    s.holdPlayForMap = () => LightMap.framePending.value;
     _life = AppLifecycleListener(
       // HOME, another app or a hidden browser tab: Play pauses, so nothing advances unseen
       onHide: s.pausePlay,

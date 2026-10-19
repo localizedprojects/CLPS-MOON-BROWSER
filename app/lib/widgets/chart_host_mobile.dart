@@ -100,6 +100,14 @@ class _WebViewPage implements ChartPage {
           // 2026-10-13). The charts zoom themselves where it makes sense.
           ..enableZoom(false)
           ..addJavaScriptChannel('PH', onMessageReceived: (m) => c.handleRaw(m.message))
+          // a page that loads but never reports ready (Android 7's stock web
+          // view cannot parse the bundle) says so in its card
+          ..setNavigationDelegate(NavigationDelegate(onPageFinished: (_) => c.pageLoaded()))
+          ..setOnConsoleMessage((m) {
+            if (m.level != JavaScriptLogLevel.error) return;
+            debugPrint('chart ${c.view}: ${m.message}');
+            c.pageError(m.message);
+          })
           ..loadFlutterAsset('assets/charts/index.html');
 
   final WebViewController _wc;

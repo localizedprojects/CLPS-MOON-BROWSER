@@ -6,6 +6,7 @@
 /// side never computes science).
 library;
 
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
@@ -32,6 +33,17 @@ class ChartController {
   Object? _owner;
   final ValueNotifier<bool> _ready = ValueNotifier(false);
 
+  /// Why this chart cannot draw here ([chartTooOldText]), or null: set when a
+  /// loaded page has not reported `ready` within [readyTimeout], or hit a
+  /// JavaScript syntax error first (Android 7's stock web view, Chrome 69,
+  /// cannot parse the chart bundle: the cards stayed blank). The card and
+  /// the full-screen view say it; a later `ready` clears it.
+  final ValueNotifier<String?> _problem = ValueNotifier(null);
+  Timer? _readyTimer;
+
+  /// How long a loaded page may take to report `ready`.
+  static const readyTimeout = Duration(seconds: 15);
+
   /// Latest message per type, in the order of their last update (a replay
   /// then delivers them in the order they were sent: a cursor sent before a
   /// new payload is replayed before it, so the page knows it is older).
@@ -53,6 +65,29 @@ class ChartController {
   /// Notifies when the page becomes ready or goes away (export menus listen).
   ValueListenable<bool> get readyListenable => _ready;
 
+  /// See [_problem].
+  String? get problem => _problem.value;
+  ValueListenable<String?> get problemListenable => _problem;
+
+  /// The host's page has loaded: it has [readyTimeout] to report `ready`.
+  void pageLoaded() {
+    if (_ready.value) return;
+    _readyTimer?.cancel();
+    _readyTimer = Timer(readyTimeout, () {
+      _readyTimer = null;
+      if (!_ready.value) _problem.value = chartTooOldText();
+    });
+  }
+
+  /// A JavaScript error from the page's console. A syntax error before
+  /// `ready` means this web view cannot run the chart bundle at all.
+  void pageError(String message) {
+    if (_ready.value || !message.contains('SyntaxError')) return;
+    _readyTimer?.cancel();
+    _readyTimer = null;
+    _problem.value = chartTooOldText();
+  }
+
   /// Called by the platform host [owner] once it can deliver messages to its
   /// page. A newer host replaces the current one; its page must report
   /// `ready` before anything is delivered (the buffered messages then are).
@@ -61,6 +96,8 @@ class ChartController {
     _owner = owner;
     _busy = busy;
     _ready.value = false;
+    _readyTimer?.cancel(); // the new page gets its own time to report ready
+    _readyTimer = null;
   }
 
   bool Function()? _busy;
@@ -79,6 +116,8 @@ class ChartController {
     _owner = null;
     _busy = null;
     _ready.value = false;
+    _readyTimer?.cancel();
+    _readyTimer = null;
   }
 
   /// Raw JSON event from the page.
@@ -93,6 +132,9 @@ class ChartController {
     if (ev['type'] == 'ready') {
       final firstReady = !_ready.value;
       _ready.value = true;
+      _readyTimer?.cancel();
+      _readyTimer = null;
+      _problem.value = null;
       if (ev['view'] != view) {
         _deliver(jsonEncode({'type': 'setView', 'view': view}));
       } else if (firstReady || _pending.isNotEmpty) {
@@ -120,6 +162,12 @@ class ChartController {
 
   void _deliver(String json) => _sink?.call(json);
 }
+
+/// What a chart says when its page cannot run on this device's web view.
+String chartTooOldText() => defaultTargetPlatform == TargetPlatform.iOS
+    ? 'This chart needs a newer version of iOS. Update iOS in Settings, then open the app again.'
+    : 'This chart needs a newer Android System WebView. Update Android System WebView or Chrome '
+        'from the Play Store, then open the app again.';
 
 final _fmt = DateFormat('yyyy-MM-dd HH:mm');
 String utcLabel(double ms) => '${_fmt.format(DateTime.fromMillisecondsSinceEpoch(ms.round(), isUtc: true))} UTC';

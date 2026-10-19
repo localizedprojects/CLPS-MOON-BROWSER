@@ -218,11 +218,14 @@ class _ChartFocusPageState extends State<ChartFocusPage> {
                                 key: const ValueKey('chart-focus-picture'), fit: BoxFit.contain, gaplessPlayback: true),
                           );
                         }
+                        // a chart whose page cannot run here says why, not "try again"
+                        final problem = widget.controller.problem;
                         return Center(
                           child: Text(
-                            _failed
-                                ? 'The full-screen picture could not be made. Close this and try again once the chart has drawn.'
-                                : 'Preparing the full-screen chart…',
+                            problem ??
+                                (_failed
+                                    ? 'The full-screen picture could not be made. Close this and try again once the chart has drawn.'
+                                    : 'Preparing the full-screen chart…'),
                             textAlign: TextAlign.center,
                             style: PHText.body.copyWith(color: PH.muted),
                           ),

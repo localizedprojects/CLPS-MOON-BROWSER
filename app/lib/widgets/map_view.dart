@@ -46,6 +46,35 @@ const mapMaxZoom = 8.0;
 /// on-screen place. Its first CustomPaint is the map itself.
 const mapViewportKey = ValueKey('map viewport');
 
+/// Where a map is looking: its [zoom] (1 = the whole region fits) and the map
+/// point in the middle of its view, as fractions (0..1) of the map square from
+/// its top-left corner.
+typedef MapCamera = ({double zoom, Offset centre});
+
+/// (lat, lon) as fractions of the map square (see [MapCamera]).
+Offset mapFractionOf(MapLayers l, double lat, double lon) {
+  final (x, y) = latLonToXY(lat, lon);
+  final h = l.halfWidthM;
+  return Offset(x / h * 0.5 + 0.5, 0.5 - y / h * 0.5);
+}
+
+/// Reads and moves a [MapView]'s view from outside: the Explore map hands its
+/// view to the full-screen map and is centred on the point chosen there.
+class MapViewController {
+  _MapViewState? _state;
+
+  /// The attached map's view, or null before it is laid out.
+  MapCamera? get camera => _state?._camera;
+
+  /// Centre the map on [c]'s point at [c]'s zoom (kept within 1x to
+  /// [mapMaxZoom]), zooming in just enough when the point cannot be in the
+  /// middle at that zoom (near the region's edge at 1x). Animated unless
+  /// [animate] is false.
+  void centreOn(MapCamera c, {bool animate = true}) => _state?._centreOn(c, animate: animate);
+}
+
+Widget _expandIf(bool on, Widget child) => on ? Expanded(child: child) : child;
+
 /// A map marker's shape: the group is encoded by shape, not colour alone.
 enum MarkerShape { square, circle, triangle, diamond }
 
@@ -157,13 +186,32 @@ class MapView extends StatefulWidget {
   /// controls: the desktop peek card, so a checked spot's numbers are seen
   /// where the user is looking (web-3).
   final Widget? belowMap;
+
+  /// Reads and moves the view from outside ([MapViewController]).
+  final MapViewController? controller;
+
+  /// The view to start at (the full-screen map starts where the page's was).
+  final MapCamera? initialCamera;
+
+  /// Fill the height given as well (the full-screen map) instead of a square
+  /// as wide as the space. The map stays square: centred while it is smaller
+  /// than the view that way, and pannable once it is bigger.
+  final bool fill;
+
+  /// Shows an "Open the map full screen" button above the zoom buttons.
+  final VoidCallback? onExpand;
+
+  /// Shown over the bottom of the map, just above the scale bar (the
+  /// full-screen map's "selected" chip).
+  final Widget? overlay;
   const MapView({super.key, required this.layers, required this.sites, required this.selectedId,
-      required this.onSelect, required this.onPlaceCustom, this.highlightId, this.showControls = true, this.belowMap});
+      required this.onSelect, required this.onPlaceCustom, this.highlightId, this.showControls = true, this.belowMap,
+      this.controller, this.initialCamera, this.fill = false, this.onExpand, this.overlay});
   @override
   State<MapView> createState() => _MapViewState();
 }
 
-class _MapViewState extends State<MapView> {
+class _MapViewState extends State<MapView> with SingleTickerProviderStateMixin {
   MapOverlay overlay = MapOverlay.none;
   bool labels = false;
   final _tc = TransformationController();
@@ -175,7 +223,10 @@ class _MapViewState extends State<MapView> {
   // pinch / drag bookkeeping: the zoom and the map point under the fingers at the start
   double _startScale = 1;
   Offset _startFocus = Offset.zero;
-  double? _lastSize; // to keep the view when the map is resized while zoomed
+  Size _vp = Size.zero; // the view (square unless [MapView.fill]); zero before the first layout
+  double _side = 0; // the map square's side at 1x
+  AnimationController? _move; // [MapViewController.centreOn]
+  (MapCamera, MapCamera)? _moving;
 
   double get _scale => _tc.value.entry(0, 0);
   Offset get _shift => Offset(_tc.value.entry(0, 3), _tc.value.entry(1, 3));
@@ -184,69 +235,131 @@ class _MapViewState extends State<MapView> {
   Offset _toScene(Offset p) => (p - _shift) / _scale;
 
   /// Zoom [s] with the map shifted by [t], kept inside the map's square so no
-  /// empty space shows at the edges.
-  void _setView(double s, Offset t, double size) {
+  /// empty space shows at the edges (centred, that way, while the map is
+  /// smaller than the view: the full-screen map).
+  Matrix4 _viewFor(double s, Offset t) {
     s = s.clamp(1.0, mapMaxZoom);
-    final lo = size - size * s;
-    _tc.value = Matrix4.diagonal3Values(s, s, 1)
-      ..setEntry(0, 3, t.dx.clamp(lo, 0.0))
-      ..setEntry(1, 3, t.dy.clamp(lo, 0.0));
+    final content = _side * s;
+    double axis(double t, double view) => content <= view ? (view - content) / 2 : t.clamp(view - content, 0.0);
+    return Matrix4.diagonal3Values(s, s, 1)
+      ..setEntry(0, 3, axis(t.dx, _vp.width))
+      ..setEntry(1, 3, axis(t.dy, _vp.height));
+  }
+
+  void _setView(double s, Offset t) {
+    _move?.stop();
+    _tc.value = _viewFor(s, t);
+  }
+
+  MapCamera? get _camera => _side <= 0 ? null : (zoom: _scale, centre: _toScene(_vp.center(Offset.zero)) / _side);
+
+  /// Show [c]: its zoom, with its point in the middle where the edges allow.
+  void _show(MapCamera c) {
+    final z = c.zoom.clamp(1.0, mapMaxZoom);
+    _tc.value = _viewFor(z, _vp.center(Offset.zero) - c.centre * (_side * z));
+  }
+
+  void _centreOn(MapCamera c, {required bool animate}) {
+    final from = _camera;
+    if (from == null) return;
+    // the least zoom at which the point can be in the middle of the view
+    double need(double f, double view) {
+      final m = math.min(f, 1 - f);
+      return m <= 0 ? mapMaxZoom : view / (2 * _side * m);
+    }
+
+    final z = math.max(c.zoom, math.max(need(c.centre.dx, _vp.width), need(c.centre.dy, _vp.height))).clamp(1.0, mapMaxZoom);
+    final to = (zoom: z, centre: c.centre);
+    _move?.stop();
+    if (!animate) return _show(to);
+    _moving = (from, to);
+    final m = _move ?? (_move = AnimationController(vsync: this, duration: const Duration(milliseconds: 450))..addListener(_step));
+    m.forward(from: 0);
+  }
+
+  void _step() {
+    final (a, b) = _moving!;
+    final t = Curves.easeInOut.transform(_move!.value);
+    _show((zoom: ui.lerpDouble(a.zoom, b.zoom, t)!, centre: Offset.lerp(a.centre, b.centre, t)!));
   }
 
   /// Whether the map can still pan with a one-finger drag of [delta]: false when
   /// it is already against its edge that way, so the drag goes to the page.
-  bool _canPan(Offset delta, double size) {
-    final lo = size - size * _scale, t = _shift;
-    bool can(double d, double v) => d > 0 ? v < -0.5 : v > lo + 0.5;
-    return delta.dy.abs() >= delta.dx.abs() ? can(delta.dy, t.dy) : can(delta.dx, t.dx);
+  bool _canPan(Offset delta) {
+    final t = _shift;
+    bool can(double d, double v, double view) {
+      final lo = view - _side * _scale;
+      if (lo > -0.5) return false; // the whole map already shows that way
+      return d > 0 ? v < -0.5 : v > lo + 0.5;
+    }
+
+    return delta.dy.abs() >= delta.dx.abs() ? can(delta.dy, t.dy, _vp.height) : can(delta.dx, t.dx, _vp.width);
   }
 
   /// Zoom by [factor] about the screen point [focus].
-  void _zoomAbout(double factor, Offset focus, double size) {
+  void _zoomAbout(double factor, Offset focus) {
     final scene = _toScene(focus);
     final s = (_scale * factor).clamp(1.0, mapMaxZoom);
-    _setView(s, focus - scene * s, size);
+    _setView(s, focus - scene * s);
   }
 
   /// The + and - buttons: zoom about the map centre, or keep a dropped pin centred.
-  void _zoomStep(double factor, double size) {
+  void _zoomStep(double factor) {
     final pin = _pin;
-    if (pin == null) return _zoomAbout(factor, Offset(size / 2, size / 2), size);
-    final (x, y) = latLonToXY(pin.$1, pin.$2);
-    final h = widget.layers.halfWidthM;
-    final scene = Offset((x / h * 0.5 + 0.5) * size, (0.5 - y / h * 0.5) * size);
+    final mid = _vp.center(Offset.zero);
+    if (pin == null) return _zoomAbout(factor, mid);
+    final scene = mapFractionOf(widget.layers, pin.$1, pin.$2) * _side;
     final s = (_scale * factor).clamp(1.0, mapMaxZoom);
-    _setView(s, Offset(size / 2, size / 2) - scene * s, size);
+    _setView(s, mid - scene * s);
   }
 
   /// A mouse wheel (or a trackpad pinch on the web) zooms about the pointer.
-  void _onWheel(PointerSignalEvent e, double size) {
+  void _onWheel(PointerSignalEvent e) {
     GestureBinding.instance.pointerSignalResolver.register(e, (e) {
-      if (e is PointerScrollEvent && e.scrollDelta.dy != 0) _zoomAbout(math.exp(-e.scrollDelta.dy / 200), e.localPosition, size);
-      if (e is PointerScaleEvent) _zoomAbout(e.scale, e.localPosition, size);
+      if (e is PointerScrollEvent && e.scrollDelta.dy != 0) _zoomAbout(math.exp(-e.scrollDelta.dy / 200), e.localPosition);
+      if (e is PointerScaleEvent) _zoomAbout(e.scale, e.localPosition);
     });
   }
 
   @override
+  void initState() {
+    super.initState();
+    widget.controller?._state = this;
+  }
+
+  @override
+  void didUpdateWidget(MapView old) {
+    super.didUpdateWidget(old);
+    if (old.controller != widget.controller) {
+      if (old.controller?._state == this) old.controller?._state = null;
+      widget.controller?._state = this;
+    }
+  }
+
+  @override
   void dispose() {
+    if (widget.controller?._state == this) widget.controller?._state = null;
+    _move?.dispose();
     _tc.dispose();
     super.dispose();
   }
 
-  (double, double) _toPx(Site s, double size) {
-    final (x, y) = latLonToXY(s.lat, s.lon);
-    final h = widget.layers.halfWidthM;
-    return ((x / h * 0.5 + 0.5) * size, (0.5 - y / h * 0.5) * size);
+  (double, double) _toPx(Site s) {
+    final f = mapFractionOf(widget.layers, s.lat, s.lon);
+    return (f.dx * _side, f.dy * _side);
   }
 
   /// [screen] is where the finger landed on the map widget, at any zoom.
-  void _onTap(Offset screen, double size) {
+  void _onTap(Offset screen) {
+    final size = _side;
     final p = _toScene(screen);
+    // beside the map (the full-screen map's margins): nothing there
+    if (p.dx < 0 || p.dy < 0 || p.dx > size || p.dy > size) return;
     final scale = _scale;
     String? best;
     var bestD = 24.0 / scale; // 48 px finger-sized hit target
     for (final s in widget.sites) {
-      final (sx, sy) = _toPx(s, size);
+      final (sx, sy) = _toPx(s);
       final d = math.sqrt(math.pow(sx - p.dx, 2) + math.pow(sy - p.dy, 2));
       if (d < bestD) {
         bestD = d;
@@ -287,14 +400,21 @@ class _MapViewState extends State<MapView> {
     final scaler = MediaQuery.textScalerOf(context).clamp(maxScaleFactor: PH.maxCanvasTextScale);
     final pin = _pin;
     return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-      LayoutBuilder(builder: (context, c) {
-        final size = c.maxWidth;
-        final old = _lastSize;
-        _lastSize = size;
-        if (old != null && old != size && _scale > 1.001) {
+      _expandIf(widget.fill, LayoutBuilder(builder: (context, c) {
+        final vp = Size(c.maxWidth, widget.fill ? c.maxHeight : c.maxWidth);
+        final size = math.min(vp.width, vp.height);
+        final old = _vp, oldSide = _side;
+        _vp = vp;
+        _side = size;
+        if (old == Size.zero) {
+          // the first layout (nothing listens to the view yet): the start view
+          if (widget.initialCamera != null || widget.fill) {
+            _show(widget.initialCamera ?? (zoom: 1.0, centre: const Offset(0.5, 0.5)));
+          }
+        } else if (old != vp && (_scale > 1.001 || widget.fill)) {
           // rotation / window resize while zoomed: rescale the shift and re-clamp
           WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (mounted) _setView(_scale, _shift * (size / old), size);
+            if (mounted) _setView(_scale, _shift * (size / oldSide));
           });
         }
         Widget zoomButton(IconData icon, String label, bool enabled, VoidCallback onTap) => Semantics(
@@ -320,8 +440,8 @@ class _MapViewState extends State<MapView> {
               'or use Add a spot by coordinates.',
           child: SizedBox(
             key: mapViewportKey,
-            width: size,
-            height: size,
+            width: vp.width,
+            height: vp.height,
             child: ClipRRect(
               borderRadius: BorderRadius.circular(8),
               child: ListenableBuilder(
@@ -329,8 +449,9 @@ class _MapViewState extends State<MapView> {
                 builder: (context, _) {
                   final z = _scale;
                   return Stack(children: [
-                    Listener(
-                      onPointerSignal: (e) => _onWheel(e, size),
+                    Positioned.fill(
+                        child: Listener(
+                      onPointerSignal: _onWheel,
                       // pointer taps only: a screen-reader "tap" has no position, and
                       // used to land on the pole (Shackleton rim) every time
                       child: RawGestureDetector(
@@ -338,7 +459,7 @@ class _MapViewState extends State<MapView> {
                         behavior: HitTestBehavior.opaque,
                         gestures: {
                           _MapScaleRecognizer: GestureRecognizerFactoryWithHandlers<_MapScaleRecognizer>(
-                            () => _MapScaleRecognizer(zoomed: () => _scale > 1.001, canPan: (d) => _canPan(d, size)),
+                            () => _MapScaleRecognizer(zoomed: () => _scale > 1.001, canPan: _canPan),
                             (r) => r
                               ..onStart = (d) {
                                 // first start: from where the fingers came down, so the slop
@@ -349,29 +470,32 @@ class _MapViewState extends State<MapView> {
                               }
                               ..onUpdate = (d) {
                                 final s = (_startScale * d.scale).clamp(1.0, mapMaxZoom);
-                                _setView(s, d.localFocalPoint - _startFocus * s, size);
+                                _setView(s, d.localFocalPoint - _startFocus * s);
                               },
                           ),
                           TapGestureRecognizer: GestureRecognizerFactoryWithHandlers<TapGestureRecognizer>(
                             TapGestureRecognizer.new,
-                            (r) => r.onTapUp = (d) => _onTap(d.localPosition, size),
+                            (r) => r.onTapUp = (d) => _onTap(d.localPosition),
                           ),
                           // "hold anywhere": a long press drops a pin too
                           LongPressGestureRecognizer: GestureRecognizerFactoryWithHandlers<LongPressGestureRecognizer>(
                             LongPressGestureRecognizer.new,
-                            (r) => r.onLongPressStart = (d) => _onTap(d.localPosition, size),
+                            (r) => r.onLongPressStart = (d) => _onTap(d.localPosition),
                           ),
                         },
                         child: Transform(
                           transform: _tc.value,
-                          child: CustomPaint(
-                            size: Size(size, size),
-                            painter: _MapPainter(widget.layers, widget.sites, widget.selectedId, overlay, labels,
-                                () => _scale, scaler, pin, widget.highlightId, _tc),
+                          child: Align(
+                            alignment: Alignment.topLeft,
+                            child: CustomPaint(
+                              size: Size(size, size),
+                              painter: _MapPainter(widget.layers, widget.sites, widget.selectedId, overlay, labels,
+                                  () => _scale, scaler, pin, widget.highlightId, _tc),
+                            ),
                           ),
                         ),
                       ),
-                    ),
+                    )),
                     // zoom controls: small navy buttons in the corner
                     Positioned(
                       top: 6,
@@ -382,16 +506,27 @@ class _MapViewState extends State<MapView> {
                             borderRadius: BorderRadius.circular(PH.radius), side: const BorderSide(color: PH.line)),
                         clipBehavior: Clip.antiAlias,
                         child: Column(mainAxisSize: MainAxisSize.min, children: [
-                          zoomButton(Icons.add, 'Zoom in', z < mapMaxZoom - 0.001, () => _zoomStep(2, size)),
-                          zoomButton(Icons.remove, 'Zoom out', z > 1.001, () => _zoomStep(0.5, size)),
-                          zoomButton(Icons.crop_free, 'Reset zoom', z > 1.001, () => _setView(1, Offset.zero, size)),
+                          // the same "open full screen" button as the charts'
+                          if (widget.onExpand case final open?) zoomButton(Icons.open_in_full, 'Open the map full screen', true, open),
+                          zoomButton(Icons.add, 'Zoom in', z < mapMaxZoom - 0.001, () => _zoomStep(2)),
+                          zoomButton(Icons.remove, 'Zoom out', z > 1.001, () => _zoomStep(0.5)),
+                          zoomButton(Icons.crop_free, 'Reset zoom', z > 1.001, () => _setView(1, Offset.zero)),
                         ]),
                       ),
                     ),
                     Positioned(
                       left: 8,
+                      right: 8,
                       bottom: 8,
-                      child: ExcludeSemantics(child: _ScaleBar(metresPerPx: 2 * widget.layers.halfWidthM / (size * z), maxPx: size * 0.3)),
+                      // the overlay (the full-screen map's chip) sits just above the scale bar
+                      child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+                        // clear of the zoom buttons' column (48 + 6 at the right)
+                        if (widget.overlay case final o?) ...[
+                          Padding(padding: const EdgeInsets.only(right: 54), child: Center(child: o)),
+                          const SizedBox(height: 6),
+                        ],
+                        ExcludeSemantics(child: _ScaleBar(metresPerPx: 2 * widget.layers.halfWidthM / (size * z), maxPx: size * 0.3)),
+                      ]),
                     ),
                   ]);
                 },
@@ -399,7 +534,7 @@ class _MapViewState extends State<MapView> {
             ),
           ),
         );
-      }),
+      })),
       if (pin != null)
         _ConfirmSpot(
           key: _confirmKey,

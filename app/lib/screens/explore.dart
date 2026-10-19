@@ -19,6 +19,7 @@ import '../theme.dart';
 import '../widgets/compare_tray.dart';
 import '../widgets/explain.dart' show explainExplore;
 import '../widgets/goal_chips.dart';
+import '../widgets/map_focus.dart';
 import '../widgets/map_view.dart';
 import '../widgets/site_card.dart';
 import '../widgets/site_carousel.dart';
@@ -68,6 +69,9 @@ class _ExploreState extends State<_Explore> {
   /// Desktop: the card under the pointer (its pin gets a ring).
   String? hoverId;
 
+  /// The map's view, handed to the full-screen map and back.
+  final _mapView = MapViewController();
+
   @override
   Widget build(BuildContext context) {
     final s = context.watch<AppState>();
@@ -107,6 +111,11 @@ class _ExploreState extends State<_Explore> {
             onPlaceCustom: s.addCustomSite,
             showControls: controls,
             belowMap: belowMap,
+            controller: _mapView,
+            // full screen, a marker tap only selects the site (it does not open
+            // it), so the map can close back to Explore centred on it
+            onExpand: () => openMapFocus(context,
+                inline: _mapView, onSelect: (id) => s.selectSite(id), onPlaceCustom: s.addCustomSite),
           );
 
     if (wide) {

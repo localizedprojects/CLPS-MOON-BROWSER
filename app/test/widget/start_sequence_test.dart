@@ -1,7 +1,9 @@
 // The start sequence (user request 2026-10-19): a first launch plays the
 // opening logo, the tutorial, the goal question and the loading scene; a
 // returning launch (a goal saved by an earlier one) plays only the opening
-// logo, then cross-fades straight to Explore, ranked for the saved goal.
+// logo, then fades straight into Explore, ranked for the saved goal. The
+// last start page stays up while the app is first drawn under it, so the
+// fade is not lost to that (slow) first frame.
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -48,6 +50,21 @@ void main() {
   const opening = Duration(milliseconds: 3300); // the whole opening animation
   const fade = Duration(milliseconds: 600); // a step's cross-fade
 
+  /// The end of the start sequence: its last page stays two frames while the
+  /// app is drawn under it, then fades out.
+  Future<void> uncover(WidgetTester tester) async {
+    for (var i = 0; i < 3; i++) {
+      await tester.pump();
+    }
+    await tester.pump(fade);
+  }
+
+  /// The opacity the start pages' switcher gives the page keyed [key].
+  double opacityOf(WidgetTester tester, String key) => tester
+      .widget<FadeTransition>(find.ancestor(of: find.byKey(ValueKey(key)), matching: find.byType(FadeTransition)).first)
+      .opacity
+      .value;
+
   group('a returning launch', () {
     testWidgets('the logo, then Explore for the saved goal: no tutorial, question or loading scene', (tester) async {
       // an older version's user: a goal saved, the tutorial never seen
@@ -58,16 +75,19 @@ void main() {
       await tester.pump(opening);
       expect(s.startStage, StartStage.intro, reason: 'the logo holds while the sites are ranked');
       expect(find.byType(SkimOpening), findsOneWidget);
+      expect(find.byType(ExploreScreen), findsNothing);
       await tester.runAsync(s.init);
       expect(s.startStage, StartStage.done);
-      // the logo fades out as Explore fades in
+      // the app is first drawn under the logo, which stays opaque meanwhile
+      await tester.pump();
+      expect(find.byType(ExploreScreen), findsOneWidget);
+      expect(opacityOf(tester, 'intro'), 1.0);
+      // then the logo fades out over Explore
+      await tester.pump();
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 250));
-      expect(find.byType(SkimOpening), findsOneWidget);
+      expect(opacityOf(tester, 'intro'), inExclusiveRange(0, 1), reason: 'a cross-fade, not a cut');
       expect(find.byType(ExploreScreen), findsOneWidget);
-      final into = tester.widget<FadeTransition>(
-          find.ancestor(of: find.byKey(const ValueKey('app')), matching: find.byType(FadeTransition)).first);
-      expect(into.opacity.value, inExclusiveRange(0, 1), reason: 'a cross-fade, not a cut');
       await tester.pump(fade);
       expect(find.byType(SkimOpening), findsNothing);
       expect(find.byType(ExploreScreen), findsOneWidget);
@@ -85,9 +105,10 @@ void main() {
       await show(tester, s);
       await tester.pump(const Duration(milliseconds: 2000));
       expect(s.startStage, StartStage.intro, reason: 'the logo plays in full');
+      expect(find.byType(ExploreScreen), findsNothing, reason: 'nothing is built under the playing logo');
       await tester.pump(const Duration(milliseconds: 1300));
       expect(s.startStage, StartStage.done);
-      await tester.pump(fade);
+      await uncover(tester);
       expect(find.byType(SkimOpening), findsNothing);
       expect(find.byType(ExploreScreen), findsOneWidget);
     });
@@ -122,15 +143,56 @@ void main() {
       await tester.runAsync(s.init);
       expect(s.error, isNotNull);
       expect(s.startStage, StartStage.done);
-      await tester.pump();
-      await tester.pump(fade);
+      await uncover(tester);
       expect(find.byType(SkimOpening), findsNothing);
       expect(find.text("Lunar Horizon couldn't finish loading"), findsOneWidget);
       expect(find.text('Try again'), findsOneWidget);
     });
+
+    testWidgets('a goal chosen with the chips on Explore is the one the next launch uses', (tester) async {
+      final s = await launch({'goal': 'power', 'tourSeen': true});
+      await tester.runAsync(s.init);
+      await show(tester, s);
+      await tester.pump(opening);
+      await uncover(tester);
+      final chip = find.widgetWithText(ChoiceChip, goalLabel(Goal.earth)).first;
+      await tester.ensureVisible(chip);
+      await tester.pump();
+      await tester.tap(chip);
+      await tester.pump();
+      expect(s.goal, Goal.earth);
+      expect((await SharedPreferences.getInstance()).getString('goal'), 'earth');
+      final next = AppState();
+      await next.loadSavedGoal();
+      expect(next.savedGoal, Goal.earth);
+      expect(next.goal, Goal.earth);
+    });
+
+    testWidgets('a link away from Explore during the logo ends the sequence: the logo never replays',
+        (tester) async {
+      final s = await launch({'goal': 'power', 'tourSeen': true});
+      await show(tester, s);
+      await tester.pump(const Duration(milliseconds: 2100)); // the logo still playing
+      s.goTo(Dest.compare); // a link (#/compare), applied once ready
+      expect(s.startStage, StartStage.done);
+      await tester.runAsync(s.init);
+      await uncover(tester);
+      expect(find.byType(SkimOpening), findsNothing);
+      s.goTo(Dest.explore); // the Explore tab
+      await tester.pump();
+      await tester.pump(fade);
+      expect(find.byType(SkimOpening), findsNothing, reason: 'no second logo');
+      expect(find.byType(ExploreScreen), findsOneWidget);
+    });
   });
 
-  testWidgets('a first launch: the logo, the tutorial, the question and the loading scene, then Explore',
+  test('a first launch keeps its sequence for when Explore is reached, whatever a link opens first', () async {
+    final s = await launch({});
+    s.goTo(Dest.compare);
+    expect(s.startStage, StartStage.intro, reason: 'the tutorial and the question show over Explore');
+  });
+
+  testWidgets('a first launch: the logo, the tutorial, the question and the loading scene, which fades into Explore',
       (tester) async {
     final s = await launch({});
     expect(s.savedGoal, isNull);
@@ -147,13 +209,18 @@ void main() {
     await tester.pump();
     await tester.pump(fade);
     expect(find.byType(SpaceLoading), findsOneWidget);
+    expect(find.byType(ExploreScreen), findsNothing);
     await tester.runAsync(s.init);
+    await tester.pump();
+    expect(find.byType(ExploreScreen), findsOneWidget, reason: 'ranked: Explore waits under the loading scene');
+    expect(find.byType(ExploreScreen).hitTestable(), findsNothing, reason: 'covered: no taps reach it');
+    expect(s.startStage, StartStage.loading);
     // the scene's 10 s minimum, its bar's moment at full, then its 1.6 s ending
     for (var i = 0; i < 30 && s.startStage != StartStage.done; i++) {
       await tester.pump(const Duration(milliseconds: 500));
     }
     expect(s.startStage, StartStage.done);
-    await tester.pump(fade);
+    await uncover(tester);
     expect(find.byType(SpaceLoading), findsNothing);
     expect(find.byType(ExploreScreen), findsOneWidget);
     expect((await SharedPreferences.getInstance()).getString('goal'), 'balanced',

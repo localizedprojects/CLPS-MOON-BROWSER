@@ -117,14 +117,46 @@ class _AppShellState extends State<AppShell> {
         Dest.learn => const LearnScreen(),
       };
 
+  /// The start sequence's last page, kept over the app when the sequence
+  /// ends until the app has been drawn under it (see [_uncover]).
+  Widget? _lastStart;
+  bool _uncovering = false;
+  int _uncoverGen = 0;
+
+  /// The app has been built; it then stays, under any later start page.
+  bool _appUp = false;
+
+  /// The start sequence has ended: its last page stays up, still opaque,
+  /// while the app's first frame is built and drawn under it (slow on some
+  /// devices: most of a fade would pass before it showed), and one frame
+  /// more; then it fades out over the app.
+  void _uncover() {
+    if (_uncovering) return;
+    _uncovering = true;
+    final gen = _uncoverGen;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted || gen != _uncoverGen) return;
+        setState(() {
+          _lastStart = null;
+          _uncovering = false;
+        });
+      });
+      WidgetsBinding.instance.scheduleFrame();
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final s = context.watch<AppState>();
     // the start sequence first (it also covers the first load); a link that
     // opens another destination skips it
-    final Widget page;
-    if (s.askGoalOnStart && s.startStage != StartStage.done && s.dest == Dest.explore) {
-      page = switch (s.startStage) {
+    final starting = s.askGoalOnStart && s.startStage != StartStage.done && s.dest == Dest.explore;
+    Widget? cover;
+    if (starting) {
+      _uncoverGen++; // a pending uncover is void
+      _uncovering = false;
+      cover = _lastStart = switch (s.startStage) {
         // every launch; a returning one holds on its logo until the app is ready
         StartStage.intro => KeyedSubtree(key: const ValueKey('intro'), child: SkimOpening(onDone: s.finishIntro)),
         // first launch only: the tutorial, so the question and the app make sense
@@ -132,23 +164,41 @@ class _AppShellState extends State<AppShell> {
         StartStage.goal => GoalPage(key: const ValueKey('goal'), state: s),
         _ => SpaceLoading(key: const ValueKey('loading'), state: s, onDone: s.finishStartLoading),
       };
-    } else if (!s.ready) {
-      page = _Loading(key: const ValueKey('wait'), state: s);
-    } else {
-      page = KeyedSubtree(key: const ValueKey('app'), child: _app(context, s));
+    } else if (_lastStart != null) {
+      cover = _lastStart;
+      _uncover();
     }
-    // each step cross-fades into the next, the app itself too, over the start
-    // pages' own background (nothing lighter shows between them)
-    return ColoredBox(
-      color: PH.bg,
-      child: AnimatedSwitcher(
-        duration: MediaQuery.disableAnimationsOf(context) ? Duration.zero : const Duration(milliseconds: 550),
-        switchInCurve: Curves.easeOutCubic,
-        switchOutCurve: Curves.easeInCubic,
-        layoutBuilder: (current, previous) => Stack(fit: StackFit.expand, children: [...previous, ?current]),
-        child: page,
+    // under the start pages: the app once the sequence is over (or, on a
+    // first launch, once the sites are ranked, so the loading scene's ending
+    // fades into it), else the loading page or a plain backdrop
+    final Widget base;
+    if (s.ready && (!starting || _appUp || s.startStage == StartStage.loading)) {
+      _appUp = true;
+      base = KeyedSubtree(key: const ValueKey('app'), child: _app(context, s));
+    } else if (!s.ready && !starting) {
+      base = _Loading(key: const ValueKey('wait'), state: s);
+    } else {
+      base = const ColoredBox(color: PH.bg);
+    }
+    final covered = cover != null;
+    return Stack(fit: StackFit.expand, children: [
+      // hidden under a start page: no taps, nothing for screen readers
+      IgnorePointer(ignoring: covered, child: ExcludeSemantics(excluding: covered, child: base)),
+      // each start page cross-fades into the next; the last one fades out over the app
+      IgnorePointer(
+        ignoring: !covered,
+        child: ExcludeSemantics(
+          excluding: !covered,
+          child: AnimatedSwitcher(
+            duration: MediaQuery.disableAnimationsOf(context) ? Duration.zero : const Duration(milliseconds: 550),
+            switchInCurve: Curves.easeOutCubic,
+            switchOutCurve: Curves.easeInCubic,
+            layoutBuilder: (current, previous) => Stack(fit: StackFit.expand, children: [...previous, ?current]),
+            child: cover ?? const SizedBox.shrink(key: ValueKey('none')),
+          ),
+        ),
       ),
-    );
+    ]);
   }
 
   /// The app once it is ready: the destinations, the app bar and the navigation.

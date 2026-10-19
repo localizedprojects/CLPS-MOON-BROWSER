@@ -162,6 +162,7 @@ class AppState extends ChangeNotifier {
   /// only Play/Pause control lives there.
   void goTo(Dest d, {SiteTab? siteTab}) {
     dest = d;
+    _leaveIntro();
     if (siteTab != null) this.siteTab = siteTab;
     if (d != Dest.site) _stopPlay();
     _retryMap();
@@ -172,6 +173,7 @@ class AppState extends ChangeNotifier {
   /// web history entry).
   Future<void> openSite(String id, {SiteTab tab = SiteTab.overview}) async {
     dest = Dest.site;
+    _leaveIntro();
     siteTab = tab;
     _retryMap();
     if (id == selectedId && series != null) {
@@ -337,6 +339,17 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// A returning launch that a link takes away from Explore while the logo
+  /// plays: the start sequence is over, so the logo, cut short, never plays
+  /// again when Explore is reached. A first launch keeps its sequence for
+  /// then (the tutorial and the question show over Explore).
+  void _leaveIntro() {
+    if (savedGoal == null || startStage != StartStage.intro || dest == Dest.explore) return;
+    removeListener(_enterWhenReady);
+    _enteringApp = false;
+    startStage = StartStage.done;
+  }
+
   /// How long the end of the intro waits for the tutorial flag and the saved goal.
   static const tourFlagWait = Duration(seconds: 2);
 
@@ -400,8 +413,8 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// The goal saved by the last [answerGoal] (null on a first run or when
-  /// nothing could be read).
+  /// The goal read from the store at start, or the last [answerGoal] (null
+  /// on a first run or when nothing could be read).
   Goal? savedGoal;
 
   static const _goalKey = 'goal';
@@ -470,12 +483,7 @@ class AppState extends ChangeNotifier {
     goalAnswered = true;
     savedGoal = g;
     if (startStage != StartStage.done) startStage = StartStage.loading;
-    setGoal(g); // notifies
-    unawaited(() async {
-      try {
-        await (await SharedPreferences.getInstance()).setString(_goalKey, g.name);
-      } catch (_) {}
-    }());
+    setGoal(g); // notifies and saves
   }
 
   /// The goal the current [weights] match, or null when they were tuned by
@@ -483,12 +491,19 @@ class AppState extends ChangeNotifier {
   /// since [goal] keeps the last preset.
   Goal? get activeGoal => goalFor(weights);
 
+  /// Rank for [g] and remember it: a returning launch opens Explore ranked
+  /// for the last goal chosen, on the start page or with the goal chips.
   void setGoal(Goal g) {
     final rerun = _landingLive(selectedId); // an in-card change: the answer follows (spec 7 P2)
     goal = g;
     weights = weightsFor(g);
     notifyListeners();
     if (rerun && !_landingLive(selectedId)) unawaited(findLanding());
+    unawaited(() async {
+      try {
+        await (await openPrefs()).setString(_goalKey, g.name);
+      } catch (_) {}
+    }());
   }
 
   /// Metrics of the shortlisted sites that are already computed under the

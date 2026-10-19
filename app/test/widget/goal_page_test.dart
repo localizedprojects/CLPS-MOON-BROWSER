@@ -64,8 +64,11 @@ void main() {
     // a host that does not ask (tests, other embeddings): no question
     s.askGoalOnStart = false;
     s.goTo(Dest.explore);
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 600)); // the cross-fade
+    // the page stays while the app is first drawn under it, then fades out
+    for (var i = 0; i < 3; i++) {
+      await tester.pump();
+    }
+    await tester.pump(const Duration(milliseconds: 600));
     expect(find.byType(GoalPage), findsNothing);
   });
 

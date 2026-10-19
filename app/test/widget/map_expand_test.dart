@@ -597,4 +597,66 @@ void main() {
     expect(inline.camera!.zoom, closeTo(6.0, 1e-9), reason: 'twice 3x');
     expect(tester.takeException(), isNull);
   });
+
+  /// After a choice, the full-screen [button] opens [open] (outside the map's
+  /// touch listener): the 2 s holds while it is open and starts again once it
+  /// is closed (cancelled), so the map still returns to Explore.
+  Future<void> heldWhileOpen(WidgetTester tester, String button, Type open) async {
+    await pumpPage(tester);
+    await expand(tester);
+    final site = isolatedSite(tester);
+    await tester.tapAt(at(tester, fracOf(site)));
+    await tester.pump();
+    expect(find.text('${site.short} selected · returning to Explore'), findsOneWidget);
+    await tester.pump(const Duration(milliseconds: 500));
+    await tester.tap(find.byKey(ValueKey(button)));
+    await tester.pumpAndSettle();
+    expect(find.byType(open), findsOneWidget);
+    await tester.pump(const Duration(seconds: 3));
+    expect(find.byType(MapFocusPage), findsOneWidget, reason: 'held while it is open');
+    Navigator.of(tester.element(find.byType(open))).pop();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 1600));
+    expect(find.byType(open), findsNothing, reason: 'closed');
+    expect(find.byType(MapFocusPage), findsOneWidget, reason: 'the 2 s start again once it is closed');
+    await tester.pump(const Duration(milliseconds: 500));
+    await tester.pump(const Duration(milliseconds: 60));
+    expect(find.byType(MapFocusPage), findsNothing, reason: 'then it returns to Explore, not stuck');
+    await tester.pumpAndSettle();
+    expectCentredOn(tester, fracOf(site), site.short);
+    expect(tester.takeException(), isNull);
+  }
+
+  testWidgets('the full-screen Layers sheet holds the 2 s while open, and the map still returns once it is closed',
+      (tester) => heldWhileOpen(tester, 'map-focus-layers', SwitchListTile));
+
+  testWidgets('a cancelled full-screen coordinates dialog holds the 2 s while open, and the map still returns',
+      (tester) => heldWhileOpen(tester, 'map-focus-coordinates', CoordinatesDialog));
+
+  testWidgets('once the page map has reached the chosen point, a new page map for a new layout shows it at once',
+      (tester) async {
+    await pumpPage(tester, swapAt: 600);
+    await expand(tester);
+    final site = isolatedSite(tester);
+    await tester.tapAt(at(tester, fracOf(site)));
+    await tester.pump(const Duration(milliseconds: 2100));
+    await tester.pumpAndSettle();
+    expectCentredOn(tester, fracOf(site), site.short);
+    final reached = inline.camera!;
+    expect(reached.zoom, greaterThan(1.001), reason: 'the hand-back zoomed in');
+    tester.view.physicalSize = const Size(700, 900); // a rotation: a new page map
+    await tester.pump();
+    expect(find.ancestor(of: viewport(), matching: find.byType(Row)), findsOneWidget, reason: 'the wide layout');
+    expect(tester.hasRunningAnimations, isFalse, reason: 'the move to the point is not replayed from 1x');
+    expect(inline.camera!.zoom, closeTo(reached.zoom, 1e-6), reason: 'at once at the zoom reached');
+    expect((inline.camera!.centre - reached.centre).distance, lessThan(1e-6), reason: 'and the same point');
+    expectCentredOn(tester, fracOf(site), site.short);
+    // and so for the next layout swap too
+    tester.view.physicalSize = const Size(360, 780);
+    await tester.pump();
+    expect(tester.hasRunningAnimations, isFalse);
+    expect(inline.camera!.zoom, closeTo(reached.zoom, 1e-6));
+    expectCentredOn(tester, fracOf(site), site.short);
+    expect(tester.takeException(), isNull);
+  });
 }

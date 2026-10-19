@@ -107,6 +107,10 @@ class _MapFocusPageState extends State<MapFocusPage> {
   /// chosen; the chip says how to go back.
   bool _held = false;
 
+  /// The Layers sheet or the coordinates dialog (the compact buttons, outside
+  /// the map's touch listener) is open over the map: no closing meanwhile.
+  int _aside = 0;
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
@@ -134,11 +138,26 @@ class _MapFocusPageState extends State<MapFocusPage> {
 
   /// (Re)start the wait before closing: only after a choice, not after
   /// "Stay", and not while a finger is on the map, a pin waits to be checked
-  /// or a spot is being added.
+  /// or a spot is being added, or the Layers sheet or coordinates dialog is
+  /// open.
   void _wait() {
     _timer?.cancel();
-    if (_chosen == null || _stay || _held || _down > 0 || _pinPending || _placing > 0) return;
+    if (_chosen == null || _stay || _held || _down > 0 || _pinPending || _placing > 0 || _aside > 0) return;
     _timer = Timer(mapFocusAutoClose, _close);
+  }
+
+  /// Open the Layers sheet or the coordinates dialog: the wait holds while it
+  /// is open and starts again once it is closed (a spot typed there holds it
+  /// on, as [_place] does).
+  Future<void> _over(Future<void> Function() open) async {
+    _aside++;
+    _timer?.cancel();
+    try {
+      await open();
+    } finally {
+      _aside--;
+    }
+    if (mounted) _wait();
   }
 
   void _touch(bool down) {
@@ -186,7 +205,10 @@ class _MapFocusPageState extends State<MapFocusPage> {
 
   void _close() {
     _timer?.cancel();
-    if (!mounted || !(ModalRoute.of(context)?.isCurrent ?? false)) return;
+    if (!mounted) return;
+    // something else is over the map (the coordinates dialog opened from the
+    // Layers sheet, say): wait again rather than never closing
+    if (!(ModalRoute.of(context)?.isCurrent ?? false)) return _wait();
     final chosen = _chosen;
     Navigator.of(context).pop<MapFocusResult>((
       camera: chosen == null ? null : (zoom: _map.camera?.zoom ?? 1.0, centre: chosen.$1),
@@ -242,13 +264,13 @@ class _MapFocusPageState extends State<MapFocusPage> {
                     IconButton(
                       key: const ValueKey('map-focus-layers'),
                       tooltip: layerWords,
-                      onPressed: layers == null ? null : _map.openLayers,
+                      onPressed: layers == null ? null : () => _over(_map.openLayers),
                       icon: const Icon(Icons.layers_outlined),
                     ),
                     IconButton(
                       key: const ValueKey('map-focus-coordinates'),
                       tooltip: 'Add a spot by coordinates',
-                      onPressed: layers == null ? null : _map.askCoordinates,
+                      onPressed: layers == null ? null : () => _over(_map.askCoordinates),
                       icon: const Icon(Icons.add_location_alt_outlined),
                     ),
                     IconButton(

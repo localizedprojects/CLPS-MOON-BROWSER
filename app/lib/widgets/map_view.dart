@@ -67,7 +67,9 @@ class MapViewController {
   /// the user moves the map: a map laid out only later (offstage under the
   /// full-screen map, or a new one for a new layout after a rotation) is
   /// centred on it at its first layout, and a resize mid-move goes on toward
-  /// it instead of stopping.
+  /// it instead of stopping. Once the point is reached it is kept without the
+  /// animation, so a map laid out later shows it at once instead of replaying
+  /// the move from 1x.
   (MapCamera, bool)? _want;
 
   /// The layer and "Show site names" choice, carried between the page's map
@@ -265,6 +267,7 @@ class _MapViewState extends State<MapView> with SingleTickerProviderStateMixin {
   double _side = 0; // the map square's side at 1x
   AnimationController? _move; // [MapViewController.centreOn]
   (MapCamera, MapCamera)? _moving;
+  MapCamera? _asked; // the point [_move] goes to, as asked for
   MapCamera? _keep; // the view to show again after a resize
 
   double get _scale => _tc.value.entry(0, 0);
@@ -318,10 +321,26 @@ class _MapViewState extends State<MapView> with SingleTickerProviderStateMixin {
     final z = math.max(ask, math.min(centring, 2 * ask)).clamp(1.0, mapMaxZoom);
     final to = (zoom: z, centre: c.centre);
     _move?.stop();
-    if (!animate) return _show(to);
+    if (!animate) {
+      _show(to);
+      return _reached(c);
+    }
     _moving = (from, to);
-    final m = _move ?? (_move = AnimationController(vsync: this, duration: const Duration(milliseconds: 450))..addListener(_step));
+    _asked = c;
+    final m = _move ??
+        (_move = AnimationController(vsync: this, duration: const Duration(milliseconds: 450))
+          ..addListener(_step)
+          ..addStatusListener((s) {
+            if (s == AnimationStatus.completed && _asked != null) _reached(_asked!);
+          }));
     m.forward(from: 0);
+  }
+
+  /// The point [c] asked for is reached: kept, but shown without the move by a
+  /// map laid out later (a new one for a new layout), not zoomed in to again.
+  void _reached(MapCamera c) {
+    final ctl = widget.controller;
+    if (ctl != null && ctl._want == (c, true)) ctl._want = (c, false);
   }
 
   void _step() {

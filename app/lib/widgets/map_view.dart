@@ -88,7 +88,8 @@ class MapViewController {
 
   /// Centre the map on [c]'s point at [c]'s zoom (kept within 1x to
   /// [mapMaxZoom]), zooming in just enough when the point cannot be in the
-  /// middle at that zoom (near the region's edge at 1x). Animated unless
+  /// middle at that zoom (near the region's edge at 1x), but to at most twice
+  /// that zoom: nearer the edge the point shows off-centre. Animated unless
   /// [animate] is false. A map not laid out yet does it at its first layout.
   void centreOn(MapCamera c, {bool animate = true}) {
     _want = (c, animate);
@@ -264,6 +265,7 @@ class _MapViewState extends State<MapView> with SingleTickerProviderStateMixin {
   double _side = 0; // the map square's side at 1x
   AnimationController? _move; // [MapViewController.centreOn]
   (MapCamera, MapCamera)? _moving;
+  MapCamera? _keep; // the view to show again after a resize
 
   double get _scale => _tc.value.entry(0, 0);
   Offset get _shift => Offset(_tc.value.entry(0, 3), _tc.value.entry(1, 3));
@@ -302,13 +304,18 @@ class _MapViewState extends State<MapView> with SingleTickerProviderStateMixin {
   void _centreOn(MapCamera c, {required bool animate}) {
     final from = _camera;
     if (from == null) return;
-    // the least zoom at which the point can be in the middle of the view
+    // the least zoom at which the point can be in the middle of the view; it
+    // grows without bound toward the region's edge, so it is capped at twice
+    // the zoom asked for (a point that near the edge shows off-centre, as near
+    // the middle as the edges allow, instead of a jump to the deepest zoom)
     double need(double f, double view) {
       final m = math.min(f, 1 - f);
-      return m <= 0 ? mapMaxZoom : view / (2 * _side * m);
+      return m <= 0 ? double.infinity : view / (2 * _side * m);
     }
 
-    final z = math.max(c.zoom, math.max(need(c.centre.dx, _vp.width), need(c.centre.dy, _vp.height))).clamp(1.0, mapMaxZoom);
+    final ask = c.zoom.clamp(1.0, mapMaxZoom);
+    final centring = math.max(need(c.centre.dx, _vp.width), need(c.centre.dy, _vp.height));
+    final z = math.max(ask, math.min(centring, 2 * ask)).clamp(1.0, mapMaxZoom);
     final to = (zoom: z, centre: c.centre);
     _move?.stop();
     if (!animate) return _show(to);
@@ -474,7 +481,7 @@ class _MapViewState extends State<MapView> with SingleTickerProviderStateMixin {
       _expandIf(widget.fill, LayoutBuilder(builder: (context, c) {
         final vp = Size(c.maxWidth, widget.fill ? c.maxHeight : c.maxWidth);
         final size = math.min(vp.width, vp.height);
-        final old = _vp, oldSide = _side;
+        final old = _vp, before = _camera;
         _vp = vp;
         _side = size;
         final want = widget.controller?._want;
@@ -487,13 +494,18 @@ class _MapViewState extends State<MapView> with SingleTickerProviderStateMixin {
           // new layout, made while the full-screen map was open)
           if (want != null && size > 0) _centreOn(want.$1, animate: want.$2);
         } else if (old != vp && (_scale > 1.001 || widget.fill || want != null)) {
-          // rotation / window resize while zoomed: rescale the shift and re-clamp;
+          // rotation / window resize while zoomed: the same view (zoom and map
+          // point in the middle) is shown again in the new size, not a rescaled
+          // shift (that carries the full-screen map's centring offsets along);
           // a move toward a point asked for goes on toward it in the new size
           // (it is not stopped), and a point reached is centred again
+          _keep ??= before; // the view from before the first of several resizes in a row
           final moving = _move?.isAnimating ?? false;
           WidgetsBinding.instance.addPostFrameCallback((_) {
+            final keep = _keep;
+            _keep = null;
             if (!mounted) return;
-            _tc.value = _viewFor(_scale, _shift * (size / oldSide));
+            if (keep != null) _show(keep);
             if (widget.controller?._want case (final c, final animate)?) _centreOn(c, animate: animate && moving);
           });
         }

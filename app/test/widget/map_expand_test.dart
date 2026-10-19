@@ -4,6 +4,7 @@
 // itself and the page's map is centred on that point; a new touch waits again,
 // "Stay" keeps it open, and closing without a choice changes nothing.
 import 'dart:math' as math;
+import 'dart:ui' as ui show PointerDeviceKind;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -43,12 +44,14 @@ void main() {
       double text = 1,
       bool accept = true,
       Duration placeDelay = Duration.zero,
-      double? swapAt}) async {
+      double? swapAt,
+      bool screenReader = false}) async {
     tester.view.physicalSize = size;
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
-    if (reduce) {
-      tester.platformDispatcher.accessibilityFeaturesTestValue = const FakeAccessibilityFeatures(disableAnimations: true);
+    if (reduce || screenReader) {
+      tester.platformDispatcher.accessibilityFeaturesTestValue =
+          FakeAccessibilityFeatures(disableAnimations: reduce, accessibleNavigation: screenReader);
       addTearDown(tester.platformDispatcher.clearAccessibilityFeaturesTestValue);
     }
     if (text != 1) {
@@ -169,11 +172,16 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  /// The page map shows map fraction [f] in its middle.
+  /// The page map shows map fraction [f] in its middle, zoomed in for that as
+  /// far as twice the zoom (from 1x); a point nearer the region's edge than
+  /// that allows shows as near the middle as the map's edges let it.
   void expectCentredOn(WidgetTester tester, Offset f, String what) {
     expect(find.byType(MapFocusPage), findsNothing, reason: 'the full-screen map has closed');
-    final d = (at(tester, f) - tester.getRect(viewport()).center).distance;
-    expect(d, lessThan(0.5), reason: '$what is in the middle of the page map (off by $d px)');
+    final r = tester.getRect(viewport()), z = view(tester).entry(0, 0), content = math.min(r.width, r.height) * z;
+    expect(z, greaterThanOrEqualTo(math.min(needed(f), 2.0) - 1e-6), reason: 'zoomed in to centre $what (up to 2x)');
+    double axis(double f, double v) => (v / 2 - f * content).clamp(v - content, 0.0) + f * content;
+    final d = (at(tester, f) - (r.topLeft + Offset(axis(f.dx, r.width), axis(f.dy, r.height)))).distance;
+    expect(d, lessThan(0.5), reason: '$what is in the middle of the page map, or as near as its edges allow (off by $d px)');
   }
 
   testWidgets('the open-full-screen button opens the map full screen at the page map\'s zoom and centre', (tester) async {
@@ -217,7 +225,8 @@ void main() {
     expect(midway, greaterThan(1), reason: 'the page map moves to it (animated)');
     await tester.pumpAndSettle();
     expectCentredOn(tester, fracOf(site), site.short);
-    expect(inline.camera!.zoom, closeTo(needed(fracOf(site)), 1e-6), reason: 'zoomed in just enough to centre it');
+    expect(inline.camera!.zoom, closeTo(math.min(needed(fracOf(site)), 2.0), 1e-6),
+        reason: 'zoomed in just enough to centre it, to at most 2x');
     expect(tester.takeException(), isNull);
   });
 
@@ -498,6 +507,94 @@ void main() {
     await tester.pumpAndSettle();
     expect(painter().overlay, two, reason: 'and back to the page map');
     expect(painter().labels, isFalse);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('rotating the full-screen map while zoomed keeps its view: the zoom and the point in the middle',
+      (tester) async {
+    await pumpPage(tester);
+    await expand(tester);
+    await press(tester, 'Zoom in');
+    await press(tester, 'Zoom in');
+    await tester.dragFrom(tester.getRect(viewport()).center, const Offset(-60, 40));
+    await tester.pumpAndSettle();
+    final before = shown(tester);
+    expect((before.centre - const Offset(0.5, 0.5)).distance, greaterThan(0.02), reason: 'panned off the middle');
+    for (final size in const [Size(780, 360), Size(360, 780)]) {
+      tester.view.physicalSize = size;
+      await tester.pumpAndSettle();
+      final now = shown(tester);
+      expect(now.zoom, closeTo(before.zoom, 1e-9), reason: 'the same zoom at $size');
+      expect((now.centre - before.centre).distance, lessThan(1e-3),
+          reason: 'the same point in the middle at $size (was ${before.centre}, now ${now.centre})');
+    }
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('a mouse wheel on the map within the 2 s waits again', (tester) async {
+    await pumpPage(tester);
+    await expand(tester);
+    final site = isolatedSite(tester);
+    await tester.tapAt(at(tester, fracOf(site)));
+    await tester.pump(const Duration(milliseconds: 1500));
+    final mouse = TestPointer(1, ui.PointerDeviceKind.mouse)..hover(tester.getRect(viewport()).center);
+    await tester.sendEventToBinding(mouse.scroll(const Offset(0, -20)));
+    await tester.pump(const Duration(milliseconds: 1500));
+    expect(find.byType(MapFocusPage), findsOneWidget, reason: '3 s after the choice, 1.5 s after the wheel');
+    await tester.pump(const Duration(milliseconds: 600));
+    await tester.pumpAndSettle();
+    expectCentredOn(tester, fracOf(site), site.short);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('a trackpad pinch on the map holds the 2 s until it ends', (tester) async {
+    await pumpPage(tester);
+    await expand(tester);
+    final site = isolatedSite(tester);
+    await tester.tapAt(at(tester, fracOf(site)));
+    await tester.pump(const Duration(milliseconds: 1500));
+    final pad = TestPointer(2, ui.PointerDeviceKind.trackpad);
+    await tester.sendEventToBinding(pad.panZoomStart(tester.getRect(viewport()).center));
+    await tester.pump(const Duration(seconds: 3));
+    expect(find.byType(MapFocusPage), findsOneWidget, reason: 'held while the pinch goes on');
+    await tester.sendEventToBinding(pad.panZoomEnd());
+    await tester.pump(const Duration(milliseconds: 1900));
+    expect(find.byType(MapFocusPage), findsOneWidget, reason: 'not before 2 s after the pinch');
+    await tester.pump(const Duration(milliseconds: 200));
+    await tester.pumpAndSettle();
+    expectCentredOn(tester, fracOf(site), site.short);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('with a screen reader or switch access on, a choice does not close the map by itself', (tester) async {
+    await pumpPage(tester, screenReader: true);
+    await expand(tester);
+    final site = isolatedSite(tester);
+    await tester.tapAt(at(tester, fracOf(site)));
+    await tester.pump();
+    expect(picked, [site.id], reason: 'selected at once');
+    expect(find.text('${site.short} selected · Close full screen to return to Explore'), findsOneWidget);
+    expect(find.byKey(const ValueKey('map-focus-stay')), findsNothing, reason: 'as if Stay were chosen');
+    await tester.pump(const Duration(seconds: 10));
+    expect(find.byType(MapFocusPage), findsOneWidget, reason: 'no closing by itself');
+    await tester.tap(find.byTooltip('Close full screen'));
+    await tester.pumpAndSettle();
+    expectCentredOn(tester, fracOf(site), site.short);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('centring a point near the region\'s edge zooms in to at most twice the zoom, not to 8x', (tester) async {
+    await pumpPage(tester);
+    for (final f in const [Offset(0.02, 0.5), Offset(0.0, 0.97)]) {
+      inline.centreOn((zoom: 1.0, centre: f), animate: false);
+      await tester.pump();
+      expect(inline.camera!.zoom, closeTo(2.0, 1e-9), reason: 'at most twice the zoom asked for ($f)');
+      expect(tester.getRect(viewport()).inflate(0.5).contains(at(tester, f)), isTrue, reason: '$f shows on the map');
+      expectCentredOn(tester, f, '$f');
+    }
+    inline.centreOn((zoom: 3.0, centre: const Offset(0.01, 0.01)), animate: false);
+    await tester.pump();
+    expect(inline.camera!.zoom, closeTo(6.0, 1e-9), reason: 'twice 3x');
     expect(tester.takeException(), isNull);
   });
 }

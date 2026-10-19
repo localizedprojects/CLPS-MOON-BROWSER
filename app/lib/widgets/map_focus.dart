@@ -102,6 +102,20 @@ class _MapFocusPageState extends State<MapFocusPage> {
   /// Bumped by each new choice, so a late refusal of an older one is not shown.
   int _seq = 0;
 
+  /// A screen reader or switch access is on: 2 s is too short to reach Stay
+  /// (WCAG 2.2.1), so a choice never closes the map by itself, as if Stay were
+  /// chosen; the chip says how to go back.
+  bool _held = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final held = MediaQuery.accessibleNavigationOf(context);
+    if (held == _held) return;
+    _held = held;
+    _wait();
+  }
+
   @override
   void dispose() {
     _timer?.cancel();
@@ -123,7 +137,7 @@ class _MapFocusPageState extends State<MapFocusPage> {
   /// or a spot is being added.
   void _wait() {
     _timer?.cancel();
-    if (_chosen == null || _stay || _down > 0 || _pinPending || _placing > 0) return;
+    if (_chosen == null || _stay || _held || _down > 0 || _pinPending || _placing > 0) return;
     _timer = Timer(mapFocusAutoClose, _close);
   }
 
@@ -186,7 +200,8 @@ class _MapFocusPageState extends State<MapFocusPage> {
     if (chosen != null) {
       return _ChosenChip(
         name: chosen.$2,
-        leaving: !_stay,
+        leaving: !_stay && !_held,
+        held: _held,
         onStay: () {
           _timer?.cancel();
           setState(() => _stay = true);
@@ -250,6 +265,11 @@ class _MapFocusPageState extends State<MapFocusPage> {
                             onPointerDown: (_) => _touch(true),
                             onPointerUp: (_) => _touch(false),
                             onPointerCancel: (_) => _touch(false),
+                            // a mouse wheel restarts the wait; a trackpad pinch or
+                            // two-finger pan holds it like a finger on the map
+                            onPointerSignal: (_) => _wait(),
+                            onPointerPanZoomStart: (_) => _touch(true),
+                            onPointerPanZoomEnd: (_) => _touch(false),
                             child: MapView(
                               layers: layers,
                               sites: s.allSites,
@@ -306,12 +326,19 @@ class _NoteChip extends StatelessWidget {
 }
 
 /// "Malapert selected · returning to Explore  [Stay]", or, after Stay, only
-/// "Malapert selected".
+/// "Malapert selected"; with a screen reader or switch access on (no closing by
+/// itself), "Malapert selected · Close full screen to return to Explore".
 class _ChosenChip extends StatelessWidget {
   final String name;
-  final bool leaving;
+  final bool leaving, held;
   final VoidCallback onStay;
-  const _ChosenChip({required this.name, required this.leaving, required this.onStay});
+  const _ChosenChip({required this.name, required this.leaving, required this.held, required this.onStay});
+
+  String get _words => leaving
+      ? '$name selected · returning to Explore'
+      : held
+          ? '$name selected · Close full screen to return to Explore'
+          : '$name selected';
 
   @override
   Widget build(BuildContext context) => Semantics(
@@ -329,7 +356,7 @@ class _ChosenChip extends StatelessWidget {
               Flexible(
                 child: Padding(
                   padding: const EdgeInsets.symmetric(vertical: 8),
-                  child: Text(leaving ? '$name selected · returning to Explore' : '$name selected', style: PHText.body),
+                  child: Text(_words, style: PHText.body),
                 ),
               ),
               if (leaving)

@@ -31,37 +31,41 @@ class ChartView extends StatelessWidget {
               key: _hostKeys[controller] ??= GlobalKey(debugLabel: 'chart ${controller.view}'),
               child: host.buildChartHost(controller),
             ),
-            // a page that cannot run here (an old web view) says why instead
-            // of a blank card; the page stays under it, and a later `ready`
-            // takes the message away
-            ValueListenableBuilder<String?>(
-              valueListenable: controller.problemListenable,
-              builder: (context, problem, _) =>
-                  problem == null ? const SizedBox.shrink() : Positioned.fill(child: ChartProblem(problem)),
+            // a page that has not drawn says why instead of a blank card (an
+            // old web view, or only still loading); the page stays under it,
+            // and a later `ready` takes the message away
+            ValueListenableBuilder<ChartIssue?>(
+              valueListenable: controller.issueListenable,
+              builder: (context, issue, _) =>
+                  issue == null ? const SizedBox.shrink() : Positioned.fill(child: ChartProblem(issue)),
             ),
           ]),
         ),
       );
 }
 
-/// The message over a chart whose page cannot run on this device.
+/// The message over a chart that has not drawn: its page cannot run on this
+/// device (key `chart-problem`), or it is still loading (key `chart-slow`).
 class ChartProblem extends StatelessWidget {
-  final String text;
-  const ChartProblem(this.text, {super.key});
+  final ChartIssue issue;
+  const ChartProblem(this.issue, {super.key});
 
   @override
-  Widget build(BuildContext context) => ColoredBox(
-        key: const ValueKey('chart-problem'),
-        color: PH.panel,
-        child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(16),
-            child: Row(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-              const Icon(Icons.system_update, color: PH.muted, size: 22),
-              const SizedBox(width: 10),
-              Flexible(child: Text(text, style: PHText.body.copyWith(color: PH.text))),
-            ]),
-          ),
+  Widget build(BuildContext context) {
+    final tooOld = issue == ChartIssue.tooOld;
+    return ColoredBox(
+      key: ValueKey(tooOld ? 'chart-problem' : 'chart-slow'),
+      color: PH.panel,
+      child: Center(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(16),
+          child: Row(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Icon(tooOld ? Icons.system_update : Icons.hourglass_empty, color: PH.muted, size: 22),
+            const SizedBox(width: 10),
+            Flexible(child: Text(issue.text, style: PHText.body.copyWith(color: PH.text))),
+          ]),
         ),
-      );
+      ),
+    );
+  }
 }

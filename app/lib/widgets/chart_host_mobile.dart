@@ -82,38 +82,47 @@ ValueNotifier<int> _listenRenderGone() {
 
 /// The web view operations the host uses: one page of the chart bundle.
 /// A seam so tests can stand in a page whose runJavaScript never completes,
-/// as on a web view whose render process died (android-webviews).
+/// as on a web view whose render process died (android-webviews), or one
+/// that reports loading, console errors and an old user agent.
 abstract class ChartPage {
   Future<void> run(String js);
+
+  /// Runs [js] and returns its result (a string may come JSON-quoted).
+  Future<Object> evaluate(String js);
   Widget view(Key key);
+
+  /// Set by the host before the page can load: the page has finished
+  /// loading, and a JavaScript error reached its console.
+  void Function()? onLoaded;
+  void Function(String message)? onConsoleError;
 }
 
 /// The real page: a webview_flutter controller with the bundle loaded.
-class _WebViewPage implements ChartPage {
-  _WebViewPage(ChartController c)
-      : _wc = WebViewController()
-          ..setJavaScriptMode(JavaScriptMode.unrestricted)
-          ..setBackgroundColor(const Color(0xFF0C1528)) // = PH.panel, the chart background
-          // no browser zoom: in the full-screen view a double-tap or pinch reached
-          // the web view, which magnified the whole chart page (giant clipped
-          // text) and kept that zoom back in the page (QA on the phone,
-          // 2026-10-13). The charts zoom themselves where it makes sense.
-          ..enableZoom(false)
-          ..addJavaScriptChannel('PH', onMessageReceived: (m) => c.handleRaw(m.message))
-          // a page that loads but never reports ready (Android 7's stock web
-          // view cannot parse the bundle) says so in its card
-          ..setNavigationDelegate(NavigationDelegate(onPageFinished: (_) => c.pageLoaded()))
-          ..setOnConsoleMessage((m) {
-            if (m.level != JavaScriptLogLevel.error) return;
-            debugPrint('chart ${c.view}: ${m.message}');
-            c.pageError(m.message);
-          })
-          ..loadFlutterAsset('assets/charts/index.html');
+class _WebViewPage extends ChartPage {
+  _WebViewPage(ChartController c) {
+    _wc
+      ..setJavaScriptMode(JavaScriptMode.unrestricted)
+      ..setBackgroundColor(const Color(0xFF0C1528)) // = PH.panel, the chart background
+      // no browser zoom: in the full-screen view a double-tap or pinch reached
+      // the web view, which magnified the whole chart page (giant clipped
+      // text) and kept that zoom back in the page (QA on the phone,
+      // 2026-10-13). The charts zoom themselves where it makes sense.
+      ..enableZoom(false)
+      ..addJavaScriptChannel('PH', onMessageReceived: (m) => c.handleRaw(m.message))
+      ..setNavigationDelegate(NavigationDelegate(onPageFinished: (_) => onLoaded?.call()))
+      ..setOnConsoleMessage((m) {
+        if (m.level == JavaScriptLogLevel.error) onConsoleError?.call(m.message);
+      })
+      ..loadFlutterAsset('assets/charts/index.html');
+  }
 
-  final WebViewController _wc;
+  final WebViewController _wc = WebViewController();
 
   @override
   Future<void> run(String js) => _wc.runJavaScript(js);
+
+  @override
+  Future<Object> evaluate(String js) => _wc.runJavaScriptReturningResult(js);
 
   @override
   Widget view(Key key) => WebViewWidget(key: key, controller: _wc);
@@ -156,10 +165,29 @@ class _MobileChartState extends State<_MobileChart> {
     final c = widget.controller;
     final w = widget;
     _page = w is MobileChartHost ? w.newPage(c) : _WebViewPage(c);
+    // a page that loads but never reports ready says why in its card: an old
+    // web view (Android 7's stock one cannot parse the bundle) on evidence
+    // only, a syntax error or its Chrome version; otherwise "still loading".
+    // A replaced page's reports are ignored (and hold no reference to it).
+    final gen = _gen;
+    _page.onLoaded = () => _pageLoaded(gen);
+    _page.onConsoleError = (message) {
+      debugPrint('chart ${c.view}: $message');
+      if (!_disposed && gen == _gen) c.pageError(message);
+    };
     c.attach((json) {
       _queue.add(json);
       _pump();
     }, this, busy: () => _busy || !_queue.isEmpty);
+  }
+
+  void _pageLoaded(int gen) {
+    if (_disposed || gen != _gen) return;
+    final c = widget.controller;
+    c.pageLoaded();
+    _page.evaluate('navigator.userAgent').then((ua) {
+      if (!_disposed && gen == _gen) c.pageUserAgent('$ua');
+    }, onError: (Object e) => debugPrint('chart ${c.view}: user agent: $e'));
   }
 
   void _abandonPage() {

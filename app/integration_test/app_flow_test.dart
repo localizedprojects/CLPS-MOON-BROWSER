@@ -99,8 +99,11 @@ void main() {
     while (!hub.sky.ready && DateTime.now().isBefore(skyBy)) {
       await t.pump(const Duration(milliseconds: 200));
     }
-    expect(hub.sky.ready, isTrue, reason: 'the Sky & time chart never reported ready (a blank chart)');
-    expect(find.byKey(const ValueKey('chart-problem')), findsNothing, reason: 'no "needs a newer web view" message');
+    // the sky controller itself, not the screen: a slower sibling chart (the
+    // timeline) may still be loading, which is not this check's business
+    expect(hub.sky.ready, isTrue,
+        reason: 'the Sky & time chart never reported ready (a blank chart): ${hub.sky.problem ?? 'no message'}');
+    expect(hub.sky.problem, isNull, reason: 'no "needs a newer web view" or "still loading" message on the sky chart');
     await t.tap(find.byIcon(Icons.play_arrow).first, warnIfMissed: false);
     await settle(t, 20);
     noError(t, 'Play');

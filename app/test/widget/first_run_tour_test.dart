@@ -220,7 +220,8 @@ void main() {
       expect(await _seen(), isTrue);
     });
 
-    testWidgets('a second launch goes straight to the goal question', (tester) async {
+    testWidgets('a launch after the tutorial, with no goal chosen yet, goes straight to the goal question',
+        (tester) async {
       final s = await launch(tester, saved: {'tourSeen': true});
       expect(s.tourPending, isFalse);
       expect(s.startStage, StartStage.goal);

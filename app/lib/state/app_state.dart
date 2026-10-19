@@ -162,6 +162,7 @@ class AppState extends ChangeNotifier {
   /// only Play/Pause control lives there.
   void goTo(Dest d, {SiteTab? siteTab}) {
     dest = d;
+    _leaveIntro();
     if (siteTab != null) this.siteTab = siteTab;
     if (d != Dest.site) _stopPlay();
     _retryMap();
@@ -172,6 +173,7 @@ class AppState extends ChangeNotifier {
   /// web history entry).
   Future<void> openSite(String id, {SiteTab tab = SiteTab.overview}) async {
     dest = Dest.site;
+    _leaveIntro();
     siteTab = tab;
     _retryMap();
     if (id == selectedId && series != null) {
@@ -292,35 +294,71 @@ class AppState extends ChangeNotifier {
   bool goalAnswered = false;
 
   /// Where the start sequence is (with [askGoalOnStart]): the intro
-  /// animation, the question, the loading scene, then the app.
+  /// animation, then on a first launch the tutorial, the question and the
+  /// loading scene, then the app. A returning launch (a goal saved by an
+  /// earlier one, user request 2026-10-19) goes from the intro straight to
+  /// the app.
   StartStage startStage = StartStage.intro;
 
   /// The end of the intro (its animation, a tap on it, or reduced motion's
-  /// short timer): the tutorial on a first launch, else the start question.
-  /// While [loadTourSeen] is still reading (a tap right away, a slow cold
-  /// start) it waits for the answer, up to [tourFlagWait], so a first launch
-  /// never skips the tutorial; a store that never answers goes on without it.
+  /// short timer). A first launch (no goal saved yet) goes on to the
+  /// tutorial (unless seen) and the start question. A returning launch goes
+  /// straight to Explore, ranked for the saved goal, once the sites are
+  /// ranked: the logo holds until then. While [loadTourSeen] or
+  /// [loadSavedGoal] is still reading (a tap right away, a slow cold start)
+  /// it waits for them, up to [tourFlagWait], so a first launch never skips
+  /// the tutorial and a returning one is never asked again; a store that
+  /// never answers goes on as a first launch, without the tutorial.
   void finishIntro() {
-    if (startStage != StartStage.intro || _introEnding) return;
-    final flag = _tourFlag;
-    if (flag == null) return _endIntro();
+    if (startStage != StartStage.intro || _introEnding || _enteringApp) return;
+    final flags = [?_tourFlag, ?_goalFlag];
+    if (flags.isEmpty) return _endIntro();
     _introEnding = true;
-    unawaited(flag.timeout(tourFlagWait, onTimeout: () {}).whenComplete(_endIntro));
+    unawaited(Future.wait(flags).timeout(tourFlagWait, onTimeout: () => const []).whenComplete(_endIntro));
   }
 
   void _endIntro() {
     _introEnding = false;
-    if (_disposed || startStage != StartStage.intro) return;
+    if (_disposed || startStage != StartStage.intro || _enteringApp) return;
+    if (savedGoal != null) {
+      _enteringApp = true;
+      addListener(_enterWhenReady);
+      return _enterWhenReady();
+    }
     startStage = tourPending ? StartStage.tour : StartStage.goal;
     notifyListeners();
   }
 
-  /// How long the end of the intro waits for the tutorial flag.
+  /// A returning launch, after the intro: the app once the first ranking is
+  /// done, or the loading page with its error and "Try again" if it failed.
+  void _enterWhenReady() {
+    if (startStage == StartStage.intro && !_ready && error == null) return; // the logo holds
+    removeListener(_enterWhenReady);
+    if (startStage != StartStage.intro) return;
+    startStage = StartStage.done;
+    notifyListeners();
+  }
+
+  /// A returning launch that a link takes away from Explore while the logo
+  /// plays: the start sequence is over, so the logo, cut short, never plays
+  /// again when Explore is reached. A first launch keeps its sequence for
+  /// then (the tutorial and the question show over Explore).
+  void _leaveIntro() {
+    if (savedGoal == null || startStage != StartStage.intro || dest == Dest.explore) return;
+    removeListener(_enterWhenReady);
+    _enteringApp = false;
+    startStage = StartStage.done;
+  }
+
+  /// How long the end of the intro waits for the tutorial flag and the saved goal.
   static const tourFlagWait = Duration(seconds: 2);
 
   /// [loadTourSeen] while it is reading (null before and after).
   Future<void>? _tourFlag;
   bool _introEnding = false;
+
+  /// A returning launch is past its intro and waits for the ranking ([_enterWhenReady]).
+  bool _enteringApp = false;
 
   // ---- the first-launch tutorial (user request 2026-10-19) ----
 
@@ -338,8 +376,8 @@ class AppState extends ChangeNotifier {
 
   static const _tourKey = 'tourSeen';
 
-  /// Opens the store the tutorial flag lives in (tests swap in a slow, hung
-  /// or failing one).
+  /// Opens the store the tutorial flag and the goal live in (tests swap in a
+  /// slow, hung or failing one).
   @visibleForTesting
   Future<SharedPreferences> Function() openPrefs = SharedPreferences.getInstance;
 
@@ -375,8 +413,8 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// The goal saved by the last [answerGoal] (null on a first run or when
-  /// nothing could be read).
+  /// The goal read from the store at start, or the last [answerGoal] (null
+  /// on a first run or when nothing could be read).
   Goal? savedGoal;
 
   static const _goalKey = 'goal';
@@ -386,10 +424,16 @@ class AppState extends ChangeNotifier {
   static const _retiredOpeningKey = 'opening';
 
   /// Read the goal saved last time and rank for it until the start question
-  /// is answered. A missing or failing store keeps Balanced.
-  Future<void> loadSavedGoal() async {
+  /// is answered. A missing or failing store keeps Balanced. A saved goal
+  /// also makes this a returning launch (see [finishIntro]).
+  Future<void> loadSavedGoal() => _goalFlag ??= _readSavedGoal().whenComplete(() => _goalFlag = null);
+
+  /// [loadSavedGoal] while it is reading (null before and after).
+  Future<void>? _goalFlag;
+
+  Future<void> _readSavedGoal() async {
     try {
-      final p = await SharedPreferences.getInstance();
+      final p = await openPrefs();
       if (p.containsKey(_retiredOpeningKey)) await p.remove(_retiredOpeningKey);
       final name = p.getString(_goalKey);
       final g = Goal.values.where((x) => x.name == name).firstOrNull;
@@ -439,12 +483,7 @@ class AppState extends ChangeNotifier {
     goalAnswered = true;
     savedGoal = g;
     if (startStage != StartStage.done) startStage = StartStage.loading;
-    setGoal(g); // notifies
-    unawaited(() async {
-      try {
-        await (await SharedPreferences.getInstance()).setString(_goalKey, g.name);
-      } catch (_) {}
-    }());
+    setGoal(g); // notifies and saves
   }
 
   /// The goal the current [weights] match, or null when they were tuned by
@@ -452,12 +491,19 @@ class AppState extends ChangeNotifier {
   /// since [goal] keeps the last preset.
   Goal? get activeGoal => goalFor(weights);
 
+  /// Rank for [g] and remember it: a returning launch opens Explore ranked
+  /// for the last goal chosen, on the start page or with the goal chips.
   void setGoal(Goal g) {
     final rerun = _landingLive(selectedId); // an in-card change: the answer follows (spec 7 P2)
     goal = g;
     weights = weightsFor(g);
     notifyListeners();
     if (rerun && !_landingLive(selectedId)) unawaited(findLanding());
+    unawaited(() async {
+      try {
+        await (await openPrefs()).setString(_goalKey, g.name);
+      } catch (_) {}
+    }());
   }
 
   /// Metrics of the shortlisted sites that are already computed under the

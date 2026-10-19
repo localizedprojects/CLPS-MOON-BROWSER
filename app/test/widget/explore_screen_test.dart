@@ -22,6 +22,7 @@ import 'package:polar_horizon/widgets/site_carousel.dart';
 import 'package:polar_horizon/widgets/stat_bar.dart';
 import 'package:polar_horizon/widgets/top_pick_card.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 /// AppState that can pretend the selected site's metrics could not be
 /// computed under the current choices (a failed computation, states-2).
@@ -38,6 +39,7 @@ void main() {
   late List<String> defaultShortlist;
 
   setUpAll(() async {
+    SharedPreferences.setMockInitialValues({}); // a goal chip saves the goal
     state = _ProbeState();
     await state.init();
     // the top pick's light snapshot loads the terrain and the light engine;

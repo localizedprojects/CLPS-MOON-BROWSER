@@ -1,7 +1,9 @@
 /// The loading screen (user request 2026-10-14), drawn by Flutter so it
 /// plays from the first frame: [SpaceLoading] shows the real south-pole
 /// terrain (NASA LOLA) under the circling Sun while the sites are ranked,
-/// with the real progress; still under "reduce motion".
+/// with the real progress; still under "reduce motion". A first launch
+/// shows it after the goal question; a returning one goes from the opening
+/// logo straight to Explore (user request 2026-10-19).
 library;
 
 import 'dart:async';
@@ -254,8 +256,10 @@ class _SpaceLoadingState extends State<SpaceLoading> with TickerProviderStateMix
             : s.ready
                 ? (_barFull ? 'Ready' : 'Getting ready…')
                 : 'Loading the sites…';
+    // the ground is part of the scene, so the ending fades the whole scene
+    // away and shows what is under it (the app, in the start sequence)
     return Material(
-      color: PH.bg,
+      type: MaterialType.transparency,
       child: LayoutBuilder(builder: (context, box) {
         final longest = ranking ? 'Ranking $total sites for ${goalLabel(s.goal)}: $total of $total' : line;
         final words = loadingWordsHeight(context, [line, longest], width: box.maxWidth, stopped: _stopped);
@@ -273,6 +277,7 @@ class _SpaceLoadingState extends State<SpaceLoading> with TickerProviderStateMix
             );
           },
           child: Stack(fit: StackFit.expand, children: [
+          const ColoredBox(key: ValueKey('loading-ground'), color: PH.bg),
           ExcludeSemantics(
               child: RepaintBoundary(
                   child: CustomPaint(

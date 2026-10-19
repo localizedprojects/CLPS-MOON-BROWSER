@@ -14,6 +14,7 @@ import 'package:polar_horizon/widgets/ranked_cards.dart';
 import 'package:polar_horizon/widgets/shortlist_bar.dart';
 import 'package:polar_horizon/widgets/winner_card.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -21,6 +22,7 @@ void main() {
   late List<String> initialIds;
 
   setUpAll(() async {
+    SharedPreferences.setMockInitialValues({}); // a goal chip saves the goal
     state = AppState();
     await state.init();
     // the review's shortlist (the app itself may start with none)

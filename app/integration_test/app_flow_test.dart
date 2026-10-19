@@ -45,9 +45,11 @@ void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
   testWidgets('tutorial -> goal -> loading -> Explore -> site tabs -> Compare -> Learn', (t) async {
-    // a fresh install: the tutorial has not been seen
+    // a fresh install: the tutorial has not been seen and no goal is saved
+    // (a saved goal makes a returning launch: the logo, then Explore)
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('tourSeen');
+    await prefs.remove('goal');
     app.main();
 
     // the intro (a tap skips it), then the first-launch tutorial, then the goal page

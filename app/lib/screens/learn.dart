@@ -13,6 +13,7 @@ import '../state/app_state.dart';
 import '../theme.dart';
 import '../widgets/explain.dart';
 import '../widgets/site_card.dart' show FocusRingInkWell;
+import 'first_run_tour.dart';
 import 'how_calculated.dart';
 import 'validation_page.dart';
 
@@ -98,6 +99,18 @@ class _Intro extends StatelessWidget {
           subtitle: Text('Show a short explanation next to each chart and map', style: PHText.small.copyWith(color: PH.muted)),
           value: s.explainInline,
           onChanged: s.setExplainInline,
+        ),
+      ),
+      Card(
+        margin: const EdgeInsets.only(top: 8, bottom: 4),
+        child: ListTile(
+          key: const ValueKey('learn-tour'),
+          minTileHeight: 64,
+          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+          leading: const Icon(Icons.replay_rounded, color: PH.ice),
+          title: const Text('Show the tutorial again', style: PHText.subtitle),
+          subtitle: Text('The short tour from the first launch', style: PHText.small.copyWith(color: PH.muted)),
+          onTap: () => FirstRunTour.replay(context),
         ),
       ),
     ]);

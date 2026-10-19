@@ -150,7 +150,7 @@ class LandingEntry {
 }
 
 /// The start sequence ([AppState.startStage]).
-enum StartStage { intro, goal, loading, done }
+enum StartStage { intro, tour, goal, loading, done }
 
 class AppState extends ChangeNotifier {
   // ---- navigation (owned by the shell) ----
@@ -295,10 +295,78 @@ class AppState extends ChangeNotifier {
   /// animation, the question, the loading scene, then the app.
   StartStage startStage = StartStage.intro;
 
+  /// The end of the intro (its animation, a tap on it, or reduced motion's
+  /// short timer): the tutorial on a first launch, else the start question.
+  /// While [loadTourSeen] is still reading (a tap right away, a slow cold
+  /// start) it waits for the answer, up to [tourFlagWait], so a first launch
+  /// never skips the tutorial; a store that never answers goes on without it.
   void finishIntro() {
-    if (startStage != StartStage.intro) return;
-    startStage = StartStage.goal;
+    if (startStage != StartStage.intro || _introEnding) return;
+    final flag = _tourFlag;
+    if (flag == null) return _endIntro();
+    _introEnding = true;
+    unawaited(flag.timeout(tourFlagWait, onTimeout: () {}).whenComplete(_endIntro));
+  }
+
+  void _endIntro() {
+    _introEnding = false;
+    if (_disposed || startStage != StartStage.intro) return;
+    startStage = tourPending ? StartStage.tour : StartStage.goal;
     notifyListeners();
+  }
+
+  /// How long the end of the intro waits for the tutorial flag.
+  static const tourFlagWait = Duration(seconds: 2);
+
+  /// [loadTourSeen] while it is reading (null before and after).
+  Future<void>? _tourFlag;
+  bool _introEnding = false;
+
+  // ---- the first-launch tutorial (user request 2026-10-19) ----
+
+  /// The tutorial has not been seen on this device yet: the start sequence
+  /// shows it once, between the intro and the start question. False until
+  /// [loadTourSeen] reads the store, so tests and other hosts never see it.
+  bool tourPending = false;
+
+  /// The first-launch tutorial is on screen in the start sequence: links
+  /// wait for its Skip or Done (the shell's router holds them). The shell
+  /// shows it only over Explore, so a link opened during the intro's wait
+  /// for the flag (dest Compare, say) is not held: the tutorial shows when
+  /// Explore is reached, as the start question does.
+  bool get inStartTour => askGoalOnStart && startStage == StartStage.tour && dest == Dest.explore;
+
+  static const _tourKey = 'tourSeen';
+
+  /// Opens the store the tutorial flag lives in (tests swap in a slow, hung
+  /// or failing one).
+  @visibleForTesting
+  Future<SharedPreferences> Function() openPrefs = SharedPreferences.getInstance;
+
+  /// Read whether the tutorial was seen. A missing or failing store does not
+  /// show it: it could not be remembered, so it would come back every launch.
+  Future<void> loadTourSeen() => _tourFlag ??= _readTourSeen().whenComplete(() => _tourFlag = null);
+
+  Future<void> _readTourSeen() async {
+    try {
+      final seen = (await openPrefs()).getBool(_tourKey) ?? false;
+      if (_disposed || tourPending == !seen) return;
+      tourPending = !seen;
+      notifyListeners();
+    } catch (_) {}
+  }
+
+  /// Skip or Done on the tutorial: remember it, and in the start sequence go
+  /// on to the start question (a link that came during it opens now).
+  void finishTour() {
+    tourPending = false;
+    if (startStage == StartStage.tour) startStage = StartStage.goal;
+    notifyListeners();
+    unawaited(() async {
+      try {
+        await (await openPrefs()).setBool(_tourKey, true);
+      } catch (_) {}
+    }());
   }
 
   void finishStartLoading() {

@@ -13,9 +13,9 @@ import '../state/app_state.dart';
 import '../theme.dart';
 import '../widgets/explain.dart';
 import '../widgets/site_card.dart' show FocusRingInkWell;
-import 'first_run_tour.dart';
 import 'how_calculated.dart';
 import 'validation_page.dart';
+import '../widgets/feature_guide.dart';
 
 /// The views explained under "What each view shows", in app order.
 const learnViews = [explainExplore, explainOverview, explainSky, explainTimeline, explainLight, explainCompare];
@@ -92,25 +92,32 @@ class _Intro extends StatelessWidget {
       ),
       Card(
         margin: const EdgeInsets.only(bottom: 4),
-        child: SwitchListTile(
+        child: GuideTarget(id: 'learn-explain', child: SwitchListTile(
           minTileHeight: 64,
           contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
           title: const Text('Explain as I go', style: PHText.subtitle),
           subtitle: Text('Show a short explanation next to each chart and map', style: PHText.small.copyWith(color: PH.muted)),
           value: s.explainInline,
           onChanged: s.setExplainInline,
-        ),
+        )),
       ),
       Card(
         margin: const EdgeInsets.only(top: 8, bottom: 4),
-        child: ListTile(
-          key: const ValueKey('learn-tour'),
-          minTileHeight: 64,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-          leading: const Icon(Icons.replay_rounded, color: PH.ice),
-          title: const Text('Show the tutorial again', style: PHText.subtitle),
-          subtitle: Text('The short tour from the first launch', style: PHText.small.copyWith(color: PH.muted)),
-          onTap: () => FirstRunTour.replay(context),
+        child: GuideTarget(
+          id: 'learn-guides',
+          child: ListTile(
+            key: const ValueKey('learn-guides'),
+            minTileHeight: 64,
+            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+            leading: const Icon(Icons.replay_rounded, color: PH.ice),
+            title: const Text('Show the guides again', style: PHText.subtitle),
+            subtitle: Text('Each screen walks you through its main buttons once more, starting with Explore',
+                style: PHText.small.copyWith(color: PH.muted)),
+            onTap: () {
+              s.replayGuides();
+              s.goTo(Dest.explore);
+            },
+          ),
         ),
       ),
     ]);

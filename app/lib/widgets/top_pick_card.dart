@@ -15,6 +15,7 @@ import '../state/app_state.dart';
 import '../theme.dart';
 import 'light_snapshot.dart';
 import 'stat_bar.dart';
+import 'feature_guide.dart';
 
 /// "Best spot for the next 12 months" (the default period), else
 /// "Best spot for 1 Jan 2027 – 31 Jan 2027"; the goal is named when it is
@@ -63,7 +64,7 @@ class TopPickCard extends StatelessWidget {
     final tMs = m.longestBoth?.startMs ?? m.longestSun?.startMs ?? s.rangeStartMs;
     final top3 = [for (final r in s.rankedAll.take(3)) r.id];
 
-    return Card(
+    return GuideTarget(id: 'top-pick', child: Card(
       margin: const EdgeInsets.symmetric(vertical: 8),
       clipBehavior: Clip.antiAlias,
       child: Padding(
@@ -139,7 +140,7 @@ class TopPickCard extends StatelessWidget {
           const FidelityBadge(text: lightSnapshotFidelity),
         ]),
       ),
-    );
+    ));
   }
 
   static void _compareTop(AppState s, List<String> ids) {

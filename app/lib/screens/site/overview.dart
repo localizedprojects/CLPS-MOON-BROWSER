@@ -28,6 +28,7 @@ import '../../widgets/light_snapshot.dart';
 import '../../widgets/plan_for_dark_card.dart';
 import '../../widgets/site_card.dart' show FocusRingInkWell;
 import '../../widgets/stat_trio.dart';
+import '../../widgets/feature_guide.dart';
 
 /// Which moment the hero image shows.
 enum HeroMoment { best, night }
@@ -211,7 +212,7 @@ class SiteOverview extends StatelessWidget {
               LandingWindowCard(key: ValueKey('landing-${site.id}')),
               if (s.explainInline) explainOverview,
               // 5. everything else behind "More about this site"
-              _MoreRow(metrics: m, requireDsn: dsn, open: open_, onToggle: () => s.setOverviewMoreOpen(!open_)),
+              GuideTarget(id: 'site-more', child: _MoreRow(metrics: m, requireDsn: dsn, open: open_, onToggle: () => s.setOverviewMoreOpen(!open_))),
               if (open_) ...[
               const SizedBox(height: 6),
               StatTrio(metrics: m, requireDsn: dsn),

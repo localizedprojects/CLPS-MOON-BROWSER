@@ -1,6 +1,7 @@
-// The start sequence (user request 2026-10-19): a first launch plays the
-// opening logo, the tutorial, the goal question and the loading scene; a
-// returning launch (a goal saved by an earlier one) plays only the opening
+// The start sequence (user requests 2026-10-19 and 2026-10-20): a first
+// launch plays the opening logo, the goal question and the loading scene,
+// with nothing in between (the tutorial is the feature guides, in the app);
+// a returning launch (a goal saved by an earlier one) plays only the opening
 // logo, then fades straight into Explore, ranked for the saved goal. The
 // last start page stays up while the app is first drawn under it, so the
 // fade is not lost to that (slow) first frame.
@@ -11,7 +12,6 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:polar_horizon/core/ranking.dart';
 import 'package:polar_horizon/screens/explore.dart';
-import 'package:polar_horizon/screens/first_run_tour.dart';
 import 'package:polar_horizon/screens/goal_page.dart';
 import 'package:polar_horizon/screens/intro.dart';
 import 'package:polar_horizon/screens/openings/skim.dart';
@@ -44,7 +44,6 @@ void main() {
     SharedPreferences.setMockInitialValues(saved);
     final s = AppState()..askGoalOnStart = true;
     await s.loadSavedGoal();
-    await s.loadTourSeen();
     return s;
   }
 
@@ -68,9 +67,7 @@ void main() {
 
   group('a returning launch', () {
     testWidgets('the logo, then Explore for the saved goal: no tutorial, question or loading scene', (tester) async {
-      // an older version's user: a goal saved, the tutorial never seen
       final s = await launch({'goal': 'power'});
-      expect(s.tourPending, isTrue);
       await show(tester, s);
       expect(find.byType(SkimOpening), findsOneWidget);
       await tester.pump(opening);
@@ -92,7 +89,6 @@ void main() {
       await tester.pump(fade);
       expect(find.byType(SkimOpening), findsNothing);
       expect(find.byType(ExploreScreen), findsOneWidget);
-      expect(find.byType(FirstRunTour), findsNothing);
       expect(find.byType(GoalPage), findsNothing);
       expect(find.byType(SpaceLoading), findsNothing);
       expect(s.goal, Goal.power);
@@ -101,7 +97,7 @@ void main() {
     });
 
     testWidgets('ready before the logo has played: Explore follows as soon as it ends', (tester) async {
-      final s = await launch({'goal': 'earth', 'tourSeen': true});
+      final s = await launch({'goal': 'earth'});
       await tester.runAsync(s.init);
       await show(tester, s);
       await tester.pump(const Duration(milliseconds: 2000));
@@ -114,8 +110,8 @@ void main() {
       expect(find.byType(ExploreScreen), findsOneWidget);
     });
 
-    testWidgets('a tap on the opening before the store answers still never asks the goal', (tester) async {
-      SharedPreferences.setMockInitialValues({'goal': 'earth', 'tourSeen': true});
+    testWidgets('the opening ending before the store answers still never asks the goal', (tester) async {
+      SharedPreferences.setMockInitialValues({'goal': 'earth'});
       const slow = Duration(milliseconds: 700); // a slow cold start on Android
       final s = AppState()
         ..askGoalOnStart = true
@@ -124,9 +120,8 @@ void main() {
           return SharedPreferences.getInstance();
         };
       unawaited(s.loadSavedGoal());
-      unawaited(s.loadTourSeen());
-      s.finishIntro(); // an immediate tap
-      s.finishIntro(); // and the animation's end: still one move
+      s.finishIntro(); // reduced motion's short timer
+      s.finishIntro(); // called twice: still one move
       await tester.pump(slow);
       expect(s.savedGoal, Goal.earth);
       expect(s.startStage, StartStage.intro, reason: 'the logo holds for the ranking; no question');
@@ -136,7 +131,7 @@ void main() {
     });
 
     testWidgets('a failed load after the logo shows what went wrong, with Try again', (tester) async {
-      final s = await launch({'goal': 'balanced', 'tourSeen': true});
+      final s = await launch({'goal': 'balanced'});
       s.debugFailSiteId = s.selectedId;
       await show(tester, s);
       await tester.pump(opening);
@@ -151,7 +146,7 @@ void main() {
     });
 
     testWidgets('a goal chosen with the chips on Explore is the one the next launch uses', (tester) async {
-      final s = await launch({'goal': 'power', 'tourSeen': true});
+      final s = await launch({'goal': 'power'});
       await tester.runAsync(s.init);
       await show(tester, s);
       await tester.pump(opening);
@@ -171,7 +166,7 @@ void main() {
 
     testWidgets('a link away from Explore during the logo ends the sequence: the logo never replays',
         (tester) async {
-      final s = await launch({'goal': 'power', 'tourSeen': true});
+      final s = await launch({'goal': 'power'});
       await show(tester, s);
       await tester.pump(const Duration(milliseconds: 2100)); // the logo still playing
       s.goTo(Dest.compare); // a link (#/compare), applied once ready
@@ -190,11 +185,11 @@ void main() {
   test('a first launch keeps its sequence for when Explore is reached, whatever a link opens first', () async {
     final s = await launch({});
     s.goTo(Dest.compare);
-    expect(s.startStage, StartStage.intro, reason: 'the tutorial and the question show over Explore');
+    expect(s.startStage, StartStage.intro, reason: 'the question shows over Explore');
   });
 
   testWidgets('a first launch ranked before the answer: Explore waits under the loading scene, out of reach', (tester) async {
-    final s = await launch({'tourSeen': true});
+    final s = await launch({});
     await tester.runAsync(s.init); // ranked during the logo, as on most devices
     await show(tester, s);
     await tester.pump(opening);
@@ -240,7 +235,7 @@ void main() {
     expect(FocusManager.instance.primaryFocus?.debugLabel, 'page', reason: "the page's focus, for Site's shortcuts");
   });
 
-  testWidgets('a first launch: the logo, the tutorial, the question and the loading scene, which fades into Explore',
+  testWidgets('a first launch: the logo, the question and the loading scene, which fades into Explore',
       (tester) async {
     final s = await launch({});
     expect(s.savedGoal, isNull);
@@ -248,11 +243,7 @@ void main() {
     expect(find.byType(SkimOpening), findsOneWidget);
     await tester.pump(opening);
     await tester.pump(fade);
-    expect(find.byType(FirstRunTour), findsOneWidget);
-    await tester.tap(find.byKey(const ValueKey('tour-skip')));
-    await tester.pump();
-    await tester.pump(fade);
-    expect(find.byType(GoalPage), findsOneWidget);
+    expect(find.byType(GoalPage), findsOneWidget, reason: 'nothing between the opening and the question');
     await tester.tap(find.byKey(const ValueKey('goal-balanced')));
     await tester.pump();
     await tester.pump(fade);

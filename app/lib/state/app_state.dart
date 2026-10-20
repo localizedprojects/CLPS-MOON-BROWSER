@@ -150,7 +150,7 @@ class LandingEntry {
 }
 
 /// The start sequence ([AppState.startStage]).
-enum StartStage { intro, tour, goal, loading, done }
+enum StartStage { intro, goal, loading, done }
 
 class AppState extends ChangeNotifier {
   // ---- navigation (owned by the shell) ----
@@ -294,27 +294,26 @@ class AppState extends ChangeNotifier {
   bool goalAnswered = false;
 
   /// Where the start sequence is (with [askGoalOnStart]): the intro
-  /// animation, then on a first launch the tutorial, the question and the
-  /// loading scene, then the app. A returning launch (a goal saved by an
-  /// earlier one, user request 2026-10-19) goes from the intro straight to
-  /// the app.
+  /// animation, then on a first launch the question and the loading scene,
+  /// then the app. A returning launch (a goal saved by an earlier one, user
+  /// request 2026-10-19) goes from the intro straight to the app. Nothing
+  /// interrupts it (user request 2026-10-20): the tutorial is the feature
+  /// guides, shown in the app itself.
   StartStage startStage = StartStage.intro;
 
-  /// The end of the intro (its animation, a tap on it, or reduced motion's
-  /// short timer). A first launch (no goal saved yet) goes on to the
-  /// tutorial (unless seen) and the start question. A returning launch goes
-  /// straight to Explore, ranked for the saved goal, once the sites are
-  /// ranked: the logo holds until then. While [loadTourSeen] or
-  /// [loadSavedGoal] is still reading (a tap right away, a slow cold start)
-  /// it waits for them, up to [tourFlagWait], so a first launch never skips
-  /// the tutorial and a returning one is never asked again; a store that
-  /// never answers goes on as a first launch, without the tutorial.
+  /// The end of the intro (its animation, or reduced motion's short timer).
+  /// A first launch (no goal saved yet) goes on to the start question. A
+  /// returning launch goes straight to Explore, ranked for the saved goal,
+  /// once the sites are ranked: the logo holds until then. While
+  /// [loadSavedGoal] is still reading (a slow cold start) it waits for it, up
+  /// to [goalFlagWait], so a returning launch is never asked again; a store
+  /// that never answers goes on as a first launch.
   void finishIntro() {
     if (startStage != StartStage.intro || _introEnding || _enteringApp) return;
-    final flags = [?_tourFlag, ?_goalFlag];
-    if (flags.isEmpty) return _endIntro();
+    final flag = _goalFlag;
+    if (flag == null) return _endIntro();
     _introEnding = true;
-    unawaited(Future.wait(flags).timeout(tourFlagWait, onTimeout: () => const []).whenComplete(_endIntro));
+    unawaited(flag.timeout(goalFlagWait, onTimeout: () {}).whenComplete(_endIntro));
   }
 
   void _endIntro() {
@@ -325,7 +324,7 @@ class AppState extends ChangeNotifier {
       addListener(_enterWhenReady);
       return _enterWhenReady();
     }
-    startStage = tourPending ? StartStage.tour : StartStage.goal;
+    startStage = StartStage.goal;
     notifyListeners();
   }
 
@@ -342,7 +341,7 @@ class AppState extends ChangeNotifier {
   /// A returning launch that a link takes away from Explore while the logo
   /// plays: the start sequence is over, so the logo, cut short, never plays
   /// again when Explore is reached. A first launch keeps its sequence for
-  /// then (the tutorial and the question show over Explore).
+  /// then (the question shows over Explore).
   void _leaveIntro() {
     if (savedGoal == null || startStage != StartStage.intro || dest == Dest.explore) return;
     removeListener(_enterWhenReady);
@@ -350,59 +349,90 @@ class AppState extends ChangeNotifier {
     startStage = StartStage.done;
   }
 
-  /// How long the end of the intro waits for the tutorial flag and the saved goal.
-  static const tourFlagWait = Duration(seconds: 2);
+  /// How long the end of the intro waits for the saved goal.
+  static const goalFlagWait = Duration(seconds: 2);
 
-  /// [loadTourSeen] while it is reading (null before and after).
-  Future<void>? _tourFlag;
   bool _introEnding = false;
 
   /// A returning launch is past its intro and waits for the ranking ([_enterWhenReady]).
   bool _enteringApp = false;
 
-  // ---- the first-launch tutorial (user request 2026-10-19) ----
-
-  /// The tutorial has not been seen on this device yet: the start sequence
-  /// shows it once, between the intro and the start question. False until
-  /// [loadTourSeen] reads the store, so tests and other hosts never see it.
-  bool tourPending = false;
-
-  /// The first-launch tutorial is on screen in the start sequence: links
-  /// wait for its Skip or Done (the shell's router holds them). The shell
-  /// shows it only over Explore, so a link opened during the intro's wait
-  /// for the flag (dest Compare, say) is not held: the tutorial shows when
-  /// Explore is reached, as the start question does.
-  bool get inStartTour => askGoalOnStart && startStage == StartStage.tour && dest == Dest.explore;
-
-  static const _tourKey = 'tourSeen';
-
-  /// Opens the store the tutorial flag and the goal live in (tests swap in a
-  /// slow, hung or failing one).
+  /// Opens the store the guides and the goal live in (tests swap in a slow,
+  /// hung or failing one).
   @visibleForTesting
   Future<SharedPreferences> Function() openPrefs = SharedPreferences.getInstance;
 
-  /// Read whether the tutorial was seen. A missing or failing store does not
-  /// show it: it could not be remembered, so it would come back every launch.
-  Future<void> loadTourSeen() => _tourFlag ??= _readTourSeen().whenComplete(() => _tourFlag = null);
+  // ---- feature guides (user request 2026-10-20) ----
 
-  Future<void> _readTourSeen() async {
+  /// Walk each screen's major controls, one at a time, the first time the
+  /// screen is opened (main.dart sets this; tests and other hosts leave it
+  /// off, so nothing covers their screens).
+  bool showGuides = false;
+
+  /// The guides already walked through on this device, by id (see
+  /// `guideIdFor` in widgets/feature_guide.dart).
+  Set<String> guidesSeen = const {};
+
+  /// The guide on screen, or null.
+  String? activeGuide;
+
+  /// [loadGuidesSeen] has answered. Until then no guide starts, so one seen
+  /// before never shows again because the store was slow.
+  bool _guidesRead = false;
+
+  /// The store could not be read: the guides could not be remembered, so
+  /// they would come back every launch; none shows.
+  bool _guidesUnsaved = false;
+
+  static const _guidesKey = 'guidesSeen';
+
+  /// Read which guides were walked through.
+  Future<void> loadGuidesSeen() async {
     try {
-      final seen = (await openPrefs()).getBool(_tourKey) ?? false;
-      if (_disposed || tourPending == !seen) return;
-      tourPending = !seen;
-      notifyListeners();
-    } catch (_) {}
+      final seen = (await openPrefs()).getStringList(_guidesKey) ?? const <String>[];
+      guidesSeen = {...guidesSeen, ...seen};
+    } catch (_) {
+      _guidesUnsaved = true;
+    }
+    _guidesRead = true;
+    if (!_disposed) notifyListeners();
   }
 
-  /// Skip or Done on the tutorial: remember it, and in the start sequence go
-  /// on to the start question (a link that came during it opens now).
-  void finishTour() {
-    tourPending = false;
-    if (startStage == StartStage.tour) startStage = StartStage.goal;
+  /// Whether [id]'s guide should start now: guides on and read, none on
+  /// screen, and this one not walked through yet.
+  bool wantsGuide(String id) =>
+      showGuides && _guidesRead && !_guidesUnsaved && activeGuide == null && !guidesSeen.contains(id);
+
+  void startGuide(String id) {
+    if (activeGuide != null) return;
+    activeGuide = id;
     notifyListeners();
+  }
+
+  /// The guide on screen is done (Done on its last step, or back on its
+  /// first): remember it.
+  void finishGuide() {
+    final id = activeGuide;
+    if (id == null) return;
+    activeGuide = null;
+    guidesSeen = {...guidesSeen, id};
+    notifyListeners();
+    _saveGuides();
+  }
+
+  /// Learn's "Show the guides again": every screen guides once more, as it
+  /// is next opened.
+  void replayGuides() {
+    guidesSeen = const {};
+    notifyListeners();
+    _saveGuides();
+  }
+
+  void _saveGuides() {
+    final seen = guidesSeen.toList()..sort();
     unawaited(() async {
       try {
-        await (await openPrefs()).setBool(_tourKey, true);
+        await (await openPrefs()).setStringList(_guidesKey, seen);
       } catch (_) {}
     }());
   }

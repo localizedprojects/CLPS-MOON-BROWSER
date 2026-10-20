@@ -26,7 +26,8 @@ const _landed = 0.76;
 /// 4. 1.65 to 2.43 s: the wide scene gathers into the logo tile (the rounded
 ///    frame closes round the ridge, Sun and Earth land on their logo spots).
 /// 5. 2.43 to 2.78 s, once the logo has landed: the name fades up; then the picture holds still.
-/// A tap skips it. Under reduce motion: the final picture, then [onDone].
+/// It always plays through (user request 2026-10-20: no skip). Under reduce
+/// motion: the final picture, then [onDone].
 class SkimOpening extends StatefulWidget {
   final VoidCallback onDone;
   const SkimOpening({super.key, required this.onDone});
@@ -78,14 +79,8 @@ class _SkimOpeningState extends State<SkimOpening> with SingleTickerProviderStat
     name.dispose();
     return Semantics(
       label: 'Lunar Horizon',
-      hint: 'Tap to skip',
-      button: true,
-      onTap: _finish,
       excludeSemantics: true,
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: _finish,
-        child: Material(
+      child: Material(
           color: PH.bg,
           child: LayoutBuilder(builder: (context, box) {
             final size = box.biggest;
@@ -118,7 +113,6 @@ class _SkimOpeningState extends State<SkimOpening> with SingleTickerProviderStat
             ]);
           }),
         ),
-      ),
     );
   }
 }

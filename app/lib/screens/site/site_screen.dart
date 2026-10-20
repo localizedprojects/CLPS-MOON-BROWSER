@@ -18,6 +18,7 @@ import '../../widgets/sheets/site_picker_sheet.dart';
 import 'light_tab.dart';
 import 'overview.dart';
 import 'sky_time.dart';
+import '../../widgets/feature_guide.dart';
 
 // the time bar used to live here; tests and older callers import it from here
 export '../../widgets/time_bar.dart' show TimeBar, TimeScrubber;
@@ -80,7 +81,7 @@ class SiteScreen extends StatelessWidget {
               // the chips, then the tab's own controls (each its own group)
               child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
                 FocusTraversalGroup(
-                    child: _TabChips(state: s, tabs: const [SiteTab.skyTime, SiteTab.light], selected: right)),
+                    child: GuideTarget(id: 'site-tabs', child: _TabChips(state: s, tabs: const [SiteTab.skyTime, SiteTab.light], selected: right))),
                 Expanded(
                   child: FocusTraversalGroup(
                     child: _LazyTabs(index: right == SiteTab.light ? 1 : 0, children: [
@@ -95,7 +96,7 @@ class SiteScreen extends StatelessWidget {
         ),
       ]);
     }
-    final chips = _TabChips(state: s, tabs: SiteTab.values, selected: s.siteTab);
+    final chips = GuideTarget(id: 'site-tabs', child: _TabChips(state: s, tabs: SiteTab.values, selected: s.siteTab));
     // one tab at a time: a sideways swipe turns to the next one, as the chips do
     void swipedTo(int i) => s.goTo(Dest.site, siteTab: SiteTab.values[i]);
     final tabs = _SwipeTabs(index: s.siteTab.index, onSwipe: swipedTo, children: [
@@ -124,7 +125,7 @@ class SiteScreen extends StatelessWidget {
                 ),
               ),
             ),
-            _ChangeSite(state: s, iconOnly: true),
+            GuideTarget(id: 'change-site', child: _ChangeSite(state: s, iconOnly: true)),
             ConstrainedBox(constraints: BoxConstraints(maxWidth: c.maxWidth * 0.75), child: chips),
           ]),
         ),
@@ -211,7 +212,7 @@ class _Header extends StatelessWidget {
               Visibility(visible: false, maintainSize: true, maintainAnimation: true, maintainState: true, child: kindText),
           ]),
         ),
-        _ChangeSite(state: state, iconOnly: iconOnly),
+        GuideTarget(id: 'change-site', child: _ChangeSite(state: state, iconOnly: iconOnly)),
       ]),
     );
   }

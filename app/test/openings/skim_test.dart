@@ -1,5 +1,6 @@
 // Opening candidate "Polar sunrise" (skim): plays, then done once; a tap
-// skips; reduce motion shows the final picture; plus a contact sheet.
+// does not cut it short (user request 2026-10-20: the start plays through);
+// reduce motion shows the final picture; plus a contact sheet.
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:polar_horizon/screens/goal_page.dart';
@@ -40,14 +41,17 @@ void main() {
     await tester.pumpWidget(const SizedBox());
   });
 
-  testWidgets('a tap skips, once only', (tester) async {
+  testWidgets('a tap does not cut it short: done once, at the end', (tester) async {
     var done = 0;
     await tester.pumpWidget(_host(SkimOpening(onDone: () => done++)));
     await tester.pump(const Duration(milliseconds: 500));
-    await tester.tap(find.byType(SkimOpening));
-    await tester.tap(find.byType(SkimOpening));
+    await tester.tap(find.byType(SkimOpening), warnIfMissed: false);
+    await tester.tap(find.byType(SkimOpening), warnIfMissed: false);
+    await tester.pump();
+    expect(done, 0, reason: 'still playing');
+    await tester.pump(const Duration(seconds: 3));
     expect(done, 1);
-    await tester.pump(const Duration(seconds: 4));
+    await tester.pump(const Duration(seconds: 2));
     expect(done, 1);
     await tester.pumpWidget(const SizedBox());
   });
@@ -68,7 +72,7 @@ void main() {
     await writeContactSheets(tester, 'skim', (done) => SkimOpening(onDone: done));
   }, skip: sheetsDir == null);
 
-  testWidgets('the shell intro stage plays the opening, then a tap moves on to the goal page', (tester) async {
+  testWidgets('the shell intro stage plays the opening through, then moves on to the goal page', (tester) async {
     SharedPreferences.setMockInitialValues({});
     final s = AppState()
       ..askGoalOnStart = true
@@ -86,7 +90,9 @@ void main() {
     expect(find.byKey(const ValueKey('intro')), findsOneWidget);
     expect(find.descendant(of: find.byKey(const ValueKey('intro')), matching: find.byType(SkimOpening)),
         findsOneWidget);
-    await tester.tap(find.byType(SkimOpening));
+    await tester.tap(find.byType(SkimOpening), warnIfMissed: false);
+    await tester.pump();
+    expect(s.startStage, StartStage.intro, reason: 'a tap does not cut the opening short');
     await tester.pumpAndSettle();
     expect(s.startStage, StartStage.goal);
     expect(find.byType(SkimOpening), findsNothing);

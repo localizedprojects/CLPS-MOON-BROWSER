@@ -42,7 +42,7 @@ void main() {
   });
 
   /// The shell over [state] on a [size] screen, as the app shows it after the start.
-  Future<void> show(WidgetTester tester, {Size size = const Size(400, 900), double text = 1}) async {
+  Future<void> show(WidgetTester tester, {Size size = const Size(400, 900), double text = 1, bool still = false}) async {
     final hub = ChartHub(onEvent: (_) {});
     addTearDown(hub.dispose);
     tester.view.physicalSize = size;
@@ -55,7 +55,9 @@ void main() {
         child: MaterialApp(
           theme: buildTheme(),
           builder: (context, child) =>
-              MediaQuery(data: MediaQuery.of(context).copyWith(textScaler: TextScaler.linear(text)), child: child!),
+              MediaQuery(
+                  data: MediaQuery.of(context).copyWith(textScaler: TextScaler.linear(text), disableAnimations: still),
+                  child: child!),
           home: const AppShell(),
         ),
       ),
@@ -277,20 +279,55 @@ void main() {
   });
 
   testWidgets('a phone whose top bar slid away: it comes back for its step', (tester) async {
-    state.guidesSeen = {...keys('explore')};
     await show(tester);
+    final pill = find.byWidgetPredicate((w) => w is GuideTarget && w.id == 'pill').first;
+    // the user scrolls Explore down before its guide starts: the top bar slides away
+    final drag = await tester.startGesture(const Offset(200, 700));
+    for (var i = 0; i < 10; i++) {
+      await drag.moveBy(const Offset(0, -30));
+      await tester.pump(const Duration(milliseconds: 16));
+    }
+    await drag.up();
+    await tester.pump(const Duration(milliseconds: 250));
+    expect(state.activeGuide, isNull, reason: 'before the guide');
+    expect(tester.getRect(pill).bottom, lessThanOrEqualTo(0), reason: 'the bar slid away');
+    await settle(tester);
+    await settle(tester);
+    expect(state.activeGuide, 'explore');
+    expect(find.descendant(of: find.byType(FeatureGuideLayer), matching: find.text('Mission settings')), findsOneWidget);
+    expect(tester.getRect(pill).top, greaterThanOrEqualTo(0), reason: 'the bar came back for its step');
+    expect(state.guidesSeen, contains('explore:pill'));
+    expect(state.guidesPassed, isEmpty);
+    await walk(tester);
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('with animations off, controls below the fold are still scrolled to and lit', (tester) async {
+    state.guidesSeen = {...keys('explore')};
+    await show(tester, size: const Size(400, 560), still: true);
     state.goTo(Dest.learn);
     await tester.pump();
-    // the user scrolls down before the guide starts: the top bar slides away
-    await tester.drag(find.byType(Scrollable).last, const Offset(0, -400));
-    await tester.pump(const Duration(milliseconds: 300));
     await settle(tester);
     expect(state.activeGuide, 'learn');
-    expect(find.descendant(of: find.byType(FeatureGuideLayer), matching: find.text('Share & export')), findsOneWidget);
+    final titles = await walk(tester);
+    expect(titles, [for (final s in guideSteps['learn']!) s.title]);
+    expect(state.guidesPassed, isEmpty, reason: 'none passed over');
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('Next tapped before a step is lit still counts it: the guide does not come back', (tester) async {
+    await show(tester, size: const Size(400, 640));
     await settle(tester);
-    final share = find.byTooltip('Share & export');
-    expect(tester.getRect(share).top, greaterThanOrEqualTo(0), reason: 'the bar came back');
-    await walk(tester);
+    expect(state.activeGuide, 'explore');
+    // quick taps, each before the next control has been scrolled to and lit
+    for (var i = 0; i < 12 && find.byKey(_next).evaluate().isNotEmpty; i++) {
+      await tester.tap(find.byKey(_next));
+      await tester.pump(const Duration(milliseconds: 16));
+    }
+    expect(state.activeGuide, isNull);
+    await settle(tester);
+    await settle(tester);
+    expect(find.byType(FeatureGuideLayer), findsNothing, reason: 'every step was read: no guide again');
     await tester.pumpWidget(const SizedBox());
   });
 

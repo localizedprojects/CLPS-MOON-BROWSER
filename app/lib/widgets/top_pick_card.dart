@@ -72,6 +72,11 @@ class TopPickCard extends StatelessWidget {
         // the answer in words comes first, so it is above the fold on a phone,
         // then its actions; the computed picture of that moment follows
         child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          // the answer and its actions are one ring in the Explore guide
+          // ("Your best spot"); the picture below is not part of it
+          GuideTarget(
+            id: 'top-pick',
+            child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
           Semantics(
             container: true,
             liveRegion: true,
@@ -95,7 +100,7 @@ class TopPickCard extends StatelessWidget {
           // the actions come straight after the answer, above the picture, so
           // they are close to the answer and never under the compare tray
           // (ux1-3)
-          GuideTarget(id: 'top-pick', child: Wrap(spacing: 8, runSpacing: 8, crossAxisAlignment: WrapCrossAlignment.center, children: [
+          Wrap(spacing: 8, runSpacing: 8, crossAxisAlignment: WrapCrossAlignment.center, children: [
             Semantics(
               container: true,
               button: true,
@@ -133,7 +138,9 @@ class TopPickCard extends StatelessWidget {
                 child: const Text('How is this ranked?'),
               ),
             ),
-          ])),
+          ]),
+            ]),
+          ),
           const SizedBox(height: 12),
           LightSnapshot(key: ValueKey('top-${site.id}'), site: site, tMs: tMs, aspect: 2.0, showFidelity: false),
           const SizedBox(height: 8),

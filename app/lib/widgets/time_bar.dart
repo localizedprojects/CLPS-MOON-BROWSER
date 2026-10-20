@@ -191,7 +191,8 @@ class _TimeScrubberState extends State<TimeScrubber> {
         onChanged: s.setCursor,
       ),
     );
-    return Card(
+    // the whole bar is the Sky & time guide's "Play and the time bar"
+    return GuideTarget(id: 'time-bar', child: Card(
       key: const ValueKey('time-full'),
       margin: const EdgeInsets.fromLTRB(6, 4, 6, 6),
       child: Padding(
@@ -275,7 +276,7 @@ class _TimeScrubberState extends State<TimeScrubber> {
           ]);
         }),
       ),
-    );
+    ));
   }
 }
 

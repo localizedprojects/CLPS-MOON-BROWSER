@@ -177,6 +177,9 @@ class _FeatureGuideLayerState extends State<FeatureGuideLayer> with WidgetsBindi
           alignmentPolicy: at.rect.bottom > at.view.bottom
               ? ScrollPositionAlignmentPolicy.keepVisibleAtEnd
               : ScrollPositionAlignmentPolicy.keepVisibleAtStart);
+      // a list's children move only at its next layout (with no motion the
+      // scroll is a jump that returns at once)
+      await WidgetsBinding.instance.endOfFrame;
       if (!mounted || gen != _measureGen || (layer = _layer()) == null) return;
       at = _locate(step.target, layer!);
       if (at == null) return _go(_i + 1);
@@ -285,7 +288,12 @@ class _FeatureGuideLayerState extends State<FeatureGuideLayer> with WidgetsBindi
                       last: last,
                       next: _next,
                       onBack: _i > 0 ? () => _go(_i - 1) : null,
-                      onNext: () => _go(_i + 1),
+                      onNext: () {
+                        // read: remembered even if Next comes before its
+                        // control has been scrolled to and lit
+                        widget.state.markGuideSeen([guideStepKey(_id, step)]);
+                        _go(_i + 1);
+                      },
                     ),
                   ),
                 ),

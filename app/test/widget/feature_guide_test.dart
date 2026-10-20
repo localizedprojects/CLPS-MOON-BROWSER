@@ -4,6 +4,7 @@
 // Learn replays them. Also Android back, screen readers, a 320 px phone at
 // 2x text, and hosts that do not ask for guides.
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart' show SemanticsAction;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:polar_horizon/content/guides.dart';
 import 'package:polar_horizon/screens/shell.dart';
@@ -15,6 +16,9 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 const _next = ValueKey('guide-next');
+
+/// Every step of guide [id], as AppState.guidesSeen remembers them.
+Set<String> keys(String id) => {for (final st in guideSteps[id]!) guideStepKey(id, st)};
 const _back = ValueKey('guide-back');
 
 void main() {
@@ -71,6 +75,10 @@ void main() {
 
   /// Next through the guide on screen to Done; the titles seen, in order.
   Future<List<String>> walk(WidgetTester tester) async {
+    // the card shows once its control has been measured, a frame or two in
+    for (var i = 0; i < 10 && find.byKey(_next).evaluate().isEmpty; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
     final titles = <String>[];
     for (var i = 0; i < 12 && find.byKey(_next).evaluate().isNotEmpty; i++) {
       final title = guideSteps.values
@@ -99,8 +107,8 @@ void main() {
     expect([for (final t in all) if (titles.contains(t)) t], titles, reason: 'in the guide\'s order');
     expect(titles.length, greaterThanOrEqualTo(4));
     expect(find.byType(FeatureGuideLayer), findsNothing);
-    expect(state.guidesSeen, contains('explore'));
-    expect((await SharedPreferences.getInstance()).getStringList('guidesSeen'), contains('explore'));
+    expect(state.guidesSeen, containsAll(['explore:pill', 'explore:nav']));
+    expect((await SharedPreferences.getInstance()).getStringList('guidesSeen'), contains('explore:pill'));
     // not again on the next visit
     state.goTo(Dest.learn);
     await tester.pump();
@@ -134,7 +142,7 @@ void main() {
     expect(await tester.binding.handlePopRoute(), isTrue);
     await settle(tester);
     expect(find.byType(FeatureGuideLayer), findsNothing, reason: 'back on the first step closes it');
-    expect(state.guidesSeen, contains('explore'));
+    expect(state.guidesSeen, containsAll(keys('explore')), reason: 'turned down: none of it shows again');
     expect(state.dest, Dest.explore);
     await tester.pumpWidget(const SizedBox());
   });
@@ -152,7 +160,7 @@ void main() {
   });
 
   testWidgets('a Site tab guides on its first visit; Learn replays every guide, starting on Explore', (tester) async {
-    state.guidesSeen = {'explore', 'learn'};
+    state.guidesSeen = {...keys('explore'), ...keys('learn')};
     await show(tester);
     await settle(tester);
     expect(find.byType(FeatureGuideLayer), findsNothing);
@@ -189,6 +197,10 @@ void main() {
     expect(find.semantics.byLabel(RegExp('^South pole map')), findsNothing, reason: 'the app under the guide is not read out');
     expect(tester.getSize(find.byKey(_next)).height, greaterThanOrEqualTo(48));
     expect(nextLabel(tester), 'Next');
+    expect(
+        find.semantics.byPredicate((n) => n.getSemanticsData().hasAction(SemanticsAction.tap) && n.label.isEmpty),
+        findsNothing,
+        reason: 'no unlabeled button: the dimmed screen does nothing');
     handle.dispose();
     await tester.pumpWidget(const SizedBox());
   });
@@ -208,6 +220,103 @@ void main() {
       await settle(tester);
     }
     expect(find.byType(FeatureGuideLayer), findsNothing);
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('Compare: picking sites later brings a short guide to the results', (tester) async {
+    state
+      ..guidesSeen = {...keys('explore')}
+      ..setCompare(const []);
+    await show(tester);
+    state.goTo(Dest.compare);
+    await tester.pump();
+    await settle(tester);
+    expect(state.activeGuide, 'compare');
+    final first = await walk(tester);
+    expect(first, contains('Pick sites to compare'));
+    expect(first, isNot(contains('Best for your priorities')), reason: 'no results yet');
+    state.setCompare(AppState.exampleShortlist);
+    for (var i = 0; i < 20 && !state.compareReady; i++) {
+      await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 100)));
+      await tester.pump();
+    }
+    await settle(tester);
+    expect(state.activeGuide, 'compare', reason: 'the results are new: their steps show now');
+    final later = await walk(tester);
+    expect(later, contains('Best for your priorities'));
+    expect(later, isNot(contains('Pick sites to compare')), reason: 'shown before');
+    state.setCompare(const []);
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('the browser\'s back during a guide turns it down; the screen stays', (tester) async {
+    final delegate = ShellRouterDelegate(state);
+    addTearDown(delegate.dispose);
+    final hub = ChartHub(onEvent: (_) {});
+    addTearDown(hub.dispose);
+    tester.view.physicalSize = const Size(400, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(ChangeNotifierProvider<AppState>.value(
+      value: state,
+      child: Provider<ChartHub>.value(
+          value: hub,
+          child: MaterialApp.router(
+              theme: buildTheme(), routerDelegate: delegate, routeInformationParser: const ShellRouteParser())),
+    ));
+    await tester.pump();
+    await settle(tester);
+    expect(state.activeGuide, 'explore');
+    await delegate.setNewRoutePath(const ShellLocation(Dest.compare)); // Back / Forward / a #hash edit
+    await tester.pump();
+    await settle(tester);
+    expect(state.activeGuide, isNull);
+    expect(state.dest, Dest.explore, reason: 'the screen under the guide stays');
+    expect(state.guidesSeen, containsAll(keys('explore')));
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('a phone whose top bar slid away: it comes back for its step', (tester) async {
+    state.guidesSeen = {...keys('explore')};
+    await show(tester);
+    state.goTo(Dest.learn);
+    await tester.pump();
+    // the user scrolls down before the guide starts: the top bar slides away
+    await tester.drag(find.byType(Scrollable).last, const Offset(0, -400));
+    await tester.pump(const Duration(milliseconds: 300));
+    await settle(tester);
+    expect(state.activeGuide, 'learn');
+    expect(find.descendant(of: find.byType(FeatureGuideLayer), matching: find.text('Share & export')), findsOneWidget);
+    await settle(tester);
+    final share = find.byTooltip('Share & export');
+    expect(tester.getRect(share).top, greaterThanOrEqualTo(0), reason: 'the bar came back');
+    await walk(tester);
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('a control that cannot be brought into view is passed over, and does not bring its guide back',
+      (tester) async {
+    state
+      ..guidesSeen = keys('explore').difference({'explore:pill'})
+      ..activeGuide = 'explore';
+    tester.view.physicalSize = const Size(400, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(MaterialApp(
+      theme: buildTheme(),
+      home: Stack(children: [
+        // off the side of the screen, outside any scrolling page
+        const Positioned(left: -500, top: 10, child: GuideTarget(id: 'pill', child: SizedBox(width: 48, height: 48))),
+        FeatureGuideLayer(state: state),
+      ]),
+    ));
+    expect(pendingGuideSteps(state, 'explore').map((s) => s.target), ['pill']);
+    await settle(tester);
+    expect(state.activeGuide, isNull, reason: 'nothing to light: the guide ends at once');
+    expect(state.guidesSeen, isNot(contains('explore:pill')), reason: 'not shown, so not remembered as seen');
+    expect(pendingGuideSteps(state, 'explore'), isEmpty, reason: 'not tried again this session');
+    state.replayGuides();
+    expect(pendingGuideSteps(state, 'explore').map((s) => s.target), ['pill'], reason: 'a replay tries it again');
     await tester.pumpWidget(const SizedBox());
   });
 

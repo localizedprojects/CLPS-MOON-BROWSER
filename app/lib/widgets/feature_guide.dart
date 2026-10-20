@@ -14,6 +14,7 @@ import 'package:flutter/services.dart';
 import '../content/guides.dart';
 import '../state/app_state.dart';
 import '../theme.dart';
+import 'hide_on_scroll.dart';
 
 /// The guide for the screen [s] shows now, or null when it has none.
 String? guideIdFor(AppState s) => switch (s.dest) {
@@ -26,6 +27,20 @@ String? guideIdFor(AppState s) => switch (s.dest) {
       Dest.compare => 'compare',
       Dest.learn => 'learn',
     };
+
+/// The key [AppState.guidesSeen] remembers [step] of guide [id] under.
+String guideStepKey(String id, GuideStep step) => '$id:${step.target}';
+
+/// The steps of guide [id] to show now: their control on screen and not
+/// shown (or passed over) before (a control that appears later, such as
+/// Compare's results once sites are picked, gets its own short guide then).
+List<GuideStep> pendingGuideSteps(AppState s, String id) => [
+      for (final st in guideSteps[id] ?? const <GuideStep>[])
+        if (!s.guidesSeen.contains(guideStepKey(id, st)) &&
+            !s.guidesPassed.contains(guideStepKey(id, st)) &&
+            GuideTarget.all(st.target).isNotEmpty)
+          st,
+    ];
 
 /// A control a guide can point at: marks [child] as [id] (see content/guides.dart).
 class GuideTarget extends StatefulWidget {
@@ -97,8 +112,8 @@ class FeatureGuideLayer extends StatefulWidget {
 
 class _FeatureGuideLayerState extends State<FeatureGuideLayer> with WidgetsBindingObserver {
   late final String _id = widget.state.activeGuide!;
-  // the steps whose control is on screen when the guide starts, collected
-  // once the screen has been laid out
+  // the steps to show (see pendingGuideSteps), collected once the screen
+  // has been laid out
   List<GuideStep>? _steps;
   int _i = 0;
   Rect? _hole; // the current control, in this layer's coordinates
@@ -111,11 +126,11 @@ class _FeatureGuideLayerState extends State<FeatureGuideLayer> with WidgetsBindi
     WidgetsBinding.instance.addObserver(this);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      final steps =
-          (guideSteps[_id] ?? const <GuideStep>[]).where((st) => GuideTarget.all(st.target).isNotEmpty).toList();
+      final steps = pendingGuideSteps(widget.state, _id);
       if (steps.isEmpty) return widget.state.finishGuide();
       setState(() => _steps = steps);
-      _measure();
+      _measureSoon(); // once the guide itself is laid out
+
     });
   }
 
@@ -132,28 +147,73 @@ class _FeatureGuideLayerState extends State<FeatureGuideLayer> with WidgetsBindi
 
   void _measureSoon() => WidgetsBinding.instance.addPostFrameCallback((_) => _measure());
 
-  /// Find the current step's control, scroll it into view when it is not,
-  /// and light it.
+  /// Find the current step's control, bring it into view when it is not (a
+  /// bar that slid away comes back; a page scrolls), light it, and remember
+  /// it as shown.
   Future<void> _measure() async {
     final steps = _steps;
     if (!mounted || steps == null) return;
     final gen = ++_measureGen;
-    final layer = context.findRenderObject();
-    if (layer is! RenderBox || !layer.hasSize) return;
-    final view = Offset.zero & layer.size;
-    var (target, r) = _pick(steps[_i].target, layer);
-    if (target == null || r == null) return _go(_i + 1); // gone meanwhile: on to the next step
-    if (r.top < view.top || r.bottom > view.bottom) {
-      await Scrollable.ensureVisible(
-        target,
-        duration: MediaQuery.disableAnimationsOf(context) ? Duration.zero : const Duration(milliseconds: 250),
-        alignmentPolicy:
-            r.bottom > view.bottom ? ScrollPositionAlignmentPolicy.keepVisibleAtEnd : ScrollPositionAlignmentPolicy.keepVisibleAtStart,
-      );
-      if (!mounted || gen != _measureGen) return;
-      (target, r) = _pick(steps[_i].target, layer);
+    final step = steps[_i];
+    final wait = MediaQuery.disableAnimationsOf(context) ? Duration.zero : const Duration(milliseconds: 250);
+    // found afresh after every wait: the control may have moved or gone
+    var layer = _layer();
+    if (layer == null) return;
+    var at = _locate(step.target, layer);
+    if (at == null) return _go(_i + 1); // gone meanwhile: on to the next step
+    // a control in a bar that slid away on a phone: the bar comes back
+    if (at.rect.top < at.view.top && HideOnScroll.reveal(at.target)) {
+      // its slide back, then a frame drawn after it (with no motion the
+      // bar is back only once the next frame has been laid out)
+      await Future<void>.delayed(wait);
+      await WidgetsBinding.instance.endOfFrame;
+      if (!mounted || gen != _measureGen || (layer = _layer()) == null) return;
+      at = _locate(step.target, layer!);
+      if (at == null) return _go(_i + 1);
     }
-    if (r != null) setState(() => _hole = r!.intersect(view));
+    if (at.rect.top < at.view.top || at.rect.bottom > at.view.bottom) {
+      await Scrollable.ensureVisible(at.target,
+          duration: wait,
+          alignmentPolicy: at.rect.bottom > at.view.bottom
+              ? ScrollPositionAlignmentPolicy.keepVisibleAtEnd
+              : ScrollPositionAlignmentPolicy.keepVisibleAtStart);
+      if (!mounted || gen != _measureGen || (layer = _layer()) == null) return;
+      at = _locate(step.target, layer!);
+      if (at == null) return _go(_i + 1);
+    }
+    final hole = at.rect.intersect(at.view);
+    if (hole.isEmpty) {
+      // it cannot be brought into view: on to the next step, and not tried
+      // again this session
+      widget.state.guidesPassed.add(guideStepKey(_id, step));
+      return _go(_i + 1);
+    }
+    widget.state.markGuideSeen([guideStepKey(_id, step)]);
+    setState(() => _hole = hole);
+  }
+
+  /// This guide's own box, laid out (the controls are measured against it).
+  RenderBox? _layer() {
+    final r = context.findRenderObject();
+    return r is RenderBox && r.attached && r.hasSize ? r : null;
+  }
+
+  /// The control [id] to light now: its context, where it is in [layer], and
+  /// where it can be seen; null when it is not built.
+  static ({BuildContext target, Rect rect, Rect view})? _locate(String id, RenderBox layer) {
+    final (target, rect) = _pick(id, layer);
+    if (target == null || rect == null) return null;
+    return (target: target, rect: rect, view: _visible(target, layer));
+  }
+
+  /// Where [target] can be seen in [layer]: the layer, cut to the view of the
+  /// vertical scroll it sits in (bars above and below the page cover what
+  /// scrolls under them).
+  static Rect _visible(BuildContext target, RenderBox layer) {
+    var v = Offset.zero & layer.size;
+    final box = Scrollable.maybeOf(target, axis: Axis.vertical)?.context.findRenderObject();
+    if (box is RenderBox && box.hasSize) v = v.intersect(layer.globalToLocal(box.localToGlobal(Offset.zero)) & box.size);
+    return v;
   }
 
   /// The target [id] to light, with its place in [layer]: the copy across the
@@ -170,7 +230,7 @@ class _FeatureGuideLayerState extends State<FeatureGuideLayer> with WidgetsBindi
   }
 
   void _go(int i) {
-    if (i < 0) return widget.state.finishGuide(); // back from the first step closes it
+    if (i < 0) return widget.state.dismissGuide(); // back from the first step: no more of this guide
     if (i >= (_steps?.length ?? 0)) return widget.state.finishGuide();
     setState(() => _i = i);
     _measureSoon();
@@ -200,6 +260,7 @@ class _FeatureGuideLayerState extends State<FeatureGuideLayer> with WidgetsBindi
               // the scrim takes every tap outside the card
               GestureDetector(
                 behavior: HitTestBehavior.opaque,
+                excludeFromSemantics: true, // nothing to do there: screen readers skip it
                 onTap: () {},
                 // until the first control is measured, the plain scrim; then
                 // the cut-out glides from one control to the next
@@ -338,8 +399,16 @@ class _ScrimPainter extends CustomPainter {
       canvas.drawRect(all, scrim);
       return;
     }
-    final cut = RRect.fromRectAndRadius(h.inflate(margin), const Radius.circular(PH.radiusInner));
-    canvas.drawPath(Path.combine(PathOperation.difference, Path()..addRect(all), Path()..addRRect(cut)), scrim);
+    // the ring stays on screen for a control at its edge (the top bar, the navigation)
+    final cut = RRect.fromRectAndRadius(h.inflate(margin).intersect(all.deflate(1)), const Radius.circular(PH.radiusInner));
+    // even-odd: the cut-out is left clear (a boolean path difference left it
+    // dimmed on the web unless it crossed the screen's edge)
+    canvas.drawPath(
+        Path()
+          ..fillType = PathFillType.evenOdd
+          ..addRect(all)
+          ..addRRect(cut),
+        scrim);
     canvas.drawRRect(
         cut,
         Paint()

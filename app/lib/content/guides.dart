@@ -2,7 +2,8 @@
 /// controls in the order they appear, top to bottom, and what to say about
 /// each. A step names a GuideTarget id (widgets/feature_guide.dart); one
 /// whose control is not on screen (another layout, or not there yet) is left
-/// out of the guide.
+/// out, and shows in a short guide of its own once it is there (Compare's
+/// results after sites are picked).
 library;
 
 /// One step: the control [target] and what it does.
@@ -20,7 +21,7 @@ const guideSteps = <String, List<GuideStep>>{
         'Every landing site at its real place on NASA terrain. Tap a marker to open a site, or tap anywhere south of 80°S to test your own spot.'),
     GuideStep('map-layers', 'Map layers', 'Change what the map shows, such as average sunlight or where Earth is in view.'),
     GuideStep('top-pick', 'Your best spot',
-        'The top site for your dates and goal. See this site opens it; Compare top 3 starts a comparison.'),
+        'The top site for your dates and goal is named just above. See this site opens it; Compare top 3 starts a comparison.'),
     GuideStep('goal-chips', 'What matters most?',
         'Re-rank every site for a balance, for solar power or for Earth contact. The app remembers your choice.'),
     GuideStep('nav', 'Four places to go',
@@ -46,7 +47,7 @@ const guideSteps = <String, List<GuideStep>>{
     GuideStep('simple-view', 'Simple view', 'Answers in plain words instead of the full charts.'),
   ],
   'site.light': [
-    GuideStep('light-view', 'Close-up or whole region', 'A 128 km close-up around the site, or the whole region inside 80°S.'),
+    GuideStep('light-view', 'Close-up or whole region', 'A close-up around the site, or the whole region inside 80°S.'),
     GuideStep('light-layer', 'What is lit', 'Show where sunlight reaches, where Earth is in view, or both.'),
     GuideStep('light-map', 'Light and shadow',
         'Worked out on this device from NASA terrain, for the moment on the time bar.'),

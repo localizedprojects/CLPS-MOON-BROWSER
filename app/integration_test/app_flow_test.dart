@@ -84,7 +84,7 @@ void main() {
         reason: 'Explore with the top pick');
     noError(t, 'loading -> Explore');
     await finishGuide(t, 'Explore');
-    expect(prefs.getStringList('guidesSeen'), contains('explore'), reason: 'shown once');
+    expect(prefs.getStringList('guidesSeen'), contains('explore:pill'), reason: 'shown once');
 
     // Explore: the site cards
     expect(await waitFor(t, find.byType(SiteCard)), isTrue, reason: 'site cards');

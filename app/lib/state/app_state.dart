@@ -18,6 +18,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../content/guides.dart';
 import '../core/catalog.dart';
 import '../core/daily.dart';
 import '../core/dem.dart';
@@ -369,9 +370,14 @@ class AppState extends ChangeNotifier {
   /// off, so nothing covers their screens).
   bool showGuides = false;
 
-  /// The guides already walked through on this device, by id (see
-  /// `guideIdFor` in widgets/feature_guide.dart).
+  /// The guide steps already shown on this device, as 'guide:control' keys
+  /// (see `guideStepKey` in widgets/feature_guide.dart).
   Set<String> guidesSeen = const {};
+
+  /// Steps passed over in this session because their control could not be
+  /// brought into view: not tried again until the next launch or a replay,
+  /// so a guide never comes back again and again for them.
+  final Set<String> guidesPassed = {};
 
   /// The guide on screen, or null.
   String? activeGuide;
@@ -398,10 +404,9 @@ class AppState extends ChangeNotifier {
     if (!_disposed) notifyListeners();
   }
 
-  /// Whether [id]'s guide should start now: guides on and read, none on
-  /// screen, and this one not walked through yet.
-  bool wantsGuide(String id) =>
-      showGuides && _guidesRead && !_guidesUnsaved && activeGuide == null && !guidesSeen.contains(id);
+  /// Whether a guide may start now: guides on and read, and none on screen
+  /// (which of its steps are left is the guide layer's call).
+  bool wantsGuide(String id) => showGuides && _guidesRead && !_guidesUnsaved && activeGuide == null;
 
   void startGuide(String id) {
     if (activeGuide != null) return;
@@ -409,21 +414,38 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// The guide on screen is done (Done on its last step, or back on its
-  /// first): remember it.
-  void finishGuide() {
-    final id = activeGuide;
-    if (id == null) return;
-    activeGuide = null;
-    guidesSeen = {...guidesSeen, id};
-    notifyListeners();
+  /// Remember guide steps as shown ([keys] from `guideStepKey`).
+  void markGuideSeen(Iterable<String> keys) {
+    final more = {...guidesSeen, ...keys};
+    if (more.length == guidesSeen.length) return;
+    guidesSeen = more;
     _saveGuides();
   }
 
+  /// The guide on screen is over (Done, or its screen was left): the steps
+  /// it showed stay remembered, the others can show another time.
+  void finishGuide() {
+    if (activeGuide == null) return;
+    activeGuide = null;
+    notifyListeners();
+  }
+
+  /// The guide on screen is turned down (back on its first step, or the
+  /// browser's back): none of its steps shows again.
+  void dismissGuide() {
+    final id = activeGuide;
+    if (id == null) return;
+    markGuideSeen([for (final st in guideSteps[id] ?? const <GuideStep>[]) '$id:${st.target}']);
+    finishGuide();
+  }
+
   /// Learn's "Show the guides again": every screen guides once more, as it
-  /// is next opened.
+  /// is next opened (in this session at least, when the store cannot keep
+  /// the choice).
   void replayGuides() {
     guidesSeen = const {};
+    guidesPassed.clear();
+    _guidesUnsaved = false;
     notifyListeners();
     _saveGuides();
   }

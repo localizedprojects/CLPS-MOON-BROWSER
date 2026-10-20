@@ -64,7 +64,7 @@ class TopPickCard extends StatelessWidget {
     final tMs = m.longestBoth?.startMs ?? m.longestSun?.startMs ?? s.rangeStartMs;
     final top3 = [for (final r in s.rankedAll.take(3)) r.id];
 
-    return GuideTarget(id: 'top-pick', child: Card(
+    return Card(
       margin: const EdgeInsets.symmetric(vertical: 8),
       clipBehavior: Clip.antiAlias,
       child: Padding(
@@ -95,7 +95,7 @@ class TopPickCard extends StatelessWidget {
           // the actions come straight after the answer, above the picture, so
           // they are close to the answer and never under the compare tray
           // (ux1-3)
-          Wrap(spacing: 8, runSpacing: 8, crossAxisAlignment: WrapCrossAlignment.center, children: [
+          GuideTarget(id: 'top-pick', child: Wrap(spacing: 8, runSpacing: 8, crossAxisAlignment: WrapCrossAlignment.center, children: [
             Semantics(
               container: true,
               button: true,
@@ -133,14 +133,14 @@ class TopPickCard extends StatelessWidget {
                 child: const Text('How is this ranked?'),
               ),
             ),
-          ]),
+          ])),
           const SizedBox(height: 12),
           LightSnapshot(key: ValueKey('top-${site.id}'), site: site, tMs: tMs, aspect: 2.0, showFidelity: false),
           const SizedBox(height: 8),
           const FidelityBadge(text: lightSnapshotFidelity),
         ]),
       ),
-    ));
+    );
   }
 
   static void _compareTop(AppState s, List<String> ids) {

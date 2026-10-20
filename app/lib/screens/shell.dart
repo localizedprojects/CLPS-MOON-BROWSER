@@ -16,7 +16,6 @@ import '../state/app_state.dart';
 import '../state/chart_hub.dart';
 import '../theme.dart';
 import '../widgets/context_pill.dart';
-import '../content/guides.dart';
 import '../widgets/feature_guide.dart';
 import '../widgets/hide_on_scroll.dart';
 import '../widgets/sheets/export_sheet.dart';
@@ -186,6 +185,12 @@ class _AppShellState extends State<AppShell> {
     if (!covered && s.ready) _scheduleGuide(s);
     // a feature guide dims the app: only the guide's card takes focus and is read out
     final guiding = !covered && s.ready && s.activeGuide != null;
+    // its screen was left under it (a link, the browser's back): it ends
+    if (guiding && s.activeGuide != guideIdFor(s)) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && s.activeGuide != null && s.activeGuide != guideIdFor(s)) s.finishGuide();
+      });
+    }
     if (_wasGuiding && !guiding) _refocusPage();
     _wasGuiding = guiding;
     return Stack(fit: StackFit.expand, children: [
@@ -254,7 +259,7 @@ class _AppShellState extends State<AppShell> {
       if (guideIdFor(s) != id || !s.wantsGuide(id)) return;
       // not under a sheet, a dialog or a page opened over the app
       if (ModalRoute.isCurrentOf(context) == false) return;
-      if (!(guideSteps[id] ?? const <GuideStep>[]).any((st) => GuideTarget.all(st.target).isNotEmpty)) return;
+      if (pendingGuideSteps(s, id).isEmpty) return;
       s.startGuide(id);
     });
   }
@@ -679,6 +684,15 @@ class ShellRouterDelegate extends RouterDelegate<ShellLocation>
   /// is put back to where the app still is.
   @override
   Future<void> setNewRoutePath(ShellLocation configuration) {
+    // the browser's Back / Forward during a feature guide turns the guide
+    // down, as a sheet is closed: the screen stays and the URL is put back
+    if (state.ready && state.activeGuide != null) {
+      scheduleMicrotask(() {
+        state.dismissGuide();
+        notifyListeners(); // the Router re-reads currentConfiguration
+      });
+      return SynchronousFuture<void>(null);
+    }
     final nav = navigatorKey.currentState;
     if (state.ready && nav != null && nav.canPop()) {
       scheduleMicrotask(() {

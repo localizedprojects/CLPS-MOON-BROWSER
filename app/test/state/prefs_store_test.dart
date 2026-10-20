@@ -18,18 +18,20 @@ void main() {
     final messenger = TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
     messenger.setMockMethodCallHandler(channel, (_) async => throw PlatformException(code: 'blocked'));
     addTearDown(() => messenger.setMockMethodCallHandler(channel, null));
-    final s = AppState()..askGoalOnStart = true;
+    final s = AppState()
+      ..askGoalOnStart = true
+      ..showGuides = true;
     // SharedPreferences.getInstance also leaves a failed future of its own
     // that nothing listens to; only that one may surface here
     final stray = <Object>[];
     await runZonedGuarded(() async {
       // as main() starts them: one after another, all while the first open is under way
-      await Future.wait([s.loadSavedGoal(), s.loadTourSeen(), s.loadTimeControlsHidden()])
+      await Future.wait([s.loadSavedGoal(), s.loadGuidesSeen(), s.loadTimeControlsHidden()])
           .timeout(const Duration(seconds: 1), onTimeout: () => fail('a read waited on a failed open forever'));
     }, (e, _) => stray.add(e));
     expect(stray, everyElement(isA<PlatformException>()));
     expect(s.savedGoal, isNull);
-    expect(s.tourPending, isFalse);
+    expect(s.wantsGuide('explore'), isFalse, reason: 'guides that cannot be remembered do not show');
     expect(s.timeControlsHidden, isFalse);
     s.finishIntro();
     expect(s.startStage, StartStage.goal, reason: 'no wait at the end of the logo');

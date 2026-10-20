@@ -33,6 +33,7 @@ import '../theme.dart';
 import 'chart_bridge.dart' show nowAt, utcLabel;
 import 'glyphs.dart';
 import 'time_bar.dart' show utcTwoLines;
+import 'feature_guide.dart';
 
 export '../state/light_engine.dart' show LightClass, LightLayer, classify, lightOverlayPixels, lightPixel;
 
@@ -654,7 +655,7 @@ class _LightMapState extends State<LightMap> {
       return Wrap(spacing: 12, runSpacing: 10, crossAxisAlignment: WrapCrossAlignment.center, children: [
       if (title) const Text('Light & shadow', style: PHText.subtitle),
       if (title) Text(utcLabel(tMap), style: numStyle(size: 13, color: PH.muted)),
-      SegmentedButton<bool>(
+      GuideTarget(id: 'light-view', child: SegmentedButton<bool>(
         showSelectedIcon: false,
         style: style,
         segments: [
@@ -673,8 +674,8 @@ class _LightMapState extends State<LightMap> {
           _sentKey = null;
           _remember(_closeUpId, closeUp);
         }),
-      ),
-      SegmentedButton<LightLayer>(
+      )),
+      GuideTarget(id: 'light-layer', child: SegmentedButton<LightLayer>(
         showSelectedIcon: false,
         style: style,
         segments: [
@@ -698,7 +699,7 @@ class _LightMapState extends State<LightMap> {
           _images.update(layer: v.first);
           _reportPending();
         },
-      ),
+      )),
     ]);
     }
 
@@ -823,7 +824,7 @@ class _LightMapState extends State<LightMap> {
           ),
         ),
       );
-      return SizedBox(
+      return GuideTarget(id: 'light-map', child: SizedBox(
         width: side,
         height: side,
         child: Stack(children: [
@@ -893,7 +894,7 @@ class _LightMapState extends State<LightMap> {
           else if (stale)
             busy,
         ]),
-      );
+      ));
     }
 
     final note = widget.sideNote;

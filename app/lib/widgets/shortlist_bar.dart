@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 
 import '../core/catalog.dart';
 import '../theme.dart';
+import 'feature_guide.dart';
 
 class ShortlistBar extends StatelessWidget {
   /// The shortlisted sites, in shortlist order.
@@ -41,7 +42,7 @@ class ShortlistBar extends StatelessWidget {
       Wrap(spacing: 8, runSpacing: 8, crossAxisAlignment: WrapCrossAlignment.center, children: [
         for (final s in sites) _SiteChip(site: s, onRemove: () => onRemove(s.id)),
         if (onAdd != null)
-          Semantics(
+          GuideTarget(id: 'compare-add', child: Semantics(
             container: true,
             button: true,
             label: full ? 'Add site. The shortlist is full: remove a site first' : 'Add site to the comparison',
@@ -56,7 +57,7 @@ class ShortlistBar extends StatelessWidget {
                 label: const Text('Add site'),
               ),
             ),
-          ),
+          )),
       ]),
     ]);
   }

@@ -1,6 +1,6 @@
-// End-to-end flow on a device: the real app (main()) from the first-launch
-// tutorial and the goal page to Learn, through every main screen, with no
-// exceptions on the way.
+// End-to-end flow on a device: the real app (main()) from a first launch
+// (the opening logo, the goal page and the loading scene) to Learn, through
+// every main screen and its feature guide, with no exceptions on the way.
 // Run: flutter test integration_test/app_flow_test.dart -d <device>
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -33,6 +33,19 @@ void noError(WidgetTester t, String where) {
   expect(e, isNull, reason: 'exception at $where: $e');
 }
 
+/// The feature guide of the screen just opened: it starts a moment after the
+/// screen shows; Next through it to Done.
+Future<void> finishGuide(WidgetTester t, String where) async {
+  final next = find.byKey(const ValueKey('guide-next'));
+  expect(await waitFor(t, next, timeout: const Duration(seconds: 15)), isTrue, reason: 'guide on $where');
+  for (var i = 0; i < 12 && next.evaluate().isNotEmpty; i++) {
+    await t.tap(next);
+    await settle(t, 6);
+  }
+  expect(next, findsNothing, reason: 'Done closes the $where guide');
+  noError(t, '$where guide');
+}
+
 Future<void> tapText(WidgetTester t, String text) async {
   final f = find.text(text).last;
   await t.ensureVisible(f);
@@ -44,26 +57,17 @@ Future<void> tapText(WidgetTester t, String text) async {
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
-  testWidgets('tutorial -> goal -> loading -> Explore -> site tabs -> Compare -> Learn', (t) async {
-    // a fresh install: the tutorial has not been seen and no goal is saved
-    // (a saved goal makes a returning launch: the logo, then Explore)
+  testWidgets('logo -> goal -> loading -> Explore -> site tabs -> Compare -> Learn, each with its guide', (t) async {
+    // a fresh install: no goal saved (a saved goal makes a returning launch:
+    // the logo, then Explore) and no guide walked through yet
     final prefs = await SharedPreferences.getInstance();
-    await prefs.remove('tourSeen');
     await prefs.remove('goal');
+    await prefs.remove('guidesSeen');
     app.main();
 
-    // the intro (a tap skips it), then the first-launch tutorial, then the goal page
+    // the opening plays through (no tutorial, no skip), then the goal page
     await t.pump(const Duration(milliseconds: 500));
-    if (find.byKey(const ValueKey('intro')).evaluate().isNotEmpty) {
-      await t.tapAt(const Offset(100, 100));
-    }
-    expect(await waitFor(t, find.byKey(const ValueKey('tour'))), isTrue, reason: 'tutorial on a first launch');
-    expect(find.text('Find a place to land'), findsOneWidget);
-    noError(t, 'tutorial');
-    await t.tap(find.byKey(const ValueKey('tour-skip')));
-    await settle(t);
-    expect(find.byKey(const ValueKey('tour')), findsNothing, reason: 'Skip closes the tutorial');
-    expect(prefs.getBool('tourSeen'), isTrue, reason: 'Skip remembers it, so it shows only once');
+    expect(find.byKey(const ValueKey('intro')), findsOneWidget, reason: 'the opening logo');
     expect(await waitFor(t, find.byKey(const ValueKey('goal-balanced'))), isTrue, reason: 'goal page');
     expect(find.text('Lunar Horizon'), findsWidgets);
     noError(t, 'goal page');
@@ -79,6 +83,8 @@ void main() {
     expect(await waitFor(t, find.text('See this site'), timeout: const Duration(seconds: 120)), isTrue,
         reason: 'Explore with the top pick');
     noError(t, 'loading -> Explore');
+    await finishGuide(t, 'Explore');
+    expect(prefs.getStringList('guidesSeen'), contains('explore:pill'), reason: 'shown once');
 
     // Explore: the site cards
     expect(await waitFor(t, find.byType(SiteCard)), isTrue, reason: 'site cards');
@@ -93,6 +99,7 @@ void main() {
     await settle(t, 20);
     expect(await waitFor(t, find.text('Overview')), isTrue, reason: 'site Overview');
     noError(t, 'site');
+    await finishGuide(t, 'Overview');
 
     // Overview: find the best landing window -> result card
     expect(await waitFor(t, find.text('Find the best landing window'), timeout: const Duration(seconds: 60)), isTrue,
@@ -105,6 +112,7 @@ void main() {
     // Sky & time; Play a few steps, the bars hide, then Pause
     await tapText(t, 'Sky & time');
     expect(await waitFor(t, find.byIcon(Icons.play_arrow)), isTrue, reason: 'Play button');
+    await finishGuide(t, 'Sky & time');
     // the chart must really draw: on Android 7 the old web view could not
     // parse the chart bundle, every chart stayed blank and this test still
     // passed. Its page reports ready once it has drawn.
@@ -142,24 +150,23 @@ void main() {
     await settle(t, 30);
     expect(find.text('Light & shadow'), findsWidgets);
     noError(t, 'Light & shadow');
+    await finishGuide(t, 'Light & shadow');
 
     // Compare, then Learn (bottom navigation)
     await tapText(t, 'Compare');
     await settle(t, 20);
     expect(find.text('Compare'), findsWidgets);
     noError(t, 'Compare');
+    await finishGuide(t, 'Compare');
     await tapText(t, 'Learn');
     await settle(t, 20);
     expect(find.text('Go to Explore'), findsWidgets, reason: 'Learn content');
     noError(t, 'Learn');
+    await finishGuide(t, 'Learn');
 
-    // Learn replays the tutorial on request
-    await tapText(t, 'Show the tutorial again');
-    expect(await waitFor(t, find.byKey(const ValueKey('tour'))), isTrue, reason: 'tutorial replay');
-    await t.tap(find.byKey(const ValueKey('tour-skip')));
-    await settle(t);
-    expect(find.byKey(const ValueKey('tour')), findsNothing);
-    expect(find.text('Show the tutorial again'), findsWidgets, reason: 'back on Learn');
-    noError(t, 'tutorial replay');
+    // Learn replays the guides on request, starting on Explore
+    await tapText(t, 'Show the guides again');
+    await finishGuide(t, 'Explore (replay)');
+    noError(t, 'guides replay');
   });
 }

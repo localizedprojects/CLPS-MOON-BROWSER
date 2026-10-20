@@ -22,6 +22,7 @@ import '../../widgets/expert_numbers.dart';
 import '../../widgets/explain.dart';
 import '../../widgets/now_status.dart';
 import '../../widgets/time_bar.dart';
+import '../../widgets/feature_guide.dart';
 
 /// The sky plot's explanation (the shared Learn card; a hollow marker means
 /// "does not count" under the user's rules).
@@ -503,12 +504,12 @@ class SimpleViewSwitch extends StatelessWidget {
   const SimpleViewSwitch({super.key, required this.on, required this.onChanged});
 
   @override
-  Widget build(BuildContext context) => SwitchListTile(
+  Widget build(BuildContext context) => GuideTarget(id: 'simple-view', child: SwitchListTile(
         value: on,
         onChanged: onChanged,
         dense: true,
         contentPadding: const EdgeInsets.symmetric(horizontal: 8),
         title: const Text(simpleViewLabel),
         subtitle: Text(on ? 'Answers in words; off for the full charts' : 'Answers in words instead of the full charts'),
-      );
+      ));
 }

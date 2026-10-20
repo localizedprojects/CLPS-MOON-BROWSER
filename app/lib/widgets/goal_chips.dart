@@ -10,6 +10,7 @@ import 'package:provider/provider.dart';
 import '../core/ranking.dart';
 import '../state/app_state.dart';
 import '../theme.dart';
+import 'feature_guide.dart';
 
 class GoalChips extends StatelessWidget {
   /// Show the "What matters most?" heading above the chips.
@@ -31,7 +32,7 @@ class GoalChips extends StatelessWidget {
         Semantics(header: true, child: const Text('What matters most?', style: PHText.subtitle)),
         const SizedBox(height: 8),
       ],
-      Wrap(spacing: 8, runSpacing: 4, children: [
+      GuideTarget(id: 'goal-chips', child: Wrap(spacing: 8, runSpacing: 4, children: [
         for (final g in Goal.values)
           Semantics(
             label: 'Rank sites by ${goalLabel(g)}',
@@ -49,7 +50,7 @@ class GoalChips extends StatelessWidget {
               onSelected: (_) => context.read<AppState>().setGoal(g),
             ),
           ),
-      ]),
+      ])),
       if (active == null)
         Padding(
           padding: const EdgeInsets.only(top: 6),

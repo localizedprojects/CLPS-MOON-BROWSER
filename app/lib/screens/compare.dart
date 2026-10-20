@@ -23,6 +23,7 @@ import '../widgets/ranked_cards.dart';
 import '../widgets/sheets/site_picker_sheet.dart';
 import '../widgets/shortlist_bar.dart';
 import '../widgets/winner_card.dart';
+import '../widgets/feature_guide.dart';
 
 /// Content width from which Compare uses two columns.
 const compareWideWidth = 900.0;
@@ -71,7 +72,7 @@ class _CompareScreenState extends State<CompareScreen> {
       const SizedBox(height: 24),
       const GoalChips(),
       const SizedBox(height: 8),
-      CompareFineTune(state: s),
+      GuideTarget(id: 'compare-tune', child: CompareFineTune(state: s)),
       if (s.explainInline) ...[const SizedBox(height: 8), explainCompare],
     ];
 
@@ -205,13 +206,13 @@ class _Winner extends StatelessWidget {
   Widget build(BuildContext context) {
     final s = state;
     final ranked = rankedFor(s);
-    return WinnerCard(
+    return GuideTarget(id: 'compare-winner', child: WinnerCard(
       ranked: ranked,
       weights: s.weights,
       dsn: s.options.requireDsn,
       compact: compact,
       onOpenSite: s.openSite,
-    );
+    ));
   }
 }
 
@@ -257,7 +258,7 @@ class _PickMore extends StatelessWidget {
           ),
           if (add.isNotEmpty && total >= 2) ...[
             const SizedBox(height: 16),
-            Semantics(
+            GuideTarget(id: 'compare-pick', child: Semantics(
               container: true,
               button: true,
               label: semantic,
@@ -267,7 +268,7 @@ class _PickMore extends StatelessWidget {
                 constraints: const BoxConstraints(minHeight: 48),
                 child: FilledButton(onPressed: () => s.setCompare([...s.compareIds, ...add]), child: Text(label)),
               ),
-            ),
+            )),
           ],
         ]),
       ),

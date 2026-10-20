@@ -26,6 +26,7 @@ import '../theme.dart';
 import 'glyphs.dart';
 import 'goal_chips.dart';
 import 'sheets/mission_settings_sheet.dart' show showMissionSettings;
+import 'feature_guide.dart';
 
 /// The computing UI shows only when a search takes longer than this (3.3).
 const landingComputingDelay = Duration(milliseconds: 200);
@@ -269,7 +270,7 @@ class _LandingWindowCardState extends State<LandingWindowCard> {
       SizedBox(height: gap),
       ExcludeSemantics(child: Text(missionLengthLabel, style: PHText.small.copyWith(color: PH.muted))),
       const SizedBox(height: 6),
-      _LengthSegments(
+      GuideTarget(id: 'mission-length', child: _LengthSegments(
         selected: otherSelected ? null : s.missionDays,
         otherSelected: otherSelected,
         focusNodes: _segmentFocus,
@@ -289,7 +290,7 @@ class _LandingWindowCardState extends State<LandingWindowCard> {
                   s.setMissionDays(d);
                 }
               },
-      ),
+      )),
       if (otherSelected) ...[
         const SizedBox(height: 8),
         _OtherLength(
@@ -311,7 +312,7 @@ class _LandingWindowCardState extends State<LandingWindowCard> {
       // which keeps the button's focus: a node around the button (with
       // excludeSemantics) took no screen-reader or web Tab focus, so Tab
       // skipped the card with the semantics tree on (pre-a11y-perf-1)
-      FilledButton(
+      GuideTarget(id: 'landing-find', child: FilledButton(
         style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(52), shape: const StadiumBorder()),
         onPressed: onFind,
         child: Semantics(
@@ -320,7 +321,7 @@ class _LandingWindowCardState extends State<LandingWindowCard> {
           excludeSemantics: true,
           child: Text(findLabel, textAlign: TextAlign.center),
         ),
-      ),
+      )),
       if (computing) ...[
         const SizedBox(height: 10),
         Semantics(

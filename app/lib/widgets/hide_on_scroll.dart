@@ -47,6 +47,15 @@ class HideOnScroll extends StatefulWidget {
     context.getInheritedWidgetOfExactType<_HideScope>()?.state?._lead._hideFor(page);
   }
 
+  /// Brings back the bar [context] sits in (and the bars it hides with), for
+  /// a feature guide pointing at a control in it. True when one was hidden.
+  static bool reveal(BuildContext context) {
+    final lead = context.findAncestorStateOfType<_HideOnScrollState>()?._lead;
+    if (lead == null || !lead._hidden.value) return false;
+    lead._set(false);
+    return true;
+  }
+
   @override
   State<HideOnScroll> createState() => _HideOnScrollState();
 }

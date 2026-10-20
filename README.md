@@ -38,7 +38,7 @@ Release web build, Next 12 months, 2 m lander, default rules: the MP1 landing wi
 
 ## What you can do
 
-It opens with a short animation (the Sun skimming along the south-pole horizon, as it does there). On a first launch, a short tutorial follows, then the app asks **what matters most** for your mission (balanced, solar power, or Earth contact); your answer ranks the sites (a loading scene shows the real progress; its bar never runs ahead of the work), and the app remembers it. Later launches play only the opening animation and fade straight into Explore, ranked for the last goal chosen (on that page or with the goal chips on Explore). It has four destinations, in a bottom bar: **Explore**, **Site**, **Compare** and **Learn**. A context pill at the top shows the chosen period and observer height (and "custom rules" when the Sun, Earth or DSN rules differ from the defaults), and opens Mission settings.
+It opens with a short animation (the Sun skimming along the south-pole horizon, as it does there), which always plays through. On a first launch the app then asks **what matters most** for your mission (balanced, solar power, or Earth contact); your answer ranks the sites (a loading scene shows the real progress; its bar never runs ahead of the work), and the app remembers it. Later launches play only the opening animation and fade straight into Explore, ranked for the last goal chosen (on that page or with the goal chips on Explore). It has four destinations, in a bottom bar: **Explore**, **Site**, **Compare** and **Learn**. The first time you open each of them (and each Site tab), a short guide lights its main controls one at a time, with a line on what each does; Learn's *Show the guides again* replays them. A context pill at the top shows the chosen period and observer height (and "custom rules" when the Sun, Earth or DSN rules differ from the defaults), and opens Mission settings.
 
 - **Explore: find the best site for your dates.** All 16 preset sites (and any custom spots) are ranked for the chosen period, which defaults to the next 12 months.
   - The answer comes first: a top-pick card names the best spot, how much of the time the Sun and Earth are both up, and its longest stretch with both. Below it is a computed light snapshot of that site at the start of that stretch.
@@ -502,7 +502,7 @@ CLAUDE.md                   conventions for contributors and coding agents
 
 | Suite | Location | Command | Count |
 |---|---|---|---|
-| Flutter: Dart core, state, widgets | `app/test/` | `flutter test` | 908 pass, 4 skipped, with `flutter analyze` clean (19 October 2026) |
+| Flutter: Dart core, state, widgets | `app/test/` | `flutter test` | 903 pass, 4 skipped, with `flutter analyze` clean (20 October 2026) |
 | Chart bundle | `charts/src/*.test.ts` | `npm test` | 163 (19 October 2026) |
 | Python pipeline | `pipeline/tests/` | `python -m pytest` | 545: 544 pass, 1 skipped without PyYAML (11 October 2026) |
 | Python library | `pylib/tests/` | `python -m pytest` (from `pylib/`) | 494: 492 pass, 2 skipped (12 October 2026) |

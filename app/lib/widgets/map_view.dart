@@ -15,6 +15,7 @@ import '../core/catalog.dart';
 import '../core/dem.dart';
 import '../theme.dart';
 import 'sheets/sheet_frame.dart';
+import 'feature_guide.dart';
 
 class MapLayers {
   final ui.Image hillshade;
@@ -549,7 +550,7 @@ class _MapViewState extends State<MapView> with SingleTickerProviderStateMixin {
               'Pinch or use the zoom buttons to place a spot precisely.',
           hint: 'Keyboard and screen-reader users: choose a site from the site cards, '
               'or use Add a spot by coordinates.',
-          child: SizedBox(
+          child: GuideTarget(id: 'map', child: SizedBox(
             key: mapViewportKey,
             width: vp.width,
             height: vp.height,
@@ -643,7 +644,7 @@ class _MapViewState extends State<MapView> with SingleTickerProviderStateMixin {
                 },
               ),
             ),
-          ),
+          )),
         );
       })),
       if (pin != null)
@@ -660,7 +661,7 @@ class _MapViewState extends State<MapView> with SingleTickerProviderStateMixin {
         Text('Tap or hold anywhere on the map to test your own spot', style: PHText.small.copyWith(color: PH.muted)),
         const SizedBox(height: 4),
         Wrap(spacing: 8, runSpacing: 4, crossAxisAlignment: WrapCrossAlignment.center, children: [
-          Semantics(
+          GuideTarget(id: 'map-layers', child: Semantics(
             button: true,
             label: 'Map layers: ${overlayName(overlay)}${labels ? ', names shown' : ''}',
             excludeSemantics: true,
@@ -671,7 +672,7 @@ class _MapViewState extends State<MapView> with SingleTickerProviderStateMixin {
               icon: const Icon(Icons.layers_outlined, size: 18),
               label: Text('Layers · ${overlayName(overlay)}'),
             ),
-          ),
+          )),
           Semantics(
             button: true,
             label: 'Add a spot by coordinates',

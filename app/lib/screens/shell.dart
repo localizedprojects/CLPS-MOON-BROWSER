@@ -16,11 +16,11 @@ import '../state/app_state.dart';
 import '../state/chart_hub.dart';
 import '../theme.dart';
 import '../widgets/context_pill.dart';
+import '../widgets/feature_guide.dart';
 import '../widgets/hide_on_scroll.dart';
 import '../widgets/sheets/export_sheet.dart';
 import 'compare.dart';
 import 'explore.dart';
-import 'first_run_tour.dart';
 import 'goal_page.dart';
 import 'intro.dart';
 import 'learn.dart';
@@ -63,6 +63,7 @@ class _AppShellState extends State<AppShell> {
 
   @override
   void dispose() {
+    _guideTimer?.cancel();
     _page.dispose();
     super.dispose();
   }
@@ -142,9 +143,7 @@ class _AppShellState extends State<AppShell> {
           _uncovering = false;
         });
         // the page's autofocus could not reach it while it was covered
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (mounted && _lastStart == null && !_page.hasFocus) _page.requestFocus();
-        });
+        _refocusPage();
       });
       WidgetsBinding.instance.scheduleFrame();
     });
@@ -163,8 +162,6 @@ class _AppShellState extends State<AppShell> {
       cover = _lastStart = switch (s.startStage) {
         // every launch; a returning one holds on its logo until the app is ready
         StartStage.intro => KeyedSubtree(key: const ValueKey('intro'), child: SkimOpening(onDone: s.finishIntro)),
-        // first launch only: the tutorial, so the question and the app make sense
-        StartStage.tour => FirstRunTour(key: const ValueKey('tour'), sites: s.catalog?.sites.length, onDone: s.finishTour),
         StartStage.goal => GoalPage(key: const ValueKey('goal'), state: s),
         _ => SpaceLoading(key: const ValueKey('loading'), state: s, onDone: s.finishStartLoading),
       };
@@ -185,11 +182,23 @@ class _AppShellState extends State<AppShell> {
       base = const ColoredBox(color: PH.bg);
     }
     final covered = cover != null;
+    if (!covered && s.ready) _scheduleGuide(s);
+    // a feature guide dims the app: only the guide's card takes focus and is read out
+    final guiding = !covered && s.ready && s.activeGuide != null;
+    // its screen was left under it (a link, the browser's back): it ends
+    if (guiding && s.activeGuide != guideIdFor(s)) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && s.activeGuide != null && s.activeGuide != guideIdFor(s)) s.finishGuide();
+      });
+    }
+    if (_wasGuiding && !guiding) _refocusPage();
+    _wasGuiding = guiding;
     return Stack(fit: StackFit.expand, children: [
       // hidden under a start page: no taps, no keyboard focus, nothing for screen readers
       IgnorePointer(
         ignoring: covered,
-        child: ExcludeFocus(excluding: covered, child: ExcludeSemantics(excluding: covered, child: base)),
+        child: ExcludeFocus(
+            excluding: covered || guiding, child: ExcludeSemantics(excluding: covered || guiding, child: base)),
       ),
       // each start page cross-fades into the next over a plain backdrop (the
       // app may be built under them already); the last one fades out over
@@ -211,7 +220,48 @@ class _AppShellState extends State<AppShell> {
           ),
         ),
       ),
+      // a screen's feature guide, over the whole app (the app bar and the
+      // navigation included)
+      if (guiding) FeatureGuideLayer(key: ValueKey('guide-${s.activeGuide}'), state: s),
     ]);
+  }
+
+  /// After a start page or a guide, which keep focus out of the app: the
+  /// page's focus back, for Site's shortcuts (unless something has it).
+  void _refocusPage() => WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && _lastStart == null && !_page.hasFocus) _page.requestFocus();
+      });
+
+  bool _wasGuiding = false;
+
+  /// The guide waiting to start, and the screen it is for.
+  Timer? _guideTimer;
+  String? _guideFor;
+
+  /// The first time a screen shows, uncovered, its feature guide starts: a
+  /// moment later, so the screen is seen first and any fade has finished,
+  /// and only once its controls are on screen (a Site page still working
+  /// out its numbers has none yet; a later change brings this back).
+  void _scheduleGuide(AppState s) {
+    final id = guideIdFor(s);
+    if (id == null || !s.wantsGuide(id)) {
+      _guideTimer?.cancel();
+      _guideTimer = null;
+      return;
+    }
+    if (_guideTimer != null && _guideFor == id) return;
+    _guideTimer?.cancel();
+    _guideFor = id;
+    _guideTimer = Timer(const Duration(milliseconds: 700), () {
+      _guideTimer = null;
+      if (!mounted || _lastStart != null) return;
+      final s = context.read<AppState>();
+      if (guideIdFor(s) != id || !s.wantsGuide(id)) return;
+      // not under a sheet, a dialog or a page opened over the app
+      if (ModalRoute.isCurrentOf(context) == false) return;
+      if (pendingGuideSteps(s, id).isEmpty) return;
+      s.startGuide(id);
+    });
   }
 
   /// The app once it is ready: the destinations, the app bar and the navigation.
@@ -268,7 +318,7 @@ class _AppShellState extends State<AppShell> {
     Widget body = stack;
     const pillRow = Padding(
       padding: EdgeInsets.fromLTRB(12, 6, 12, 8),
-      child: Align(alignment: Alignment.centerLeft, child: ContextPill(multiline: true)),
+      child: Align(alignment: Alignment.centerLeft, child: GuideTarget(id: 'pill', child: ContextPill(multiline: true))),
     );
     if (hideBar) {
       // phones: the app bar and the pill row are the top of the page, and
@@ -301,9 +351,10 @@ class _AppShellState extends State<AppShell> {
     return PopScope(
       // Android back: an open sheet or page closes first (it is a route above
       // this one); then any destination returns to Explore; Explore exits.
-      canPop: s.dest == Dest.explore,
+      // (a guide on screen takes back itself: a step back)
+      canPop: s.dest == Dest.explore && s.activeGuide == null,
       onPopInvokedWithResult: (didPop, _) {
-        if (!didPop && s.dest != Dest.explore) s.goTo(Dest.explore);
+        if (!didPop && s.activeGuide == null && s.dest != Dest.explore) s.goTo(Dest.explore);
       },
       child: Scaffold(
         appBar: hideBar ? null : _appBar(context, s, compact: compact, inPage: false),
@@ -312,7 +363,9 @@ class _AppShellState extends State<AppShell> {
           // a short screen (a phone in landscape): a slim bar of icons, so the
           // answer stays above the fold (labels stay as tooltips and for
           // screen readers)
-          child: NavigationBar(
+          child: GuideTarget(
+            id: 'nav',
+            child: NavigationBar(
             height: shortBar ? 48 : 80,
             labelBehavior:
                 shortBar ? NavigationDestinationLabelBehavior.alwaysHide : NavigationDestinationLabelBehavior.alwaysShow,
@@ -321,6 +374,7 @@ class _AppShellState extends State<AppShell> {
             destinations: [
               for (final (_, icon, label) in _dests) NavigationDestination(icon: Icon(icon), label: label),
             ],
+          ),
           ),
         ),
       ),
@@ -370,16 +424,23 @@ class _AppShellState extends State<AppShell> {
         ),
       ]),
       actions: [
-        if (!compact) const Padding(padding: EdgeInsets.only(right: 4), child: ContextPill()),
-        IconButton(
-          tooltip: 'Share & export',
-          icon: const Icon(Icons.ios_share_rounded),
-          onPressed: () => showExportSheet(context),
+        if (!compact)
+          const Padding(padding: EdgeInsets.only(right: 4), child: GuideTarget(id: 'pill', child: ContextPill())),
+        GuideTarget(
+          id: 'share',
+          child: IconButton(
+            tooltip: 'Share & export',
+            icon: const Icon(Icons.ios_share_rounded),
+            onPressed: () => showExportSheet(context),
+          ),
         ),
-        IconButton(
-          tooltip: 'Validation & assumptions',
-          icon: const Icon(Icons.verified_outlined),
-          onPressed: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const ValidationPage())),
+        GuideTarget(
+          id: 'validation',
+          child: IconButton(
+            tooltip: 'Validation & assumptions',
+            icon: const Icon(Icons.verified_outlined),
+            onPressed: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const ValidationPage())),
+          ),
         ),
         const SizedBox(width: 8),
       ],
@@ -550,10 +611,8 @@ class ShellRouterDelegate extends RouterDelegate<ShellLocation>
       : ShellLocation(state.dest);
 
   void _onState() {
-    // a link waits for the first ranking, and for the first-launch tutorial:
-    // it opens on Skip or Done ([AppState.finishTour]), so the cards are not
-    // pulled away half-read and the tutorial is still remembered as seen
-    if (!state.ready || (_pending != null && state.inStartTour)) return;
+    // a link waits for the first ranking
+    if (!state.ready) return;
     final link = _pending;
     if (link != null) {
       _pending = null;
@@ -625,6 +684,15 @@ class ShellRouterDelegate extends RouterDelegate<ShellLocation>
   /// is put back to where the app still is.
   @override
   Future<void> setNewRoutePath(ShellLocation configuration) {
+    // the browser's Back / Forward during a feature guide turns the guide
+    // down, as a sheet is closed: the screen stays and the URL is put back
+    if (state.ready && state.activeGuide != null) {
+      scheduleMicrotask(() {
+        state.dismissGuide();
+        notifyListeners(); // the Router re-reads currentConfiguration
+      });
+      return SynchronousFuture<void>(null);
+    }
     final nav = navigatorKey.currentState;
     if (state.ready && nav != null && nav.canPop()) {
       scheduleMicrotask(() {

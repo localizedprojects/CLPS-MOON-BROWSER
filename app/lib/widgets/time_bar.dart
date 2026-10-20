@@ -16,6 +16,7 @@ import '../theme.dart';
 import 'chart_bridge.dart' show utcLabel;
 import 'hide_on_scroll.dart';
 import 'no_page_swipe.dart';
+import 'feature_guide.dart';
 
 /// The cursor time on two lines: "17 Sep 2027" and "20:00 UTC".
 (String, String) utcTwoLines(double ms) {
@@ -153,11 +154,11 @@ class _TimeScrubberState extends State<TimeScrubber> {
         cursorMs: s.cursorMs,
         inWindowNow: s.series != null && bothAt(s.series!, s.cursorMs), loading: s.loading);
     final VoidCallback? goNext = next == null ? null : () => s.setCursor(next.startMs);
-    final play = IconButton(
+    final play = GuideTarget(id: 'time-play', child: IconButton(
       tooltip: s.playing ? 'Pause (Space)' : 'Play through the period (Space)',
       onPressed: s.togglePlay,
       icon: Icon(s.playing ? Icons.pause : Icons.play_arrow, size: 26),
-    );
+    ));
     final back = IconButton(
       tooltip: 'Back one day (Shift+←)',
       onPressed: s.cursorMs <= s.rangeStartMs ? null : () => s.stepCursor(-day),
@@ -190,7 +191,8 @@ class _TimeScrubberState extends State<TimeScrubber> {
         onChanged: s.setCursor,
       ),
     );
-    return Card(
+    // the whole bar is the Sky & time guide's "Play and the time bar"
+    return GuideTarget(id: 'time-bar', child: Card(
       key: const ValueKey('time-full'),
       margin: const EdgeInsets.fromLTRB(6, 4, 6, 6),
       child: Padding(
@@ -237,12 +239,12 @@ class _TimeScrubberState extends State<TimeScrubber> {
                   style: labelStyle.copyWith(height: 1.3)),
             ),
           );
-          final nextIcon = IconButton(tooltip: nextText, onPressed: goNext, icon: const Icon(Icons.skip_next));
-          final nextButton = TextButton(
+          final nextIcon = GuideTarget(id: 'time-next', child: IconButton(tooltip: nextText, onPressed: goNext, icon: const Icon(Icons.skip_next)));
+          final nextButton = GuideTarget(id: 'time-next', child: TextButton(
             style: const ButtonStyle(minimumSize: WidgetStatePropertyAll(Size(48, 48))),
             onPressed: goNext,
             child: Text(nextText),
-          );
+          ));
           if (inline) {
             final row = Row(children: [
               play,
@@ -274,7 +276,7 @@ class _TimeScrubberState extends State<TimeScrubber> {
           ]);
         }),
       ),
-    );
+    ));
   }
 }
 

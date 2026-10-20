@@ -18,11 +18,13 @@ Future<void> main() async {
     ChangeNotifierProvider(
       create: (_) {
         final s = AppState()
-          // the opening logo every time; on a first launch then the tutorial,
-          // "What matters most?" and the loading scene
+          // the opening logo every time; on a first launch then "What matters
+          // most?" and the loading scene
           ..askGoalOnStart = true
           ..loadSavedGoal() // a goal saved earlier: a returning launch, the logo then Explore
-          ..loadTourSeen() // the tutorial shows once, after the intro, on a first launch
+          // each screen's guide walks its major controls the first time it is opened
+          ..showGuides = true
+          ..loadGuidesSeen()
           ..loadTimeControlsHidden();
         // the heavy first load (data, ranking) waits while the intro builds the
         // logo, so its frames are smooth; on a first launch the question and

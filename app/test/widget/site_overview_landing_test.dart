@@ -182,8 +182,19 @@ void main() {
       await tester.pump();
       expect(tester.takeException(), isNull);
       await toMore(tester);
+      // ignore: avoid_print
+      print('DBG1 ${state.overviewMoreOpen} ${tester.getRect(more())} ${find.byType(AboutSite).evaluate().length}');
       await tester.tap(more());
       await tester.pump();
+      // ignore: avoid_print
+      print('DBG2 ${state.overviewMoreOpen} ${tester.getRect(more())} ${find.byType(AboutSite).evaluate().length} ${find.byType(Scrollable).evaluate().length}');
+      await tester.pump(const Duration(milliseconds: 400));
+      final sc = tester.state<ScrollableState>(find.byType(Scrollable).first);
+      // ignore: avoid_print
+      print('DBG3 ${find.byType(AboutSite).evaluate().length} ${tester.getRect(find.byType(Scrollable).first)} ${sc.position.pixels} ${sc.position.maxScrollExtent} ${sc.widget.axisDirection}');
+      final hits = tester.hitTestOnBinding(tester.getCenter(find.byType(Scrollable).first));
+      // ignore: avoid_print
+      print('DBG4 ${hits.path.take(6).map((e) => e.target.runtimeType).join(' < ')}');
       await tester.scrollUntilVisible(find.byType(AboutSite), 300, scrollable: find.byType(Scrollable).first);
       await tester.pump();
       await done(tester);

@@ -52,15 +52,32 @@ void main() {
       expect(c.features.last.diameterKm.isNaN, isTrue);
     });
 
-    test('unknown schema, bad JSON and wrong shape throw FormatException', () {
+    test('unknown schema, bad JSON and a wrong overall shape throw FormatException', () {
       final bumped = (jsonDecode(_tiny) as Map<String, dynamic>)..['schema'] = 2;
       expect(() => CuratedCatalog.parse(jsonEncode(bumped)), throwsFormatException);
       final noSchema = (jsonDecode(_tiny) as Map<String, dynamic>)..remove('schema');
       expect(() => CuratedCatalog.parse(jsonEncode(noSchema)), throwsFormatException);
       expect(() => CuratedCatalog.parse('{'), throwsFormatException);
       expect(() => CuratedCatalog.parse('[]'), throwsFormatException);
-      expect(() => CuratedCatalog.parse('{"schema": 1, "sites": {"a": {"headline": 3}}}'), throwsFormatException);
-      expect(() => CuratedCatalog.parse('{"schema": 1, "features": [{"id": "x"}]}'), throwsFormatException);
+      expect(() => CuratedCatalog.parse('{"schema": 1, "sites": []}'), throwsFormatException);
+      expect(() => CuratedCatalog.parse('{"schema": 1, "features": {}}'), throwsFormatException);
+    });
+
+    test('a bad row is dropped and named; the good rows are kept, nothing is filled in', () {
+      final j = jsonDecode(_tiny) as Map<String, dynamic>;
+      (j['sites'] as Map<String, dynamic>)
+        ..['bad'] = {'headline': 3}
+        ..['blank'] = {'headline': ' ', 'lede': '', 'overview': ''};
+      (j['features'] as List)
+        ..add({'id': 'x', 'name': 'X', 'lat': '-89.1'})
+        ..add('not a feature');
+      final c = CuratedCatalog.parse(jsonEncode(j));
+      expect(c.sites.keys, ['a']);
+      expect(c.sites['a']!.headline, 'A well-lit rim');
+      expect(c.features.map((f) => f.id), ['shackleton', 'slater']);
+      expect(c.skipped, hasLength(4));
+      expect(c.skipped.map((s) => s.split(' (').first), ['site bad', 'site blank', 'feature 2', 'feature 3']);
+      expect(CuratedCatalog.parse(_tiny).skipped, isEmpty);
     });
 
     test('empty is empty', () {

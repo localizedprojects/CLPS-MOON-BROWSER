@@ -257,6 +257,22 @@ String _mid(String label) => label.startsWith('Sunlight') ? 's${label.substring(
 /// centre', so it is not read as the mountain or crater it is named after.
 String _siteRef(Site p) => p.isArtemisRegion ? 'the ${p.short} region centre' : p.short;
 
+/// Whether [text] gives the size of the feature [name] itself: a sentence
+/// that names it, not as part of a longer name ('Malapert' in 'Mons
+/// Malapert' or 'Malapert Massif'), and gives a size in km after it ('a
+/// crater about 32 km across', '21 km wide').
+bool statesSizeOf(String text, String name) {
+  final size = RegExp(r'\d[\d,.]* ?km (across|wide|in diameter)');
+  for (final sentence in text.split(RegExp(r'(?<=\.)\s+'))) {
+    for (final m in RegExp(RegExp.escape(name)).allMatches(sentence)) {
+      final longer = RegExp(r'[A-Z][a-z]* $').hasMatch(sentence.substring(0, m.start)) ||
+          RegExp(r'^ [A-Z]').hasMatch(sentence.substring(m.end));
+      if (!longer && size.hasMatch(sentence.substring(m.end))) return true;
+    }
+  }
+  return false;
+}
+
 /// ' (21 km across)' or ''.
 String _across(NamedFeature f) => f.diameterKm.isFinite && f.diameterKm > 0 ? ' (${kmText(f.diameterKm)} across)' : '';
 
@@ -493,9 +509,10 @@ SiteGlance buildSiteGlance(GlanceInputs g) {
   }
   if (feature != null) {
     final dir = directionWordTo(feature.az, s.lat, feature.f.lat);
-    // The checked text gives its own size for a feature it names; a second,
-    // different figure (the Gazetteer's) would contradict it on the same card.
-    final size = cur != null && cur.overview.contains(feature.f.name) ? '' : _across(feature.f);
+    // The checked text gives its own size for a feature it describes; a
+    // second, different figure (the Gazetteer's) would contradict it on the
+    // same card.
+    final size = cur != null && statesSizeOf(cur.overview, feature.f.name) ? '' : _across(feature.f);
     where.add(GlanceLine('The nearest named feature is ${feature.f.name}$size; '
         'its centre is ${kmText(feature.km)} ${dir.isEmpty ? 'away' : dir}.'));
   }

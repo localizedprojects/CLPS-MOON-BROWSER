@@ -21,7 +21,10 @@ Every check below fails the build (``CuratedError`` lists all problems at once):
    the host name (``titled: false``). A title is never invented.
 6. lede: the leading whole sentences of the overview, at most 230 characters, at least one sentence.
 7. features: IAU Gazetteer feature centres from the research file, de-duplicated.
-8. edits: each logged edit removed a Rule C hit, left none, and added no content word or number.
+8. edits: each logged edit occurs once and leaves no Rule C hit. An edit that removed a Rule C hit
+   adds no content word or number; any other edit (text brought in line with the fact-check) adds only
+   words of the site's confirmed claims or confirmed or corrected final claims.
+9. sizes: a feature's size ("<name>, a crater about N km across") is the same in every overview.
 """
 
 from __future__ import annotations
@@ -288,6 +291,17 @@ def source_problems(site: dict) -> list[str]:
     return p
 
 
+def verdict_words(site: dict) -> set[str]:
+    """Words of the site's confirmed claims and of its confirmed or corrected final claims."""
+    words: set[str] = set()
+    for v in site.get("verdicts", []):
+        if v["verdict"] in ("confirmed", "corrected"):
+            words |= _words(v.get("finalClaim", ""))
+        if v["verdict"] == "confirmed":
+            words |= _words(v["claim"])
+    return words
+
+
 def edit_problems(site: dict) -> list[str]:
     sid, p = site["id"], []
     for e in site.get("edits", []):
@@ -295,15 +309,31 @@ def edit_problems(site: dict) -> list[str]:
         n = site["headline"].count(now) + site["overview"].count(now) if now else 0
         if n != 1:
             p.append(f"{sid}: edit text {now!r} occurs {n} times, not once")
-        if not rule_c_hits(was):
-            p.append(f"{sid}: edit {was!r} removed no Rule C hit")
         if rule_c_hits(now):
             p.append(f"{sid}: edit {now!r} still breaks Rule C")
         added = {w for w in _words(now) - _words(was) if len(w) >= 4 or any(c.isdigit() for c in w)}
-        if added:
-            p.append(f"{sid}: edit adds words {sorted(added)}")
+        if rule_c_hits(was):
+            if added:
+                p.append(f"{sid}: edit adds words {sorted(added)}")
+        elif now == was:
+            p.append(f"{sid}: edit {was!r} changes nothing")
+        elif added - verdict_words(site):
+            p.append(f"{sid}: edit adds words no confirmed or corrected verdict has "
+                     f"{sorted(added - verdict_words(site))}")
         if not str(e.get("why", "")).strip():
             p.append(f"{sid}: edit has no reason")
+    return p
+
+
+def size_problems(sites: list[dict], features: list[dict]) -> list[str]:
+    """One size per feature: "<name>, a ... about N km across" must read the same in every overview."""
+    p = []
+    for f in features:
+        rx = re.compile(re.escape(f["name"]) + r", an? [^.;,]*?((?:about |almost |nearly )?"
+                        r"[\d.,]+(?: to [\d.,]+)? km) (?:across|wide)")
+        said = {m.group(1): s["id"] for s in sites for m in rx.finditer(s["overview"])}
+        if len(said) > 1:
+            p.append(f"feature {f['name']}: overviews give different sizes {sorted(said.items())}")
     return p
 
 
@@ -339,6 +369,7 @@ def build(record: dict | None = None, catalog: dict | None = None, research: dic
                           "sources": sources}
 
     features = build_features(research, problems)
+    problems += size_problems(record["sites"], features)
     if problems:
         raise CuratedError("curated text failed %d check(s):\n  " % len(problems) + "\n  ".join(problems))
     return {"schema": SCHEMA, "reviewed": record["reviewed"], "sites": sites, "features": features}

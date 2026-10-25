@@ -1,6 +1,10 @@
 // AppState's "At a glance" (overview engine): the curated asset loads in init,
 // and selectedGlance is memoised but follows the site, the dates, the height
 // and DSN (design-final §4 and §10 "Memo rebuilds").
+import 'dart:io';
+
+import 'package:flutter/foundation.dart' show FlutterError;
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:polar_horizon/core/site_glance.dart';
 import 'package:polar_horizon/state/app_state.dart';
@@ -16,6 +20,19 @@ void main() {
   tearDownAll(() => s.dispose());
 
   DateTime dt(double ms) => DateTime.fromMillisecondsSinceEpoch(ms.toInt(), isUtc: true);
+
+  test('the curated asset is read uncached and a failed fetch is tried once more', () async {
+    final asset = File('assets/data/curated_sites.json').readAsStringSync();
+    final flaky = _Bundle([null, asset]);
+    final c = await AppState.loadCurated(flaky);
+    expect(c.sites, isNotEmpty, reason: 'the second fetch is used');
+    expect(flaky.caches, [false, false]);
+    // two failed fetches, or a broken asset (not retried): the generated text, no throw
+    expect((await AppState.loadCurated(_Bundle([null, null]))).isEmpty, isTrue);
+    final broken = _Bundle(['{', asset]);
+    expect((await AppState.loadCurated(broken)).isEmpty, isTrue);
+    expect(broken.caches, hasLength(1));
+  });
 
   test('init loads the curated asset: every curated id is a catalogue site', () {
     expect(s.curated.sites, isNotEmpty);
@@ -65,4 +82,22 @@ void main() {
     await s.selectSite(first);
     expect(s.selectedGlance!.rows.first.$3.first.text, s.curated.sites[first]!.headline);
   });
+}
+
+/// Answers loadString with [texts] in turn; null fails as a missing asset.
+class _Bundle extends CachingAssetBundle {
+  final List<String?> texts;
+  final caches = <bool>[];
+  _Bundle(this.texts);
+
+  @override
+  Future<String> loadString(String key, {bool cache = true}) async {
+    caches.add(cache);
+    final t = texts[caches.length - 1];
+    if (t == null) throw FlutterError('Unable to load asset: "$key".');
+    return t;
+  }
+
+  @override
+  Future<ByteData> load(String key) => throw UnimplementedError();
 }

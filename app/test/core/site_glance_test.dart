@@ -435,6 +435,20 @@ void main() {
       expect(whereLine(null), startsWith('The nearest named feature is Fcrater (21 km across); its centre is '));
     });
 
+    test('statesSizeOf: a size given for the feature itself, not for a longer name', () {
+      const t = 'It lies on the rim of de Gerlache, a crater about 32 km across. It sees Earth.';
+      expect(statesSizeOf(t, 'de Gerlache'), isTrue);
+      expect(statesSizeOf('SR1 is on the rim of Shackleton, a crater about 21 km wide and 4.1 km deep.', 'Shackleton'), isTrue);
+      expect(statesSizeOf('Mons Mouton, a flat-topped mountain almost 100 km across.', 'Mons Mouton'), isTrue);
+      // named, but the size is another feature's, in another sentence, or before the name
+      expect(statesSizeOf('The mountain got the IAU name Mons Malapert in 2024 and is about 67 km across.', 'Malapert'),
+          isFalse);
+      expect(statesSizeOf('Informally called Malapert Massif, it is about 67 km across.', 'Malapert'), isFalse);
+      expect(statesSizeOf('It faces Shackleton. A crater 1 km wide lies below.', 'Shackleton'), isFalse);
+      expect(statesSizeOf('A crater 21 km wide: Shackleton.', 'Shackleton'), isFalse);
+      expect(statesSizeOf(t, 'Shackleton'), isFalse);
+    });
+
     test('an Artemis region is named as a region centre, not as its namesake', () {
       final p0 = _presets()[0];
       expect(p0.isArtemisRegion, isTrue);

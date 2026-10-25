@@ -15,7 +15,7 @@ import 'dart:convert';
 import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart';
-import 'package:flutter/services.dart' show rootBundle;
+import 'package:flutter/services.dart' show AssetBundle, rootBundle;
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../content/guides.dart';
@@ -954,14 +954,31 @@ class AppState extends ChangeNotifier {
   /// numbers, and shows no filler.
   CuratedCatalog curated = CuratedCatalog.empty;
 
-  static Future<CuratedCatalog> _loadCurated() async {
-    try {
-      return CuratedCatalog.parse(await rootBundle.loadString('assets/data/curated_sites.json'));
-    } on Object {
-      // a missing asset (FlutterError) or a broken / newer one (FormatException)
-      return CuratedCatalog.empty;
+  /// Loads the curated asset from [bundle] (default [rootBundle]); never
+  /// throws. Uncached, so a failed fetch is not kept for the session (a
+  /// "Try again" init reloads it), and a failed fetch (a missing asset, or a
+  /// transient web error) is tried once more. A broken or newer asset
+  /// (FormatException) is not retried. Bad rows are dropped by
+  /// [CuratedCatalog.parse]; every failure is logged.
+  @visibleForTesting
+  static Future<CuratedCatalog> loadCurated([AssetBundle? bundle]) async {
+    for (var attempt = 1;; attempt++) {
+      try {
+        final c = CuratedCatalog.parse(await (bundle ?? rootBundle).loadString(_curatedAsset, cache: false));
+        if (c.skipped.isNotEmpty) debugPrint('curated text: skipped ${c.skipped.join('; ')}');
+        return c;
+      } on FormatException catch (e) {
+        debugPrint('curated text unavailable: $e');
+        return CuratedCatalog.empty;
+      } on Object catch (e) {
+        if (attempt < 2) continue;
+        debugPrint('curated text unavailable: $e');
+        return CuratedCatalog.empty;
+      }
     }
   }
+
+  static const _curatedAsset = 'assets/data/curated_sites.json';
 
   String? _glanceSig;
   SiteGlance? _glance;
@@ -1036,7 +1053,7 @@ class AppState extends ChangeNotifier {
       // the first commit (they never fail init: see [_loadMap])
       final mapJob = ensureMap();
       final validationJob = _ridgePeak == null ? _loadValidation() : Future<void>.value(); // never throws
-      final curatedJob = _loadCurated(); // never throws
+      final curatedJob = loadCurated(); // never throws
       final texts = await Future.wait([
         rootBundle.loadString('assets/data/sites.json'),
         rootBundle.loadString('assets/data/horizons.json'),

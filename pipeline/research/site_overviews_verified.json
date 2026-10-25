@@ -1,11 +1,11 @@
 {
  "reviewed": "2026-10-25",
- "method": "Each overview was drafted by research agents from web searches. An independent fact-check then gave every claim a verdict (confirmed, corrected or unsupported) and recorded the sources it used. The fact-checkers could not open the primary pages themselves (those hosts did not answer), so the checks rest on search-engine result summaries that quote the named pages, plus a few distances computed from the catalogue coordinates; treat them as medium to low confidence. Unsupported claims, including some that the SR1, CR1, SV1 and MP1 checker could not search before its search budget ran out, were left out of the text, and corrected claims use the corrected wording. An editorial pass on 2026-10-25 then removed only clauses that state a number the app computes itself (Rule C: distance from the south pole), kept the rest of each sentence and added no claim; every change is logged in the site's edits list as was, now and why.",
+ "method": "Each overview was drafted by research agents from web searches. An independent fact-check then gave every claim a verdict (confirmed, corrected or unsupported) and recorded the sources it used. The fact-checkers could not open the primary pages themselves (those hosts did not answer), so the checks rest on search-engine result summaries that quote the named pages, plus a few distances computed from the catalogue coordinates; treat them as medium to low confidence. Unsupported claims, including some that the SR1, CR1, SV1 and MP1 checker could not search before its search budget ran out, were left out of the text, and corrected claims use the corrected wording. An editorial pass on 2026-10-25 then removed only clauses that state a number the app computes itself (Rule C: distance from the south pole), kept the rest of each sentence and added no claim; every change is logged in the site's edits list as was, now and why. A second pass on the same day brought a few sentences in line with the site's own confirmed or corrected verdicts: one size per feature across presets, the source of a size where it differs from the IAU Gazetteer diameter, the optional VIPER delivery, and the February 2026 Artemis change in the same words on all eight Artemis regions. It added only words found in those verdicts and is logged in the same edits lists.",
  "sites": [
   {
    "id": "artemis3-haworth",
    "headline": "Candidate region beside Haworth, one of the pole's coldest craters",
-   "overview": "Haworth is one of NASA's candidate landing regions near the lunar south pole. NASA named it among 13 regions for Artemis III in August 2022 and kept it on the shorter list of nine in October 2024; in February 2026 NASA moved the first crewed landing to Artemis IV. Each region is about 15 by 15 km. This one lies beside Haworth crater, a very old crater whose shadowed floor holds some of the coldest ground measured at the pole, in places never above about 40 K. Orbiter neutron data point to hydrogen, likely water ice, in that shadowed ground.",
+   "overview": "Haworth is one of NASA's candidate landing regions near the lunar south pole. NASA named it among 13 regions for Artemis III in August 2022 and kept it on the shorter list of nine in October 2024. In February 2026 NASA changed Artemis III to a crewed test flight in Earth orbit; Artemis IV is now to be the first crewed landing. Each region is about 15 by 15 km. This one lies beside Haworth crater, a very old crater whose shadowed floor holds some of the coldest ground measured at the pole, in places never above about 40 K. Orbiter neutron data point to hydrogen, likely water ice, in that shadowed ground.",
    "sources": [
     "https://www.nasa.gov/news-release/nasa-identifies-candidate-regions-for-landing-next-americans-on-moon/",
     "https://www.nasa.gov/news-release/nasa-provides-update-on-artemis-iii-moon-landing-regions/",
@@ -82,19 +82,26 @@
      "source": "[search summary] https://www.nasa.gov/?p=995520 (NASA page) and https://en.wikipedia.org/wiki/Artemis_III"
     }
    ],
-   "edits": []
+   "edits": [
+    {
+     "was": "; in February 2026 NASA moved the first crewed landing to Artemis IV.",
+     "now": ". In February 2026 NASA changed Artemis III to a crewed test flight in Earth orbit; Artemis IV is now to be the first crewed landing.",
+     "why": "Artemis status, worded the same on all eight Artemis regions: the site's confirmed verdict says that in February 2026 NASA made Artemis III a crewed test flight in Earth orbit and moved the first crewed landing to Artemis IV."
+    }
+   ]
   },
   {
    "id": "artemis3-malapert-massif",
    "headline": "High, flat patch atop Mons Malapert, a remnant basin-rim mountain",
-   "overview": "This region sits near the top of a large mountain on the Earth-facing side of the south pole. Informally called Malapert Massif, the mountain got the IAU name Mons Malapert in 2024 and is about 67 km across. Scientists think it is a remnant of the rim of the South Pole-Aitken basin. The candidate area is a fairly flat patch near 86 S, 0 E; the peak rises more than 5,000 m above its base, and a 3,500 m cliff is in view. NASA listed the region for Artemis III in 2022 and kept it in 2024. NASA notes good sunlight and a clear view of Earth on its rim.",
+   "overview": "This region sits near the top of a large mountain on the Earth-facing side of the south pole. Informally called Malapert Massif, the mountain got the IAU name Mons Malapert in 2024 and is about 67 km across. Scientists think it is a remnant of the rim of the South Pole-Aitken basin. The candidate area is a fairly flat patch near 86 S, 0 E; the peak rises more than 5,000 m above its base, and a 3,500 m cliff is in view. NASA listed the region for Artemis III in 2022 and kept it in 2024. In February 2026 NASA changed Artemis III to a crewed test flight in Earth orbit; Artemis IV is now to be the first crewed landing. NASA notes good sunlight and a clear view of Earth on its rim.",
    "sources": [
     "https://lroc.im-ldi.com/images/1294",
     "https://planetarynames.wr.usgs.gov/Feature/16338",
     "https://www.nasa.gov/news-release/nasa-identifies-candidate-regions-for-landing-next-americans-on-moon/",
     "https://www.nasa.gov/news-release/nasa-provides-update-on-artemis-iii-moon-landing-regions/",
     "https://science.nasa.gov/image-detail/20100618",
-    "https://cris-portal.uni-muenster.de/portal/en/publication/172801521"
+    "https://cris-portal.uni-muenster.de/portal/en/publication/172801521",
+    "https://www.nasa.gov/?p=995520"
    ],
    "verdicts": [
     {
@@ -152,12 +159,18 @@
      "source": "[search summary] https://www.nasa.gov/?p=995520 (NASA page) and https://en.wikipedia.org/wiki/Artemis_III"
     }
    ],
-   "edits": []
+   "edits": [
+    {
+     "was": "NASA listed the region for Artemis III in 2022 and kept it in 2024.",
+     "now": "NASA listed the region for Artemis III in 2022 and kept it in 2024. In February 2026 NASA changed Artemis III to a crewed test flight in Earth orbit; Artemis IV is now to be the first crewed landing.",
+     "why": "Artemis status, worded the same on all eight Artemis regions: the site's confirmed verdict says that in February 2026 NASA made Artemis III a crewed test flight in Earth orbit and moved the first crewed landing to Artemis IV."
+    }
+   ]
   },
   {
    "id": "artemis3-mons-mouton-plateau",
    "headline": "Broad, rocky top of Mons Mouton, where IM-2 Athena landed",
-   "overview": "Mons Mouton Plateau is NASA's informal name for the broad top of Mons Mouton, a flat-topped mountain almost 100 km across that rises about 6,000 m above the land around it. NASA added the region to its Artemis III candidate list in October 2024; it was not on the 2022 list. Flat-topped does not mean smooth: NASA says the summit is peppered with rocks, pebbles and many craters. Intuitive Machines' IM-2 Athena landed near the centre of the mountain on 6 March 2025, but came down hard and ended on its side in a small crater, which cut the mission short.",
+   "overview": "Mons Mouton Plateau is NASA's informal name for the broad top of Mons Mouton, a flat-topped mountain that NASA says is almost 100 km across and rises about 6,000 m above the land around it. NASA added the region to its Artemis III candidate list in October 2024; it was not on the 2022 list. In February 2026 NASA changed Artemis III to a crewed test flight in Earth orbit; Artemis IV is now to be the first crewed landing. Flat-topped does not mean smooth: NASA says the summit is peppered with rocks, pebbles and many craters. Intuitive Machines' IM-2 Athena landed near the centre of the mountain on 6 March 2025, but came down hard and ended on its side in a small crater, which cut the mission short.",
    "sources": [
     "https://www.nasa.gov/news-release/nasa-provides-update-on-artemis-iii-moon-landing-regions/",
     "https://data.lroc.im-ldi.com/lroc/view_rdr_product/NAC_ROI_MOUTNPLTLOC_P843S0306_5M",
@@ -165,7 +178,8 @@
     "https://moon.nasa.gov/resources/544/mons-mouton",
     "https://lroc.im-ldi.com/images/1401",
     "https://lroc.im-ldi.com/images/1408",
-    "https://www.nasa.gov/missions/artemis/nasas-lunar-drill-technology-passes-tests-on-the-moon/"
+    "https://www.nasa.gov/missions/artemis/nasas-lunar-drill-technology-passes-tests-on-the-moon/",
+    "https://www.nasa.gov/?p=995520"
    ],
    "verdicts": [
     {
@@ -217,12 +231,23 @@
      "source": "[search summary] https://www.nasa.gov/?p=995520 (NASA page) and https://en.wikipedia.org/wiki/Artemis_III"
     }
    ],
-   "edits": []
+   "edits": [
+    {
+     "was": "a flat-topped mountain almost 100 km across that rises",
+     "now": "a flat-topped mountain that NASA says is almost 100 km across and rises",
+     "why": "Says whose figure the size is. NASA gives almost 100 km across (confirmed verdict, NASA SVS source), while the IAU Gazetteer diameter the app prints for Mons Mouton elsewhere is 130 km."
+    },
+    {
+     "was": "it was not on the 2022 list.",
+     "now": "it was not on the 2022 list. In February 2026 NASA changed Artemis III to a crewed test flight in Earth orbit; Artemis IV is now to be the first crewed landing.",
+     "why": "Artemis status, worded the same on all eight Artemis regions: the site's confirmed verdict says that in February 2026 NASA made Artemis III a crewed test flight in Earth orbit and moved the first crewed landing to Artemis IV."
+    }
+   ]
   },
   {
    "id": "artemis3-mons-mouton",
    "headline": "Pole-facing side of Mons Mouton, once called Leibnitz Beta Plateau",
-   "overview": "This region covers the southern, pole-facing part of Mons Mouton, a flat-topped mountain almost 100 km across that stands about 6,000 m above its surroundings, beside the western rim of Nobile crater. NASA's 2022 Artemis III list called it Leibnitz Beta Plateau, after the mountain's old informal name. In 2023 the IAU announced the name Mons Mouton, for NASA mathematician Melba Roy Mouton, and NASA's 2024 list uses it. NASA picked this area for its VIPER rover for drivable ground near shadowed areas. NASA ended VIPER in July 2024, then in 2025 chose Blue Origin to deliver it, aiming for late 2027.",
+   "overview": "This region covers the southern, pole-facing part of Mons Mouton, a flat-topped mountain that NASA says is almost 100 km across and stands about 6,000 m above its surroundings, beside the western rim of Nobile crater. NASA's 2022 Artemis III list called it Leibnitz Beta Plateau, after the mountain's old informal name. In 2023 the IAU announced the name Mons Mouton, for NASA mathematician Melba Roy Mouton, and NASA's 2024 list uses it. In February 2026 NASA changed Artemis III to a crewed test flight in Earth orbit; Artemis IV is now to be the first crewed landing. NASA picked this area for its VIPER rover for drivable ground near shadowed areas. NASA ended VIPER in July 2024; in September 2025 it gave Blue Origin a task order to deliver VIPER by late 2027, with the delivery itself an option still to be exercised.",
    "sources": [
     "https://www.nasa.gov/news-release/nasa-identifies-candidate-regions-for-landing-next-americans-on-moon/",
     "https://www.nasa.gov/news-release/nasa-provides-update-on-artemis-iii-moon-landing-regions/",
@@ -231,7 +256,8 @@
     "https://lroc.im-ldi.com/images/1408",
     "https://www.nasa.gov/news-release/nasas-artemis-rover-to-land-near-nobile-region-of-moons-south-pole/",
     "https://www.nasa.gov/news-release/nasa-ends-viper-project-continues-moon-exploration/",
-    "https://www.geekwire.com/2025/nasa-order-blue-origin-viper-rover-moon/"
+    "https://www.geekwire.com/2025/nasa-order-blue-origin-viper-rover-moon/",
+    "https://www.nasa.gov/?p=995520"
    ],
    "verdicts": [
     {
@@ -283,12 +309,28 @@
      "source": "[search summary] https://www.nasa.gov/?p=995520 (NASA page) and https://en.wikipedia.org/wiki/Artemis_III"
     }
    ],
-   "edits": []
+   "edits": [
+    {
+     "was": "a flat-topped mountain almost 100 km across that stands",
+     "now": "a flat-topped mountain that NASA says is almost 100 km across and stands",
+     "why": "Says whose figure the size is. NASA gives almost 100 km across (confirmed verdict, NASA SVS source), while the IAU Gazetteer diameter the app prints for Mons Mouton elsewhere is 130 km."
+    },
+    {
+     "was": "NASA ended VIPER in July 2024, then in 2025 chose Blue Origin to deliver it, aiming for late 2027.",
+     "now": "NASA ended VIPER in July 2024; in September 2025 it gave Blue Origin a task order to deliver VIPER by late 2027, with the delivery itself an option still to be exercised.",
+     "why": "The delivery is an option NASA has not yet exercised, as the site's confirmed verdict says and as the VIPER and Nobile Rim 1 overviews say; the old wording read as a firm plan."
+    },
+    {
+     "was": "and NASA's 2024 list uses it.",
+     "now": "and NASA's 2024 list uses it. In February 2026 NASA changed Artemis III to a crewed test flight in Earth orbit; Artemis IV is now to be the first crewed landing.",
+     "why": "Artemis status, worded the same on all eight Artemis regions: the site's confirmed verdict says that in February 2026 NASA made Artemis III a crewed test flight in Earth orbit and moved the first crewed landing to Artemis IV."
+    }
+   ]
   },
   {
    "id": "artemis3-nobile-rim-1",
    "headline": "Artemis III candidate region on Nobile crater's southwestern rim",
-   "overview": "Nobile Rim 1 is a NASA name for an Artemis III candidate landing region, not an IAU name. It lies on the southwestern rim of Nobile, a crater about 79 km across named after the Italian aviator and explorer Umberto Nobile. NASA listed it among 13 regions in August 2022, each about 15 by 15 km, and kept it among nine in October 2024. In 2021 NASA picked an area near Nobile's western edge for the VIPER rover. Intuitive Machines' Athena lander came down on its side at nearby Mons Mouton in March 2025. In 2026 NASA changed Artemis III to an Earth-orbit test flight.",
+   "overview": "Nobile Rim 1 is a NASA name for an Artemis III candidate landing region, not an IAU name. It lies on the southwestern rim of Nobile, a crater about 79 km across named after the Italian aviator and explorer Umberto Nobile. NASA listed it among 13 regions in August 2022, each about 15 by 15 km, and kept it among nine in October 2024. In 2021 NASA picked an area near Nobile's western edge for the VIPER rover. Intuitive Machines' Athena lander came down on its side at nearby Mons Mouton in March 2025. In February 2026 NASA changed Artemis III to a crewed test flight in Earth orbit; Artemis IV is now to be the first crewed landing.",
    "sources": [
     "https://www.nasa.gov/news-release/nasa-identifies-candidate-regions-for-landing-next-americans-on-Moon/",
     "https://www.nasa.gov/news-release/nasa-provides-update-on-artemis-iii-moon-landing-regions/",
@@ -373,12 +415,18 @@
      "source": "https://www.theregister.com/2026/03/02/nasa_artemis_reshuffle/ ; https://aerospace.csis.org/artemis-rewritten-nasas-new-moon-plan-its-risks-and-whether-the-u-s-can-still-beat-china/ ; https://www.staradvertiser.com/2026/06/09/breaking-news/nasa-selects-astronauts-for-artemis-iii-spacex-blue-origin-test/ (WebSearch summaries; nasa.gov not reachable)"
     }
    ],
-   "edits": []
+   "edits": [
+    {
+     "was": "In 2026 NASA changed Artemis III to an Earth-orbit test flight.",
+     "now": "In February 2026 NASA changed Artemis III to a crewed test flight in Earth orbit; Artemis IV is now to be the first crewed landing.",
+     "why": "Artemis status, worded the same on all eight Artemis regions: the site's confirmed verdict says that in late February 2026 NASA changed Artemis III to a crewed test flight in low Earth orbit and that the first crewed landing is now planned for Artemis IV."
+    }
+   ]
   },
   {
    "id": "artemis3-nobile-rim-2",
    "headline": "Artemis III candidate region on Nobile crater's northeastern rim",
-   "overview": "Nobile Rim 2 is a NASA name for an Artemis III candidate landing region, not an IAU name. It lies on the northeastern rim of Nobile crater, across the crater from Nobile Rim 1. NASA included it in the August 2022 list of 13 regions and kept it in the October 2024 list of nine. A 2024 study by Pena-Asensio and colleagues scored 1,247 possible landing points on visibility, sunlight, Earth contact, shadowed areas and geology; its nine best points all fell here. That ranking is the authors' own, not NASA's. In 2026 NASA changed Artemis III to an Earth-orbit test flight.",
+   "overview": "Nobile Rim 2 is a NASA name for an Artemis III candidate landing region, not an IAU name. It lies on the northeastern rim of Nobile crater, across the crater from Nobile Rim 1. NASA included it in the August 2022 list of 13 regions and kept it in the October 2024 list of nine. A 2024 study by Pena-Asensio and colleagues scored 1,247 possible landing points on visibility, sunlight, Earth contact, shadowed areas and geology; its nine best points all fell here. That ranking is the authors' own, not NASA's. In February 2026 NASA changed Artemis III to a crewed test flight in Earth orbit; Artemis IV is now to be the first crewed landing.",
    "sources": [
     "https://www.nasa.gov/news-release/nasa-identifies-candidate-regions-for-landing-next-americans-on-Moon/",
     "https://www.nasa.gov/news-release/nasa-provides-update-on-artemis-iii-moon-landing-regions/",
@@ -451,12 +499,18 @@
      "source": "https://www.theregister.com/2026/03/02/nasa_artemis_reshuffle/ ; https://aerospace.csis.org/artemis-rewritten-nasas-new-moon-plan-its-risks-and-whether-the-u-s-can-still-beat-china/ ; https://www.staradvertiser.com/2026/06/09/breaking-news/nasa-selects-astronauts-for-artemis-iii-spacex-blue-origin-test/ (WebSearch summaries; nasa.gov not reachable)"
     }
    ],
-   "edits": []
+   "edits": [
+    {
+     "was": "In 2026 NASA changed Artemis III to an Earth-orbit test flight.",
+     "now": "In February 2026 NASA changed Artemis III to a crewed test flight in Earth orbit; Artemis IV is now to be the first crewed landing.",
+     "why": "Artemis status, worded the same on all eight Artemis regions: the site's confirmed verdict says that in late February 2026 NASA changed Artemis III to a crewed test flight in low Earth orbit and that the first crewed landing is now planned for Artemis IV."
+    }
+   ]
   },
   {
    "id": "artemis3-de-gerlache-rim-2",
    "headline": "Artemis III candidate region closest to the pole, at de Gerlache",
-   "overview": "de Gerlache Rim 2 is a NASA name for an Artemis III candidate landing region, not an IAU name. It lies at the rim of de Gerlache, a crater about 31 to 32 km across named after the Belgian Antarctic explorer Adrien de Gerlache. It was on NASA's 2022 list of 13 regions and is the closest to the south pole of the nine kept in October 2024. Its neighbour, de Gerlache Rim 1, was dropped. A 2022 conference abstract describes a large permanently shadowed area at the crater's centre and smaller ones around its rim. In 2026 NASA changed Artemis III to an Earth-orbit test flight.",
+   "overview": "de Gerlache Rim 2 is a NASA name for an Artemis III candidate landing region, not an IAU name. It lies at the rim of de Gerlache, a crater about 32 km across named after the Belgian Antarctic explorer Adrien de Gerlache. It was on NASA's 2022 list of 13 regions and is the closest to the south pole of the nine kept in October 2024. Its neighbour, de Gerlache Rim 1, was dropped. A 2022 conference abstract describes a large permanently shadowed area at the crater's centre and smaller ones around its rim. In February 2026 NASA changed Artemis III to a crewed test flight in Earth orbit; Artemis IV is now to be the first crewed landing.",
    "sources": [
     "https://www.nasa.gov/news-release/nasa-identifies-candidate-regions-for-landing-next-americans-on-Moon/",
     "https://www.nasa.gov/news-release/nasa-provides-update-on-artemis-iii-moon-landing-regions/",
@@ -547,13 +601,23 @@
      "was": "It was on NASA's 2022 list of 13 regions and is the closest of the nine kept in October 2024, about 50 km from the south pole.",
      "now": "It was on NASA's 2022 list of 13 regions and is the closest to the south pole of the nine kept in October 2024.",
      "why": "Rule C: the distance from the south pole is a number the app computes and shows in its facts line, so the clause was removed and the rest kept as written; 'the closest of the nine' became 'the closest to the south pole of the nine' so the comparison keeps its meaning without the number."
+    },
+    {
+     "was": "a crater about 31 to 32 km across",
+     "now": "a crater about 32 km across",
+     "why": "One size for de Gerlache on every preset: de Gerlache Rim 1 says about 32 km across; the corrected verdicts give 32.4 km (Wikipedia) and 31 km (Kereszturi et al. 2022). Words removed only."
+    },
+    {
+     "was": "In 2026 NASA changed Artemis III to an Earth-orbit test flight.",
+     "now": "In February 2026 NASA changed Artemis III to a crewed test flight in Earth orbit; Artemis IV is now to be the first crewed landing.",
+     "why": "Artemis status, worded the same on all eight Artemis regions: the site's confirmed verdict says that in late February 2026 NASA changed Artemis III to a crewed test flight in low Earth orbit and that the first crewed landing is now planned for Artemis IV."
     }
    ]
   },
   {
    "id": "artemis3-peak-near-cabeus-b",
    "headline": "Mountain area near Cabeus B, farthest Artemis III candidate region",
-   "overview": "Peak near Cabeus B is a NASA name for an Artemis III candidate landing region, not an IAU name. It is a mountain area near Cabeus B, a satellite crater of Cabeus, the crater NASA's LCROSS probe struck in 2009, finding water in the debris. The region was not on NASA's 2022 list and first appeared in the October 2024 list of nine. Of those nine it is the farthest from the south pole. One report describes its terrain rising about 6 km over a 30 km span. In 2026 NASA changed Artemis III to an Earth-orbit test flight.",
+   "overview": "Peak near Cabeus B is a NASA name for an Artemis III candidate landing region, not an IAU name. It is a mountain area near Cabeus B, a satellite crater of Cabeus, the crater NASA's LCROSS probe struck in 2009, finding water in the debris. The region was not on NASA's 2022 list and first appeared in the October 2024 list of nine. Of those nine it is the farthest from the south pole. One report describes its terrain rising about 6 km over a 30 km span. In February 2026 NASA changed Artemis III to a crewed test flight in Earth orbit; Artemis IV is now to be the first crewed landing.",
    "sources": [
     "https://www.nasa.gov/news-release/nasa-identifies-candidate-regions-for-landing-next-americans-on-Moon/",
     "https://www.nasa.gov/news-release/nasa-provides-update-on-artemis-iii-moon-landing-regions/",
@@ -637,6 +701,11 @@
      "was": "Of those nine it is the farthest from the south pole, about 200 km away.",
      "now": "Of those nine it is the farthest from the south pole.",
      "why": "Rule C: the distance from the south pole is a number the app computes and shows in its facts line, so the clause was removed and the rest kept as written."
+    },
+    {
+     "was": "In 2026 NASA changed Artemis III to an Earth-orbit test flight.",
+     "now": "In February 2026 NASA changed Artemis III to a crewed test flight in Earth orbit; Artemis IV is now to be the first crewed landing.",
+     "why": "Artemis status, worded the same on all eight Artemis regions: the site's confirmed verdict says that in late February 2026 NASA changed Artemis III to a crewed test flight in low Earth orbit and that the first crewed landing is now planned for Artemis IV."
     }
    ]
   },

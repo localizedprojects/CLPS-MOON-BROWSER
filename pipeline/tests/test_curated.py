@@ -15,6 +15,8 @@ RESEARCH = json.loads(curated.RESEARCH.read_text(encoding="utf-8"))
 PRESET_IDS = [s["id"] for s in CATALOG["sites"]]
 CLASHES = {"artemis3-de-gerlache-rim-2", "artemis3-peak-near-cabeus-b",
            "derosa2012-mp1-malapert-peak", "im-1-odysseus-landed"}
+ARTEMIS = [s["id"] for s in CATALOG["sites"]
+           if s.get("group") == "artemis" and s.get("kind") == "region-center-approx"]
 
 
 @pytest.fixture(scope="module")
@@ -148,14 +150,17 @@ def test_shipped_text_passes_rule_c(asset):
             assert curated.rule_c_hits(text) == [], (sid, text)
 
 
-def test_edits_are_logged_and_only_remove(asset):
-    edited = {s["id"] for s in RECORD["sites"] if s["edits"]}
-    assert edited == CLASHES
+def test_edits_are_logged_and_rule_c_edits_only_remove(asset):
+    rule_c = {s["id"] for s in RECORD["sites"] if any(curated.rule_c_hits(e["was"]) for e in s["edits"])}
+    other = {s["id"] for s in RECORD["sites"] if any(not curated.rule_c_hits(e["was"]) for e in s["edits"])}
+    assert rule_c == CLASHES
+    assert other == set(ARTEMIS)   # the second pass: Artemis status, sizes, VIPER delivery
     for s in RECORD["sites"]:
         assert curated.edit_problems(s) == [], s["id"]
         for e in s["edits"]:
             assert set(e) == {"was", "now", "why"} and e["why"].strip()
-            assert len(e["now"]) < len(e["was"])
+            if curated.rule_c_hits(e["was"]):
+                assert len(e["now"]) < len(e["was"])
             assert (e["now"] in asset["sites"][s["id"]]["headline"]
                     or e["now"] in asset["sites"][s["id"]]["overview"])
 
@@ -165,6 +170,38 @@ def test_an_edit_that_adds_a_number_or_word_is_caught():
             "edits": [{"was": "It is about 50 km from the south pole.", "now": "It is 54 km from here.",
                        "why": "r"}]}
     assert any("adds words" in p for p in curated.edit_problems(site))
+
+
+def test_an_edit_that_removed_no_rule_c_hit_adds_only_verdict_words():
+    site = {"id": "x", "headline": "H", "overview": "It is big. It is about 40 km across.",
+            "verdicts": [{"claim": "It is 40 km across.", "verdict": "corrected",
+                          "finalClaim": "It is about 32 km across.", "source": ""},
+                         {"claim": "It is huge.", "verdict": "unsupported", "finalClaim": "", "source": ""}],
+            "edits": [{"was": "It is 31 km across.", "now": "It is about 40 km across.", "why": "r"}]}
+    assert any("no confirmed or corrected verdict has ['40']" in p for p in curated.edit_problems(site))
+    site["overview"] = "It is big. It is about 32 km across."
+    site["edits"][0]["now"] = "It is about 32 km across."
+    assert curated.edit_problems(site) == []
+    site["overview"] = "It is big. It is huge, about 32 km across."
+    site["edits"][0]["now"] = "It is huge, about 32 km across."
+    assert any("['huge']" in p for p in curated.edit_problems(site))
+
+
+def test_artemis_regions_give_one_status_sentence(asset):
+    assert len(ARTEMIS) == 8
+    said = {sid: [x for x in curated.split_sentences(asset["sites"][sid]["overview"]) if "Artemis IV" in x]
+            for sid in ARTEMIS}
+    assert all(len(v) == 1 for v in said.values()), said
+    assert len({v[0] for v in said.values()}) == 1, said
+
+
+def test_a_feature_size_that_differs_between_overviews_fails_the_build(asset):
+    assert curated.size_problems(RECORD["sites"], asset["features"]) == []
+    rec = copy.deepcopy(RECORD)
+    s = _site(rec, "artemis3-de-gerlache-rim-2")
+    s["overview"] = s["overview"].replace("about 32 km across", "about 31 to 32 km across")
+    with pytest.raises(curated.CuratedError, match="de Gerlache: overviews give different sizes"):
+        _build(rec)
 
 
 # --- 4: verdicts -------------------------------------------------------------------------------

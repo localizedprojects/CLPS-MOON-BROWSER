@@ -418,6 +418,31 @@ void main() {
       expect(g.factsLine, endsWith(' · 15 km from the IAU centre of Slater'));
       expect(_group(g, glanceWhereHeading).last.text, 'The nearest named feature is Slater; its centre is 15 km toward the pole.');
     });
+
+    test('curated text that names the feature keeps the only size on the card', () {
+      final site = _preset(8, lat: -87, lon: 0);
+      const f = NamedFeature(id: 'f', name: 'Fcrater', kind: 'crater', lat: -87.2, lon: 0, diameterKm: 20.92);
+      const cur = CuratedSite(
+        id: 'p08',
+        headline: 'Ridge on the rim of Fcrater',
+        lede: 'It sits on the rim of Fcrater, a crater about 20 km across.',
+        overview: 'It sits on the rim of Fcrater, a crater about 20 km across. It sees Earth often.',
+        sources: [CuratedSource('A study of polar light', 'https://example.org/light')],
+      );
+      String whereLine(CuratedSite? c) =>
+          _group(buildSiteGlance(_in(site, curated: c, features: const [f])), glanceWhereHeading).last.text;
+      expect(whereLine(cur), startsWith('The nearest named feature is Fcrater; its centre is '));
+      expect(whereLine(null), startsWith('The nearest named feature is Fcrater (21 km across); its centre is '));
+    });
+
+    test('an Artemis region is named as a region centre, not as its namesake', () {
+      final p0 = _presets()[0];
+      expect(p0.isArtemisRegion, isTrue);
+      final g = buildSiteGlance(_in(_custom(lat: p0.lat - 0.01, lon: p0.lon)));
+      expect(g.factsLine, contains(' from the P00 region centre'));
+      expect(_group(g, glanceWhereHeading).map((l) => l.text).join('\n'),
+          contains('The nearest catalogue site is the P00 region centre, '));
+    });
   });
 
   group('WATCH OUT thresholds', () {
@@ -648,6 +673,17 @@ void main() {
   });
 
   group('pending and stale', () {
+    test('the period rank names the user spots it counts; below them a preset is approximate', () {
+      final ranked = [_r('mine-1'), _r('mine-2'), for (final s in _presets()) _r(s.id)];
+      final below = _row(buildSiteGlance(_in(_preset(3), ranked: ranked)), GlanceRow.compare).first;
+      expect(below.text, '6th of 18 sites, including your 2 spots, for Balanced over your dates.');
+      expect(below.approximate, isTrue);
+      final above = _row(buildSiteGlance(_in(_preset(3), ranked: [_r('p03'), ...ranked.where((r) => r.id != 'p03')])),
+          GlanceRow.compare).first;
+      expect(above.text, '1st of 18 sites, including your 2 spots, for Balanced over your dates.');
+      expect(above.approximate, isFalse);
+    });
+
     test('ranked == null: only the period rank is pending', () {
       final g = buildSiteGlance(_in(_preset(9), noRanked: true));
       expect(_row(g, GlanceRow.compare).first, const GlanceLine(glanceComparingText, pending: true));

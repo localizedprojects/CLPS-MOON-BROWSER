@@ -104,6 +104,18 @@ void main() {
     });
   });
 
+  test('directionWordTo: a target past the pole reads across the pole', () {
+    // (-89.90, 0) is 3.0 km from the pole; SR1 is 6.8 km from it, beyond it.
+    final az = bearingDeg(-89.90, 0, -89.7755, -156.448);
+    expect(directionWord(az), 'toward the pole');
+    expect(directionWordTo(az, -89.90, -89.7755), 'across the pole');
+    // same meridian, nearer the pole: still toward it
+    expect(directionWordTo(bearingDeg(-89, 30, -89.5, 30), -89, -89.5), 'toward the pole');
+    // other sectors are unchanged
+    expect(directionWordTo(bearingDeg(-89, 30, -88.5, 30), -89, -88.5), 'away from the pole');
+    expect(directionWordTo(double.nan, -89, -88), '');
+  });
+
   test('directionWord sectors', () {
     expect(directionWord(44.9), 'away from the pole');
     expect(directionWord(45), 'to the east');

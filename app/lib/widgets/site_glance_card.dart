@@ -273,12 +273,18 @@ class _SourceRow extends StatelessWidget {
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             if (title.isNotEmpty) Text(title, style: PHText.body),
             // SelectableText is a long-press target: one node at least 48 dp
-            // tall (its own node keeps the text's height)
+            // tall (its own node keeps the text's height). Its own storage
+            // key: under Overview's PageStorageKey the text field's scroller
+            // would otherwise start at the page's saved scroll offset, out of
+            // range, so the URL is scrolled out of sight and swallows page drags
             if (source.url.isNotEmpty)
               MergeSemantics(
                 child: ConstrainedBox(
                   constraints: const BoxConstraints(minHeight: 48),
-                  child: SelectableText(source.url, style: numStyle(size: 12, color: PH.muted)),
+                  child: KeyedSubtree(
+                    key: PageStorageKey('glance-source-url-$index'),
+                    child: SelectableText(source.url, style: numStyle(size: 12, color: PH.muted)),
+                  ),
                 ),
               ),
           ]),

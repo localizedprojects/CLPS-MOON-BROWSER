@@ -1,4 +1,3 @@
-import 'package:flutter/gestures.dart';
 // Site › Overview with the landing card first (docs/ux_landing_window_spec.md
 // 3.1 and 5): kind line, badges, the card, then "More about this site",
 // collapsed by default, with the hero not built until it opens; expert mode
@@ -181,63 +180,20 @@ void main() {
       await tester.pump();
       await tester.tap(find.text(glanceDetailsLabel(state.selectedGlance!.sources.length)));
       await tester.pump();
-      void probe(String tag) {
-        for (final e in find.byType(Scrollable).evaluate().skip(1)) {
-          final p = ((e as StatefulElement).state as ScrollableState).position;
-          // ignore: avoid_print
-          print('PRB $tag ${tester.getRect(find.byElementPredicate((x) => x == e)).top.toStringAsFixed(0)} px=${p.pixels.toStringAsFixed(2)} max=${p.maxScrollExtent} vp=${p.viewportDimension}');
-        }
-      }
-      probe('afterOpen');
       expect(tester.takeException(), isNull);
+      // each source URL's text scroller starts at 0: without a storage key of
+      // its own it read Overview's saved scroll offset, hid the URL and
+      // swallowed page drags that started on it
+      final urls = tester.stateList<ScrollableState>(
+          find.descendant(of: find.byType(SiteGlanceCard), matching: find.byType(Scrollable)));
+      expect(urls.length, state.selectedGlance!.sources.where((s) => s.url.isNotEmpty).length);
+      expect(urls, isNotEmpty);
+      for (final u in urls) {
+        expect(u.position.pixels, 0);
+      }
       await toMore(tester);
-      probe('afterToMore');
-      // ignore: avoid_print
-      print('DBG1 ${state.overviewMoreOpen} ${tester.getRect(more())} ${find.byType(AboutSite).evaluate().length}');
       await tester.tap(more());
       await tester.pump();
-      // ignore: avoid_print
-      print('DBG2 ${state.overviewMoreOpen} ${tester.getRect(more())} ${find.byType(AboutSite).evaluate().length} ${find.byType(Scrollable).evaluate().length}');
-      probe('afterTapMore');
-      await tester.pump(const Duration(milliseconds: 400));
-      probe('after400');
-      final sc = tester.state<ScrollableState>(find.byType(Scrollable).first);
-      // ignore: avoid_print
-      print('DBG3 ${find.byType(AboutSite).evaluate().length} ${tester.getRect(find.byType(Scrollable).first)} ${sc.position.pixels} ${sc.position.maxScrollExtent} ${sc.widget.axisDirection}');
-      final hits = tester.hitTestOnBinding(tester.getCenter(find.byType(Scrollable).first));
-      // ignore: avoid_print
-      print('DBG4 ${hits.path.map((e) => e.target.runtimeType).join(' < ')}');
-      for (final e in find.byType(Scrollable).evaluate().skip(1)) {
-        final st = (e as StatefulElement).state as ScrollableState;
-        final p = st.position;
-        // ignore: avoid_print
-        print('DBG8 ${tester.getRect(find.byElementPredicate((x) => x == e))} px=${p.pixels} min=${p.minScrollExtent} max=${p.maxScrollExtent} vp=${p.viewportDimension} accept=${p.physics.shouldAcceptUserOffset(p)}');
-      }
-      final g = await tester.startGesture(tester.getCenter(find.byType(Scrollable).first));
-      await g.moveBy(const Offset(0, -20));
-      // ignore: avoid_print
-      print('DBG5a ${sc.position.pixels} focus=${FocusManager.instance.primaryFocus}');
-      await g.moveBy(const Offset(0, -280));
-      await tester.pump();
-      // ignore: avoid_print
-      print('DBG5b ${sc.position.pixels}');
-      await g.up();
-      await tester.pump(const Duration(milliseconds: 50));
-      // ignore: avoid_print
-      print('DBG5c ${sc.position.pixels} focus=${FocusManager.instance.primaryFocus}');
-      await tester.pump(const Duration(milliseconds: 500));
-      // ignore: avoid_print
-      print('DBG5d ${sc.position.pixels}');
-      debugPrintGestureArenaDiagnostics = false;
-      await tester.dragFrom(const Offset(4, 400), const Offset(0, -300));
-      await tester.pump(const Duration(milliseconds: 50));
-      // ignore: avoid_print
-      print('DBG6 ${sc.position.pixels} ${tester.hitTestOnBinding(tester.getCenter(find.byType(Scrollable).first)).path.take(3).map((e) => e.target.runtimeType).join(' < ')}');
-      for (final e in find.byType(Scrollable).evaluate()) {
-        final st = (e as StatefulElement).state as ScrollableState;
-        // ignore: avoid_print
-        print('DBG7 ${tester.getRect(find.byElementPredicate((x) => x == e))} ${st.position.maxScrollExtent} ${st.widget.physics} ${st.position.physics}');
-      }
       await tester.scrollUntilVisible(find.byType(AboutSite), 300, scrollable: find.byType(Scrollable).first);
       await tester.pump();
       await done(tester);

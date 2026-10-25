@@ -1137,7 +1137,7 @@ These cards print metrics of §9.4 with the wording of §11.1 and `StatBar.pctTe
 - **Where it is.** Directions are the initial great-circle bearing in four sectors (`directionWord`, `place.dart`). A target in the "toward the pole" sector that is no nearer the pole than the start reads "across the pole" (`directionWordTo`). An Artemis III candidate region is named "the <name> region centre", so it is not read as the mountain or crater it is named after.
 - **Rank.** "<k>th of $N$" uses the same ranking as Explore. When $N$ counts the user's own spots the line says so ("sites, including your 2 spots").
 - **(approx.) marks.** A line is marked "(approx.)" when it rests on the 400 m map: every computed line of a custom spot (its skyline, height and comparisons, including "Against <nearest site>"; §16), and a preset's period rank when one of the user's spots ranks above it.
-- **Pending.** While numbers for new choices are computing, the period rows show "Updating for your new choices…" and the ranking shows "Comparing with the catalogue sites…". Only the first pending line is a screen-reader live region; when they settle, the card header announces once that it was updated.
+- **Pending.** While the numbers for new choices are computing, the rows that depend on the dates show "Updating for your new choices…"; while the catalogue ranking is computing, HOW IT COMPARES shows "Comparing with the catalogue sites…". A screen reader hears at most one of them ("Comparing…" only, since the Overview head already announces new choices), and "At a glance, updated" once when they settle.
 
 ---
 

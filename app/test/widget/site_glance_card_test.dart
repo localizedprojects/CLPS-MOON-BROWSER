@@ -279,16 +279,17 @@ void main() {
     }
   });
 
-  testWidgets('pending lines are live regions with a busy indicator', (tester) async {
+  testWidgets('pending lines: a busy indicator, at most one live region, the result announced once', (tester) async {
     final h = tester.ensureSemantics();
     await _pump(tester, card(sr1, stale: true));
     expect(find.text(glanceUpdatingText), findsWidgets);
-    expect(tester.getSemantics(find.text(glanceUpdatingText).first), isSemantics(isLiveRegion: true));
     expect(find.byType(BusyIndicator), findsWidgets);
-    // one announcement, not one per pending line
+    // new choices: Overview's head (a live region) announces them, so none of
+    // the card's 'Updating' lines is announced again
     expect(find.text(glanceUpdatingText).evaluate().length, greaterThan(1));
     final live = find.byWidgetPredicate((w) => w is Semantics && w.properties.liveRegion == true);
-    expect(live, findsOneWidget);
+    expect(live, findsNothing);
+    expect(tester.getSemantics(find.text(glanceUpdatingText).first), isSemantics(isLiveRegion: false));
 
     // the same card settling announces the result once, on its header
     await tester.pumpWidget(_host(card(sr1), width: 360));
@@ -299,6 +300,7 @@ void main() {
     await _pump(tester, card(sr1, withRank: false));
     expect(find.text(glanceComparingText), findsOneWidget);
     expect(tester.getSemantics(find.text(glanceComparingText)), isSemantics(isLiveRegion: true));
+    expect(live, findsOneWidget);
     expect(find.text(glanceUpdatingText), findsNothing);
     h.dispose();
   });

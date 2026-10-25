@@ -253,8 +253,8 @@ String _spell(Interval? i) => i != null && i.hours.isFinite && i.hours >= 0 ? sp
 /// "Earth" stay capitalised (they are names).
 String _mid(String label) => label.startsWith('Sunlight') ? 's${label.substring(1)}' : label;
 
-/// A catalogue site by name; an Artemis region is 'the <short> region
-/// centre', so it is not read as the mountain or crater it is named after.
+/// A catalogue site by name; an Artemis region is `the <short> region centre`,
+/// so it is not read as the mountain or crater it is named after.
 String _siteRef(Site p) => p.isArtemisRegion ? 'the ${p.short} region centre' : p.short;
 
 /// Whether [text] gives the size of the feature [name] itself: a sentence

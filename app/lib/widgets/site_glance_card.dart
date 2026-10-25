@@ -102,8 +102,10 @@ class _SiteGlanceCardState extends State<SiteGlanceCard> {
     // the engine adds 'What this cannot tell you' for custom spots only
     final custom = g.details.any((d) => d.$1 == glanceLimitsHeading);
     final n = g.sources.length;
-    // at most one live region in the card: the first pending line
-    var liveTaken = false;
+    // at most one live region in the card: the first pending line, and none
+    // while the period rows wait for new choices (Overview's head, a live
+    // region, already says so; the card announces once when it settles)
+    var liveTaken = g.pendingPeriod;
     bool live(GlanceLine l) {
       if (!l.pending || liveTaken) return false;
       return liveTaken = true;

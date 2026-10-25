@@ -58,6 +58,14 @@ Future<void> _pump(WidgetTester tester, Widget w, {double width = 360, double te
   await tester.pump();
 }
 
+/// Taps Details (scrolled into view first: at 2x text the card is taller
+/// than the screen).
+Future<void> _toggle(WidgetTester tester) async {
+  await tester.ensureVisible(find.byType(FocusRingInkWell));
+  await tester.tap(find.byType(FocusRingInkWell));
+  await tester.pump();
+}
+
 /// Every TextSpan with its text, depth-first.
 List<TextSpan> _spans(InlineSpan root) {
   final out = <TextSpan>[];
@@ -123,8 +131,7 @@ void main() {
         await _pump(tester, card(pick()), width: width, textScale: scale);
         expect(tester.takeException(), isNull);
         expect(tester.getRect(find.byType(SiteGlanceCard)).right, lessThanOrEqualTo(width));
-        await tester.tap(find.byType(FocusRingInkWell));
-        await tester.pump();
+        await _toggle(tester);
         expect(tester.takeException(), isNull);
         expect(find.text(glanceSourcesHeading), pick().custom ? findsNothing : findsOneWidget);
       });
@@ -169,8 +176,7 @@ void main() {
     await expectLater(tester, meetsGuideline(labeledTapTargetGuideline));
     expect(find.text(glanceAboutHeading), findsNothing);
 
-    await tester.tap(find.byType(FocusRingInkWell));
-    await tester.pump();
+    await _toggle(tester);
     expect(tester.getSemantics(detailsButton()), isSemantics(isExpanded: true));
     expect(find.text(glanceAboutHeading), findsOneWidget);
     expect(find.text(glanceWhereHeading), findsOneWidget);
@@ -178,8 +184,7 @@ void main() {
     expect(find.byType(SelectableText), findsNWidgets(n));
     expect(find.text(g.sources.first.url), findsOneWidget);
 
-    await tester.tap(find.byType(FocusRingInkWell));
-    await tester.pump();
+    await _toggle(tester);
     expect(find.text(glanceAboutHeading), findsNothing);
     h.dispose();
   });
@@ -199,8 +204,7 @@ void main() {
             _ => card(cr1),
           },
         ));
-    await tester.tap(find.byType(FocusRingInkWell));
-    await tester.pump();
+    await _toggle(tester);
     expect(find.text(glanceSourcesHeading), findsOneWidget);
     show.value = null;
     await tester.pump();

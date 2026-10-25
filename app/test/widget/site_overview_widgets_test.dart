@@ -1,6 +1,8 @@
 // Site › Overview parts in isolation, with hand-made inputs: StatTrio,
 // BestWindowCard, PlanForDarkCard, GoodDaysCalendar and AboutSite at phone
 // width, in the 440 dp pane and at 2x text.
+import 'dart:io';
+
 import 'package:flutter/material.dart' hide Interval;
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -254,6 +256,36 @@ void main() {
       expect(find.text(longTermLabel), findsNothing);
       expect(find.textContaining('slope not computed for custom spots'), findsOneWidget);
       expect(find.byType(FidelityBadge), findsOneWidget);
+    });
+
+    testWidgets('the ~15 x 15 km region line is for Artemis regions only, not VIPER (regression)', (tester) async {
+      const viper = Site(
+          id: 'viper', name: 'VIPER mission area', short: 'VIPER', group: 'missions', kind: 'region-center-approx',
+          confidence: 'medium', notes: '', lat: -89.3, lon: 0, terrainHeightM: 0);
+      for (final (site, shown) in [(preset, true), (viper, false)]) {
+        await _pump(tester, AboutSite(site: site));
+        await tester.tap(find.text(aboutSiteTitle));
+        await tester.pumpAndSettle();
+        expect(find.textContaining('15 × 15 km'), shown ? findsOneWidget : findsNothing, reason: site.id);
+      }
+    });
+
+    testWidgets('a skyline under 1 km reads "right next to the spot", never "0 km away" (shipped presets)',
+        (tester) async {
+      final cat = SiteCatalog.parse(
+          File('assets/data/sites.json').readAsStringSync(), File('assets/data/horizons.json').readAsStringSync());
+      final near = [for (final p in cat.sites) if (p.horizonMaxDistanceKm < 1) p];
+      expect(near, isNotEmpty);
+      for (final p in [...near, cat.sites.firstWhere((p) => p.horizonMaxDistanceKm >= 1)]) {
+        await _pump(tester, AboutSite(site: p));
+        await tester.tap(find.text(aboutSiteTitle));
+        await tester.pumpAndSettle();
+        final sky = find.textContaining('the skyline peaks at');
+        expect(sky, findsOneWidget, reason: p.id);
+        final text = tester.widget<Text>(sky).data!;
+        expect(text, isNot(contains('0 km away')), reason: p.id);
+        expect(text.contains('right next to the spot'), p.horizonMaxDistanceKm < 1, reason: '${p.id}: $text');
+      }
     });
   });
 }

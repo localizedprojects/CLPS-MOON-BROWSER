@@ -90,8 +90,11 @@ class _SiteGlanceCardState extends State<SiteGlanceCard> {
       margin: const EdgeInsets.symmetric(vertical: 6),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(PH.radiusCard)),
       clipBehavior: Clip.antiAlias,
+      // one container whose parts stay separate nodes (the eyebrow, the
+      // header, each line and the Details button)
       child: Semantics(
         container: true,
+        explicitChildNodes: true,
         child: Padding(
           padding: const EdgeInsets.fromLTRB(16, 14, 16, 4),
           child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [

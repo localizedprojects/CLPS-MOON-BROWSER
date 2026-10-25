@@ -225,6 +225,42 @@ void main() {
     await tester.pumpWidget(const SizedBox());
   });
 
+  testWidgets('320 px phone at 2x text: the Overview guide reaches At a glance and More, each lit on screen',
+      (tester) async {
+    state.guidesSeen = {...keys('explore'), ...keys('learn')};
+    await show(tester, size: const Size(320, 640), text: 2);
+    await settle(tester);
+    state.openSite(state.selectedId, tab: SiteTab.overview);
+    await tester.pump();
+    await settle(tester);
+    expect(state.activeGuide, 'site.overview');
+    for (var i = 0; i < 10 && find.byKey(_next).evaluate().isEmpty; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+    final seen = <String>[];
+    for (var i = 0; i < 12 && find.byKey(_next).evaluate().isNotEmpty; i++) {
+      expect(tester.takeException(), isNull, reason: 'step $i');
+      final card = tester.getRect(find.byKey(_next));
+      expect(card.top, greaterThanOrEqualTo(0));
+      expect(card.bottom, lessThanOrEqualTo(640));
+      for (final (id, title) in [('site-glance', 'At a glance'), ('site-more', 'More about this site')]) {
+        if (find.descendant(of: find.byType(FeatureGuideLayer), matching: find.text(title)).evaluate().isEmpty) continue;
+        seen.add(id);
+        // the guide scrolled the lit control into view
+        final target = tester.getRect(find
+            .byWidgetPredicate((w) => w is GuideTarget && w.id == id, skipOffstage: false)
+            .first);
+        expect(target.bottom, greaterThan(0), reason: id);
+        expect(target.top, lessThan(640), reason: id);
+      }
+      await tester.tap(find.byKey(_next));
+      await settle(tester);
+    }
+    expect(seen, ['site-glance', 'site-more']);
+    expect(find.byType(FeatureGuideLayer), findsNothing);
+    await tester.pumpWidget(const SizedBox());
+  });
+
   testWidgets('Compare: picking sites later brings a short guide to the results', (tester) async {
     state
       ..guidesSeen = {...keys('explore')}

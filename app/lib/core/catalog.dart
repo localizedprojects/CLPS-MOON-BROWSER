@@ -81,6 +81,10 @@ class Site {
 
   /// "Approximate region centre" etc. for UI labels.
   bool get isRegionCentre => kind == 'region-center-approx';
+
+  /// Centre of an Artemis III candidate region (~15 × 15 km); VIPER's mission
+  /// area is a region centre too, but not an Artemis region.
+  bool get isArtemisRegion => group == 'artemis' && kind == 'region-center-approx';
 }
 
 class SiteCatalog {

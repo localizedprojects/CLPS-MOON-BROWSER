@@ -1,0 +1,1368 @@
+{
+ "reviewed": "2026-10-25",
+ "method": "Each overview was drafted by research agents from web searches. An independent fact-check then gave every claim a verdict (confirmed, corrected or unsupported) and recorded the sources it used. The fact-checkers could not open the primary pages themselves (those hosts did not answer), so the checks rest on search-engine result summaries that quote the named pages, plus a few distances computed from the catalogue coordinates; treat them as medium to low confidence. Unsupported claims, including some that the SR1, CR1, SV1 and MP1 checker could not search before its search budget ran out, were left out of the text, and corrected claims use the corrected wording. An editorial pass on 2026-10-25 then removed only clauses that state a number the app computes itself (Rule C: distance from the south pole), kept the rest of each sentence and added no claim; every change is logged in the site's edits list as was, now and why.",
+ "sites": [
+  {
+   "id": "artemis3-haworth",
+   "headline": "Candidate region beside Haworth, one of the pole's coldest craters",
+   "overview": "Haworth is one of NASA's candidate landing regions near the lunar south pole. NASA named it among 13 regions for Artemis III in August 2022 and kept it on the shorter list of nine in October 2024; in February 2026 NASA moved the first crewed landing to Artemis IV. Each region is about 15 by 15 km. This one lies beside Haworth crater, a very old crater whose shadowed floor holds some of the coldest ground measured at the pole, in places never above about 40 K. Orbiter neutron data point to hydrogen, likely water ice, in that shadowed ground.",
+   "sources": [
+    "https://www.nasa.gov/news-release/nasa-identifies-candidate-regions-for-landing-next-americans-on-moon/",
+    "https://www.nasa.gov/news-release/nasa-provides-update-on-artemis-iii-moon-landing-regions/",
+    "https://www.nasa.gov/?p=995520",
+    "https://meetingorganizer.copernicus.org/EPSC2013/EPSC2013-864.pdf",
+    "https://ntrs.nasa.gov/citations/20150006822",
+    "https://arxiv.org/abs/2303.03911"
+   ],
+   "verdicts": [
+    {
+     "claim": "Haworth was one of the 13 Artemis III candidate landing regions NASA named on 19 August 2022.",
+     "verdict": "confirmed",
+     "finalClaim": "Haworth was one of the 13 Artemis III candidate landing regions NASA named on 19 August 2022.",
+     "source": "[search summary] https://www.nasa.gov/news-release/nasa-identifies-candidate-regions-for-landing-next-americans-on-moon/ ; https://www.collectspace.com/news/news-081922a-artemis-iii-moon-landing-regions.html"
+    },
+    {
+     "claim": "Haworth stayed on NASA's October 2024 list of nine candidate regions, in no priority order.",
+     "verdict": "confirmed",
+     "finalClaim": "Haworth stayed on NASA's October 2024 list of nine candidate regions (Peak near Cabeus B, Haworth, Malapert Massif, Mons Mouton Plateau, Mons Mouton, Nobile Rim 1, Nobile Rim 2, de Gerlache Rim 2, Slater Plain), listed in no priority order.",
+     "source": "[search summary] https://www.nasa.gov/news-release/nasa-provides-update-on-artemis-iii-moon-landing-regions/"
+    },
+    {
+     "claim": "Each region is about 15 by 15 km within 6 degrees of latitude of the pole; a landing site is about 100 m in radius.",
+     "verdict": "confirmed",
+     "finalClaim": "NASA describes each candidate region as about 15 by 15 km, within six degrees of latitude of the south pole; a landing site is a spot about 100 m in radius inside a region.",
+     "source": "[search summary] https://www.nasa.gov/news-release/nasa-identifies-candidate-regions-for-landing-next-americans-on-moon/ ; https://www.scientificamerican.com/article/nasa-unveils-candidate-landing-sites-for-artemis-astronauts/"
+    },
+    {
+     "claim": "The crater Haworth is named for Walter Haworth, British chemist and 1937 Nobel laureate; name approved October 2008.",
+     "verdict": "confirmed",
+     "finalClaim": "The crater Haworth is named for Walter Haworth, British chemist and 1937 Nobel laureate in chemistry; the name was approved in October 2008 (secondary sources only; Gazetteer unreachable).",
+     "source": "[search summary] https://en.wikipedia.org/wiki/Haworth_(crater) ; https://the-moon.us/wiki/Haworth"
+    },
+    {
+     "claim": "Sources disagree on the crater's centre and size.",
+     "verdict": "corrected",
+     "finalClaim": "Secondary sources disagree on the crater's size (Wikipedia 51.4 km, the-moon.us 35 km); Wikipedia puts its centre near 86.9 S, 4 W. The Gazetteer could not be opened. Coordinate check: the catalog point (-86.75, -23.67) is about 33-35 km from the crater centre (Wikipedia or repo Gazetteer value), so the region lies beside the crater, outside its rim, not on its floor.",
+     "source": "[search summary] https://en.wikipedia.org/wiki/Haworth_(crater) ; https://the-moon.us/wiki/Haworth ; distance computed from catalog coordinates"
+    },
+    {
+     "claim": "Much of the crater is permanently shadowed; parts never warm above about 40 K.",
+     "verdict": "corrected",
+     "finalClaim": "A 2013 Diviner temperature study found some of the coldest maximum temperatures at the south pole inside Haworth crater, apparently never above about 40 K; the crater holds a permanently shadowed region.",
+     "source": "[search summary] https://meetingorganizer.copernicus.org/EPSC2013/EPSC2013-864.pdf ; https://arxiv.org/pdf/2303.03911"
+    },
+    {
+     "claim": "A 2015 LOLA-based study (Tye et al.) dates Haworth crater to the Pre-Nectarian period.",
+     "verdict": "confirmed",
+     "finalClaim": "A 2015 LOLA crater-count study (Tye et al., Icarus 255) gives Haworth, Shoemaker and Faustini pre-Nectarian formation ages.",
+     "source": "[search summary] https://ntrs.nasa.gov/citations/20150006822"
+    },
+    {
+     "claim": "A 2023 LRO neutron study found PSRs in Haworth, Shoemaker and Faustini hold the most detectable hydrogen.",
+     "verdict": "corrected",
+     "finalClaim": "A LRO neutron study (McClanahan et al., arXiv 2023, Planetary Science Journal 2024) finds hydrogen, likely water ice, in most south-pole permanently shadowed regions; within the Haworth, Shoemaker and Faustini shadowed regions the highest hydrogen sits where the ground is coldest, near the base of pole-facing slopes.",
+     "source": "[search summary] https://arxiv.org/abs/2303.03911"
+    },
+    {
+     "claim": "A 2026 Nature Astronomy study by a CU Boulder and Weizmann team (Aharonson lead) found cold traps gathering ice for 1.5 Gyr and singled out Haworth.",
+     "verdict": "corrected",
+     "finalClaim": "Press coverage (April 2026) of a study led by Oded Aharonson (Weizmann Institute) with US collaborators, using LRO data and thermal models, says polar ice has built up for at least 1.5 billion years and that Haworth looks a more promising ice target than Shackleton. CU Boulder and the journal were not confirmed.",
+     "source": "[search summary] https://wis-wander.weizmann.ac.il/node/12358 ; https://en.hayadan.org.il/lunar-south-pole-cold-traps-ice-history"
+    },
+    {
+     "claim": "NASA's stated reason: land near PSRs so crews can sample undisturbed ground and learn the depth, distribution and make-up of water ice.",
+     "verdict": "confirmed",
+     "finalClaim": "NASA chose regions that give access to permanently shadowed areas so crews can sample undisturbed ground and learn about the depth, distribution and composition of water ice.",
+     "source": "[search summary] https://www.americaspace.com/2022/08/20/nasa-announces-potential-landing-sites-for-historic-artemis-iii-mission/ ; https://www.universetoday.com/articles/here-is-where-astronauts-might-land-on-the-moon"
+    },
+    {
+     "claim": "(from unknowns) NASA changed Artemis III in Feb 2026 and moved the first crewed landing to Artemis IV.",
+     "verdict": "confirmed",
+     "finalClaim": "In February 2026 NASA made Artemis III a crewed test flight in Earth orbit and moved the first crewed landing near the south pole to Artemis IV, so 'Artemis III candidate region' is a dated label.",
+     "source": "[search summary] https://www.nasa.gov/?p=995520 (NASA page) and https://en.wikipedia.org/wiki/Artemis_III"
+    }
+   ],
+   "edits": []
+  },
+  {
+   "id": "artemis3-malapert-massif",
+   "headline": "High, flat patch atop Mons Malapert, a remnant basin-rim mountain",
+   "overview": "This region sits near the top of a large mountain on the Earth-facing side of the south pole. Informally called Malapert Massif, the mountain got the IAU name Mons Malapert in 2024 and is about 67 km across. Scientists think it is a remnant of the rim of the South Pole-Aitken basin. The candidate area is a fairly flat patch near 86 S, 0 E; the peak rises more than 5,000 m above its base, and a 3,500 m cliff is in view. NASA listed the region for Artemis III in 2022 and kept it in 2024. NASA notes good sunlight and a clear view of Earth on its rim.",
+   "sources": [
+    "https://lroc.im-ldi.com/images/1294",
+    "https://planetarynames.wr.usgs.gov/Feature/16338",
+    "https://www.nasa.gov/news-release/nasa-identifies-candidate-regions-for-landing-next-americans-on-moon/",
+    "https://www.nasa.gov/news-release/nasa-provides-update-on-artemis-iii-moon-landing-regions/",
+    "https://science.nasa.gov/image-detail/20100618",
+    "https://cris-portal.uni-muenster.de/portal/en/publication/172801521"
+   ],
+   "verdicts": [
+    {
+     "claim": "IAU approved Mons Malapert (26 Aug 2024); about 67 km, centre -85.98, -1.67 E; named for crater Malapert, honouring Charles Malapert (1581-1630).",
+     "verdict": "corrected",
+     "finalClaim": "The IAU Gazetteer lists Mons Malapert, adopted with approval date 26 August 2024, about 67 km across, centred near -85.98, -1.67 E, named for the nearby crater Malapert; that crater honours Charles Malapert (1581-1630), astronomer from Mons in present-day Belgium. Coordinate check: the catalog point is about 3 km from that centre, on the mountain.",
+     "source": "[search summary] https://planetarynames.wr.usgs.gov/Feature/16338 ; https://en.wikipedia.org/wiki/Malapert_(crater)"
+    },
+    {
+     "claim": "Before that, 'Malapert Peak' and 'Malapert Massif' were informal names in use for decades.",
+     "verdict": "corrected",
+     "finalClaim": "Before 2024 the mountain had only informal names, such as Malapert Mountain and Malapert Massif (LROC calls 'Malapert massif' an informal name). 'For decades' is not confirmed.",
+     "source": "[search summary] https://lroc.im-ldi.com/images/1294 ; https://en.wikipedia.org/wiki/Malapert_(crater)"
+    },
+    {
+     "claim": "Malapert Massif was on the August 2022 list of 13 and the October 2024 list of nine.",
+     "verdict": "confirmed",
+     "finalClaim": "Malapert Massif was on NASA's August 2022 list of 13 Artemis III candidate regions and on the October 2024 list of nine.",
+     "source": "[search summary] https://www.nasa.gov/news-release/nasa-identifies-candidate-regions-for-landing-next-americans-on-moon/ ; https://www.nasa.gov/news-release/nasa-provides-update-on-artemis-iii-moon-landing-regions/"
+    },
+    {
+     "claim": "LROC: probable remnant of the SPA basin rim, rising >5,000 m above its base; candidate site a flat area near 86 S, 0 E.",
+     "verdict": "confirmed",
+     "finalClaim": "LROC (Mark Robinson, 14 March 2023) describes the massif as a probable remnant of the South Pole-Aitken basin rim (formed more than 4 billion years ago) that rises more than 5,000 m above its base; the Artemis candidate area is a relatively flat area near 86 S, 0 E.",
+     "source": "[search summary] https://lroc.im-ldi.com/images/1294"
+    },
+    {
+     "claim": "A peer-reviewed study interprets Mons Malapert and Mons Mouton as remnant SPA-rim massifs covered by hundreds of metres of later ejecta.",
+     "verdict": "confirmed",
+     "finalClaim": "A peer-reviewed geologic study (Wueller et al.) interprets Mons Malapert and Mons Mouton as remnant massifs of the South Pole-Aitken basin rim, buried under several hundred metres of later ejecta.",
+     "source": "[search summary] https://cris-portal.uni-muenster.de/portal/en/publication/172801521"
+    },
+    {
+     "claim": "The flat area sits above a ~5,000 m cliff, with a 3,500 m cliff in view; 'might be too exciting'.",
+     "verdict": "corrected",
+     "finalClaim": "The 5,000 m figure is the peak's height above its base, not a single cliff; LROC says a 3,500 m cliff is visible in the distance and its PI asked whether landing there 'might be too exciting'.",
+     "source": "[search summary] https://lroc.im-ldi.com/images/1294 ; https://www.universetoday.com/160645/heres-where-artemis-iii-might-land-it-looks-inviting"
+    },
+    {
+     "claim": "NASA: LOLA data show the Malapert Massif rim with high illumination and exceptional Earth visibility; suggested exploration site.",
+     "verdict": "confirmed",
+     "finalClaim": "NASA notes that LOLA data show the rim of Malapert Massif with high illumination and exceptional Earth visibility, and that the region has been suggested for future exploration.",
+     "source": "[search summary] https://science.nasa.gov/image-detail/20100618"
+    },
+    {
+     "claim": "IM-1 Odysseus (22 Feb 2024) landed near Malapert A at 80.13 S, 1.44 E, ~300 km from the pole; no mission has landed in this region.",
+     "verdict": "corrected",
+     "finalClaim": "IM-1 Odysseus landed on 22 February 2024 near crater Malapert A at 80.13 S, 1.44 E (NASA), about 300 km from the pole and about 180 km from this region's centre (computed). That is a separate site. 'No mission has landed in this region' is not confirmed by a source.",
+     "source": "[search summary] https://www.nasa.gov/missions/lro/nasas-lro-images-intuitive-machines-odysseus-lander/ ; distances computed"
+    },
+    {
+     "claim": "(from unknowns) NASA changed Artemis III in Feb 2026 and moved the first crewed landing to Artemis IV.",
+     "verdict": "confirmed",
+     "finalClaim": "In February 2026 NASA made Artemis III a crewed test flight in Earth orbit and moved the first crewed landing near the south pole to Artemis IV, so 'Artemis III candidate region' is a dated label.",
+     "source": "[search summary] https://www.nasa.gov/?p=995520 (NASA page) and https://en.wikipedia.org/wiki/Artemis_III"
+    }
+   ],
+   "edits": []
+  },
+  {
+   "id": "artemis3-mons-mouton-plateau",
+   "headline": "Broad, rocky top of Mons Mouton, where IM-2 Athena landed",
+   "overview": "Mons Mouton Plateau is NASA's informal name for the broad top of Mons Mouton, a flat-topped mountain almost 100 km across that rises about 6,000 m above the land around it. NASA added the region to its Artemis III candidate list in October 2024; it was not on the 2022 list. Flat-topped does not mean smooth: NASA says the summit is peppered with rocks, pebbles and many craters. Intuitive Machines' IM-2 Athena landed near the centre of the mountain on 6 March 2025, but came down hard and ended on its side in a small crater, which cut the mission short.",
+   "sources": [
+    "https://www.nasa.gov/news-release/nasa-provides-update-on-artemis-iii-moon-landing-regions/",
+    "https://data.lroc.im-ldi.com/lroc/view_rdr_product/NAC_ROI_MOUTNPLTLOC_P843S0306_5M",
+    "https://svs.gsfc.nasa.gov/5074",
+    "https://moon.nasa.gov/resources/544/mons-mouton",
+    "https://lroc.im-ldi.com/images/1401",
+    "https://lroc.im-ldi.com/images/1408",
+    "https://www.nasa.gov/missions/artemis/nasas-lunar-drill-technology-passes-tests-on-the-moon/"
+   ],
+   "verdicts": [
+    {
+     "claim": "Mons Mouton Plateau is one of nine regions announced Oct 2024; not on the 2022 list of 13.",
+     "verdict": "confirmed",
+     "finalClaim": "Mons Mouton Plateau is one of the nine Artemis III candidate regions NASA announced in October 2024; it was not on the 2022 list of 13.",
+     "source": "[search summary] https://www.nasa.gov/news-release/nasa-provides-update-on-artemis-iii-moon-landing-regions/ ; https://www.nasa.gov/news-release/nasa-identifies-candidate-regions-for-landing-next-americans-on-moon/"
+    },
+    {
+     "claim": "LROC low-Sun NAC mosaic (NAC_ROI_MOUTNPLTLO1) covers about -85.8 to -82.9 lat, 15.5 to 46.6 E.",
+     "verdict": "confirmed",
+     "finalClaim": "LROC's Mons Mouton Plateau low-Sun NAC mosaics (P843S0306 series) cover about -85.76 to -82.85 latitude and 15.49 to 46.61 E. Coordinate check: the catalog point (-84.3, 30.6) is about 15 km from IM-2's target, inside these bounds.",
+     "source": "[search summary] https://data.lroc.im-ldi.com/lroc/view_rdr_product/NAC_ROI_MOUTNPLTLOC_P843S0306_5M"
+    },
+    {
+     "claim": "Mons Mouton is about the size of Delaware, nearly 100 km across, ~6,000 m high; may be billions of years older than surroundings.",
+     "verdict": "corrected",
+     "finalClaim": "Mons Mouton is a wide, relatively flat-topped mountain about the size of Delaware, almost 100 km across, rising roughly 6,000 m above the surrounding terrain; NASA says it is possibly billions of years older than its surroundings (a hedge, not settled).",
+     "source": "[search summary] https://svs.gsfc.nasa.gov/5074 ; https://moon.nasa.gov/resources/544/mons-mouton"
+    },
+    {
+     "claim": "NASA: hilltop peppered with small rocks, pebbles and many craters.",
+     "verdict": "confirmed",
+     "finalClaim": "NASA says the rolling hilltop is peppered with smaller rocks and pebbles and many craters, often in shifting shadow.",
+     "source": "[search summary] https://moon.nasa.gov/resources/544/mons-mouton"
+    },
+    {
+     "claim": "IM-2 Athena landed 6 March 2025; target -84.78, 29.13 E, 160 km from pole; ~250 m from target; on its side in a ~20 m crater; >400 MB returned.",
+     "verdict": "corrected",
+     "finalClaim": "IM-2 Athena landed on 6 March 2025 near the centre of Mons Mouton. LROC gives the target as -84.78, 29.13 E, 160 km from the pole, in the central part of an Artemis candidate region. It came down harder than planned and ended on its side in a crater about 20 m wide, yet returned over 400 MB. Distance from target: NASA says more than 400 m (Intuitive Machines said 250 m).",
+     "source": "[search summary] https://lroc.im-ldi.com/images/1401 ; https://lroc.im-ldi.com/images/1408 ; https://www.nasa.gov/missions/artemis/nasas-lunar-drill-technology-passes-tests-on-the-moon/"
+    },
+    {
+     "claim": "IM-2 carried PRIME-1 drill and mass spectrometer; first chosen Shackleton connecting ridge (July 2024).",
+     "verdict": "corrected",
+     "finalClaim": "IM-2 carried NASA's PRIME-1 drill payload to look for water ice. It was first to land on a ridge near Shackleton crater, then before launch was retargeted to VIPER's original destination, Mons Mouton. The July 2024 date and the mass spectrometer were not confirmed.",
+     "source": "[search summary] https://www.nasa.gov/missions/artemis/nasas-lunar-drill-technology-passes-tests-on-the-moon/ ; https://www.astronomy.com/space-exploration/intuitive-machines-preps-im-2-mission-for-moon-launch-this-week/"
+    },
+    {
+     "claim": "Press reports from April 2025: Chang'e-8 narrowed its site search to a plateau near Mons Mouton.",
+     "verdict": "unsupported",
+     "finalClaim": "",
+     "source": "[search summary] https://en.wikipedia.org/wiki/Chang%27e_8 (search found only the Oct 2023 Leibnitz Beta candidate list, nothing on an April 2025 narrowing)"
+    },
+    {
+     "claim": "(from unknowns) NASA changed Artemis III in Feb 2026 and moved the first crewed landing to Artemis IV.",
+     "verdict": "confirmed",
+     "finalClaim": "In February 2026 NASA made Artemis III a crewed test flight in Earth orbit and moved the first crewed landing near the south pole to Artemis IV, so 'Artemis III candidate region' is a dated label.",
+     "source": "[search summary] https://www.nasa.gov/?p=995520 (NASA page) and https://en.wikipedia.org/wiki/Artemis_III"
+    }
+   ],
+   "edits": []
+  },
+  {
+   "id": "artemis3-mons-mouton",
+   "headline": "Pole-facing side of Mons Mouton, once called Leibnitz Beta Plateau",
+   "overview": "This region covers the southern, pole-facing part of Mons Mouton, a flat-topped mountain almost 100 km across that stands about 6,000 m above its surroundings, beside the western rim of Nobile crater. NASA's 2022 Artemis III list called it Leibnitz Beta Plateau, after the mountain's old informal name. In 2023 the IAU announced the name Mons Mouton, for NASA mathematician Melba Roy Mouton, and NASA's 2024 list uses it. NASA picked this area for its VIPER rover for drivable ground near shadowed areas. NASA ended VIPER in July 2024, then in 2025 chose Blue Origin to deliver it, aiming for late 2027.",
+   "sources": [
+    "https://www.nasa.gov/news-release/nasa-identifies-candidate-regions-for-landing-next-americans-on-moon/",
+    "https://www.nasa.gov/news-release/nasa-provides-update-on-artemis-iii-moon-landing-regions/",
+    "https://iauarchive.eso.org/news/pressreleases/detail/iau2301/",
+    "https://svs.gsfc.nasa.gov/5074",
+    "https://lroc.im-ldi.com/images/1408",
+    "https://www.nasa.gov/news-release/nasas-artemis-rover-to-land-near-nobile-region-of-moons-south-pole/",
+    "https://www.nasa.gov/news-release/nasa-ends-viper-project-continues-moon-exploration/",
+    "https://www.geekwire.com/2025/nasa-order-blue-origin-viper-rover-moon/"
+   ],
+   "verdicts": [
+    {
+     "claim": "IAU named the mountain Mons Mouton after Melba Roy Mouton on a VIPER-team proposal; formerly Leibnitz Beta; press release 16 Feb 2023 vs Wikipedia 13 May 2022.",
+     "verdict": "corrected",
+     "finalClaim": "The IAU naming group approved the name Mons Mouton, honouring NASA mathematician Melba Roy Mouton, on a proposal from NASA's VIPER team; the mountain was sometimes called Leibnitz Beta. The IAU press release is dated 16 February 2023; the 13 May 2022 Gazetteer date was not confirmed.",
+     "source": "[search summary] https://iauarchive.eso.org/news/pressreleases/detail/iau2301/ ; https://www.iau.org/Iau/News/PR2023/lunar-mountain-melba-roy-mouton.aspx"
+    },
+    {
+     "claim": "NASA's 2022 list included 'Leibnitz Beta Plateau'; IAU says the mountain is one of 13 candidates; 'Mons Mouton' is on the 2024 list.",
+     "verdict": "confirmed",
+     "finalClaim": "NASA's 2022 list included Leibnitz Beta Plateau and the IAU release says the mountain is one of the 13 Artemis III candidate regions; NASA's 2024 list names Mons Mouton. LROC's mosaic title 'Nobile Rim 1 and Mons Mouton (Leibnitz Beta Plateau)' equates the two; NASA itself was not found stating it.",
+     "source": "[search summary] https://www.nasa.gov/news-release/nasa-identifies-candidate-regions-for-landing-next-americans-on-moon/ ; https://www.nasa.gov/news-release/nasa-provides-update-on-artemis-iii-moon-landing-regions/ ; https://data.lroc.im-ldi.com/lroc/view_rdr/NAC_ROI_MTMOUTONLO1"
+    },
+    {
+     "claim": "Mons Mouton is flat-topped, nearly 100 km across, ~6,000 m above surroundings; LROC says it likely formed as part of the SPA rim.",
+     "verdict": "confirmed",
+     "finalClaim": "Mons Mouton is flat-topped, almost 100 km across and about 6,000 m above the surrounding terrain; LROC says it is thought to have formed as part of the South Pole-Aitken basin rim.",
+     "source": "[search summary] https://svs.gsfc.nasa.gov/5074 ; https://lroc.im-ldi.com/images/1401"
+    },
+    {
+     "claim": "VIPER was to land at the western edge of Nobile on Mons Mouton (rover-accessible terrain, nearby PSRs); cancelled July 2024, revived Sept 2025; Blue Origin optional task order for late 2027.",
+     "verdict": "confirmed",
+     "finalClaim": "NASA chose the mountainous area west of Nobile crater (Mons Mouton) for VIPER for its rover-accessible terrain and nearby permanently shadowed areas. NASA ended the VIPER project in July 2024; on 19 September 2025 it gave Blue Origin a CLPS task order to deliver VIPER by late 2027, with the delivery itself an option still to be exercised.",
+     "source": "[search summary] https://www.nasa.gov/news-release/nasas-artemis-rover-to-land-near-nobile-region-of-moons-south-pole/ ; https://www.nasa.gov/news-release/nasa-ends-viper-project-continues-moon-exploration/ ; https://www.geekwire.com/2025/nasa-order-blue-origin-viper-rover-moon/"
+    },
+    {
+     "claim": "IM-2 Athena landed near the centre of the massif, north of this region's 2022 centre.",
+     "verdict": "confirmed",
+     "finalClaim": "IM-2 Athena landed on 6 March 2025 near the centre of Mons Mouton (LROC); its target is about 21 km north of (farther from the pole than) this region's 2022 centre (computed). Coordinate check: the catalog point is thus on the mountain's southern, pole-facing part.",
+     "source": "[search summary] https://lroc.im-ldi.com/images/1408 ; https://lroc.im-ldi.com/images/1401 ; distance computed"
+    },
+    {
+     "claim": "China listed the area around Leibnitz Beta among Chang'e-8 candidate landing areas in October 2023.",
+     "verdict": "confirmed",
+     "finalClaim": "In October 2023 China named the area around Leibnitz Beta among four preliminary Chang'e-8 candidate landing areas.",
+     "source": "[search summary] https://chinadailyhk.com/hk/article/354371 ; https://www.universetoday.com/165771/chinas-change-8-mission-will-try-to-make-bricks-on-the-moon"
+    },
+    {
+     "claim": "NASA notes the summit is peppered with small rocks, pebbles and many craters.",
+     "verdict": "confirmed",
+     "finalClaim": "NASA says the hilltop is peppered with smaller rocks and pebbles and many craters.",
+     "source": "[search summary] https://moon.nasa.gov/resources/544/mons-mouton"
+    },
+    {
+     "claim": "(from unknowns) NASA changed Artemis III in Feb 2026 and moved the first crewed landing to Artemis IV.",
+     "verdict": "confirmed",
+     "finalClaim": "In February 2026 NASA made Artemis III a crewed test flight in Earth orbit and moved the first crewed landing near the south pole to Artemis IV, so 'Artemis III candidate region' is a dated label.",
+     "source": "[search summary] https://www.nasa.gov/?p=995520 (NASA page) and https://en.wikipedia.org/wiki/Artemis_III"
+    }
+   ],
+   "edits": []
+  },
+  {
+   "id": "artemis3-nobile-rim-1",
+   "headline": "Artemis III candidate region on Nobile crater's southwestern rim",
+   "overview": "Nobile Rim 1 is a NASA name for an Artemis III candidate landing region, not an IAU name. It lies on the southwestern rim of Nobile, a crater about 79 km across named after the Italian aviator and explorer Umberto Nobile. NASA listed it among 13 regions in August 2022, each about 15 by 15 km, and kept it among nine in October 2024. In 2021 NASA picked an area near Nobile's western edge for the VIPER rover. Intuitive Machines' Athena lander came down on its side at nearby Mons Mouton in March 2025. In 2026 NASA changed Artemis III to an Earth-orbit test flight.",
+   "sources": [
+    "https://www.nasa.gov/news-release/nasa-identifies-candidate-regions-for-landing-next-americans-on-Moon/",
+    "https://www.nasa.gov/news-release/nasa-provides-update-on-artemis-iii-moon-landing-regions/",
+    "https://www.astronomy.com/space-exploration/here-are-the-nine-sites-where-artemis-3-might-land-on-the-moon/",
+    "https://en.wikipedia.org/wiki/Nobile_(crater)",
+    "https://data.lroc.im-ldi.com/lroc/view_rdr_product/NAC_ROI_MTMOUTONLO1_P854S0353",
+    "https://skyandtelescope.org/astronomy-news/nasa-announces-moon-landing-site-for-viper-mission/",
+    "https://en.wikipedia.org/wiki/Mons_Mouton",
+    "https://www.theregister.com/2026/03/02/nasa_artemis_reshuffle/"
+   ],
+   "verdicts": [
+    {
+     "claim": "officialName: 'Nobile Rim 1' is a NASA Artemis III candidate-region name, not an IAU name; Nobile crater is IAU-named after Umberto Nobile.",
+     "verdict": "confirmed",
+     "finalClaim": "Informal name: 'Nobile Rim 1' is a NASA Artemis III candidate-region name, not an IAU name. The crater Nobile is IAU-named after the Italian aviator and explorer Umberto Nobile.",
+     "source": "https://www.nasa.gov/news-release/nasa-identifies-candidate-regions-for-landing-next-americans-on-Moon/ ; https://en.wikipedia.org/wiki/Nobile_(crater) (WebSearch summaries)"
+    },
+    {
+     "claim": "setting: southwestern rim of Nobile (about 79 km across), Mons Mouton area on Nobile's western side, about 4.5 deg of latitude from the pole.",
+     "verdict": "corrected",
+     "finalClaim": "On the southwestern rim of Nobile crater (about 79 km across), next to Mons Mouton, which shares its LROC mosaic. Catalog point -85.44, 37.44E is 4.56 deg of latitude from the pole. Geometry check (this run): the point is 39 km from Nobile's centre (85 deg 17'S, 53 deg 16'E per Wikipedia), about one crater radius, on the poleward-west side, so the catalog point agrees with 'southwestern rim'.",
+     "source": "https://www.astronomy.com/space-exploration/here-are-the-nine-sites-where-artemis-3-might-land-on-the-moon/ ; https://en.wikipedia.org/wiki/Nobile_(crater) ; https://data.lroc.im-ldi.com/lroc/view_rdr_product/NAC_ROI_MTMOUTONLO1_P854S0353 ; own spherical computation"
+    },
+    {
+     "claim": "Nobile: IAU-named after Umberto Nobile; diameter 79.27 km; an older listing gives 73.54 km and the former name Scott A.",
+     "verdict": "corrected",
+     "finalClaim": "Nobile is an impact crater near the south pole, named by the IAU in 1994 after the Italian aviator and explorer Umberto Nobile. Wikipedia gives 79.27 km across; the-moon.us gives 73.54 km. It was earlier labelled Scott A, a designation the USGS gazetteer lists as dropped and the-moon.us says was never IAU-approved.",
+     "source": "https://en.wikipedia.org/wiki/Nobile_(crater) ; https://the-moon.us/wiki/Nobile ; https://planetarynames.wr.usgs.gov/Feature/13014 (WebSearch summaries; gazetteer page itself not opened)"
+    },
+    {
+     "claim": "Region centre -85.44, 37.44E (Henriksen et al. 2023 Table 1); LROC mosaic NAC_ROI_MTMOUTONLO1 bounds lat -86.07 to -84.82, lon 27.29 to 43.23E.",
+     "verdict": "corrected",
+     "finalClaim": "LROC combined mosaic NAC_ROI_MTMOUTONLO1 ('Nobile Rim 1 and Mons Mouton (Leibnitz Beta Plateau)', product P854S0353) spans lat -86.07 to -84.82, lon 27.29 to 43.23E; the catalog point -85.44, 37.44E lies inside it. The Henriksen et al. (2023) Table 1 value could not be re-read this run (the LROC pages cite that paper).",
+     "source": "https://data.lroc.im-ldi.com/lroc/view_rdr_product/NAC_ROI_MTMOUTONLO1_P854S0353 (WebSearch summary)"
+    },
+    {
+     "claim": "Astronomy.com places Nobile Rim 1 on Nobile's southwestern rim, which rises 9,800 ft (3,000 m); datum not stated.",
+     "verdict": "confirmed",
+     "finalClaim": "Astronomy.com places Nobile Rim 1 on Nobile crater's southwestern rim, which it says rises 9,800 ft (3,000 m); the datum is not stated, so the height is not used in the overview.",
+     "source": "https://www.astronomy.com/space-exploration/here-are-the-nine-sites-where-artemis-3-might-land-on-the-moon/ (WebSearch summary)"
+    },
+    {
+     "claim": "NASA named Nobile Rim 1 among 13 regions on 19 Aug 2022; regions within six degrees of the pole, about 15 x 15 km; a landing site is about 100 m radius.",
+     "verdict": "confirmed",
+     "finalClaim": "NASA named Nobile Rim 1 among 13 Artemis III candidate landing regions in August 2022 (announced Friday 19 Aug). Each region is within six degrees of latitude of the south pole and about 15 by 15 km; a landing site is a spot of about 100 m radius within a region.",
+     "source": "https://www.nasa.gov/news-release/nasa-identifies-candidate-regions-for-landing-next-americans-on-Moon/ ; https://m.jpost.com/science/article-715124 ; https://www.khaleejtimes.com/world/americas/us-nasa-identifies-candidate-regions-for-landing-next-astronauts-on-moon (WebSearch summaries)"
+    },
+    {
+     "claim": "Kept in the list of nine announced 28 Oct 2024, no priority order; selection weighed science, launch windows, terrain, Earth communication, lighting.",
+     "verdict": "confirmed",
+     "finalClaim": "Nobile Rim 1 was kept in NASA's list of nine regions announced in October 2024 (at the LEAG meeting; reported 28 Oct), listed in no priority order. NASA weighed science potential, launch window availability, terrain suitability, communication with Earth and lighting.",
+     "source": "https://www.nasa.gov/news-release/nasa-provides-update-on-artemis-iii-moon-landing-regions/ ; https://www.upi.com/Science_News/2024/10/28/nasa-artemis-moon-landing-regions/5971730152372/ ; https://ntrs.nasa.gov/citations/20250011660 (WebSearch summaries)"
+    },
+    {
+     "claim": "In Sept 2021 NASA picked an area just west of Nobile (western edge, Mons Mouton) for VIPER, citing rover-accessible terrain and nearby PSRs; not known whether inside the Nobile Rim 1 region.",
+     "verdict": "corrected",
+     "finalClaim": "On 20 Sept 2021 NASA picked a mountainous area near the western edge of Nobile crater as VIPER's landing site, citing rover-accessible terrain and nearby permanently shadowed areas. Sources read do not tie that site to the Nobile Rim 1 region or name it Mons Mouton.",
+     "source": "https://skyandtelescope.org/astronomy-news/nasa-announces-moon-landing-site-for-viper-mission/ ; https://svs.gsfc.nasa.gov/4937/ ; https://www.sci.news/space/nasa-landing-site-viper-lunar-rover-10087.html (WebSearch summaries)"
+    },
+    {
+     "claim": "VIPER was cancelled in 2024; in Sept 2025 NASA gave Blue Origin a CLPS task order to deliver VIPER in late 2027 on Blue Moon MK1; no landing site given.",
+     "verdict": "corrected",
+     "finalClaim": "NASA announced on 17 July 2024 that it would cancel VIPER over cost growth and delays. On 19 Sept 2025 NASA gave Blue Origin CLPS task order CS-7: the base covers design work, and delivery of VIPER on a Blue Moon MK1 lander in late 2027 is an option NASA decides on later. No landing site is given.",
+     "source": "https://spaceflightnow.com/2024/07/18/nasa-cancels-half-billion-dollar-water-ice-seeking-moon-rover/ ; https://www.geekwire.com/2025/nasa-order-blue-origin-viper-rover-moon/ ; https://satnews.com/2025/09/21/nasa-selects-blue-origin-to-deliver-viper-rover-to-the-moons-south-pole/ (WebSearch summaries)"
+    },
+    {
+     "claim": "IM-2 Athena touched down 6 March 2025 at about 84.79S, 29.20E at Mons Mouton, about 250 m from target, inside a crater, on its side; just north of the LROC NR1/Mons Mouton mosaic bounds.",
+     "verdict": "confirmed",
+     "finalClaim": "Intuitive Machines' IM-2 Athena lander touched down on 6 March 2025 at about 84.79S, 29.20E at Mons Mouton, about 250 m from its target, and ended on its side inside a crater. That point is just north of the LROC Nobile Rim 1 / Mons Mouton mosaic (northern edge -84.82), so it is near this region, not shown to be inside it.",
+     "source": "https://en.wikipedia.org/wiki/Mons_Mouton ; https://www.astronomy.com/space-exploration/intuitive-machines-im-2-moon-lander-is-lying-dead-in-a-crater/ ; https://www.universetoday.com/articles/the-athena-lunar-lander-also-fell-over-on-its-side (WebSearch summaries)"
+    },
+    {
+     "claim": "General to Artemis regions: steep rocky terrain leaves flat areas only about 100 m across; nearly all landing zones contain many PSRs.",
+     "verdict": "unsupported",
+     "finalClaim": "",
+     "source": "Searched; not found. 2022 coverage only says large parts of the regions are permanently shadowed (https://www.universetoday.com/articles/here-is-where-astronauts-might-land-on-the-moon)."
+    },
+    {
+     "claim": "Added by fact-checker (context for every Artemis III region): in late February 2026 NASA changed Artemis III from the first crewed landing to a crewed test flight in low Earth orbit (docking with one or both commercial landers); the first crewed landing is now planned for a later mission (Artemis IV, 2028).",
+     "verdict": "confirmed",
+     "finalClaim": "In 2026 NASA changed Artemis III to a crewed test flight in Earth orbit; the first crewed landing is now planned for a later mission. The regions keep their Artemis III candidate names.",
+     "source": "https://www.theregister.com/2026/03/02/nasa_artemis_reshuffle/ ; https://aerospace.csis.org/artemis-rewritten-nasas-new-moon-plan-its-risks-and-whether-the-u-s-can-still-beat-china/ ; https://www.staradvertiser.com/2026/06/09/breaking-news/nasa-selects-astronauts-for-artemis-iii-spacex-blue-origin-test/ (WebSearch summaries; nasa.gov not reachable)"
+    }
+   ],
+   "edits": []
+  },
+  {
+   "id": "artemis3-nobile-rim-2",
+   "headline": "Artemis III candidate region on Nobile crater's northeastern rim",
+   "overview": "Nobile Rim 2 is a NASA name for an Artemis III candidate landing region, not an IAU name. It lies on the northeastern rim of Nobile crater, across the crater from Nobile Rim 1. NASA included it in the August 2022 list of 13 regions and kept it in the October 2024 list of nine. A 2024 study by Pena-Asensio and colleagues scored 1,247 possible landing points on visibility, sunlight, Earth contact, shadowed areas and geology; its nine best points all fell here. That ranking is the authors' own, not NASA's. In 2026 NASA changed Artemis III to an Earth-orbit test flight.",
+   "sources": [
+    "https://www.nasa.gov/news-release/nasa-identifies-candidate-regions-for-landing-next-americans-on-Moon/",
+    "https://www.nasa.gov/news-release/nasa-provides-update-on-artemis-iii-moon-landing-regions/",
+    "https://www.astronomy.com/space-exploration/here-are-the-nine-sites-where-artemis-3-might-land-on-the-moon/",
+    "https://en.wikipedia.org/wiki/Nobile_(crater)",
+    "https://data.lroc.im-ldi.com/lroc/view_rdr_product/NAC_ROI_NOBILE02LO1_P839S0587",
+    "https://arxiv.org/html/2406.19863v2",
+    "https://www.universetoday.com/articles/artemis-iii-landing-sites-identified-using-mapping-and-algorithm-techniques",
+    "https://www.theregister.com/2026/03/02/nasa_artemis_reshuffle/"
+   ],
+   "verdicts": [
+    {
+     "claim": "officialName: 'Nobile Rim 2' is a NASA candidate-region name, not IAU; Nobile is IAU-named after Umberto Nobile.",
+     "verdict": "confirmed",
+     "finalClaim": "Informal name: 'Nobile Rim 2' is a NASA Artemis III candidate-region name, not an IAU name. The crater Nobile is IAU-named after Umberto Nobile.",
+     "source": "https://www.nasa.gov/news-release/nasa-identifies-candidate-regions-for-landing-next-americans-on-Moon/ ; https://en.wikipedia.org/wiki/Nobile_(crater) (WebSearch summaries)"
+    },
+    {
+     "claim": "setting: northeastern rim of Nobile, opposite Nobile Rim 1, about 6 deg of latitude from the pole.",
+     "verdict": "confirmed",
+     "finalClaim": "On the northeastern rim of Nobile crater, across the crater from Nobile Rim 1, about 6 degrees of latitude from the pole. Geometry check (this run): the catalog point -83.95, 58.74E is 43 km from Nobile's centre (crater radius about 40 km), on the side away from the pole and to the east, so it agrees with 'northeastern rim'.",
+     "source": "https://www.astronomy.com/space-exploration/here-are-the-nine-sites-where-artemis-3-might-land-on-the-moon/ ; https://en.wikipedia.org/wiki/Nobile_(crater) ; own spherical computation"
+    },
+    {
+     "claim": "Region centre -83.95, 58.74E (Henriksen 2023 Table 1); LROC NAC_ROI_NOBILE02LO1 centred -83.9, 58.7E, bounds lat -84.40 to -83.50, lon 54.46 to 63.02E.",
+     "verdict": "corrected",
+     "finalClaim": "LROC mosaic NAC_ROI_NOBILE02LO1 (product P839S0587, 'Nobile Rim 2 low-Sun controlled NAC mosaic') spans lat -84.40 to -83.50, lon 54.46 to 63.02E; the catalog point -83.95, 58.74E is exactly the midpoint of those bounds. The Henriksen et al. (2023) Table 1 value could not be re-read this run.",
+     "source": "https://data.lroc.im-ldi.com/lroc/view_rdr_product/NAC_ROI_NOBILE02LO1_P839S0587 (WebSearch summary)"
+    },
+    {
+     "claim": "Astronomy.com: Nobile Rim 2 on the northeastern rim at -4,600 ft (-1,400 m), second-lowest of the Artemis sites; datum not stated.",
+     "verdict": "confirmed",
+     "finalClaim": "Astronomy.com places Nobile Rim 2 on Nobile's northeastern rim at -4,600 ft (-1,400 m), the second-lowest of the Artemis sites; the datum is not stated, so the value is not used in the overview.",
+     "source": "https://www.astronomy.com/space-exploration/here-are-the-nine-sites-where-artemis-3-might-land-on-the-moon/ (WebSearch summary)"
+    },
+    {
+     "claim": "Nobile is IAU-named after Umberto Nobile and is 79.27 km in diameter.",
+     "verdict": "confirmed",
+     "finalClaim": "Nobile crater is IAU-named (1994) after Umberto Nobile; Wikipedia gives 79.27 km across (the-moon.us gives 73.54 km).",
+     "source": "https://en.wikipedia.org/wiki/Nobile_(crater) ; https://the-moon.us/wiki/Nobile (WebSearch summaries)"
+    },
+    {
+     "claim": "One of the 13 regions of Aug 2022 (about 15 x 15 km, within six degrees); kept in the nine of 28 Oct 2024.",
+     "verdict": "confirmed",
+     "finalClaim": "Nobile Rim 2 was one of NASA's 13 Artemis III candidate regions of August 2022 (each about 15 by 15 km, within six degrees of the pole) and was kept in the list of nine announced in October 2024.",
+     "source": "https://www.nasa.gov/news-release/nasa-identifies-candidate-regions-for-landing-next-americans-on-Moon/ ; https://www.nasa.gov/news-release/nasa-provides-update-on-artemis-iii-moon-landing-regions/ ; https://ntrs.nasa.gov/citations/20250011660 (WebSearch summaries)"
+    },
+    {
+     "claim": "Pena-Asensio, Neira-Acosta and Sanchez-Lozano (arXiv:2406.19863; Acta Astronautica 226, 469-478, 2025): GIS + TOPSIS on 1,247 HLS-compliant locations in the 13 regions plus Site 004; criteria listed; top nine all in DM2 (Nobile Rim 2); DM2 first across methods and weightings.",
+     "verdict": "corrected",
+     "finalClaim": "Pena-Asensio and colleagues (arXiv:2406.19863) used GIS and the TOPSIS multi-criteria method on 1,247 locations meeting HLS requirements in the 13 regions plus Site 004, weighing surface visibility, HLS-astronaut line of sight, permanently shadowed regions, sunlight, direct Earth communication, geologic units and mafic minerals. The nine best locations all fell in site DM2 (Nobile Rim 2), and the best point stayed first under changed weights and other methods. The journal citation was not checked this run.",
+     "source": "https://arxiv.org/html/2406.19863v2 ; https://www.universetoday.com/articles/artemis-iii-landing-sites-identified-using-mapping-and-algorithm-techniques (WebSearch summaries)"
+    },
+    {
+     "claim": "Optimal point 84 deg 12'5.61\" S, 60 deg 41'59.61\" E (-84.20156, 60.69989E); a single point, not the region centre.",
+     "verdict": "confirmed",
+     "finalClaim": "The study's best landing point is 84 deg 12'5.61\" S, 60 deg 41'59.61\" E (-84.20156, 60.69989E), near a permanently shadowed crater; it is a single point inside the region (9.8 km from the catalog centre by own computation), not the region centre.",
+     "source": "https://arxiv.org/pdf/2406.19863 ; https://www.universetoday.com/articles/artemis-iii-landing-sites-identified-using-mapping-and-algorithm-techniques (WebSearch summaries)"
+    },
+    {
+     "claim": "Universe Today: DM2 is about 250 km from Shackleton; authors judged the site not among the regions most favored by the scientific community.",
+     "verdict": "corrected",
+     "finalClaim": "The lead author told Universe Today the site 'is not among the most favored regions within the scientific community'. The '250 km from Shackleton' figure is wrong for these coordinates: Shackleton's centre (89 deg 40'S, 129 deg 47'E per Wikipedia) is about 180 km from the catalog centre and 173 km from the study's best point; even the far corner of the LROC mosaic is under 200 km away.",
+     "source": "https://www.universetoday.com/articles/artemis-iii-landing-sites-identified-using-mapping-and-algorithm-techniques ; https://en.wikipedia.org/wiki/Shackleton_(crater) (WebSearch summaries) ; own spherical computation"
+    },
+    {
+     "claim": "Added by fact-checker (context for every Artemis III region): in late February 2026 NASA changed Artemis III from the first crewed landing to a crewed test flight in low Earth orbit (docking with one or both commercial landers); the first crewed landing is now planned for a later mission (Artemis IV, 2028).",
+     "verdict": "confirmed",
+     "finalClaim": "In 2026 NASA changed Artemis III to a crewed test flight in Earth orbit; the first crewed landing is now planned for a later mission. The regions keep their Artemis III candidate names.",
+     "source": "https://www.theregister.com/2026/03/02/nasa_artemis_reshuffle/ ; https://aerospace.csis.org/artemis-rewritten-nasas-new-moon-plan-its-risks-and-whether-the-u-s-can-still-beat-china/ ; https://www.staradvertiser.com/2026/06/09/breaking-news/nasa-selects-astronauts-for-artemis-iii-spacex-blue-origin-test/ (WebSearch summaries; nasa.gov not reachable)"
+    }
+   ],
+   "edits": []
+  },
+  {
+   "id": "artemis3-de-gerlache-rim-2",
+   "headline": "Artemis III candidate region closest to the pole, at de Gerlache",
+   "overview": "de Gerlache Rim 2 is a NASA name for an Artemis III candidate landing region, not an IAU name. It lies at the rim of de Gerlache, a crater about 31 to 32 km across named after the Belgian Antarctic explorer Adrien de Gerlache. It was on NASA's 2022 list of 13 regions and is the closest to the south pole of the nine kept in October 2024. Its neighbour, de Gerlache Rim 1, was dropped. A 2022 conference abstract describes a large permanently shadowed area at the crater's centre and smaller ones around its rim. In 2026 NASA changed Artemis III to an Earth-orbit test flight.",
+   "sources": [
+    "https://www.nasa.gov/news-release/nasa-identifies-candidate-regions-for-landing-next-americans-on-Moon/",
+    "https://www.nasa.gov/news-release/nasa-provides-update-on-artemis-iii-moon-landing-regions/",
+    "https://ntrs.nasa.gov/citations/20250011660",
+    "https://www.astronomy.com/space-exploration/here-are-the-nine-sites-where-artemis-3-might-land-on-the-moon/",
+    "https://en.wikipedia.org/wiki/De_Gerlache_(crater)",
+    "https://the-moon.us/wiki/De_Gerlache",
+    "https://data.lroc.im-ldi.com/lroc/view_rdr_product/NAC_ROI_DEGERRIMLO1_P885S2933",
+    "https://ntrs.nasa.gov/api/citations/20210026537/downloads/Umansky_dGC-LPSC2022-Abstract_V5.pdf",
+    "https://www.theregister.com/2026/03/02/nasa_artemis_reshuffle/"
+   ],
+   "verdicts": [
+    {
+     "claim": "officialName: 'de Gerlache Rim 2' is a NASA candidate-region name, not IAU; de Gerlache crater is IAU-named after Adrien de Gerlache (1866-1934).",
+     "verdict": "confirmed",
+     "finalClaim": "Informal name: 'de Gerlache Rim 2' is a NASA Artemis III candidate-region name, not an IAU name. The crater de Gerlache is IAU-named (added in 2000) after the Belgian Antarctic explorer Adrien de Gerlache (1866-1934).",
+     "source": "https://www.nasa.gov/news-release/nasa-identifies-candidate-regions-for-landing-next-americans-on-Moon/ ; https://en.wikipedia.org/wiki/De_Gerlache_(crater) ; https://the-moon.us/wiki/De_Gerlache (WebSearch summaries)"
+    },
+    {
+     "claim": "setting: on or near the rim of de Gerlache (about 31-33 km across), about 50 km from the pole; linked to Shackleton by a ridge about 14 km long.",
+     "verdict": "corrected",
+     "finalClaim": "On or just outside the rim of de Gerlache crater (31-32.4 km across), about 50 km from the south pole. Geometry check (this run): the catalog point -88.22, -63.43E is 22-23 km from the crater centre (about 88.5S, 87-88W), roughly 6 km beyond the rim on the side away from Shackleton, so it sits on the rim's outer flank, not on the Shackleton-de Gerlache ridge.",
+     "source": "https://www.astronomy.com/space-exploration/here-are-the-nine-sites-where-artemis-3-might-land-on-the-moon/ ; https://en.wikipedia.org/wiki/De_Gerlache_(crater) ; own spherical computation"
+    },
+    {
+     "claim": "De Gerlache is named after Adrien de Gerlache (1866-1934), Belgian Antarctic explorer.",
+     "verdict": "confirmed",
+     "finalClaim": "De Gerlache crater is named after Adrien de Gerlache (1866-1934), the Belgian naval officer who led the Belgian Antarctic Expedition of 1897-1899.",
+     "source": "https://en.wikipedia.org/wiki/De_Gerlache_(crater) ; https://the-moon.us/wiki/De_Gerlache (WebSearch summaries)"
+    },
+    {
+     "claim": "Diameters differ: Wikipedia 32.4 km (depth 7.5 km); Kereszturi et al. (2022) 31 km, about 30 km from the pole; IAU radius 16.4 km.",
+     "verdict": "corrected",
+     "finalClaim": "Reported diameters differ: Wikipedia gives 32.4 km and Kereszturi et al. (2022, Icarus) give 31 km; both put the depth near 7.5 km. The 'about 30 km from the pole' and the IAU radius were not confirmed this run (the centre near 88.5S lies about 45 km from the pole).",
+     "source": "https://en.wikipedia.org/wiki/De_Gerlache_(crater) ; https://real.mtak.hu/162792 (WebSearch summaries)"
+    },
+    {
+     "claim": "Astronomy.com: de Gerlache Rim 2 is the closest of the nine Oct 2024 regions to the pole, only 31 miles (50 km) away.",
+     "verdict": "confirmed",
+     "finalClaim": "Astronomy.com says de Gerlache Rim 2 is the closest of the nine October 2024 regions to the pole, about 31 miles (50 km) away (consistent with the catalog point, 54 km from the pole).",
+     "source": "https://www.astronomy.com/space-exploration/here-are-the-nine-sites-where-artemis-3-might-land-on-the-moon/ (WebSearch summary)"
+    },
+    {
+     "claim": "Henriksen 2023 Table 1 row 'de Gerlache Rim 1 & 2' lists -88.67/-66.37 and -88.22/-63.43; second pair is Rim 2. LROC NAC_ROI_DEGERRIMLO1 covers both rims (centre -88.5, 293.3E).",
+     "verdict": "corrected",
+     "finalClaim": "LROC combined mosaic NAC_ROI_DEGERRIMLO1 ('de Gerlache Rim low-Sun controlled NAC mosaic', product P885S2933 = 88.5S, 293.3E) spans lat -89.02 to -87.79, lon -83.18 to -41.31; the catalog point lies inside. The Henriksen Table 1 row and its pairing to Rim 2, and whether the mosaic covers both rims, were not confirmed this run.",
+     "source": "https://data.lroc.im-ldi.com/lroc/view_rdr_product/NAC_ROI_DEGERRIMLO1_P885S2933 (WebSearch summary)"
+    },
+    {
+     "claim": "Aug 2022 list included de Gerlache Rim 1, Rim 2 and de Gerlache-Kocher Massif; Oct 2024 list kept Rim 2 and dropped Rim 1.",
+     "verdict": "confirmed",
+     "finalClaim": "NASA's August 2022 list of 13 regions included de Gerlache Rim 1, de Gerlache Rim 2 and de Gerlache-Kocher Massif. The October 2024 list of nine kept de Gerlache Rim 2 and dropped Rim 1.",
+     "source": "https://www.nasa.gov/news-release/nasa-identifies-candidate-regions-for-landing-next-americans-on-Moon/ ; https://www.nasa.gov/news-release/nasa-provides-update-on-artemis-iii-moon-landing-regions/ ; https://ntrs.nasa.gov/citations/20250011660 (WebSearch summaries)"
+    },
+    {
+     "claim": "A NASA-authored LPSC 2022 abstract (Umansky et al.) says de Gerlache has an extensive PSR at its centre and smaller PSRs around the rim, and treats it as a reference site.",
+     "verdict": "corrected",
+     "finalClaim": "An LPSC 2022 abstract hosted on NASA's technical reports server (file named for Umansky; authorship not confirmed) says de Gerlache has an extensive permanently shadowed region at its centre and smaller ones around its rim, and uses it as a reference shadowed region for an Artemis III case study.",
+     "source": "https://ntrs.nasa.gov/api/citations/20210026537/downloads/Umansky_dGC-LPSC2022-Abstract_V5.pdf (WebSearch summary)"
+    },
+    {
+     "claim": "A 2022 LPSC abstract describes the de Gerlache rim as one of the most illuminated locations on the Moon and its highly lit points as places for solar power plants.",
+     "verdict": "corrected",
+     "finalClaim": "The same abstract says de Gerlache sits near one of the most illuminated locations on the Moon and calls the highly lit points on its rim logical places for solar power plants. This is about the rim in general, not the Rim 2 region.",
+     "source": "https://ntrs.nasa.gov/api/citations/20210026537/downloads/Umansky_dGC-LPSC2022-Abstract_V5.pdf (WebSearch summary)"
+    },
+    {
+     "claim": "A ridge about 14 km long links Shackleton and de Gerlache; sources do not place Rim 2 on it.",
+     "verdict": "confirmed",
+     "finalClaim": "LROC describes a ridgeline about 14 km long between Shackleton and de Gerlache. By the catalog coordinates, Rim 2 lies on the far side of de Gerlache from that ridge, so the ridge is not part of this region.",
+     "source": "https://www.lroc.asu.edu/images/1247 (WebSearch summary) ; own spherical computation"
+    },
+    {
+     "claim": "A 2025 GSA abstract gives a de Gerlache rim elevation of 1,512 m, falling to a lowland valley at -1,908 m.",
+     "verdict": "unsupported",
+     "finalClaim": "",
+     "source": "Searched for the GSA Connects 2025 abstract; not found this run."
+    },
+    {
+     "claim": "Added by fact-checker (context for every Artemis III region): in late February 2026 NASA changed Artemis III from the first crewed landing to a crewed test flight in low Earth orbit (docking with one or both commercial landers); the first crewed landing is now planned for a later mission (Artemis IV, 2028).",
+     "verdict": "confirmed",
+     "finalClaim": "In 2026 NASA changed Artemis III to a crewed test flight in Earth orbit; the first crewed landing is now planned for a later mission. The regions keep their Artemis III candidate names.",
+     "source": "https://www.theregister.com/2026/03/02/nasa_artemis_reshuffle/ ; https://aerospace.csis.org/artemis-rewritten-nasas-new-moon-plan-its-risks-and-whether-the-u-s-can-still-beat-china/ ; https://www.staradvertiser.com/2026/06/09/breaking-news/nasa-selects-astronauts-for-artemis-iii-spacex-blue-origin-test/ (WebSearch summaries; nasa.gov not reachable)"
+    }
+   ],
+   "edits": [
+    {
+     "was": "It was on NASA's 2022 list of 13 regions and is the closest of the nine kept in October 2024, about 50 km from the south pole.",
+     "now": "It was on NASA's 2022 list of 13 regions and is the closest to the south pole of the nine kept in October 2024.",
+     "why": "Rule C: the distance from the south pole is a number the app computes and shows in its facts line, so the clause was removed and the rest kept as written; 'the closest of the nine' became 'the closest to the south pole of the nine' so the comparison keeps its meaning without the number."
+    }
+   ]
+  },
+  {
+   "id": "artemis3-peak-near-cabeus-b",
+   "headline": "Mountain area near Cabeus B, farthest Artemis III candidate region",
+   "overview": "Peak near Cabeus B is a NASA name for an Artemis III candidate landing region, not an IAU name. It is a mountain area near Cabeus B, a satellite crater of Cabeus, the crater NASA's LCROSS probe struck in 2009, finding water in the debris. The region was not on NASA's 2022 list and first appeared in the October 2024 list of nine. Of those nine it is the farthest from the south pole. One report describes its terrain rising about 6 km over a 30 km span. In 2026 NASA changed Artemis III to an Earth-orbit test flight.",
+   "sources": [
+    "https://www.nasa.gov/news-release/nasa-identifies-candidate-regions-for-landing-next-americans-on-Moon/",
+    "https://www.nasa.gov/news-release/nasa-provides-update-on-artemis-iii-moon-landing-regions/",
+    "https://ntrs.nasa.gov/citations/20250011660",
+    "https://www.astronomy.com/space-exploration/here-are-the-nine-sites-where-artemis-3-might-land-on-the-moon/",
+    "https://data.lroc.im-ldi.com/lroc/view_rdr_product/NAC_ROI_CABEUSPKLO1_P836S2912",
+    "https://en.wikipedia.org/wiki/LCROSS",
+    "https://en.wikipedia.org/wiki/Cabeus_(crater)",
+    "https://www.theregister.com/2026/03/02/nasa_artemis_reshuffle/"
+   ],
+   "verdicts": [
+    {
+     "claim": "officialName: 'Peak near Cabeus B' is a NASA candidate-region name, not IAU; Cabeus B is an IAU satellite crater of Cabeus.",
+     "verdict": "corrected",
+     "finalClaim": "Informal name: 'Peak near Cabeus B' is a NASA Artemis III candidate-region name, not an IAU name. Cabeus B is one of the lettered satellite craters named after the crater Cabeus; its own IAU Gazetteer entry was not opened this run.",
+     "source": "https://www.nasa.gov/news-release/nasa-provides-update-on-artemis-iii-moon-landing-regions/ ; https://pt.wikipedia.com/wiki/Cabeus_(cratera) (WebSearch summaries)"
+    },
+    {
+     "claim": "setting: a mountain (peak) area near Cabeus B, about 200 km from the pole, farthest of the nine; terrain massif or peak.",
+     "verdict": "confirmed",
+     "finalClaim": "A mountain area near the crater Cabeus B, about 200 km from the south pole, the farthest of the nine 2024 regions. Geometry check (this run): the catalog point -83.6, -68.8E is 194 km from the pole and about 67 km from Cabeus B's centre (about 82.4S, 53.0W), on its poleward-west side.",
+     "source": "https://www.astronomy.com/space-exploration/here-are-the-nine-sites-where-artemis-3-might-land-on-the-moon/ ; https://pt.wikipedia.com/wiki/Cabeus_(cratera) ; own spherical computation"
+    },
+    {
+     "claim": "Cabeus has two nearby satellite craters: Cabeus A (about 40 km) and Cabeus B (about 61 km).",
+     "verdict": "corrected",
+     "finalClaim": "A Portuguese Wikipedia table lists Cabeus B at about 82.4S, 53.0W, 61 km across. Cabeus A's size and the count of 'two' satellite craters were not confirmed this run.",
+     "source": "https://pt.wikipedia.com/wiki/Cabeus_(cratera) (WebSearch summary; low confidence)"
+    },
+    {
+     "claim": "LROC NAC_ROI_CABEUSPKLO1 centred -83.6, 291.2E (= -68.8E), bounds lat -84.06 to -83.21, lon -72.47 to -64.80; NASA published no coordinates.",
+     "verdict": "corrected",
+     "finalClaim": "LROC mosaic NAC_ROI_CABEUSPKLO1 ('Peak Near Cabeus B low-Sun controlled NAC mosaic', product P836S2912 = 83.6S, 291.2E = -68.8E) spans lat -84.06 to -83.21, lon -72.47 to -64.80; the catalog point lies inside. That NASA published no coordinates was not checked.",
+     "source": "https://data.lroc.im-ldi.com/lroc/view_rdr_product/NAC_ROI_CABEUSPKLO1_P836S2912 (WebSearch summary)"
+    },
+    {
+     "claim": "Astronomy.com: the most distant of the nine regions from the pole, about 125 miles (200 km).",
+     "verdict": "confirmed",
+     "finalClaim": "Astronomy.com says Peak near Cabeus B is the farthest of the nine regions from the pole, about 125 miles (200 km) away.",
+     "source": "https://www.astronomy.com/space-exploration/here-are-the-nine-sites-where-artemis-3-might-land-on-the-moon/ (WebSearch summary)"
+    },
+    {
+     "claim": "Astronomy.com: rises about 6 km over a 30 km span; elevations about -2,900 m to +3,850 m relative to mean lunar level (uncertain).",
+     "verdict": "confirmed",
+     "finalClaim": "Astronomy.com says the site rises about 6 km over a 30 km span, from 9,500 ft (2,900 m) below to 12,600 ft (3,850 m) above mean lunar level.",
+     "source": "https://www.astronomy.com/space-exploration/here-are-the-nine-sites-where-artemis-3-might-land-on-the-moon/ (WebSearch summary)"
+    },
+    {
+     "claim": "Not in the Aug 2022 list of 13; in the list of nine of 28 Oct 2024; NASA said its team added and excluded regions based on science value and mission availability.",
+     "verdict": "corrected",
+     "finalClaim": "Peak near Cabeus B is not in NASA's August 2022 list of 13 and appears in the October 2024 list of nine, so it was added in 2024. The stated reason quoted in the claim was not found; a NASA abstract says later assessments emphasised end-to-end mission availability.",
+     "source": "https://www.nasa.gov/news-release/nasa-identifies-candidate-regions-for-landing-next-americans-on-Moon/ ; https://www.nasa.gov/news-release/nasa-provides-update-on-artemis-iii-moon-landing-regions/ ; https://ntrs.nasa.gov/citations/20250011660 (WebSearch summaries)"
+    },
+    {
+     "claim": "NASA abstract (T. George et al.): update announced at Oct 2024 LEAG; assessments increasingly emphasised mission availability (launch, transit and rendezvous geometry, communication, landing performance, illumination, terrain safety) with updated SpaceX HLS assumptions.",
+     "verdict": "corrected",
+     "finalClaim": "A NASA abstract ('Artemis III Site Selection Update: Downselection From Thirteen to Nine Candidate Regions', LPSC 2026) says the nine were announced at the October 2024 LEAG meeting and that assessments increasingly emphasised end-to-end mission availability: launch opportunities, transit and rendezvous geometry, communication constraints, landing performance, surface illumination and terrain safety, with updated SpaceX HLS assumptions. Author names were not confirmed.",
+     "source": "https://ntrs.nasa.gov/citations/20250011660 (WebSearch summary)"
+    },
+    {
+     "claim": "LROC made 1 m/pixel NAC mosaics of the site under several Sun directions (e.g. 2014 and 2017 images), with 10-20 m absolute accuracy.",
+     "verdict": "corrected",
+     "finalClaim": "LROC made 1 m/pixel low-Sun NAC mosaics of the Peak Near Cabeus B site from images grouped by sub-solar longitude, with an estimated absolute positional accuracy of 10 to 20 m. The image years were not confirmed.",
+     "source": "https://data.lroc.im-ldi.com/lroc/view_rdr_product/NAC_ROI_CABEUSPKLO1_P836S2912 ; https://data.lroc.im-ldi.com/lroc/view_rdr/NAC_ROI_CABEUSPKLOA (WebSearch summaries)"
+    },
+    {
+     "claim": "Context: Cabeus (about 100 km from the pole, near 84.9S, 35.5W) was the LCROSS impact target on 9 Oct 2009; water announced 13 Nov 2009.",
+     "verdict": "corrected",
+     "finalClaim": "Context, not this site: Cabeus is about 100 km across (Wikipedia 100.58 km), centred near 84.9S, 35.5W (about 155 km from the pole, not 100 km). NASA's LCROSS mission struck it on 9 Oct 2009, and NASA announced on 13 Nov 2009 that water was found in the debris.",
+     "source": "https://en.wikipedia.org/wiki/Cabeus_(crater) ; https://en.wikipedia.org/wiki/LCROSS ; https://spaceflightnow.com/lcross/091113results (WebSearch summaries)"
+    },
+    {
+     "claim": "Added by fact-checker (context for every Artemis III region): in late February 2026 NASA changed Artemis III from the first crewed landing to a crewed test flight in low Earth orbit (docking with one or both commercial landers); the first crewed landing is now planned for a later mission (Artemis IV, 2028).",
+     "verdict": "confirmed",
+     "finalClaim": "In 2026 NASA changed Artemis III to a crewed test flight in Earth orbit; the first crewed landing is now planned for a later mission. The regions keep their Artemis III candidate names.",
+     "source": "https://www.theregister.com/2026/03/02/nasa_artemis_reshuffle/ ; https://aerospace.csis.org/artemis-rewritten-nasas-new-moon-plan-its-risks-and-whether-the-u-s-can-still-beat-china/ ; https://www.staradvertiser.com/2026/06/09/breaking-news/nasa-selects-astronauts-for-artemis-iii-spacex-blue-origin-test/ (WebSearch summaries; nasa.gov not reachable)"
+    }
+   ],
+   "edits": [
+    {
+     "was": "Of those nine it is the farthest from the south pole, about 200 km away.",
+     "now": "Of those nine it is the farthest from the south pole.",
+     "why": "Rule C: the distance from the south pole is a number the app computes and shows in its facts line, so the clause was removed and the rest kept as written."
+    }
+   ]
+  },
+  {
+   "id": "derosa2012-sr1-shackleton-rim",
+   "headline": "Rim of Shackleton crater, beside ground that never sees the Sun",
+   "overview": "SR1 is a point on the rim of Shackleton, a crater about 21 km wide and 4.1 km deep at the lunar south pole, named after the explorer Ernest Shackleton. The label comes from a 2012 study for ESA's planned Lunar Lander that looked for well-lit sites between 85 and 90 degrees south. LROC notes that sunlit points on this rim sit beside hollows that never see the Sun and act as cold traps for ice. A 2012 laser study allowed up to about 22 percent ice in the crater's surface material, an upper limit rather than a detection. Sunlit high points like this are often narrow.",
+   "sources": [
+    "https://arxiv.org/abs/1208.5587",
+    "https://news.mit.edu/2012/shackletons-crater-0620",
+    "https://www.lroc.asu.edu/posts/993",
+    "https://astrobiology.com/2012/06/20/nasa-lunar-reconnaissance-orbiter-reveals-ice-content-in-shackleton-crater-on-the-moon/"
+   ],
+   "verdicts": [
+    {
+     "claim": "SR1 is the centre of a Region of Interest on the Shackleton rim, defined in De Rosa et al. 2012, a landing-site study for ESA's planned Lunar Lander; sites lie between 85 and 90 S, chosen for favourable illumination.",
+     "verdict": "corrected",
+     "finalClaim": "SR1 is a site label from De Rosa et al. 2012 (Planet. Space Sci. 74:224-246), a landing-site study for ESA's planned Lunar Lander that picked candidate sites between 85 S and 90 S for favourable illumination. That SR1 is a Region-of-Interest centre was not re-checked (the paper table could not be opened).",
+     "source": "[search summary] https://arxiv.org/abs/1208.5587 ; https://elib.dlr.de/87758 ; https://eprints.bbk.ac.uk/5066/"
+    },
+    {
+     "claim": "Shackleton crater is about 21 km across, lies at the lunar south pole, is named after Ernest Shackleton; older ESA SMART-1 (2006) gives about 19 km.",
+     "verdict": "confirmed",
+     "finalClaim": "Shackleton crater is about 21 km across and 4.1 km deep (2012 LOLA study) and lies at the lunar south pole; it is named after the Antarctic explorer Ernest Shackleton. A 2006 ESA SMART-1 release gave about 19 km.",
+     "source": "[search summary] https://news.mit.edu/2012/shackletons-crater-0620 ; https://www.esa.int/SPECIALS/SMART-1/SEMP7QOFHTE_0.html ; https://en.wikipedia.org/wiki/Shackleton_(crater) (name origin from encyclopedic summary; IAU gazetteer not reachable)"
+    },
+    {
+     "claim": "Barker et al. 2021 made 5 m/pixel LOLA models; their Site 4 is the Shackleton rim = De Rosa SR1 = Glaeser 2018 point S.",
+     "verdict": "corrected",
+     "finalClaim": "Barker et al. 2021 (Planet. Space Sci. 203, 105119) made new 5 m/pixel LOLA elevation models of four regions (Sites 1, 4, 7, 11) around high-priority south-pole landing sites. Which Barker site matches SR1 was not re-checked (only local pipeline/research/site_research_verified.json (second-hand, 2026-10-09)).",
+     "source": "[search summary] https://pgda.gsfc.nasa.gov/products/78 ; https://ntrs.nasa.gov/citations/20205009660"
+    },
+    {
+     "claim": "Glaeser et al. 2018, 20 m/pixel LOLA, 18.6-year simulation: one high-illumination area on the Shackleton rim and two on the ridge toward de Gerlache.",
+     "verdict": "corrected",
+     "finalClaim": "Glaeser and colleagues (Planetary and Space Science; the DLR record lists 2017, the claim said 2018) used 20 m/pixel LOLA terrain models and simulated illumination over 2017-2037, which spans the 18.6-year cycle. At the south pole they found three high-illumination regions: the Shackleton crater rim and two spots on the ridge between Shackleton and de Gerlache.",
+     "source": "[search summary] https://elib.dlr.de/119091 ; https://openpolar.no/Record/ftdlr:oai:elib.dlr.de:94240"
+    },
+    {
+     "claim": "Speyerer et al. 2016 planned least-energy traverses around persistently illuminated points on the Shackleton rim (SR-1..3) and connecting ridge (CR-1..3), passing near a PSR crater where surface ice is predicted stable.",
+     "verdict": "corrected",
+     "finalClaim": "Speyerer et al. 2016 (Icarus 273) found least-energy rover traverses around persistently illuminated points on the rim of Shackleton crater and along the ridge linking Shackleton and de Gerlache, passing a permanently shaded crater where water ice is predicted to be stable at the surface. The point labels SR-1..3 and CR-1..3 were not seen.",
+     "source": "[search summary] https://www.lroc.asu.edu/images/937 ; https://asu.elsevierpure.com/en/publications/optimized-traverse-planning-for-future-polar-prospectors-based-on/"
+    },
+    {
+     "claim": "LROC: sunlit points on Shackleton's rim sit beside depressions that never receive sunlight; these act as cold traps for ice.",
+     "verdict": "confirmed",
+     "finalClaim": "LROC: the sunlit points on Shackleton's rim are surrounded by depressions that never receive sunlight, and these act as cold traps that can hold ice.",
+     "source": "[search summary] https://www.lroc.asu.edu/posts/993 (LROC \"On the Rim!\", Robinson, 1 Feb 2018)"
+    },
+    {
+     "claim": "Zuber et al. 2012 (Nature 486, 378-381): reflectance allowed ice up to about 22 percent of surface material; upper bound; walls brighter than floor; other explanations possible.",
+     "verdict": "confirmed",
+     "finalClaim": "Zuber et al. 2012 (Nature) used LOLA reflectance of Shackleton's shadowed interior: ice may make up as much as 22 percent of the surface material, an upper bound, not a detection. The walls were brighter than the floor, and the team said there may be multiple explanations. (Volume/page numbers not seen.)",
+     "source": "[search summary] https://astrobiology.com/2012/06/20/nasa-lunar-reconnaissance-orbiter-reveals-ice-content-in-shackleton-crater-on-the-moon/ (NASA release) ; https://www.astronomy.com/science/researchers-estimate-ice-content-of-crater-at-moons-south-pole/"
+    },
+    {
+     "claim": "LROC: sunlit high points are often narrow but inviting landing spots; landings fairly safe with active sensors such as lidar or radar.",
+     "verdict": "confirmed",
+     "finalClaim": "LROC: the high points that stay sunlit are often narrow but attractive landing spots, and polar landings should be fairly safe for landers with lidar or radar hazard sensing.",
+     "source": "[search summary] https://www.lroc.asu.edu/posts/993 (LROC \"On the Rim!\", Robinson, 1 Feb 2018)"
+    },
+    {
+     "claim": "Umansky et al. LPSC 2022: slopes exceed 20 degrees everywhere on Shackleton's inner wall, so wheeled entry is not feasible.",
+     "verdict": "unsupported",
+     "finalClaim": "",
+     "source": "[search summary] https://ntrs.nasa.gov/api/citations/20210026537/downloads/Umansky_dGC-LPSC2022-Abstract_V5.pdf - the visible abstract text is about de Gerlache crater and did not show the slope statement"
+    },
+    {
+     "claim": "Barker 2021 project page: median height errors about 0.3-0.5 m and slope errors about 1.5-2.5 deg in the 5 m/pixel models.",
+     "verdict": "confirmed",
+     "finalClaim": "Barker et al. 2021 report median RMS height errors of about 0.3-0.5 m and median RMS slope errors of about 1.5-2.5 deg in their 5 m/pixel models, so small-scale slopes carry real uncertainty.",
+     "source": "[search summary] https://pgda.gsfc.nasa.gov/products/78 ; https://ntrs.nasa.gov/citations/20205009660"
+    },
+    {
+     "claim": "Chang'e-7: preferred candidate is the Shackleton rim; no final site; launch postponed Aug 2026, reportedly to 2027.",
+     "verdict": "unsupported",
+     "finalClaim": "",
+     "source": "not re-checked: the shared web-search budget ran out before this claim was searched and every primary host was blocked, so no source was read in this run"
+    },
+    {
+     "claim": "Coordinates agree with setting: SR1 is on the Shackleton rim.",
+     "verdict": "confirmed",
+     "finalClaim": "Coordinate check: SR1 (-89.7755, -156.448) lies about 10.7 km from the Shackleton centre (-89.66, 129.20, from local pipeline/research/site_research_verified.json (second-hand, 2026-10-09)), close to the 10.5 km radius of a 21 km crater, so it is on the rim (distance computed, not sourced).",
+     "source": "computed from catalog coordinates, R = 1737.4 km"
+    },
+    {
+     "claim": "(added by checker) De Rosa et al. 2012 found that spots with near-continuous sunlight exist but are only a few hundred metres across.",
+     "verdict": "confirmed",
+     "finalClaim": "De Rosa et al. 2012 found that spots with near-continuous sunlight exist near the south pole but are only a few hundred metres across.",
+     "source": "[search summary] https://eprints.bbk.ac.uk/5066/ ; https://arxiv.org/abs/1208.5587"
+    }
+   ],
+   "edits": []
+  },
+  {
+   "id": "derosa2012-cr1-connecting-ridge",
+   "headline": "Sunlit ridge linking Shackleton and de Gerlache craters",
+   "overview": "CR1 sits on the connecting ridge, the name researchers use for the high ground that links Shackleton crater with de Gerlache crater near the south pole. The label comes from a 2012 study for ESA's planned Lunar Lander that looked for well-lit sites between 85 and 90 degrees south. A 2014 study called the ridge a landing site with extended illumination, and a later illumination study found two of the south pole's three best-lit areas on it. A 2016 rover route study ran along this ridge, past a shadowed crater where surface ice is predicted to be stable. LROC notes that no spot here is lit all the time.",
+   "sources": [
+    "https://arxiv.org/abs/1208.5587",
+    "https://elib.dlr.de/94242",
+    "https://elib.dlr.de/119091",
+    "https://www.lroc.asu.edu/images/937",
+    "https://www.lroc.asu.edu/images/1105"
+   ],
+   "verdicts": [
+    {
+     "claim": "CR1 is the centre of a Region of Interest in De Rosa 2012, not a single illumination maximum; De Rosa calls it one of the most promising areas; EPSC 2012 abstract shows an illumination map of the connecting ridge.",
+     "verdict": "corrected",
+     "finalClaim": "CR1 is a site label from De Rosa et al. 2012, a landing-site study for ESA's planned Lunar Lander that picked sites between 85 S and 90 S for favourable illumination. \"One of the most promising areas\", the Region-of-Interest wording and the EPSC map were not re-checked.",
+     "source": "[search summary] https://arxiv.org/abs/1208.5587 ; https://elib.dlr.de/87758 ; https://eprints.bbk.ac.uk/5066/"
+    },
+    {
+     "claim": "The connecting ridge links Shackleton to de Gerlache; de Gerlache about 32 km; name proposed 1997, IAU 2000.",
+     "verdict": "corrected",
+     "finalClaim": "The connecting ridge links Shackleton crater with de Gerlache crater. De Gerlache's size and naming history were not re-checked in this run.",
+     "source": "[search summary] https://www.lroc.asu.edu/images/937 ; https://asu.elsevierpure.com/en/publications/optimized-traverse-planning-for-future-polar-prospectors-based-on/"
+    },
+    {
+     "claim": "NASA Aug 2022 list of 13 Artemis III regions included Connecting Ridge and Connecting Ridge Extension; 15x15 km; within 6 deg; table centre close to CR1.",
+     "verdict": "unsupported",
+     "finalClaim": "",
+     "source": "not re-checked: the shared web-search budget ran out before this claim was searched and every primary host was blocked, so no source was read in this run. Sibling check verified-2.json reports the 13-region list, 15x15 km and 6 deg details as confirmed via search summary, but not the Connecting Ridge entries"
+    },
+    {
+     "claim": "Connecting Ridge is not among the nine regions of Oct 2024; reasons generic.",
+     "verdict": "unsupported",
+     "finalClaim": "",
+     "source": "not re-checked: the shared web-search budget ran out before this claim was searched and every primary host was blocked, so no source was read in this run. Sibling check verified-1.json lists the nine 2024 regions (no Connecting Ridge) via search summary"
+    },
+    {
+     "claim": "Nov 2021: NASA and Intuitive Machines chose the Shackleton connecting ridge for PRIME-1 (TRIDENT drill up to 1 m, MSolo).",
+     "verdict": "unsupported",
+     "finalClaim": "",
+     "source": "not re-checked: the shared web-search budget ran out before this claim was searched and every primary host was blocked, so no source was read in this run"
+    },
+    {
+     "claim": "Intuitive Machines selected a 200 m ellipse on the connecting ridge for IM-2; Martin et al. 2023 give 89.49 S, 222.1 E.",
+     "verdict": "unsupported",
+     "finalClaim": "",
+     "source": "not re-checked: the shared web-search budget ran out before this claim was searched and every primary host was blocked, so no source was read in this run; coordinate only in local pipeline/research/site_research_verified.json (second-hand, 2026-10-09)"
+    },
+    {
+     "claim": "IM-2 was retargeted to Mons Mouton; launched 27 Feb 2025; landed on its side 6 Mar 2025; no lander has reached the ridge.",
+     "verdict": "unsupported",
+     "finalClaim": "",
+     "source": "not re-checked: the shared web-search budget ran out before this claim was searched and every primary host was blocked, so no source was read in this run. Sibling check verified-1.json reports the retargeting from a ridge near Shackleton to Mons Mouton as confirmed via search summary"
+    },
+    {
+     "claim": "Glaeser et al. 2014: Connecting Ridge, 20 m/pixel LOLA, 19-year cycle, surface/2 m/10 m; ideal landing site.",
+     "verdict": "corrected",
+     "finalClaim": "Glaeser et al. 2014 (Icarus), \"Connecting Ridge - a landing site at the lunar south pole with extended illumination\", simulated sunlight over 19 years, covering the precession cycle, at 2 m and 10 m above the surface. The 20 m/pixel grid, the surface-level case and the words \"ideal landing site\" were not seen.",
+     "source": "[search summary] https://elib.dlr.de/94242 ; https://openpolar.no/Record/ftdlr:oai:elib.dlr.de:94242"
+    },
+    {
+     "claim": "LROC Islands in the Dark: darkness creeps along this ridge; parts lit much of the time; nowhere permanently illuminated.",
+     "verdict": "corrected",
+     "finalClaim": "LROC (\"Islands in the Dark\") notes that some portions of the ridge are lit much of the time, but nowhere is permanently illuminated. The \"darkness creeps\" wording was not seen.",
+     "source": "[search summary] https://www.lroc.asu.edu/images/1105"
+    },
+    {
+     "claim": "Barker 2021 Site 1 is the connecting ridge = De Rosa CR1 = Mazarico Site 1 = Glaeser 2018 C1; 5 m/pixel models.",
+     "verdict": "unsupported",
+     "finalClaim": "",
+     "source": "[search summary] https://pgda.gsfc.nasa.gov/products/78 ; https://ntrs.nasa.gov/citations/20205009660 - Sites 1, 4, 7, 11 and 5 m/pixel confirmed, but which site is the ridge and its match to CR1 rest only on local pipeline/research/site_research_verified.json (second-hand, 2026-10-09)"
+    },
+    {
+     "claim": "Speyerer 2016 traverse links illuminated points on the rim and ridge (CR-1..3); passes near PSR crater with stable surface ice.",
+     "verdict": "corrected",
+     "finalClaim": "Speyerer et al. 2016 (Icarus 273) found a least-energy rover traverse around persistently illuminated points on Shackleton's rim and along the ridge linking Shackleton and de Gerlache, past a permanently shaded crater where water ice is predicted to be stable at the surface. The CR-1..3 labels were not seen.",
+     "source": "[search summary] https://www.lroc.asu.edu/images/937 ; https://asu.elsevierpure.com/en/publications/optimized-traverse-planning-for-future-polar-prospectors-based-on/"
+    },
+    {
+     "claim": "LROC: sunlit high points near Shackleton are often narrow; Barker 2021 median slope errors 1.5-2.5 deg.",
+     "verdict": "confirmed",
+     "finalClaim": "LROC notes that the high points that stay sunlit are often narrow; Barker et al. 2021 give median slope errors of about 1.5-2.5 deg in their 5 m/pixel models.",
+     "source": "[search summary] https://www.lroc.asu.edu/posts/993 (LROC \"On the Rim!\", Robinson, 1 Feb 2018) ; [search summary] https://pgda.gsfc.nasa.gov/products/78 ; https://ntrs.nasa.gov/citations/20205009660"
+    },
+    {
+     "claim": "Coordinates agree with setting: CR1 is on the ridge between Shackleton and de Gerlache.",
+     "verdict": "confirmed",
+     "finalClaim": "Coordinate check: CR1 (-89.4679, -137.411) lies about 19.7 km from the Shackleton centre (about 9 km beyond its rim) and on the Shackleton side of the gap toward de Gerlache (centre -88.48, -88.34, from local pipeline/research/site_research_verified.json (second-hand, 2026-10-09)), consistent with the connecting ridge. Distances computed, not sourced.",
+     "source": "computed from catalog coordinates, R = 1737.4 km"
+    },
+    {
+     "claim": "(added by checker) Glaeser et al. found two high-illumination areas on the ridge between Shackleton and de Gerlache.",
+     "verdict": "confirmed",
+     "finalClaim": "Glaeser and colleagues found two of the three south-pole high-illumination regions on the ridge between Shackleton and de Gerlache.",
+     "source": "[search summary] https://elib.dlr.de/119091 ; https://openpolar.no/Record/ftdlr:oai:elib.dlr.de:94240"
+    },
+    {
+     "claim": "(added by checker) LROC: no place on the Moon is lit all the time; permanent shadows are cast by high ground, and the sunlit high points are often narrow but attractive landing spots.",
+     "verdict": "confirmed",
+     "finalClaim": "LROC notes that no place on the Moon stays lit all the time, and that the high points that stay sunlit longest are often narrow, though still attractive landing spots.",
+     "source": "[search summary] https://www.lroc.asu.edu/posts/993 (LROC \"On the Rim!\", Robinson, 1 Feb 2018)"
+    }
+   ],
+   "edits": []
+  },
+  {
+   "id": "derosa2012-sv1-shackleton-vicinity-peak",
+   "headline": "Point near Shackleton crater, beyond its rim on the far-side half",
+   "overview": "SV1 lies near Shackleton crater but outside its rim, on the far-side half of the south polar region. SV1, short for \"Shackleton Vicinity\", is a label from a 2012 study for ESA's planned Lunar Lander that looked for well-lit sites between 85 and 90 degrees south; it is not an official name. That study found that spots with near-continuous sunlight exist but are only a few hundred metres across. LROC notes that no place on the Moon is lit all the time and that the best-lit high points are often narrow, but it expects polar landings to be fairly safe for landers with lidar or radar hazard sensors.",
+   "sources": [
+    "https://arxiv.org/abs/1208.5587",
+    "https://eprints.bbk.ac.uk/5066/",
+    "https://www.lroc.asu.edu/posts/993"
+   ],
+   "verdicts": [
+    {
+     "claim": "SV1 is the centre of a Region of Interest in De Rosa 2012; Barker 2021 Site 7 is an isolated peak near Shackleton on the far side, corresponding to SV1.",
+     "verdict": "corrected",
+     "finalClaim": "SV1 (\"Shackleton Vicinity\") is a site label from De Rosa et al. 2012, a landing-site study for ESA's planned Lunar Lander that picked sites between 85 S and 90 S for favourable illumination. Barker et al. 2021 modelled a Site 7 among four south-pole sites, but its description as an isolated far-side peak matching SV1 rests only on local pipeline/research/site_research_verified.json (second-hand, 2026-10-09).",
+     "source": "[search summary] https://arxiv.org/abs/1208.5587 ; https://elib.dlr.de/87758 ; https://eprints.bbk.ac.uk/5066/ ; [search summary] https://pgda.gsfc.nasa.gov/products/78 ; https://ntrs.nasa.gov/citations/20205009660"
+    },
+    {
+     "claim": "NASA Aug 2022 list included \"Peak Near Shackleton\"; table centre (-88.81, 124.68) and LROC mosaic centre (-88.8, 124.7) close to SV1.",
+     "verdict": "unsupported",
+     "finalClaim": "",
+     "source": "not re-checked: the shared web-search budget ran out before this claim was searched and every primary host was blocked, so no source was read in this run; centres only in local pipeline/research/site_research_verified.json (second-hand, 2026-10-09)"
+    },
+    {
+     "claim": "\"Peak Near Shackleton\" not in NASA's Oct 2024 list of nine.",
+     "verdict": "unsupported",
+     "finalClaim": "",
+     "source": "not re-checked: the shared web-search budget ran out before this claim was searched and every primary host was blocked, so no source was read in this run. Sibling check verified-1.json lists the nine 2024 regions (no Peak Near Shackleton) via search summary"
+    },
+    {
+     "claim": "LROC built preliminary 1 m/pixel NAC mosaics of Peak near Shackleton (low-Sun and fixed lighting), position accuracy 5-20 m.",
+     "verdict": "unsupported",
+     "finalClaim": "",
+     "source": "not re-checked: the shared web-search budget ran out before this claim was searched and every primary host was blocked, so no source was read in this run"
+    },
+    {
+     "claim": "Chang'e-7: Wikipedia target 88.8 S 123.4 E (Weibo-sourced); SpaceNews: possibly the Artemis Peak Near Shackleton site; no final area announced.",
+     "verdict": "unsupported",
+     "finalClaim": "",
+     "source": "not re-checked: the shared web-search budget ran out before this claim was searched and every primary host was blocked, so no source was read in this run"
+    },
+    {
+     "claim": "Chang'e-7 launch planned 24 Aug 2026 was called off; possibly 2027.",
+     "verdict": "unsupported",
+     "finalClaim": "",
+     "source": "not re-checked: the shared web-search budget ran out before this claim was searched and every primary host was blocked, so no source was read in this run"
+    },
+    {
+     "claim": "Gracy & Lee (LPSC 2024 #1695) proposed a site inside the Peak Near Shackleton region at 89.017 S, 126.273 E.",
+     "verdict": "unsupported",
+     "finalClaim": "",
+     "source": "not re-checked: the shared web-search budget ran out before this claim was searched and every primary host was blocked, so no source was read in this run; only local pipeline/research/site_research_verified.json (second-hand, 2026-10-09)"
+    },
+    {
+     "claim": "Setting: an isolated peak beyond Shackleton, on the far-side half of the polar region, not on Shackleton's rim.",
+     "verdict": "corrected",
+     "finalClaim": "Coordinate check: SV1 (-88.8247, 124.1359) lies about 25 km from the Shackleton centre, well outside its 21 km-wide rim, at a far-side longitude (124 E). That the point is an isolated peak comes from the catalog/De Rosa label and Barker 2021 via local pipeline/research/site_research_verified.json (second-hand, 2026-10-09) and was not re-checked. Distances computed, not sourced.",
+     "source": "computed from catalog coordinates, R = 1737.4 km; [search summary] https://news.mit.edu/2012/shackletons-crater-0620 ; https://www.esa.int/SPECIALS/SMART-1/SEMP7QOFHTE_0.html ; https://en.wikipedia.org/wiki/Shackleton_(crater)"
+    },
+    {
+     "claim": "(added by checker) De Rosa et al. 2012 found that spots with near-continuous sunlight exist but are only a few hundred metres across.",
+     "verdict": "confirmed",
+     "finalClaim": "De Rosa et al. 2012 found that spots with near-continuous sunlight exist near the south pole but are only a few hundred metres across.",
+     "source": "[search summary] https://eprints.bbk.ac.uk/5066/ ; https://arxiv.org/abs/1208.5587"
+    },
+    {
+     "claim": "(added by checker) LROC: no place on the Moon is lit all the time; permanent shadows are cast by high ground, and the sunlit high points are often narrow but attractive landing spots.",
+     "verdict": "confirmed",
+     "finalClaim": "LROC notes that no place on the Moon stays lit all the time, and that the high points that stay sunlit longest are often narrow, though still attractive landing spots.",
+     "source": "[search summary] https://www.lroc.asu.edu/posts/993 (LROC \"On the Rim!\", Robinson, 1 Feb 2018)"
+    },
+    {
+     "claim": "(added by checker) LROC: polar landings should be fairly safe for landers with lidar or radar hazard sensing.",
+     "verdict": "confirmed",
+     "finalClaim": "LROC argues that polar terrain is no rougher than equatorial terrain, so landings should be fairly safe for landers with lidar or radar hazard sensing.",
+     "source": "[search summary] https://www.lroc.asu.edu/posts/993 (LROC \"On the Rim!\", Robinson, 1 Feb 2018)"
+    }
+   ],
+   "edits": []
+  },
+  {
+   "id": "derosa2012-mp1-malapert-peak",
+   "headline": "Malapert peak site on the Earth-facing side",
+   "overview": "MP1, short for \"Malapert Peak\", is a label from a 2012 study for ESA's planned Lunar Lander that looked for well-lit sites between 85 and 90 degrees south. The point lies close to the 0 degree meridian on the Earth-facing side. The study found that spots with near-continuous sunlight exist but are only a few hundred metres across. LROC notes that no place on the Moon is lit all the time and that the best-lit high points are often narrow, but it expects polar landings to be fairly safe for landers with lidar or radar hazard sensors.",
+   "sources": [
+    "https://arxiv.org/abs/1208.5587",
+    "https://eprints.bbk.ac.uk/5066/",
+    "https://www.lroc.asu.edu/posts/993"
+   ],
+   "verdicts": [
+    {
+     "claim": "IAU gazetteer: Mons Malapert, massif, adopted 26 Aug 2024, named for crater Malapert, centre -85.98, -1.67, about 67 km; MP1 close to centre.",
+     "verdict": "unsupported",
+     "finalClaim": "",
+     "source": "not re-checked: the shared web-search budget ran out before this claim was searched and every primary host was blocked, so no source was read in this run. Sibling check verified-1.json reports these gazetteer details as confirmed via search summary of https://planetarynames.wr.usgs.gov/Feature/16338"
+    },
+    {
+     "claim": "MP1 is the centre of a Region of Interest on the Malapert massif peaks in De Rosa 2012; the source does not say it is the summit.",
+     "verdict": "corrected",
+     "finalClaim": "MP1 (\"Malapert Peak\") is a site label from De Rosa et al. 2012, a landing-site study for ESA's planned Lunar Lander that picked sites between 85 S and 90 S for favourable illumination. The Region-of-Interest wording and the summit question were not re-checked.",
+     "source": "[search summary] https://arxiv.org/abs/1208.5587 ; https://elib.dlr.de/87758 ; https://eprints.bbk.ac.uk/5066/"
+    },
+    {
+     "claim": "\"Malapert Massif\" was one of NASA's 13 Artemis III regions (Aug 2022) and is in the Oct 2024 list of nine.",
+     "verdict": "unsupported",
+     "finalClaim": "",
+     "source": "not re-checked: the shared web-search budget ran out before this claim was searched and every primary host was blocked, so no source was read in this run. Sibling check verified-1.json reports this as confirmed via search summary of the two nasa.gov releases"
+    },
+    {
+     "claim": "LROC (Robinson, 14 Mar 2023): summit more than 5,000 m above base, 3,500 m cliff; flat area near 86 S 0 E is the core of the Artemis region.",
+     "verdict": "unsupported",
+     "finalClaim": "",
+     "source": "not re-checked: the shared web-search budget ran out before this claim was searched and every primary host was blocked, so no source was read in this run"
+    },
+    {
+     "claim": "LROC: the massif is thought to be a remnant of the South Pole-Aitken basin rim, formed more than 4 billion years ago.",
+     "verdict": "unsupported",
+     "finalClaim": "",
+     "source": "not re-checked: the shared web-search budget ran out before this claim was searched and every primary host was blocked, so no source was read in this run. Sibling check verified-1.json reports a peer-reviewed study (Wueller et al.) with this interpretation, via search summary"
+    },
+    {
+     "claim": "Malapert long proposed as an outpost or relay site (Sharpe & Schrunk 2003; Lowman 2007; IAC 2019 optical relay).",
+     "verdict": "unsupported",
+     "finalClaim": "",
+     "source": "not re-checked: the shared web-search budget ran out before this claim was searched and every primary host was blocked, so no source was read in this run"
+    },
+    {
+     "claim": "IAC 2019: usable flat areas small, landing must be precise; Robinson asked if a landing might be \"too exciting\".",
+     "verdict": "unsupported",
+     "finalClaim": "",
+     "source": "not re-checked: the shared web-search budget ran out before this claim was searched and every primary host was blocked, so no source was read in this run"
+    },
+    {
+     "claim": "IM-1 Odysseus landed 22 Feb 2024 at 80.13 S, 1.44 E near Malapert A, about 300 km from the pole, far north of the massif.",
+     "verdict": "unsupported",
+     "finalClaim": "",
+     "source": "not re-checked: the shared web-search budget ran out before this claim was searched and every primary host was blocked, so no source was read in this run. Sibling check verified-4.json reports 22 Feb 2024 and 80.13 S, 1.44 E as confirmed via search summary of nasa.gov/LROC"
+    },
+    {
+     "claim": "Setting: high peaks of Mons Malapert on the Earth-facing side about 4 deg from the pole, poleward of Malapert crater.",
+     "verdict": "corrected",
+     "finalClaim": "Coordinate check: MP1 (-85.9756, -2.1124) is about 4 degrees of latitude from the south pole, close to the 0 deg meridian on the Earth-facing side, and about 1 km from the Mons Malapert centre given in local pipeline/research/site_research_verified.json (second-hand, 2026-10-09). The massif name, its size and the position relative to Malapert crater were not re-checked. Distances computed, not sourced.",
+     "source": "computed from catalog coordinates, R = 1737.4 km"
+    },
+    {
+     "claim": "(added by checker) De Rosa et al. 2012 found that spots with near-continuous sunlight exist but are only a few hundred metres across.",
+     "verdict": "confirmed",
+     "finalClaim": "De Rosa et al. 2012 found that spots with near-continuous sunlight exist near the south pole but are only a few hundred metres across.",
+     "source": "[search summary] https://eprints.bbk.ac.uk/5066/ ; https://arxiv.org/abs/1208.5587"
+    },
+    {
+     "claim": "(added by checker) LROC: no place on the Moon is lit all the time; permanent shadows are cast by high ground, and the sunlit high points are often narrow but attractive landing spots.",
+     "verdict": "confirmed",
+     "finalClaim": "LROC notes that no place on the Moon stays lit all the time, and that the high points that stay sunlit longest are often narrow, though still attractive landing spots.",
+     "source": "[search summary] https://www.lroc.asu.edu/posts/993 (LROC \"On the Rim!\", Robinson, 1 Feb 2018)"
+    },
+    {
+     "claim": "(added by checker) LROC: polar landings should be fairly safe for landers with lidar or radar hazard sensing.",
+     "verdict": "confirmed",
+     "finalClaim": "LROC argues that polar terrain is no rougher than equatorial terrain, so landings should be fairly safe for landers with lidar or radar hazard sensing.",
+     "source": "[search summary] https://www.lroc.asu.edu/posts/993 (LROC \"On the Rim!\", Robinson, 1 Feb 2018)"
+    }
+   ],
+   "edits": [
+    {
+     "was": "Malapert peak site on the Earth-facing side, 4 degrees from the pole",
+     "now": "Malapert peak site on the Earth-facing side",
+     "why": "Rule C (headline): the distance from the south pole is a number the app computes and shows in its facts line, so the clause was removed."
+    },
+    {
+     "was": "The point lies about 4 degrees of latitude from the south pole, close to the 0 degree meridian on the Earth-facing side.",
+     "now": "The point lies close to the 0 degree meridian on the Earth-facing side.",
+     "why": "Rule C: the distance from the south pole is a number the app computes and shows in its facts line, so the clause was removed and the rest kept as written."
+    }
+   ]
+  },
+  {
+   "id": "derosa2012-gr1-de-gerlache-rim",
+   "headline": "Well-lit rim of de Gerlache crater, studied for ESA's Lunar Lander",
+   "overview": "This point sits on the rim of de Gerlache, a crater about 32 km across next to Shackleton near the lunar south pole. A ridge about 14 km long links the two craters. De Gerlache is named after Adrien de Gerlache, who led Belgium's 1897-99 Antarctic expedition, and its interior lies in perpetual darkness. GR1 is a label from De Rosa et al. (2012), who studied well-lit polar sites for ESA's planned Lunar Lander. They found spots with near-continuous sunlight for months, but only a few hundred metres across. NASA's 2022 Artemis III list had two de Gerlache rim regions; the 2024 update kept only 'de Gerlache Rim 2'.",
+   "sources": [
+    "https://arxiv.org/abs/1208.5587",
+    "https://elib.dlr.de/87758",
+    "https://en.wikipedia.org/wiki/De_Gerlache_(crater)",
+    "https://www.lroc.asu.edu/images/1247",
+    "https://www.nasa.gov/news-release/nasa-identifies-candidate-regions-for-landing-next-americans-on-Moon/",
+    "https://www.nasa.gov/news-release/nasa-provides-update-on-artemis-iii-moon-landing-regions/"
+   ],
+   "verdicts": [
+    {
+     "claim": "Name: 'GR1' is an informal region-of-interest label from De Rosa et al. (2012) on the de Gerlache rim; 'de Gerlache' is IAU-approved; NASA's 'de Gerlache Rim 1' is an informal Artemis III region name.",
+     "verdict": "confirmed",
+     "finalClaim": "'GR1' is an informal label from De Rosa et al. (2012) for a point on the de Gerlache rim. 'de Gerlache' is an IAU-approved crater name (added in 2000). 'de Gerlache Rim 1' is a NASA Artemis III region name, not an IAU name.",
+     "source": "WebSearch result summary of https://arxiv.org/pdf/1208.5587 (Table 2 'GR1 (de Gerlache Rim)') and https://en.wikipedia.org/wiki/De_Gerlache_(crater) (direct fetch blocked: getaddrinfo ENOTFOUND / proxy CONNECT 403)"
+    },
+    {
+     "claim": "Setting: on the rim of de Gerlache, about 32 km across, next to Shackleton; a ridge about 14 km long (per LROC) links the two; interior in permanent shadow. Catalog point -88.6952, -68.2846.",
+     "verdict": "confirmed",
+     "finalClaim": "GR1 is on the rim of de Gerlache, a crater about 32 km across next to Shackleton; LROC describes the ridge linking the two craters as about 14 km long; the crater interior is in perpetual darkness. Coordinate check: GR1 is 15.1 km from the crater centre (88.5 S, 87.1 W) against a radius of about 16 km, i.e. on the rim.",
+     "source": "WebSearch result summary of https://en.wikipedia.org/wiki/De_Gerlache_(crater) and https://www.lroc.asu.edu/images/1247 (direct fetch blocked: getaddrinfo ENOTFOUND / proxy CONNECT 403); Local great-circle check in this run (R = 1737.4 km) using catalog coordinates"
+    },
+    {
+     "claim": "de Gerlache is named after Adrien de Gerlache (1866-1934), the Belgian Antarctic explorer; name added to IAU nomenclature in 2000.",
+     "verdict": "corrected",
+     "finalClaim": "de Gerlache is named after Adrien de Gerlache, a Belgian naval officer who led the Belgian Antarctic Expedition of 1897-99; the name was added to IAU nomenclature in 2000 (proposed by Margot and Campbell after 1997 radar observations). Life dates not checked.",
+     "source": "WebSearch result summary of https://en.wikipedia.org/wiki/De_Gerlache_(crater) and https://the-moon.us/wiki/De_Gerlache (direct fetch blocked: getaddrinfo ENOTFOUND / proxy CONNECT 403)"
+    },
+    {
+     "claim": "de Gerlache is about 32 km in diameter (32.4 km Wikipedia; 32 km ESA; 32.71 km Gazetteer per earlier notes); near Shackleton; interior in perpetual darkness.",
+     "verdict": "corrected",
+     "finalClaim": "de Gerlache is about 32 km across (32.4 km per Wikipedia citing the Gazetteer; a 2022 Icarus paper gives 31 km), lies next to Shackleton, and its interior is in perpetual darkness. The 32.71 km value was not confirmed.",
+     "source": "WebSearch result summary of https://en.wikipedia.org/wiki/De_Gerlache_(crater), https://the-moon.us/wiki/De_Gerlache, https://real.mtak.hu/162792 (direct fetch blocked: getaddrinfo ENOTFOUND / proxy CONNECT 403)"
+    },
+    {
+     "claim": "GR1 is the centre of a De Rosa et al. 2012 Table 2 region of interest at -88.6952, -68.2846 (east-positive).",
+     "verdict": "confirmed",
+     "finalClaim": "De Rosa et al. 2012, Table 2, lists GR1 (de Gerlache Rim) at latitude -88.6952, longitude -68.2846 (polar stereographic X -36.76 km, Y 14.64 km).",
+     "source": "WebSearch result summary of https://arxiv.org/pdf/1208.5587 (parsed PDF table) (direct fetch blocked: getaddrinfo ENOTFOUND / proxy CONNECT 403)"
+    },
+    {
+     "claim": "De Rosa et al. 2012 (PSS 74(1):224-246, doi:10.1016/j.pss.2012.08.002) characterised south-pole landing sites for ESA's Lunar Lander, chosen for illumination so the lander could use conventional power and thermal systems instead of radioisotope heaters.",
+     "verdict": "confirmed",
+     "finalClaim": "De Rosa et al. 2012 (Planetary and Space Science 74(1):224-246, doi:10.1016/j.pss.2012.08.002) characterised candidate sites between 85 and 90 S for ESA's planned Lunar Lander, chosen for lighting good enough for conventional power and thermal systems instead of radioisotope heaters.",
+     "source": "WebSearch result summary of https://elib.dlr.de/87758, https://arxiv.org/abs/1208.5587, https://meetingorganizer.copernicus.org/EPSC2012/EPSC2012-88.pdf (direct fetch blocked: getaddrinfo ENOTFOUND / proxy CONNECT 403)"
+    },
+    {
+     "claim": "Areas with quasi-continuous sunlight for several months exist but are a few hundred metres across; the EPSC 2012 abstract names the Shackleton and de Gerlache rims and the ridge between them as most promising.",
+     "verdict": "corrected",
+     "finalClaim": "The study found areas with near-continuous sunlight lasting several months, but only a few hundred metres across. The EPSC 2012 abstract text seen does not name the rims; the ridge linking de Gerlache and Shackleton was studied in a 2014 follow-up ('Connecting Ridge').",
+     "source": "WebSearch result summary of https://arxiv.org/abs/1208.5587, https://meetingorganizer.copernicus.org/EPSC2012/EPSC2012-88.pdf, https://elib.dlr.de/94242 (direct fetch blocked: getaddrinfo ENOTFOUND / proxy CONNECT 403)"
+    },
+    {
+     "claim": "For the sites as a group, lander-footprint hazards are mostly craters, expected mature and shallow (about 11 degrees); craters and boulders mapped from LROC images down to about 2 m.",
+     "verdict": "confirmed",
+     "finalClaim": "For the studied sites as a group (not GR1 alone), terrain at lander-footprint scale is mostly craters, likely mature and shallow with slopes around 11 degrees; craters and boulders were detected in LROC images down to under 2 m.",
+     "source": "WebSearch result summary of https://elib.dlr.de/87758 and https://openpolar.no/Record/ftdlr:oai:elib.dlr.de:87758 (abstract) (direct fetch blocked: getaddrinfo ENOTFOUND / proxy CONNECT 403)"
+    },
+    {
+     "claim": "NASA's August 2022 list of 13 Artemis III regions included 'de Gerlache Rim 1' and 'de Gerlache Rim 2'; the October 2024 update kept nine, including Rim 2 but not Rim 1.",
+     "verdict": "confirmed",
+     "finalClaim": "NASA's August 2022 list of 13 Artemis III candidate regions included 'de Gerlache Rim 1'; the October 2024 list of nine includes 'de Gerlache Rim 2' and not 'de Gerlache Rim 1'.",
+     "source": "WebSearch result summary of https://www.nasa.gov/news-release/nasa-identifies-candidate-regions-for-landing-next-americans-on-Moon/, https://www.nasa.gov/news-release/nasa-provides-update-on-artemis-iii-moon-landing-regions/, https://www.upi.com/Science_News/2024/10/28/nasa-artemis-moon-landing-regions/5971730152372/ (direct fetch blocked: getaddrinfo ENOTFOUND / proxy CONNECT 403)"
+    },
+    {
+     "claim": "GR1 lies close to the 2022 'de Gerlache Rim 1' centre (Henriksen et al. 2023 Table 1: -88.67, -66.37), so it is in the area NASA dropped in 2024.",
+     "verdict": "unsupported",
+     "finalClaim": "",
+     "source": "Searches found only LROC RDR pages citing Henriksen et al. 2023, not its Table 1; the region centre could not be read in this run. The 1.5 km separation was computed locally from an unverified value."
+    },
+    {
+     "claim": "Barker et al. 2021 equate De Rosa's GR1 with Mazarico et al. 2011 Site 11 on the de Gerlache rim.",
+     "verdict": "unsupported",
+     "finalClaim": "",
+     "source": "WebSearch result summary of https://ntrs.nasa.gov/citations/20205009660 and https://www.nccs.nasa.gov/news-events/nccs-highlights/moon-south-pole (Site 11 is on the de Gerlache rim, but the GR1 link was not seen) (direct fetch blocked: getaddrinfo ENOTFOUND / proxy CONNECT 403)"
+    },
+    {
+     "claim": "NASA judged Artemis III regions on slope, Earth comms, lighting and launch-window access using LRO data; each about 15 x 15 km, within 6 degrees of the pole; several near PSRs.",
+     "verdict": "confirmed",
+     "finalClaim": "NASA assessed the Artemis III regions with LRO data for terrain, lighting, Earth communications and launch-window access; each region is about 15 x 15 km and all lie within 6 degrees of latitude of the south pole.",
+     "source": "WebSearch result summary of https://www.nasa.gov/news-release/nasa-identifies-candidate-regions-for-landing-next-americans-on-Moon/ and https://greenprophet.com/2024/11/landing-spots-for-moon-to-mars-mission-selected (direct fetch blocked: getaddrinfo ENOTFOUND / proxy CONNECT 403)"
+    },
+    {
+     "claim": "Astronomy.com says the de Gerlache and Nobile rims are narrow and sloped in ways that may not suit a stable landing.",
+     "verdict": "unsupported",
+     "finalClaim": "",
+     "source": "WebSearch result summary of https://www.astronomy.com/space-exploration/here-are-the-nine-sites-where-artemis-3-might-land-on-the-moon/ (excerpt cut off before the rim entries) (direct fetch blocked: getaddrinfo ENOTFOUND / proxy CONNECT 403)"
+    }
+   ],
+   "edits": []
+  },
+  {
+   "id": "im-2-athena-landed",
+   "headline": "Where IM-2 Athena landed on its side on Mons Mouton, March 2025",
+   "overview": "Intuitive Machines' IM-2 lander Athena reached the surface here on 6 March 2025, near the centre of Mons Mouton, a mountain almost 100 km across beside the western rim of Nobile crater. The IAU name honours NASA mathematician Melba Roy Mouton; the mountain was informally called Leibnitz Beta. Athena came down inside a crater about 20 m wide, a few hundred metres from its target, and ended up on its side. In the cold crater, with its solar panels pointed the wrong way, it could not recharge, and the mission ended within a day. Before that, controllers ran NASA's PRIME-1 drill and mass spectrometer.",
+   "sources": [
+    "https://lroc.im-ldi.com/images/1408",
+    "https://www.lroc.asu.edu/images/1401",
+    "https://www.iau.org/Iau/News/PR2023/lunar-mountain-melba-roy-mouton.aspx",
+    "https://spaceflightnow.com/2025/03/07/intuitive-machines-im-2-mission-ends-with-lander-on-its-side-on-the-moon/",
+    "https://spacepolicyonline.com/news/im-2-mission-ends-one-day-after-lunar-landing/",
+    "https://www.nasa.gov/missions/artemis/nasas-lunar-drill-technology-passes-tests-on-the-moon/"
+   ],
+   "verdicts": [
+    {
+     "claim": "Name: no IAU name for the landing point; it lies on Mons Mouton (IAU-approved, honouring Melba Roy Mouton), formerly informally Leibnitz Beta.",
+     "verdict": "confirmed",
+     "finalClaim": "The landing point has no IAU name. It lies on Mons Mouton, an IAU-approved name honouring NASA mathematician Melba Roy Mouton; the mountain was informally called Leibnitz Beta.",
+     "source": "WebSearch result summary of https://www.iau.org/Iau/News/PR2023/lunar-mountain-melba-roy-mouton.aspx and https://svs.gsfc.nasa.gov/5074 (direct fetch blocked: getaddrinfo ENOTFOUND / proxy CONNECT 403)"
+    },
+    {
+     "claim": "Setting: on Mons Mouton, a broad flat-topped mountain between Nobile and Malapert, within 6 degrees of the pole; lander in a crater about 20 m wide near the centre of Mons Mouton.",
+     "verdict": "corrected",
+     "finalClaim": "On Mons Mouton, a mesa-like mountain beside the western rim of Nobile crater (IAU); NASA's press kit calls it a plateau within 6 degrees of the pole. The lander is in a crater about 20 m wide near the centre of Mons Mouton. 'Between Nobile and Malapert' rests only on a Wikipedia mirror. Coordinate check: the point is 175.5 km from the IM-1 point and 158 km from the pole, matching LROC's 175 km and 160 km for the intended site.",
+     "source": "WebSearch result summary of https://www.iau.org/Iau/News/PR2023/lunar-mountain-melba-roy-mouton.aspx, https://lroc.im-ldi.com/images/1408, https://www.lroc.asu.edu/images/1401 (direct fetch blocked: getaddrinfo ENOTFOUND / proxy CONNECT 403); Local great-circle check in this run (R = 1737.4 km) using catalog coordinates"
+    },
+    {
+     "claim": "LROC gives Athena's position as 84.7906 S, 29.1957 E near the centre of Mons Mouton; surface reached 6 March 2025; NSSDC lists the same.",
+     "verdict": "corrected",
+     "finalClaim": "LROC gives Athena's position as 84.7906 S, 29.1957 E, near the centre of Mons Mouton; it reached the surface on 6 March 2025. The NSSDC table was not checked.",
+     "source": "WebSearch result summary of https://lroc.im-ldi.com/images/1408, https://www.lroc.asu.edu/images/1401, https://en.wikipedia.org/wiki/IM-2 (direct fetch blocked: getaddrinfo ENOTFOUND / proxy CONNECT 403)"
+    },
+    {
+     "claim": "Athena landed 6 March 2025 inside a small crater on Mons Mouton, on its side; about 250 m from target per the company, more than 400 m per NASA; company called it the southernmost lunar landing so far.",
+     "verdict": "confirmed",
+     "finalClaim": "Athena landed on 6 March 2025 inside a crater on Mons Mouton and ended up on its side, about 250 m from its target according to Intuitive Machines (more than 400 m according to NASA). The company called it the southernmost lunar landing to date.",
+     "source": "WebSearch result summary of https://spaceflightnow.com/2025/03/07/intuitive-machines-im-2-mission-ends-with-lander-on-its-side-on-the-moon/, https://investors.intuitivemachines.com/news-releases/news-release-details/intuitive-machines-executes-southernmost-lunar-landing-and (direct fetch blocked: getaddrinfo ENOTFOUND / proxy CONNECT 403)"
+    },
+    {
+     "claim": "LRO imaged the lander on 7 March 2025 and again three days later; the closer image shows it on the shadowed floor of a crater about 20 m wide.",
+     "verdict": "confirmed",
+     "finalClaim": "LRO imaged the site obliquely on 7 March 2025 (about 23.5 hours after touchdown) and again on 10 March; LROC says the lander lies on its side in a crater about 20 m wide, on its shadowed floor.",
+     "source": "WebSearch result summary of https://lroc.im-ldi.com/images/1408 and https://www.hjkc.de/_blog/24783-raumfahrt-dead-athena-moon-lander-seen-inside-its-crater-grave-from-lunar-orbit/ (direct fetch blocked: getaddrinfo ENOTFOUND / proxy CONNECT 403)"
+    },
+    {
+     "claim": "Solar panels pointed the wrong way in a cold shadowed crater; Athena could not recharge; mission declared over the day after landing (about 13 hours of surface operations).",
+     "verdict": "confirmed",
+     "finalClaim": "Because of the Sun direction, solar-panel orientation and the cold in the crater, Athena could not recharge, and the mission was declared over on 7 March 2025, about 13 hours after landing (NASA: 12 h 45 min).",
+     "source": "WebSearch result summary of https://spacepolicyonline.com/news/im-2-mission-ends-one-day-after-lunar-landing/ and https://spaceflightnow.com/2025/03/07/intuitive-machines-im-2-mission-ends-with-lander-on-its-side-on-the-moon/ (direct fetch blocked: getaddrinfo ENOTFOUND / proxy CONNECT 403)"
+    },
+    {
+     "claim": "Athena carried NASA's PRIME-1 (TRIDENT drill to about 1 m plus MSOLO mass spectrometer) to look for volatiles; controllers ran PRIME-1 before the batteries ran down.",
+     "verdict": "confirmed",
+     "finalClaim": "Athena carried NASA's PRIME-1: the TRIDENT drill, built to reach about 1 m down, and the MSOLO mass spectrometer, to measure volatiles in the soil. Controllers ran PRIME-1 before the batteries ran down.",
+     "source": "WebSearch result summary of https://www.nasa.gov/missions/artemis/nasas-lunar-drill-technology-passes-tests-on-the-moon/ and https://spaceflightnow.com/2025/03/07/intuitive-machines-im-2-mission-ends-with-lander-on-its-side-on-the-moon/ (direct fetch blocked: getaddrinfo ENOTFOUND / proxy CONNECT 403)"
+    },
+    {
+     "claim": "Before landing, LROC gave the intended site as -84.78, 29.13 E, 160 km from the pole and 175 km from IM-1, in the central portion of an unnamed Artemis III region.",
+     "verdict": "confirmed",
+     "finalClaim": "Before landing, LROC gave the intended site as -84.78, 29.13 E, 160 km from the south pole and 175 km from the IM-1 site, in the central portion of one of the Artemis III potential landing regions (not named).",
+     "source": "WebSearch result summary of https://www.lroc.asu.edu/images/1401 (direct fetch blocked: getaddrinfo ENOTFOUND / proxy CONNECT 403)"
+    },
+    {
+     "claim": "Mons Mouton is just under 100 km wide, rises about 6 km, lies between Nobile and Malapert, may be a remnant of the South Pole-Aitken rim; NASA press kit calls it a plateau within 6 degrees of the pole.",
+     "verdict": "corrected",
+     "finalClaim": "Mons Mouton spans almost 100 km and rises about 6,000 m above its surroundings, beside the western rim of Nobile (IAU). It is interpreted as a remnant massif of the South Pole-Aitken basin rim. NASA's IM-2 press kit calls it a lunar plateau within 6 degrees of the south pole.",
+     "source": "WebSearch result summary of https://www.iau.org/Iau/News/PR2023/lunar-mountain-melba-roy-mouton.aspx, https://cris-portal.uni-muenster.de/portal/en/publication/172801521, https://nasa.gov/wp-content/uploads/2025/02/np-2025-02-005-jsc-clps-intuitive-machines-press-kit-508-2-25-25.pdf (direct fetch blocked: getaddrinfo ENOTFOUND / proxy CONNECT 403)"
+    },
+    {
+     "claim": "The IAU approved Mons Mouton for Melba Roy Mouton at the VIPER team's proposal; informally Leibnitz Beta, part of mountains described by Schroeter; IAU release 16 Feb 2023 vs Wikipedia 13 May 2022.",
+     "verdict": "corrected",
+     "finalClaim": "The IAU Working Group for Planetary System Nomenclature approved the name Mons Mouton (press release 16 February 2023), proposed by NASA's VIPER team, honouring NASA mathematician and programmer Melba Roy Mouton; it was informally called Leibnitz Beta. The Schroeter link was not checked.",
+     "source": "WebSearch result summary of https://www.iau.org/Iau/News/PR2023/lunar-mountain-melba-roy-mouton.aspx, https://iauarchive.eso.org/news/pressreleases/detail/iau2301/, https://svs.gsfc.nasa.gov/5074 (direct fetch blocked: getaddrinfo ENOTFOUND / proxy CONNECT 403)"
+    },
+    {
+     "claim": "Mons Mouton lies near permanently shadowed regions that may be cold traps for water.",
+     "verdict": "confirmed",
+     "finalClaim": "Mons Mouton lies near permanently shadowed regions that may be cold traps for water.",
+     "source": "WebSearch result summary of https://handwiki.org/wiki/Astronomy:Mons_Mouton (Wikipedia mirror) and https://pubs.usgs.gov/publication/70266320 (direct fetch blocked: getaddrinfo ENOTFOUND / proxy CONNECT 403)"
+    },
+    {
+     "claim": "NASA's August 2022 list included 'Leibnitz Beta Plateau'; October 2024 includes 'Mons Mouton' and 'Mons Mouton Plateau'.",
+     "verdict": "confirmed",
+     "finalClaim": "NASA's August 2022 Artemis III list included 'Leibnitz Beta Plateau'; the October 2024 list includes 'Mons Mouton' and 'Mons Mouton Plateau'.",
+     "source": "WebSearch result summary of https://www.nasa.gov/news-release/nasa-identifies-candidate-regions-for-landing-next-americans-on-Moon/ and https://www.upi.com/Science_News/2024/10/28/nasa-artemis-moon-landing-regions/5971730152372/ (direct fetch blocked: getaddrinfo ENOTFOUND / proxy CONNECT 403)"
+    }
+   ],
+   "edits": []
+  },
+  {
+   "id": "viper-mission-area-center",
+   "headline": "Planned VIPER rover area on Mons Mouton, west of Nobile crater",
+   "overview": "This point is in the area planned for NASA's VIPER rover, on Mons Mouton near the western edge of Nobile crater. NASA chose the region in September 2021 for its view of Earth for direct communications, sunlight for solar power, drivable terrain, and likely water ice. Nearby permanently shadowed areas, some 500 to 800 m across, were to be searched for ice. NASA cancelled VIPER in July 2024. In September 2025 it picked Blue Origin to deliver the rover in late 2027 on a Blue Moon MK1 lander, an option that depends on Blue Origin first landing its own MK1.",
+   "sources": [
+    "https://svs.gsfc.nasa.gov/4937/",
+    "https://www.space.com/nasa-viper-moon-rover-landing-site",
+    "https://www.nasa.gov/news-release/nasa-selects-blue-origin-to-deliver-viper-rover-to-moons-south-pole/",
+    "https://www.astronomy.com/space-exploration/nasa-revives-viper-moon-rover-taps-blue-origin-for-lunar-landing/",
+    "https://pubs.usgs.gov/publication/70273772",
+    "https://www.iau.org/Iau/News/PR2023/lunar-mountain-melba-roy-mouton.aspx"
+   ],
+   "verdicts": [
+    {
+     "claim": "Name: no IAU name; 'VIPER primary mission area' is Beyer et al.'s term; NASA 2021 called it the western edge of Nobile; it lies on Mons Mouton.",
+     "verdict": "corrected",
+     "finalClaim": "The point has no IAU name. NASA's 2021 announcement placed VIPER near the western edge of Nobile crater, on what the IAU named Mons Mouton in 2023. The phrase 'primary mission area' could not be read in Beyer et al. in this run.",
+     "source": "WebSearch result summary of https://svs.gsfc.nasa.gov/4937/, https://www.space.com/nasa-viper-moon-rover-landing-site, https://www.iau.org/Iau/News/PR2023/lunar-mountain-melba-roy-mouton.aspx (direct fetch blocked: getaddrinfo ENOTFOUND / proxy CONNECT 403)"
+    },
+    {
+     "claim": "Setting: southern edge of Mons Mouton, north-west of Nobile, about 5 degrees from the pole; plateau edge next to a large crater rim with small PSRs nearby.",
+     "verdict": "corrected",
+     "finalClaim": "On Mons Mouton near the western edge of Nobile crater, with small permanently shadowed areas nearby. 'Southern edge' was not confirmed from a source. Coordinate check: 85.42 S is about 139 km (4.6 degrees) from the pole and about 25 km south of the Mons Mouton centre value in the local notes, consistent with the southern part of the mountain.",
+     "source": "WebSearch result summary of https://svs.gsfc.nasa.gov/4937/ and https://www.space.com/nasa-viper-moon-rover-landing-site (direct fetch blocked: getaddrinfo ENOTFOUND / proxy CONNECT 403); Local great-circle check in this run (R = 1737.4 km) using catalog coordinates"
+    },
+    {
+     "claim": "Beyer et al. 2025 describe the VIPER primary mission area as about 5 x 4 km centred at 31.6218 E, 85.42088 S on the southern edge of Mons Mouton (PSJ 6:236, doi:10.3847/PSJ/ae061a, 14 Oct 2025).",
+     "verdict": "corrected",
+     "finalClaim": "Beyer et al. 2025, 'VIPER site analysis' (Planetary Science Journal 6:236, doi:10.3847/PSJ/ae061a; USGS lists 14 Oct 2025) mapped the VIPER mission area. The 5 x 4 km size and the exact centre could not be read in this run.",
+     "source": "WebSearch result summary of https://pubs.usgs.gov/publication/70273772 and https://www.usgs.gov/publications/viper-site-analysis (direct fetch blocked: getaddrinfo ENOTFOUND / proxy CONNECT 403)"
+    },
+    {
+     "claim": "Beyer et al. combined orbital data to map the area for boulder surveys, PSR feature assessment and mineral context.",
+     "verdict": "corrected",
+     "finalClaim": "Beyer et al. used orbital data to build maps of the VIPER mission area to find science targets, support landing and driving safety, survey boulders, assess features in permanently shadowed regions, estimate crater ages and give scientific context.",
+     "source": "WebSearch result summary of https://www.usgs.gov/publications/viper-site-analysis (direct fetch blocked: getaddrinfo ENOTFOUND / proxy CONNECT 403)"
+    },
+    {
+     "claim": "Coyan et al. 2025 (PSJ 6(5)) modelled where water ice is most likely within the top metre of regolith at Mons Mouton, using topography, slope, maximum temperature, depth to ice stability and PSRs.",
+     "verdict": "confirmed",
+     "finalClaim": "Coyan et al. 2025 (Planetary Science Journal 6(5):105, doi:10.3847/PSJ/adbc6c) modelled where water ice is most likely within the top metre of regolith at the VIPER site on Mons Mouton, using topography, slope, maximum temperature, depth to ice stability and permanently shadowed regions.",
+     "source": "WebSearch result summary of https://pubs.usgs.gov/publication/70266320 (direct fetch blocked: getaddrinfo ENOTFOUND / proxy CONNECT 403)"
+    },
+    {
+     "claim": "NASA announced the VIPER site at the western edge of Nobile on 20 Sept 2021, weighing Earth visibility, sunlight, drivable terrain and water ice; Nobile was one of four finalists from about 15 regions.",
+     "verdict": "confirmed",
+     "finalClaim": "NASA announced on 20 September 2021 that VIPER would land near the western edge of Nobile crater, weighing Earth visibility for direct communication, sunlight for solar power, terrain for driving, and expected water ice. Nobile was one of four finalists from about 15 regions considered.",
+     "source": "WebSearch result summary of https://svs.gsfc.nasa.gov/4937/, https://skyandtelescope.org/astronomy-news/nasa-announces-moon-landing-site-for-viper-mission/, https://www.space.com/nasa-viper-moon-rover-landing-site (direct fetch blocked: getaddrinfo ENOTFOUND / proxy CONNECT 403)"
+    },
+    {
+     "claim": "Sunlit ridgelines were 'safe havens'; from them the rover would drive into shadowed areas 500-800 m across; target area 93 km^2 with 16-24 km of driving.",
+     "verdict": "confirmed",
+     "finalClaim": "In the 2021 plan, sunlit ridgelines were 'safe havens' for riding out darkness on battery power, and nearby permanently shadowed areas some 500 to 800 m across were to be searched for ice. The study area covered 93 square km, with 16 to 24 km of driving planned.",
+     "source": "WebSearch result summary of https://www.space.com/nasa-viper-moon-rover-landing-site and https://www.scientificamerican.com/article/nasa-unveils-ice-hunting-viper-rovers-lunar-landing-site/ (direct fetch blocked: getaddrinfo ENOTFOUND / proxy CONNECT 403)"
+    },
+    {
+     "claim": "NASA cancelled VIPER on 17 July 2024 over rising costs and delays, when fully assembled; it was to fly on Astrobotic's Griffin.",
+     "verdict": "corrected",
+     "finalClaim": "NASA cancelled VIPER in July 2024, when the rover was almost fully assembled; it had been due to fly on Astrobotic's Griffin lander. The exact day was not confirmed.",
+     "source": "WebSearch result summary of https://www.astronomy.com/space-exploration/nasa-revives-viper-moon-rover-taps-blue-origin-for-lunar-landing/ and https://en.wikipedia.org/wiki/Nobile_(crater) (direct fetch blocked: getaddrinfo ENOTFOUND / proxy CONNECT 403)"
+    },
+    {
+     "claim": "On 19 Sept 2025 NASA chose Blue Origin (CLPS CS-7, up to about $190M) to deliver VIPER in late 2027 on a second Blue Moon MK1; landing is an option after Blue Origin's first MK1 mission.",
+     "verdict": "confirmed",
+     "finalClaim": "On 19 September 2025 NASA chose Blue Origin (CLPS task order CS-7, up to about $190 million) to deliver VIPER to the south pole region in late 2027 on a second Blue Moon MK1 lander; NASA will decide on the landing option only after Blue Origin's first MK1 lands successfully.",
+     "source": "WebSearch result summary of https://www.nasa.gov/news-release/nasa-selects-blue-origin-to-deliver-viper-rover-to-moons-south-pole/ and https://www.astronomy.com/space-exploration/nasa-revives-viper-moon-rover-taps-blue-origin-for-lunar-landing/ (direct fetch blocked: getaddrinfo ENOTFOUND / proxy CONNECT 403)"
+    },
+    {
+     "claim": "Search results up to mid-2026 report the first Blue Moon MK1 still in testing with no launch or landing yet.",
+     "verdict": "corrected",
+     "finalClaim": "Search results reaching about May 2026 show the first Blue Moon MK1 finishing NASA thermal-vacuum testing; no launch or landing was found. Time-sensitive: keep out of the curated text.",
+     "source": "WebSearch result summary of https://www.nasa.gov/missions/artemis/blue-origin-moon-lander-completes-testing-at-nasa-vacuum-chamber/ (direct fetch blocked: getaddrinfo ENOTFOUND / proxy CONNECT 403)"
+    },
+    {
+     "claim": "A 2025 NASA VIPER briefing lists design limits of 15 degree slopes and 20 cm steps; the lander ramp could be steep enough to risk slipping.",
+     "verdict": "corrected",
+     "finalClaim": "NASA material gives VIPER a slope limit of 15 degrees; obstacle height is given as 15 cm (2024 briefing) or 10 cm (2022 planning overview). The 20 cm step and the ramp-slip statement were not confirmed.",
+     "source": "WebSearch result summary of https://ntrs.nasa.gov/api/citations/20240013903/downloads/LSIC_2024-Tech%20Infusion_Panel-VIPER_Mob-HW.pdf and https://www.nasa.gov/wp-content/uploads/2022/05/overview_of_mission_planning_for_the_viper_rover.pdf (direct fetch blocked: getaddrinfo ENOTFOUND / proxy CONNECT 403)"
+    },
+    {
+     "claim": "The VIPER team proposed the name Mons Mouton to the IAU.",
+     "verdict": "confirmed",
+     "finalClaim": "Members of NASA's VIPER team proposed the name Mons Mouton to the IAU.",
+     "source": "WebSearch result summary of https://www.iau.org/Iau/News/PR2023/lunar-mountain-melba-roy-mouton.aspx (direct fetch blocked: getaddrinfo ENOTFOUND / proxy CONNECT 403)"
+    }
+   ],
+   "edits": []
+  },
+  {
+   "id": "im-1-odysseus-landed",
+   "headline": "Where IM-1 Odysseus made the first commercial Moon landing, 2024",
+   "overview": "Intuitive Machines' IM-1 lander Odysseus landed here on 22 February 2024, the first commercial soft landing on the Moon and the first US soft landing since Apollo 17. The site is an intercrater area within about 1.5 km of its target near the crater Malapert A. NASA asked for this site to learn how to send data to Earth from a spot low on the lunar horizon. LRO images show the lander in a degraded crater about 1 km wide, on ground sloping about 12 degrees. Odysseus came in too fast and tipped, but NASA received data from all five active payloads.",
+   "sources": [
+    "https://www.nasa.gov/missions/lro/nasas-lro-images-intuitive-machines-odysseus-lander/",
+    "https://www.lroc.asu.edu/images/1360",
+    "https://meetingorganizer.copernicus.org/EGU25/EGU25-20315.html",
+    "https://en.wikipedia.org/wiki/IM-1",
+    "https://www.space.com/intuitive-machines-im-1-moon-mission-ends",
+    "https://www.americaspace.com/2024/02/21/im-1-enters-lunar-orbit-targets-first-u-s-soft-lunar-landing-since-apollo-17-tomorrow/"
+   ],
+   "verdicts": [
+    {
+     "claim": "Name: no IAU name for the point; target called 'Malapert A'; Malapert is IAU-named after Charles Malapert; IAU status of 'Malapert A' not checked.",
+     "verdict": "corrected",
+     "finalClaim": "The landing point has no IAU name; the mission target was near the crater Malapert A. The IAU status of 'Malapert A' could not be confirmed (no Gazetteer entry found by search).",
+     "source": "WebSearch result summary of https://en.wikipedia.org/wiki/Malapert_(crater) and https://www.nasa.gov/missions/lro/nasas-lro-images-intuitive-machines-odysseus-lander/ (direct fetch blocked: getaddrinfo ENOTFOUND / proxy CONNECT 403)"
+    },
+    {
+     "claim": "Setting: southern highlands about 300 km from the pole, just poleward of 80 S, east of degraded Malapert A (about 33 km); lander in a degraded 1 km crater on a 12 degree slope.",
+     "verdict": "corrected",
+     "finalClaim": "An intercrater area about 300 km from the south pole, just poleward of 80 S; the lander rests in a degraded crater about 1 km wide on a slope of about 12 degrees. The Malapert A size (33 km vs 24 km in a Wikipedia table) and the 'east of' direction were not confirmed. Coordinate check: 80.13 S is 299 km from the pole.",
+     "source": "WebSearch result summary of https://meetingorganizer.copernicus.org/EGU25/EGU25-20315.html and https://www.nasa.gov/missions/lro/nasas-lro-images-intuitive-machines-odysseus-lander/ (direct fetch blocked: getaddrinfo ENOTFOUND / proxy CONNECT 403); Local great-circle check in this run (R = 1737.4 km) using catalog coordinates"
+    },
+    {
+     "claim": "Odysseus came to rest at 80.13 S, 1.44 E, 2,579 m elevation, per NASA and LROC.",
+     "verdict": "confirmed",
+     "finalClaim": "Odysseus came to rest at 80.13 S, 1.44 E, at an elevation of 2,579 m, according to NASA and LROC.",
+     "source": "WebSearch result summary of https://www.nasa.gov/missions/lro/nasas-lro-images-intuitive-machines-odysseus-lander/ and https://www.lroc.asu.edu/images/1360 (direct fetch blocked: getaddrinfo ENOTFOUND / proxy CONNECT 403)"
+    },
+    {
+     "claim": "LRO images place the lander in a degraded crater about 1 km in diameter where the ground slopes about 12 degrees.",
+     "verdict": "confirmed",
+     "finalClaim": "LRO images place the lander in a degraded crater about 1 km across where the local terrain slopes about 12 degrees.",
+     "source": "WebSearch result summary of https://www.nasa.gov/missions/lro/nasas-lro-images-intuitive-machines-odysseus-lander/ and https://www.lroc.asu.edu/images/1360 (direct fetch blocked: getaddrinfo ENOTFOUND / proxy CONNECT 403)"
+    },
+    {
+     "claim": "Thomson et al. (EGU25-20315): intercrater region ~300 km from the pole on a ~12 degree slope east of degraded Malapert A (33 km), typical highlands of low rolling terrain.",
+     "verdict": "corrected",
+     "finalClaim": "Thomson et al. (EGU25-20315) describe the site as an intercrater region about 10 degrees of latitude (about 300 km) from the south pole, on a slope of about 12 degrees. The Malapert A details and 'low, rolling terrain' were not in the text seen.",
+     "source": "WebSearch result summary of https://meetingorganizer.copernicus.org/EGU25/EGU25-20315.html (direct fetch blocked: getaddrinfo ENOTFOUND / proxy CONNECT 403)"
+    },
+    {
+     "claim": "Odysseus landed 22 Feb 2024 about 23:24 UTC, first commercial soft landing and first US soft landing since Apollo 17; within 1.5 km of the Malapert A site.",
+     "verdict": "confirmed",
+     "finalClaim": "Odysseus landed on 22 February 2024 at about 23:24 UTC, the first commercial soft landing on the Moon and the first US soft landing since Apollo 17; it came down within about 1.5 km of its intended site near Malapert A.",
+     "source": "WebSearch result summary of https://www.guinnessworldrecords.com/world-records/766342-first-commercial-spacecraft-to-land-on-the-moon, https://en.wikipedia.org/wiki/IM-1, https://www.nasa.gov/missions/lro/nasas-lro-images-intuitive-machines-odysseus-lander/ (direct fetch blocked: getaddrinfo ENOTFOUND / proxy CONNECT 403)"
+    },
+    {
+     "claim": "Odysseus touched down faster than planned with sideways motion, came to rest tilted (~30 degrees; some say on its side), worked about a week; NASA got data from all five active payloads.",
+     "verdict": "corrected",
+     "finalClaim": "Odysseus came in faster than planned after a laser rangefinder problem, broke one or more landing legs and came to rest tilted (the company said about 30 degrees; others say on its side). It was put to sleep on 28 February after about six days; NASA received data from all five of its active payloads.",
+     "source": "WebSearch result summary of https://www.space.com/intuitive-machines-im-1-moon-mission-ends, https://www.inverse.com/science/nasa-intuitive-machines-declare-sideways-moon-lander-a-success, https://www.astronomy.com/space-exploration/odysseus-traveled-to-the-moon-broke-its-leg-and-still-pinged-earth-to-tell-the-story/ (direct fetch blocked: getaddrinfo ENOTFOUND / proxy CONNECT 403)"
+    },
+    {
+     "claim": "IM-1 was first assigned to Oceanus Procellarum; in May 2023 moved to Malapert A so NASA could learn about terrain and communications near the pole, including from where Earth is low; pre-landing reports called Malapert A relatively flat.",
+     "verdict": "corrected",
+     "finalClaim": "IM-1 was first assigned to Oceanus Procellarum and moved, at NASA's request, to Malapert A; NASA said this would help planners learn how to send data to Earth from a location low on the lunar horizon. The May 2023 date and 'relatively flat' were not confirmed.",
+     "source": "WebSearch result summary of https://en.wikipedia.org/wiki/IM-1 and https://www.americaspace.com/2024/02/21/im-1-enters-lunar-orbit-targets-first-u-s-soft-lunar-landing-since-apollo-17-tomorrow/ (direct fetch blocked: getaddrinfo ENOTFOUND / proxy CONNECT 403)"
+    },
+    {
+     "claim": "Malapert crater, about 69 km across near 84.9 S, 12.9 E, is named after Charles Malapert; its south-western rim is part of a rise informally called Malapert Mountain.",
+     "verdict": "confirmed",
+     "finalClaim": "Malapert crater (about 69 km across, near 84.9 S, 12.9 E) is named after the 17th-century astronomer Charles Malapert; its south-western rim is part of a rise informally called Malapert Mountain. It is about 150 km from the IM-1 point, so the site is not at Malapert crater itself.",
+     "source": "WebSearch result summary of https://en.wikipedia.org/wiki/Malapert_(crater) and https://the-moon.us/wiki/Malapert (direct fetch blocked: getaddrinfo ENOTFOUND / proxy CONNECT 403); Local great-circle check in this run (R = 1737.4 km) using catalog coordinates"
+    },
+    {
+     "claim": "Malapert Massif is an Artemis III candidate region in both the 2022 and 2024 NASA lists (IM-1 point not stated to be inside it).",
+     "verdict": "corrected",
+     "finalClaim": "Malapert Massif is on NASA's October 2024 list of Artemis III candidate regions; its presence on the 2022 list was not re-checked. No source places the IM-1 point inside it.",
+     "source": "WebSearch result summary of https://www.upi.com/Science_News/2024/10/28/nasa-artemis-moon-landing-regions/5971730152372/ (direct fetch blocked: getaddrinfo ENOTFOUND / proxy CONNECT 403)"
+    }
+   ],
+   "edits": [
+    {
+     "was": "The site is an intercrater area about 300 km from the south pole, within about 1.5 km of its target near the crater Malapert A.",
+     "now": "The site is an intercrater area within about 1.5 km of its target near the crater Malapert A.",
+     "why": "Rule C: the distance from the south pole is a number the app computes and shows in its facts line, so the clause was removed and the rest kept as written."
+    }
+   ]
+  }
+ ]
+}

@@ -477,7 +477,8 @@ app/                        Flutter app (web + Android)
   lib/screens/              Explore, Site, Compare, Learn, validation page, app shell
   lib/widgets/              map (CustomPainter), light & shadow map, chart hosts and bridge, sheets
   lib/theme.dart            design tokens (mirrored in charts/src/theme.ts and styles.css)
-  assets/data/              generated data, committed (ephem/, dsn/, map/, sites.json, horizons.json, validation.json;
+  assets/data/              generated data, committed (ephem/, dsn/, map/, sites.json, horizons.json, validation.json,
+                            curated_sites.json for At a glance;
                             renders/ holds the Blender check images, which the app does not bundle)
   assets/charts/            built chart bundle (one index.html), committed
   assets/fonts/             IBM Plex Sans / Mono and their OFL licences
@@ -488,7 +489,7 @@ pipeline/
   tests/                    pytest suite
   validation/horizons_cache/  cached JPL Horizons responses, committed
   blender/                  bpy scripts for the site renders (skyline cross-check) and the region turntable
-  research/                 curation of the preset-site catalogue
+  research/                 curation of the preset-site catalogue and the fact-checked At a glance text
 pylib/                      lunar-horizon: the same calculations as a reusable Python library (import lunarhorizon)
 docs/                       UX spec, build contracts, demo script and the judges' one-page brief
 .github/workflows/          ci.yml, deploy-pages.yml

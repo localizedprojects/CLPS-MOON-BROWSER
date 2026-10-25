@@ -102,18 +102,14 @@ void main() {
     await tester.tap(more());
     await tester.pump();
     expect(state.overviewMoreOpen, isTrue);
-    final sc = tester.state<ScrollableState>(find.byType(Scrollable).first);
-    // ignore: avoid_print
-    print('DBG after tap: off=${sc.position.pixels} max=${sc.position.maxScrollExtent} more=${find.text(moreTitle).evaluate().length} trio=${find.byType(StatTrio).evaluate().length}');
     await tester.scrollUntilVisible(find.byType(StatTrio), 300, scrollable: find.byType(Scrollable).first);
-    // ignore: avoid_print
-    print('DBG after trio: off=${sc.position.pixels} more=${find.text(moreTitle).evaluate().length} trioTop=${tester.getRect(find.byType(StatTrio)).top}');
     await tester.pump();
-    // ignore: avoid_print
-    print('DBG after pump: off=${sc.position.pixels} more=${find.text(moreTitle).evaluate().length} trioTop=${tester.getRect(find.byType(StatTrio)).top}');
     expect(find.byType(StatTrio), findsOneWidget);
     expect(find.byType(LightSnapshot), findsOneWidget, reason: 'the hero is built once open');
-    expect(tester.getRect(find.byType(StatTrio)).top, greaterThan(tester.getRect(more()).top));
+    // StatTrio sits at the top now and More just above it, off screen but
+    // still built (the Overview head is one list child)
+    expect(tester.getRect(find.byType(StatTrio)).top,
+        greaterThan(tester.getRect(find.text(moreTitle, skipOffstage: false)).top));
     await tester.scrollUntilVisible(find.byType(AboutSite), 300, scrollable: find.byType(Scrollable).first);
     await tester.pump();
     final from = sourcesLine(state.site);

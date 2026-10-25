@@ -34,10 +34,11 @@ const _monthAlt = 'Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec';
 ///
 /// The lookbehinds keep digits that are part of a name in sans: no letter,
 /// digit or underscore may come before the number (SR1, CR1, LDEM_80S), and
-/// no letter or underscore followed by a hyphen (IM-2). A range such as
-/// '10-20 km' still reads as two numbers.
+/// no word that starts with a letter may come right before a hyphen (IM-2,
+/// PRIME-1, EGU25-20315). A range such as '10-20 km' still reads as two
+/// numbers.
 final _numberRe = RegExp(
-  r'(?<![A-Za-z0-9_])(?<![A-Za-z_]-)'
+  r'(?<![A-Za-z0-9_])(?<![A-Za-z_][A-Za-z0-9_]*-)'
   '(?:'
   '\\d{1,2} (?:$_monthAlt)[a-z]* \\d{4}(?: \\d{1,2}:\\d{2})?(?: UTC)?'
   r'|\d{1,2}:\d{2}(?: UTC)?'
@@ -58,6 +59,11 @@ final _bareInt = RegExp(r'^\d+$');
 
 /// Splits [s] into alternating text and number runs (adjacent text is
 /// merged; empty runs are dropped). Joining the runs gives back [s].
+///
+/// A bare integer right after a capitalised word other than a month is part
+/// of a name and stays text ('Rim 2', 'Artemis 3', 'Feature 16338'). So a
+/// sentence must not start with a capitalised word and a bare integer
+/// ('Over 16 sites'): the templates never do.
 List<TextRun> numberRuns(String s) {
   final out = <TextRun>[];
   void add(String text, bool number) {

@@ -46,7 +46,8 @@ void main() {
 
   test('15 × 15 km and ranges', () {
     expect(_numbers('about 15 × 15 km'), ['15', '15 km']);
-    expect(_numbers('1–2 sentences, 10-20 km'), ['1', '2', '10', '20 km']);
+    expect(_numbers('1–2 sentences, 10-20 km, pp. 24-136'), ['1', '2', '10', '20 km', '24', '136']);
+    expect(_numbers('near 86 S, 0 E'), ['86', '0']);
   });
 
   test('ordinals are numbers', () {
@@ -66,6 +67,9 @@ void main() {
       'LDEM_80S',
       'SR12',
       'Apollo 17',
+      'PRIME-1 drill',
+      'EGU25-20315',
+      'USGS/IAU Gazetteer: Mons Malapert (Feature 16338)',
     ]) {
       expect(_numbers(s), isEmpty, reason: s);
     }

@@ -176,56 +176,63 @@ class SiteOverview extends StatelessWidget {
             key: const PageStorageKey('site-overview'),
             padding: EdgeInsets.fromLTRB(side, short ? 2 : 8, side, 24),
             children: [
-              // 1. the kind only (the sources line moved into More, above About)
-              Padding(
-                padding: EdgeInsets.fromLTRB(4, short ? 2 : 8, 4, short ? 0 : 4),
-                child: Text(siteKindLabel(site), style: PHText.small.copyWith(color: PH.muted)),
-              ),
-              if (site.custom) ...[
-                const FidelityBadge(text: FidelityBadge.customHorizon),
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: TextButton.icon(
-                    style: const ButtonStyle(minimumSize: WidgetStatePropertyAll(Size(48, 48))),
-                    onPressed: () => s.removeCustomSite(site.id),
-                    icon: const Icon(Icons.delete_outline),
-                    label: const Text('Remove this spot'),
+              // The head (kind line through the More row) is ONE list child, so
+              // it is always built as a whole: At a glance is tall on a phone,
+              // and a lazily built More row below it would not exist until
+              // scrolled to (the feature guide could not reach 'site-more').
+              // What More opens stays lazy (it holds the shadow-engine hero).
+              Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                // 1. the kind only (the sources line moved into More, above About)
+                Padding(
+                  padding: EdgeInsets.fromLTRB(4, short ? 2 : 8, 4, short ? 0 : 4),
+                  child: Text(siteKindLabel(site), style: PHText.small.copyWith(color: PH.muted)),
+                ),
+                if (site.custom) ...[
+                  const FidelityBadge(text: FidelityBadge.customHorizon),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: TextButton.icon(
+                      style: const ButtonStyle(minimumSize: WidgetStatePropertyAll(Size(48, 48))),
+                      onPressed: () => s.removeCustomSite(site.id),
+                      icon: const Icon(Icons.delete_outline),
+                      label: const Text('Remove this spot'),
+                    ),
                   ),
-                ),
-              ],
-              if (dsn) const FidelityBadge(text: dsnResolutionNote),
-              if (stale)
-                Semantics(
-                  liveRegion: true,
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(4, 6, 4, 0),
-                    child: Row(children: [
-                      const BusyIndicator(size: 16),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text('Working out your new choices; the numbers below are for the previous ones.',
-                            style: PHText.small.copyWith(color: PH.muted)),
-                      ),
-                    ]),
+                ],
+                if (dsn) const FidelityBadge(text: dsnResolutionNote),
+                if (stale)
+                  Semantics(
+                    liveRegion: true,
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(4, 6, 4, 0),
+                      child: Row(children: [
+                        const BusyIndicator(size: 16),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text('Working out your new choices; the numbers below are for the previous ones.',
+                              style: PHText.small.copyWith(color: PH.muted)),
+                        ),
+                      ]),
+                    ),
                   ),
-                ),
-              // 3. "When should you land here?" first
-              LandingWindowCard(key: ValueKey('landing-${site.id}')),
-              if (s.explainInline) explainOverview,
-              // 4. At a glance: what it is, why here, watch-outs, how it compares
-              // (the custom-horizon badge already sits above)
-              if (s.selectedGlance case final g?)
-                GuideTarget(
-                  id: 'site-glance',
-                  child: SiteGlanceCard(
-                      key: ValueKey('glance-${site.id}'),
-                      glance: g,
-                      siteId: site.id,
-                      showCustomBadge: false,
-                      initiallyOpen: s.expert),
-                ),
-              // 5. everything else behind "More about this site"
-              GuideTarget(id: 'site-more', child: _MoreRow(metrics: m, requireDsn: dsn, open: open_, onToggle: () => s.setOverviewMoreOpen(!open_))),
+                // 3. "When should you land here?" first
+                LandingWindowCard(key: ValueKey('landing-${site.id}')),
+                if (s.explainInline) explainOverview,
+                // 4. At a glance: what it is, why here, watch-outs, how it compares
+                // (the custom-horizon badge already sits above)
+                if (s.selectedGlance case final g?)
+                  GuideTarget(
+                    id: 'site-glance',
+                    child: SiteGlanceCard(
+                        key: ValueKey('glance-${site.id}'),
+                        glance: g,
+                        siteId: site.id,
+                        showCustomBadge: false,
+                        initiallyOpen: s.expert),
+                  ),
+                // 5. everything else behind "More about this site"
+                GuideTarget(id: 'site-more', child: _MoreRow(metrics: m, requireDsn: dsn, open: open_, onToggle: () => s.setOverviewMoreOpen(!open_))),
+              ]),
               if (open_) ...[
               const SizedBox(height: 6),
               StatTrio(metrics: m, requireDsn: dsn),

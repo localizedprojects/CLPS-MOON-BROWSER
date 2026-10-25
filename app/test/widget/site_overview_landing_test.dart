@@ -181,15 +181,26 @@ void main() {
       await tester.pump();
       await tester.tap(find.text(glanceDetailsLabel(state.selectedGlance!.sources.length)));
       await tester.pump();
+      void probe(String tag) {
+        for (final e in find.byType(Scrollable).evaluate().skip(1)) {
+          final p = ((e as StatefulElement).state as ScrollableState).position;
+          // ignore: avoid_print
+          print('PRB $tag ${tester.getRect(find.byElementPredicate((x) => x == e)).top.toStringAsFixed(0)} px=${p.pixels.toStringAsFixed(2)} max=${p.maxScrollExtent} vp=${p.viewportDimension}');
+        }
+      }
+      probe('afterOpen');
       expect(tester.takeException(), isNull);
       await toMore(tester);
+      probe('afterToMore');
       // ignore: avoid_print
       print('DBG1 ${state.overviewMoreOpen} ${tester.getRect(more())} ${find.byType(AboutSite).evaluate().length}');
       await tester.tap(more());
       await tester.pump();
       // ignore: avoid_print
       print('DBG2 ${state.overviewMoreOpen} ${tester.getRect(more())} ${find.byType(AboutSite).evaluate().length} ${find.byType(Scrollable).evaluate().length}');
+      probe('afterTapMore');
       await tester.pump(const Duration(milliseconds: 400));
+      probe('after400');
       final sc = tester.state<ScrollableState>(find.byType(Scrollable).first);
       // ignore: avoid_print
       print('DBG3 ${find.byType(AboutSite).evaluate().length} ${tester.getRect(find.byType(Scrollable).first)} ${sc.position.pixels} ${sc.position.maxScrollExtent} ${sc.widget.axisDirection}');

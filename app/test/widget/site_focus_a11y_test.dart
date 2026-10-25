@@ -2,7 +2,8 @@
 // landing card's controls and "More about this site" keep their own focus in
 // the semantics tree (with the semantics tree on, the web's Tab moves only
 // between focusable nodes), and on the desktop two-pane Tab finishes the left
-// pane (header, landing card) before the right pane's tab chips.
+// pane (header, landing card, At a glance's Details) before the right pane's
+// tab chips.
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart' show SemanticsNode;
 import 'package:flutter/semantics.dart' show SemanticsFlag;
@@ -95,7 +96,8 @@ void main() {
     await done(tester);
   });
 
-  testWidgets('desktop two-pane: Tab goes Change site, the landing card, More, then the right pane chips',
+  testWidgets('desktop two-pane: Tab goes Change site, the landing card, At a glance Details, More, then the right '
+      'pane chips',
       (tester) async {
     state.setOverviewMoreOpen(false);
     state.goTo(Dest.site, siteTab: SiteTab.light);
@@ -112,7 +114,10 @@ void main() {
           ctx.findAncestorWidgetOfExactType<ChoiceChip>() ??
           ctx.findAncestorWidgetOfExactType<Semantics>();
       final texts = find.descendant(of: find.byWidget(w ?? ctx.widget), matching: find.byType(Text)).evaluate();
-      return texts.isEmpty ? '${ctx.widget.runtimeType}' : (texts.first.widget as Text).data ?? '';
+      if (texts.isEmpty) return '${ctx.widget.runtimeType}';
+      final t = texts.first.widget as Text;
+      // At a glance's footer is a Text.rich (its count is set in Plex Mono)
+      return t.data ?? t.textSpan?.toPlainText() ?? '';
     }
 
     final order = [now()];
@@ -125,10 +130,12 @@ void main() {
     final firstChip = order.indexWhere((t) => t == 'Sky & time' || t == 'Light & shadow');
     final find7 = order.indexOf('${missionLengthPresets.first}');
     final goal = order.indexOf(changeGoalText);
+    final details = order.indexWhere((t) => t.startsWith('Details'));
     final moreAt = order.indexOf(moreTitle);
     expect(find7, 1, reason: '$order');
     expect(goal, greaterThan(find7), reason: '$order');
-    expect(moreAt, greaterThan(goal), reason: '$order');
+    expect(details, greaterThan(goal), reason: '$order');
+    expect(moreAt, greaterThan(details), reason: '$order');
     expect(firstChip, greaterThan(moreAt), reason: '$order');
     await done(tester);
   });

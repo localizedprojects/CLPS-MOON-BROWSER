@@ -266,7 +266,8 @@ void main() {
         await _pump(tester, AboutSite(site: site));
         await tester.tap(find.text(aboutSiteTitle));
         await tester.pumpAndSettle();
-        expect(find.textContaining('15 × 15 km'), shown ? findsOneWidget : findsNothing, reason: site.id);
+        // the number runs keep their spaces unbreakable (U+00A0)
+        expect(find.textContaining('15 × 15\u00A0km'), shown ? findsOneWidget : findsNothing, reason: site.id);
       }
     });
 

@@ -15,6 +15,7 @@ import 'package:polar_horizon/screens/site/site_screen.dart';
 import 'package:polar_horizon/state/app_state.dart';
 import 'package:polar_horizon/theme.dart';
 import 'package:polar_horizon/widgets/landing_window_card.dart';
+import 'package:polar_horizon/widgets/site_card.dart' show FocusRingInkWell;
 import 'package:provider/provider.dart';
 
 void main() {
@@ -117,6 +118,8 @@ void main() {
       if (ctx == null) return '?';
       final w = ctx.findAncestorWidgetOfExactType<ButtonStyleButton>() ??
           ctx.findAncestorWidgetOfExactType<ChoiceChip>() ??
+          // Details and More: their Semantics sits inside the ink well
+          ctx.findAncestorWidgetOfExactType<FocusRingInkWell>() ??
           ctx.findAncestorWidgetOfExactType<Semantics>();
       final texts = find.descendant(of: find.byWidget(w ?? ctx.widget), matching: find.byType(Text)).evaluate();
       if (texts.isEmpty) return '${ctx.widget.runtimeType}';

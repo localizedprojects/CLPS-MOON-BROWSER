@@ -270,11 +270,14 @@ class _SourceRow extends StatelessWidget {
         Expanded(
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             if (title.isNotEmpty) Text(title, style: PHText.body),
-            // SelectableText is a long-press target: at least 48 dp tall
+            // SelectableText is a long-press target: one node at least 48 dp
+            // tall (its own node keeps the text's height)
             if (source.url.isNotEmpty)
-              ConstrainedBox(
-                constraints: const BoxConstraints(minHeight: 48),
-                child: SelectableText(source.url, style: numStyle(size: 12, color: PH.muted)),
+              MergeSemantics(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(minHeight: 48),
+                  child: SelectableText(source.url, style: numStyle(size: 12, color: PH.muted)),
+                ),
               ),
           ]),
         ),

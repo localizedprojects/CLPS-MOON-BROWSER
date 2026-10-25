@@ -235,12 +235,13 @@ void main() {
     final span = numSpans('elevation 1,733 m · 10 km from CR1', PHText.small);
     final parts = _spans(span);
     final mono = [for (final p in parts) if (p.style?.fontFamily == PH.mono) p.text];
-    expect(mono, ['1,733 m', '10 km']);
+    // a number run keeps its spaces unbreakable (U+00A0): '10 km' never wraps
+    expect(mono, ['1,733\u00A0m', '10\u00A0km']);
     for (final p in parts.where((p) => p.style?.fontFamily == PH.mono)) {
       expect(p.style!.fontFeatures, contains(const FontFeature.tabularFigures()));
       expect(p.style!.fontSize, PHText.small.fontSize);
     }
-    expect(parts.map((p) => p.text).join(), 'elevation 1,733 m · 10 km from CR1');
+    expect(parts.map((p) => p.text).join().replaceAll('\u00A0', ' '), 'elevation 1,733 m · 10 km from CR1');
     expect(span.style, PHText.small);
   });
 

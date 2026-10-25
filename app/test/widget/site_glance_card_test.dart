@@ -6,7 +6,7 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart' hide Interval;
-import 'package:flutter/rendering.dart' show SemanticsNode, SemanticsAction; // DBGIMPORT
+import 'package:flutter/rendering.dart' show SemanticsNode, SemanticsAction, RenderEditable; // DBGIMPORT
 import 'package:polar_horizon/widgets/site_card.dart' show FocusRingInkWell;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:polar_horizon/core/catalog.dart';
@@ -199,7 +199,11 @@ void main() {
     await tester.pump();
     for (final e in find.byType(SelectableText).evaluate()) {
       // ignore: avoid_print
-      print('DBG ${tester.getRect(find.byWidget(e.widget))} ${tester.getRect(find.ancestor(of: find.byWidget(e.widget), matching: find.byType(ConstrainedBox)).first)} ${tester.view.physicalSize}');
+      RenderObject? ed;
+      void v(RenderObject r) { if (r is RenderEditable) ed = r; else r.visitChildren(v); }
+      v(tester.renderObject(find.byWidget(e.widget)));
+      final sn = tester.getSemantics(find.byWidget(e.widget));
+      print('DBG ${tester.getRect(find.byWidget(e.widget))} ed=${(ed as RenderBox).size} ${(ed as RenderEditable).maxLines} sn=${sn.rect} ${sn.transform} ${sn.parent?.rect} ${(sn.parent?.parent)?.rect} ${(e.widget as SelectableText).data!.length}');
     }
     void walk(SemanticsNode n, Matrix4 m) {
       final t = n.transform == null ? m : (m.clone()..multiply(n.transform!));

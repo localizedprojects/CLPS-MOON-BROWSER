@@ -170,7 +170,8 @@ void main() {
             isButton: true,
             hasExpandedState: true,
             isExpanded: false,
-            hasTapAction: true));
+            hasTapAction: true,
+            isFocusable: true));
     expect(tester.getSize(find.byType(FocusRingInkWell)).height, greaterThanOrEqualTo(48));
     await expectLater(tester, meetsGuideline(androidTapTargetGuideline));
     await expectLater(tester, meetsGuideline(labeledTapTargetGuideline));
@@ -183,6 +184,12 @@ void main() {
     expect(find.text(glanceSourcesHeading), findsOneWidget);
     expect(find.byType(SelectableText), findsNWidgets(n));
     expect(find.text(g.sources.first.url), findsOneWidget);
+    // the URLs (long-press targets) are 48 dp too, with the card open
+    await _pump(tester, card(sr1), width: 440);
+    await tester.ensureVisible(find.byType(SelectableText).last);
+    await tester.pump();
+    await expectLater(tester, meetsGuideline(androidTapTargetGuideline));
+    await _pump(tester, card(sr1), width: 320);
 
     await _toggle(tester);
     expect(find.text(glanceAboutHeading), findsNothing);
@@ -243,11 +250,17 @@ void main() {
     ];
     final rich = [for (final r in tester.widgetList<RichText>(find.byType(RichText))) r.text];
     for (final t in texts) {
-      final root = rich.firstWhere((r) => r.toPlainText().startsWith(t), orElse: () => fail('not shown: $t'));
+      // number runs keep their spaces unbreakable (U+00A0)
+      String sp(String x) => x.replaceAll('\u00A0', ' ');
+      final root = rich.firstWhere((r) => sp(r.toPlainText()).startsWith(t), orElse: () => fail('not shown: $t'));
       final parts = _spans(root);
       for (final run in numberRuns(t).where((r) => r.number)) {
-        expect(parts.any((p) => p.text == run.text && p.style?.fontFamily == PH.mono), isTrue,
+        expect(parts.any((p) => sp(p.text!) == run.text && p.style?.fontFamily == PH.mono), isTrue,
             reason: '"${run.text}" in "$t"');
+        if (run.text.contains(' ')) {
+          expect(parts.any((p) => p.text == run.text.replaceAll(' ', '\u00A0')), isTrue,
+              reason: '"${run.text}" must not wrap inside itself');
+        }
       }
     }
   });
@@ -258,6 +271,16 @@ void main() {
     expect(find.text(glanceUpdatingText), findsWidgets);
     expect(tester.getSemantics(find.text(glanceUpdatingText).first), isSemantics(isLiveRegion: true));
     expect(find.byType(BusyIndicator), findsWidgets);
+    // one announcement, not one per pending line
+    expect(find.text(glanceUpdatingText).evaluate().length, greaterThan(1));
+    final live = find.byWidgetPredicate((w) => w is Semantics && w.properties.liveRegion == true);
+    expect(live, findsOneWidget);
+
+    // the same card settling announces the result once, on its header
+    await tester.pumpWidget(_host(card(sr1), width: 360));
+    expect(tester.getSemantics(find.text(glanceTitle)), isSemantics(isLiveRegion: true, label: glanceUpdatedSemantics));
+    await tester.pumpWidget(_host(card(sr1), width: 360));
+    expect(tester.getSemantics(find.text(glanceTitle)), isSemantics(isLiveRegion: false, label: glanceTitle));
 
     await _pump(tester, card(sr1, withRank: false));
     expect(find.text(glanceComparingText), findsOneWidget);

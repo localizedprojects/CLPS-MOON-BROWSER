@@ -22,11 +22,13 @@ const glanceTitle = 'At a glance';
 const glanceDetailsHint = 'Where it is, the skyline, more watch-outs and where the text comes from';
 
 /// [s] as spans of [base], with every number (numberRuns) in Plex Mono with
-/// tabular figures at the same size, weight and colour.
+/// tabular figures at the same size, weight and colour. A number run keeps
+/// its spaces unbreakable (U+00A0), so '10 d 20 h' or '17 Apr 2027 18:00 UTC'
+/// never wraps inside itself.
 TextSpan numSpans(String s, TextStyle base) => TextSpan(style: base, children: [
       for (final r in numberRuns(s))
         TextSpan(
-          text: r.text,
+          text: r.number ? r.text.replaceAll(' ', '\u00A0') : r.text,
           style: r.number
               ? numStyle(size: base.fontSize ?? 14, weight: base.fontWeight ?? FontWeight.w400, color: base.color ?? PH.text)
               : null,
@@ -36,6 +38,9 @@ TextSpan numSpans(String s, TextStyle base) => TextSpan(style: base, children: [
 /// 'Details and sources (5)', or 'Details' when there are no sources (custom
 /// spots).
 String glanceDetailsLabel(int sources) => sources > 0 ? 'Details and sources ($sources)' : 'Details';
+
+/// What a screen reader hears when the card's pending lines have settled.
+const glanceUpdatedSemantics = 'At a glance, updated';
 
 /// What a screen reader says for the Details button.
 String glanceDetailsSemantics(int sources) => sources > 0 ? 'Details and sources, $sources' : 'Details';
@@ -78,6 +83,18 @@ class _SiteGlanceCardState extends State<SiteGlanceCard> {
     setState(() {});
   }
 
+  /// The pending lines of the same site just gave way to the result: the
+  /// header becomes a live region for this one build, so the result is
+  /// announced once (the pending lines were, the finished ones are not).
+  bool _settled = false;
+
+  @override
+  void didUpdateWidget(SiteGlanceCard old) {
+    super.didUpdateWidget(old);
+    bool pending(SiteGlance g) => g.pendingPeriod || g.pendingCompare;
+    _settled = old.siteId == widget.siteId && pending(old.glance) && !pending(widget.glance);
+  }
+
   @override
   Widget build(BuildContext context) {
     final g = widget.glance;
@@ -85,6 +102,13 @@ class _SiteGlanceCardState extends State<SiteGlanceCard> {
     // the engine adds 'What this cannot tell you' for custom spots only
     final custom = g.details.any((d) => d.$1 == glanceLimitsHeading);
     final n = g.sources.length;
+    // at most one live region in the card: the first pending line
+    var liveTaken = false;
+    bool live(GlanceLine l) {
+      if (!l.pending || liveTaken) return false;
+      return liveTaken = true;
+    }
+
     return Card(
       color: PH.panel,
       margin: const EdgeInsets.symmetric(vertical: 6),
@@ -101,14 +125,25 @@ class _SiteGlanceCardState extends State<SiteGlanceCard> {
             Semantics(
               label: g.eyebrowSpoken,
               excludeSemantics: true,
-              child: MicroLabel(g.eyebrow),
+              // MicroLabel's look, with the source count in Plex Mono
+              child: Padding(
+                padding: const EdgeInsets.only(bottom: 6),
+                child: Text.rich(numSpans(g.eyebrow,
+                    const TextStyle(fontFamily: PH.sans, fontSize: 13, fontWeight: FontWeight.w600, color: PH.muted))),
+              ),
             ),
-            Semantics(header: true, child: Text(glanceTitle, style: PHText.subtitle)),
+            Semantics(
+              header: true,
+              liveRegion: _settled,
+              label: _settled ? glanceUpdatedSemantics : null,
+              excludeSemantics: _settled,
+              child: Text(glanceTitle, style: PHText.subtitle),
+            ),
             if (custom && widget.showCustomBadge) const FidelityBadge(text: FidelityBadge.customHorizonShort),
             for (final (row, label, lines) in g.rows) ...[
               const SizedBox(height: 12),
               MicroLabel(label),
-              for (final l in lines) _GlanceLineView(l, warning: row == GlanceRow.watch),
+              for (final l in lines) _GlanceLineView(l, warning: row == GlanceRow.watch, live: live(l)),
               if (row == GlanceRow.what && g.factsLine != null)
                 Padding(
                   padding: const EdgeInsets.only(top: 2),
@@ -116,16 +151,18 @@ class _SiteGlanceCardState extends State<SiteGlanceCard> {
                 ),
             ],
             const SizedBox(height: 6),
-            Semantics(
-              button: true,
-              expanded: open,
-              label: glanceDetailsSemantics(n),
-              hint: glanceDetailsHint,
-              excludeSemantics: true,
+            // the Semantics sits inside the ink well, so the Focus's focusable
+            // flag merges into the button node (outside it, excludeSemantics
+            // dropped it and the web semantics tree's Tab skipped the button)
+            FocusRingInkWell(
               onTap: _toggle,
-              child: FocusRingInkWell(
-                onTap: _toggle,
-                borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(8),
+              child: Semantics(
+                button: true,
+                expanded: open,
+                label: glanceDetailsSemantics(n),
+                hint: glanceDetailsHint,
+                excludeSemantics: true,
                 child: ConstrainedBox(
                   constraints: const BoxConstraints(minHeight: 48),
                   child: Row(children: [
@@ -145,13 +182,14 @@ class _SiteGlanceCardState extends State<SiteGlanceCard> {
   }
 }
 
-/// One sentence: pending lines are a live region with a busy indicator;
-/// approximate ones end with a muted '(approx.)'; watch-outs start with a
-/// muted warning icon.
+/// One sentence: pending lines have a busy indicator (and the card's first
+/// one is its live region, [live]); approximate ones end with a muted
+/// '(approx.)'; watch-outs start with a muted warning icon.
 class _GlanceLineView extends StatelessWidget {
   final GlanceLine line;
   final bool warning;
-  const _GlanceLineView(this.line, {this.warning = false});
+  final bool live;
+  const _GlanceLineView(this.line, {this.warning = false, this.live = false});
 
   @override
   Widget build(BuildContext context) {
@@ -159,7 +197,7 @@ class _GlanceLineView extends StatelessWidget {
     if (line.pending) {
       return Semantics(
         container: true,
-        liveRegion: true,
+        liveRegion: live,
         child: Padding(
           padding: const EdgeInsets.symmetric(vertical: 2),
           child: Row(children: [
@@ -232,7 +270,12 @@ class _SourceRow extends StatelessWidget {
         Expanded(
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             if (title.isNotEmpty) Text(title, style: PHText.body),
-            if (source.url.isNotEmpty) SelectableText(source.url, style: numStyle(size: 12, color: PH.muted)),
+            // SelectableText is a long-press target: at least 48 dp tall
+            if (source.url.isNotEmpty)
+              ConstrainedBox(
+                constraints: const BoxConstraints(minHeight: 48),
+                child: SelectableText(source.url, style: numStyle(size: 12, color: PH.muted)),
+              ),
           ]),
         ),
       ]),

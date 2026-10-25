@@ -353,7 +353,7 @@ SiteGlance buildSiteGlance(GlanceInputs g) {
   row(GlanceRow.what, [GlanceLine(whatText)]);
 
   // WHY HERE (curated presets) or WHAT STANDS OUT (everything else)
-  if (isCurated) {
+  if (cur != null) {
     final lede = cur.lede.trim();
     row(GlanceRow.why, [if (lede.isNotEmpty) GlanceLine(lede)]);
   } else if (g.stale) {

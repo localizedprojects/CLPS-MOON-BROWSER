@@ -155,4 +155,25 @@ const calcSections = <CalcSection>[
         'match your mission.',
     ref: 'formula.md §10, §11.6–11.7',
   ),
+  CalcSection(
+    title: 'At a glance',
+    plain: 'The Overview of every site has a short card: what the place is, why it is on the list (or what stands '
+        'out), what to watch out for and how it compares. For a catalogue site, the description comes from published '
+        'sources, checked claim by claim, and the card lists them. That text never states a number the app computes, '
+        'such as a share of sunlight, a distance from the pole or a slope: those come from the app. For your own spots, '
+        'and for any site without checked text, every sentence is a fixed template filled with the app\'s own numbers, '
+        'and the card says "Written by the app from its numbers". In the code the card is the "glance" engine and the '
+        'checked text is "curated", because "Overview" already names the tab.',
+    maths: [
+      'watch out if the longest night ≥ 72 h, or Earth is out of view for ≥ 72 h at a time',
+      'watch out if the slope at the point ≥ 10° on the 80 m map (a rough guide, not a hazard check)',
+      'show at most 3 watch-outs; the rest are under Details',
+      'stands out = better than at least half of the catalogue sites, on whole percents as shown',
+      'name the nearest catalogue site within 20 km, and the nearest IAU feature centre within 60 km',
+    ],
+    accuracy: 'The catalogue text is only as good as its fact-check: claims the sources did not support were left '
+        'out, and a person still confirms the wording. For your own spots the skyline, height and comparisons come '
+        'from the 400 m map, so those lines are marked "(approx.)".',
+    ref: 'formula.md §11.14',
+  ),
 ];

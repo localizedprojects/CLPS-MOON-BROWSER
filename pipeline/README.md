@@ -115,8 +115,9 @@ Run every command from `pipeline/` with the project's Python environment active,
 | validate | `python -m lunarsp.build validate` | SPICE kernels, the shipped `ephem/` files, the Horizons cache, DE442 if present | `validation.json` (its own blocks; keeps `avgvis` and `render_skyline`) | about 20 s |
 | fixtures | `python -m lunarsp.build fixtures` | SPICE kernels, `sites.json`, `horizons.json`, `map/map.json`, `map/dem_400m.bin.gz` | `app/test/fixtures/spice_truth.json` | about 5 s |
 | build all | `python -m lunarsp.build all` (also the default with no step) | all of the above | ephem, then sites, then validate, then fixtures | 5-6 min |
+| curated | `python -m lunarsp.curated` (`--check` only compares) | `pipeline/research/site_overviews_verified.json`, `site_research_verified.json`, `app/assets/data/sites.json` | `app/assets/data/curated_sites.json` | under 1 s; needs no downloads |
 | Horizons refresh | `python -m lunarsp.horizons --refresh` | JPL Horizons web service (`ssd.jpl.nasa.gov`) | `pipeline/validation/horizons_cache/*.json` | network-bound; only needed to re-query |
-| tests | `python -m pytest` | everything above when present | nothing | about 1-3 min, 545 tests (544 pass, 1 skipped without PyYAML) |
+| tests | `python -m pytest` | everything above when present | nothing | about 1-3 min, 586 tests (585 pass, 1 skipped without PyYAML) |
 
 What each stage does, in plain words:
 - **fetch** downloads in parallel 2 MiB pieces (up to 24 connections), because NASA's servers slow each connection. A file appears under its real name only when complete; an interrupted download resumes. Complete files are skipped. Sizes are checked, and each fresh download is checked against its pinned SHA-256 checksum (a mismatch deletes it).
@@ -124,6 +125,7 @@ What each stage does, in plain words:
 - **ephem** writes, for every hour from 2025-01-01 to 2036-01-01, where the Sun and Earth are as seen from the Moon's centre, plus one byte saying which DSN stations (Goldstone, Madrid, Canberra) see the Moon at least 10° up. The app adds the site's own position and interpolates between hours.
 - **sites** computes each preset site's horizon mask at 2 m and 10 m observer heights, every 0.25° of azimuth, ignoring terrain closer than 120 m (the 80 m map cannot resolve it). It also computes long-term sunlight and Earth-view percentages and compares them with the LOLA team's maps.
 - **validate** compares the pipeline and the app's own method against JPL Horizons and SPICE, and writes the accuracy report.
+- **curated** turns the fact-checked site descriptions into the text of the app's *At a glance* card (called "glance" in the app's code and "curated" for this text, because "overview" already names a Site tab and a Blender step). It is not part of `build all` and needs no kernels or DEMs, so CI can check it. It fails if the text states a number the app computes (a %, hours of sunlight, a distance from the pole or a slope), repeats a claim the fact-check did not support, or cites a source that no verdict checked.
 - **fixtures** writes the Dart test answer key. Its random seed is fixed, so the content is the same every run, apart from its time stamp.
 
 **Optional: Blender renders (not shown in the app).** `python -m lunarsp.build renders` runs `render_prep`, then Blender 5.1 for each site (`pipeline/blender/render_site.py`), then `render_post`. It needs Blender 5.1 (set `BLENDER` if it is not at the default install path) and takes about 5 minutes per site on CPU (4096 × 683 pixels, ±30° band, 32 samples). It writes `app/assets/data/renders/` and the `render_skyline` block of `validation.json`. `python -m lunarsp.build overview` makes a 36-frame turntable of the whole region in the same way (`render_overview_prep`, `render_overview.py`, `render_overview_post`); `build.py` says both steps "take hours on CPU", and no separate timing was measured for `overview`. Neither is part of `build all`. The app no longer shows these images (a user decision on 2026-10-10); the site panoramas are kept only as an independent check of the horizon code. The app's pictures come from the computed light and shadow map instead.
@@ -146,10 +148,11 @@ Sizes were measured on the committed files on 2026-10-11. "Encoding" comes from 
 | `app/assets/data/map/psr.webp` | `basemap.py` | WebP RGBA: permanently shadowed regions (average Sun visibility = 0), 480 m per pixel, quality 90 | 108,998 B | `app/lib/state/app_state.dart` (loaded by its key in `map.json`), `widgets/map_view.dart` |
 | `app/assets/data/map/dem_400m.bin.gz` | `basemap.py` | 1520 × 1520 int16 heights at 400 m per pixel, "planar-split" (each value stored as its difference from a prediction, low bytes then high bytes) and gzip | 2,110,365 B | `app/lib/state/app_state.dart` (file name from the `dem` block of `map.json`), decoded by `decodeDem` in `app/lib/state/dem_load.dart` with `PolarGrid.decodePlanarSplit` in `app/lib/core/dem.dart`; tests `dem_horizon_test.dart`, `shadow_test.dart`, `light_engine_test.dart` |
 | `app/assets/data/map/map.json` | `basemap.py` | JSON, indent 1: map extent (half-width 304 km), each layer's file, pixel size and source, the DEM encoding | 1,541 B | `app/lib/state/app_state.dart`; tests `dem_horizon_test.dart`, `shadow_test.dart`, `light_engine_test.dart` |
+| `app/assets/data/curated_sites.json` | `curated.py` | JSON, indent 1, sorted keys, no time stamp: per preset a headline, a lede (whole leading sentences, at most 230 characters), the overview and its sources (`titled: false` when only the host name is known), plus the IAU feature centres with their diameters | 33,873 B | `app/lib/core/curated.dart`, loaded by `app/lib/state/app_state.dart` |
 | `app/test/fixtures/spice_truth.json` | `fixtures.py` | Compact JSON: 1000 SPICE az/el cases, 64 visible-fraction cases (40 random + 24 fixed cases across the 0/360° seam), coarse horizons at 3 sites on the 400 m DEM, and 30-day hourly series at 2 sites | 933,228 B | `app/test/core/spice_truth_test.dart`, `dem_horizon_test.dart`, `series_metrics_test.dart` (also checked by `pipeline/tests/test_visibility.py`) |
 | `app/assets/data/renders/` (70 files: 16 sites × `best.webp` + `night.webp`, `manifest.json`, and `overview/` with 36 `frame_XX.webp` + `overview.json`) | `render_post.py`, `render_overview_post.py` | WebP images and JSON | 2,269,943 B in total (site images 9,622-30,384 B each; frames 28,162-61,358 B) | **Not bundled and not read.** `app/pubspec.yaml` lists only `assets/data/`, `ephem/`, `dsn/` and `map/`, and Flutter does not include sub-folders that are not listed, so `renders/` is left out of the app |
 
-The bundled files (everything except `renders/`) add up to 6,955,883 bytes, the "about 7 MB" in the README.
+The bundled files (everything except `renders/`) add up to 6,989,756 bytes, the "about 7 MB" in the README.
 
 ## How accurate is it
 
@@ -208,7 +211,7 @@ The Python package lives in `pipeline/lunarsp/`. Every file is listed below, gro
 - **Azimuth / elevation:** compass direction (clockwise from north) and height above the level horizon, in degrees.
 - **DSN:** NASA's Deep Space Network, the three big dish sites (Goldstone, Madrid, Canberra) that talk to spacecraft.
 
-The test counts below are what `python -m pytest --collect-only` collects at this commit (545 in total). "Needs kernels" or "needs DEMs" means those tests are skipped, not failed, on a fresh clone that has not run `python -m lunarsp.fetch`.
+The test counts below are what `python -m pytest --collect-only` collects at this commit (586 in total). "Needs kernels" or "needs DEMs" means those tests are skipped, not failed, on a fresh clone that has not run `python -m lunarsp.fetch`.
 
 #### Setup and downloads
 
@@ -371,6 +374,13 @@ The test counts below are what `python -m pytest --collect-only` collects at thi
 - **Used by:** `build.py` (step `fixtures`). Read by the Dart tests `app/test/core/spice_truth_test.dart`, `dem_horizon_test.dart` and `series_metrics_test.dart`, and by the Python tests `test_visibility.py` and `test_data_provenance.py`.
 - **Run it:** `python -m lunarsp.build fixtures` (about 5 s).
 
+##### `pipeline/lunarsp/curated.py`
+- **What it does:** Builds the text of the app's *At a glance* card for the 16 preset sites from the committed research record. It checks that the ids match `sites.json`, that each headline is one short sentence, that no text states a computed number (Rule C: `%`, hours or days of sunlight, a distance in km or degrees from the pole, a slope in degrees), that no claim marked unsupported survives, that every source is https, unique and cited by a checked verdict, and that every logged edit adds no new word of four or more letters and no new number. Each lede is the overview's leading whole sentences, at most 230 characters. Source titles come from `sites.json`, then the research file, else the host name; titles are never invented. Features are the IAU Gazetteer centres, with the diameter when the Gazetteer states one.
+- **Reads:** `pipeline/research/site_overviews_verified.json`, `pipeline/research/site_research_verified.json`, `app/assets/data/sites.json`.
+- **Writes:** `app/assets/data/curated_sites.json` through `outio.write_json` (no time stamp, so a rebuild is byte-identical).
+- **Used by:** you; it is not part of `build all`. In the app, `app/lib/core/curated.dart` parses the file and `app/lib/core/site_glance.dart` uses it.
+- **Run it:** `python -m lunarsp.curated` (under 1 s, no downloads). `python -m lunarsp.curated --check` exits 1 if the shipped file is out of date.
+
 #### Blender cross-check (not shown in the app)
 
 The app no longer shows Blender renders. They are kept only as an independent check: Blender draws each site's skyline by ray tracing the same terrain, and the result is compared with the horizon masks. The Blender scripts themselves are `pipeline/blender/render_site.py` and `render_overview.py`. All four files below need Blender output or Blender inputs and are run only through `build renders` or `build overview`.
@@ -409,7 +419,7 @@ The tests check each piece of the pipeline against something independent of it: 
 
 The kernels and DEMs are about 450 MB of downloads that live in the cache (`~/.cache/lunar-sp`, or `$LUNAR_SP_CACHE`), never in the repository. A test that needs them is **skipped** on a fresh copy instead of failing. Tests that need only the committed data (`app/assets/data/`, `app/test/fixtures/`, `pipeline/validation/horizons_cache/`) always run.
 
-Run all of them from `pipeline/` with `python -m pytest` (`pipeline/pytest.ini` points pytest at `tests/`). It collects **545 tests**. With all data downloaded, 544 pass and 1 is skipped when PyYAML is not installed. A full run takes about 1-3 minutes on the development laptop. The `pipeline` job in `.github/workflows/ci.yml` runs `python -m pytest -q` on every push to `main` and every pull request, without the downloads. To run one file, use `python -m pytest tests/<file>.py`.
+Run all of them from `pipeline/` with `python -m pytest` (`pipeline/pytest.ini` points pytest at `tests/`). It collects **586 tests**. With all data downloaded, 585 pass and 1 is skipped when PyYAML is not installed. A full run takes about 1-3 minutes on the development laptop. The `pipeline` job in `.github/workflows/ci.yml` runs `python -m pytest -q` on every push to `main` and every pull request, without the downloads. To run one file, use `python -m pytest tests/<file>.py`.
 
 The counts below are the number of tests pytest collects from each file. Where a test is "parametrized" (run once per input from a list), the count is larger than the number of test functions.
 
@@ -538,6 +548,13 @@ The files are listed in pipeline order: shared setup, download, time and geometr
 - **Used by:** pytest, CI.
 - **Run it:** `python -m pytest tests/test_outputs_deterministic.py`. 7 tests. Needs no downloads.
 
+##### `pipeline/tests/test_curated.py`
+- **What it does:** Checks the *At a glance* text: the shipped `curated_sites.json` equals a fresh build byte for byte; all 16 ids once; each Rule C pattern rejects and accepts a sample, and the known clashes are caught before their logged edits; no unsupported claim remains; ledes are prefixes of their overviews that end in '.' and stay within 230 characters; titles are never invented; Shackleton's diameter is 20.92 km and a feature without a stated diameter gets null.
+- **Reads:** `pipeline/research/site_overviews_verified.json`, `site_research_verified.json`, `app/assets/data/sites.json` and `curated_sites.json`.
+- **Writes:** nothing.
+- **Used by:** pytest, CI.
+- **Run it:** `python -m pytest tests/test_curated.py`. 38 tests. Needs no downloads.
+
 #### The Blender cross-check
 
 ##### `pipeline/tests/test_render_prep.py`
@@ -589,8 +606,15 @@ These two scripts run inside Blender 5.1 (its own bundled Python, with `bpy` and
 - **What it is:** The fact-checked research behind the preset sites (retrieved 2026-10-09). It holds 83 candidate entries in three families: Artemis III candidate regions (18), high-illumination points from the literature (55) and mission sites (10). Each entry has an id, name, latitude, east-positive longitude, coordinate kind, confidence, sources (title, web address and what the source says) and notes. Each family also has the fact-checker's summary: what was re-checked, what was corrected and what could not be verified. Its `method` field records how it was made: three parallel web-research agents, each followed by an independent fact-check agent that re-opened the sources, fixed conventions and dropped unsourced values.
 - **Reads:** nothing; it is data.
 - **Writes:** nothing.
-- **Used by:** `pipeline/research/make_catalog.py` only.
+- **Used by:** `pipeline/research/make_catalog.py`, and `lunarsp/curated.py` for source titles and the IAU feature centres.
 - **Run it:** not run; it is data.
+
+##### `pipeline/research/site_overviews_verified.json`
+- **What it is:** The fact-checked descriptions behind the app's *At a glance* card (reviewed 2026-10-25): for each of the 16 preset sites a headline, an overview, its source URLs, the claim-by-claim verdicts (`confirmed`, `corrected` or `unsupported`, each with its source) and the editorial `edits` (`was`, `now`, `why`) that removed computed numbers such as distances from the pole. It is the only hand-edited input of `curated.py`; a second reader should review each logged edit.
+- **Reads:** nothing; it is data.
+- **Writes:** nothing.
+- **Used by:** `lunarsp/curated.py` and `tests/test_curated.py`.
+- **Run it:** not run; it is data. Rerun `python -m lunarsp.curated` after editing it.
 
 ##### `pipeline/research/make_catalog.py`
 - **What it does:** Picks the 16 preset sites from the research file and writes the catalogue the pipeline uses. They come in three groups: 8 Artemis III candidate-region centres (approximate centres, not official landing points; Slater Plain is left out because no centre coordinates were published), 5 high-illumination points from De Rosa et al. 2012, and 3 mission sites (IM-1 and IM-2 as landed, and the VIPER mission area). Coordinates are copied exactly, with each site's name, short label, coordinate kind, confidence, sources and notes.

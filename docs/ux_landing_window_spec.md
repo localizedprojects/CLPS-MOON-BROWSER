@@ -276,8 +276,15 @@ the budget it finishes without yielding. `onProgress` drives the determinate bar
    choices…" busy line.
 3. **`LandingWindowCard`** (new), the first card. One Card, `radiusCard` 16, panel colour, 16 px
    padding, exactly one filled (ice) button at a time.
-4. `explainOverview` when `explainInline` is on (between the card and More, not above the card).
-5. **"More about this site"** disclosure (panel card, at least 64 dp, chevron), collapsed by
+4. `explainOverview` when `explainInline` is on (between the card and At a glance, not above the
+   card).
+5. **"At a glance"** (`SiteGlanceCard`, guide target `site-glance`): WHAT IT IS, WHY HERE or WHAT
+   STANDS OUT, WATCH OUT and HOW IT COMPARES, then "Details and sources". Catalogue sites use the
+   curated text (`app/assets/data/curated_sites.json`, eyebrow `CURATED · {n} SOURCES`); custom
+   spots and uncurated presets are written by the engine from the numbers (eyebrow `WRITTEN BY THE
+   APP FROM ITS NUMBERS`). Built by `AppState.selectedGlance`; the custom badge stays above (item 2),
+   so the card does not repeat it here.
+6. **"More about this site"** disclosure (panel card, at least 64 dp, chevron), collapsed by
    default; open state in `AppState.overviewMoreOpen` for the session, shown open when expert mode
    is on. Peek line under the title: "Sunlit 81% · Earth 56% · Both 42%" with the three
    MeaningGlyphs (numbers in Plex Mono; Earth label from `earthMetricLabel`), then a muted line

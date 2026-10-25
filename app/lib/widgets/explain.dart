@@ -164,7 +164,9 @@ const explainOverview = ExplainCard(
   title: 'Site overview: one spot at a glance',
   body: 'The picture is the computed light and shadow around the site at the start of its best stretch. The three big '
       'numbers say how often it has sunlight, Earth in view, and both. "Which days work?" marks every good day, and "Plan for '
-      'the dark" gives the longest night its batteries must survive.',
+      'the dark" gives the longest night its batteries must survive. "At a glance" says what the place is, why it is on '
+      'the list, what to watch out for and how it ranks: catalogue sites are described from published sources, your own '
+      'spots by the app from its numbers.',
   terms: ['Good day', 'Longest night'],
 );
 

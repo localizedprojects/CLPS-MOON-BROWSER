@@ -216,6 +216,10 @@ String sampleStepText(double stepMs) {
       '${everyStep(stepMs)}$interp $rule.';
 }
 
+/// Shown instead of the long-term averages for a custom spot (AboutSite and
+/// the At a glance card; re-exported by widgets/about_site.dart).
+const String longTermCustomNote = 'Long-term averages are only precomputed for the 16 catalogue sites';
+
 /// "4.5° slope" (LOLA, preset sites only).
 String slopeText(Site s) {
   if (s.slopeDeg.isNaN) return s.custom ? 'slope not computed for custom spots' : 'slope not available';

@@ -14,6 +14,7 @@ import 'package:polar_horizon/state/app_state.dart';
 import 'package:polar_horizon/theme.dart';
 import 'package:polar_horizon/widgets/context_pill.dart';
 import 'package:polar_horizon/widgets/landing_window_card.dart';
+import 'package:polar_horizon/widgets/site_glance_card.dart' show SiteGlanceCard;
 import 'package:provider/provider.dart';
 
 import 'light_test_fonts.dart';
@@ -339,6 +340,9 @@ void main() {
     await select(tester, mp1);
     await pump(tester, phone);
     await findNow(tester);
+    // At a glance makes the list taller, so Find may have scrolled to the top:
+    // bring "Change" back on screen before tapping it
+    await scrollTo(tester, inCard(find.text(changeText)));
     await tester.tap(inCard(find.text(changeText)));
     await tester.pump();
     expect(inCard(find.text(landingIdleTitle)), findsOneWidget);
@@ -371,7 +375,7 @@ void main() {
     await done(tester);
   });
 
-  testWidgets('keyboard: Tab runs 7, 10, 14, 21, Other, Find, Change goal, then More; the title is no Tab stop', (tester) async {
+  testWidgets('keyboard: Tab runs 7, 10, 14, 21, Other, Find, Change goal, At a glance Details, then More; the title is no Tab stop', (tester) async {
     await select(tester, mp1);
     await pump(tester, desktop, host: Host.desktop);
     // an earlier test may leave an out-of-date answer: start from idle
@@ -388,6 +392,7 @@ void main() {
       final ctx = f.context!;
       if (ctx.findAncestorWidgetOfExactType<FilledButton>() != null) return 'find';
       if (ctx.findAncestorWidgetOfExactType<TextButton>() != null) return 'goal';
+      if (ctx.findAncestorWidgetOfExactType<SiteGlanceCard>() != null) return 'details';
       var more = false;
       ctx.visitAncestorElements((e) {
         more = e.widget.runtimeType.toString() == '_MoreRow';
@@ -397,13 +402,14 @@ void main() {
     }
     expect(at(), 'length-7');
     final order = <String?>[];
-    for (var i = 0; i < 7; i++) {
+    for (var i = 0; i < 8; i++) {
       await tester.sendKeyEvent(LogicalKeyboardKey.tab);
       await tester.pump();
       order.add(at());
     }
-    // the card's controls first, then "More about this site" below it
-    expect(order, ['length-10', 'length-14', 'length-21', 'length-0', 'find', 'goal', 'more']);
+    // the card's controls first, then At a glance's Details (its only stop
+    // while closed), then "More about this site" below it
+    expect(order, ['length-10', 'length-14', 'length-21', 'length-0', 'find', 'goal', 'details', 'more']);
     // the title takes focus only by code (to announce a result)
     final title = inCard(find.byWidgetPredicate((w) => w is Focus && w.focusNode?.debugLabel == 'landing-title'));
     expect(tester.widget<Focus>(title).focusNode!.skipTraversal, isTrue);

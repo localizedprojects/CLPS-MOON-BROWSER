@@ -60,6 +60,8 @@ void main() {
     expect(state.error, isNull);
     final m = state.metrics!;
     expect(find.text(siteKindLabel(state.site)), findsOneWidget);
+    // At a glance sits between the landing card and More
+    await scrollTo(tester, find.byType(StatTrio));
     expect(find.byType(StatTrio), findsOneWidget);
     expect(find.text(StatBar.pctText(m.pctSunlit)), findsOneWidget);
     expect(find.text(inTen(m.pctSunlit)), findsOneWidget);

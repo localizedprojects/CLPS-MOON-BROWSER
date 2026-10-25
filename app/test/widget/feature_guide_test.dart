@@ -171,7 +171,7 @@ void main() {
     await settle(tester);
     expect(state.activeGuide, 'site.overview');
     final titles = await walk(tester);
-    expect(titles, contains('Find the best landing window'));
+    expect(titles, containsAllInOrder(['Find the best landing window', 'At a glance', 'More about this site']));
     state.goTo(Dest.learn);
     await tester.pump();
     await settle(tester);

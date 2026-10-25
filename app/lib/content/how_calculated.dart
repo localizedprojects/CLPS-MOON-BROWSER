@@ -2,8 +2,7 @@
 ///
 /// Every number here is measured, not estimated: sources are
 /// app/assets/data/validation.json, app/test/core/shadow_test.dart and
-/// formula.md (each section names its formula.md section; "At a glance"
-/// names its code, site_glance.dart and curated.py). Keep this in step
+/// formula.md (each section names its formula.md section). Keep this in step
 /// with README.md ("Scope", "How it works", "Validation") when they change.
 library;
 
@@ -175,6 +174,6 @@ const calcSections = <CalcSection>[
     accuracy: 'The catalogue text is only as good as its fact-check: claims the sources did not support were left '
         'out, and a person still confirms the wording. For your own spots the skyline, height and comparisons come '
         'from the 400 m map, so those lines are marked "(approx.)".',
-    ref: 'app/lib/core/site_glance.dart and pipeline/lunarsp/curated.py',
+    ref: 'formula.md §11.14',
   ),
 ];

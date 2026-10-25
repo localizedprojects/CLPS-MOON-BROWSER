@@ -1113,6 +1113,32 @@ These cards print metrics of §9.4 with the wording of §11.1 and `StatBar.pctTe
 | Explore top pick (`top_pick_card.dart:32-46`) | %both, `longestBoth` | "Sun and Earth both up <pctText> of the time" (DSN wording with the DSN required) and "Longest stretch with both: <duration> from <date>" |
 | About this site (`about_site.dart:36-39,60-74`) | §9.6 long-term values, mask summary | the three `longTerm*Pct` bars under "18.6-year average (2 m above ground, any part of the Sun or Earth)" for catalogue sites; "The highest skyline is <`horizonMaxDeg`, 1 dp>° up, on terrain <`horizonMaxDistanceKm`, 0 dp> km away" |
 
+### 11.14 At a glance (Site › Overview)
+
+`buildSiteGlance` (`site_glance.dart`) writes the short card at the top of every site's Overview (`site_glance_card.dart`), in rows WHAT IT IS, WHY HERE (curated presets) or WHAT STANDS OUT (others), WATCH OUT and HOW IT COMPARES, plus Details (About this site, Where it is, Ground and skyline, More watch-outs, What this cannot tell you, Sources). It is pure and deterministic: no clock, no DEM decode, no shadow engine.
+
+- **Curated vs generated text.** A catalogue site's headline, lede, overview and sources come from `assets/data/curated_sites.json`, built by `python -m lunarsp.curated` from the fact-checked `pipeline/research/site_overviews_verified.json` and never hand-edited. The eyebrow then reads "CURATED · $n$ SOURCES". Every other sentence, and the whole card for a custom spot or a preset without curated text, is a fixed template filled with the app's numbers, and the eyebrow reads "WRITTEN BY THE APP FROM ITS NUMBERS". The asset is read uncached; a failed fetch is tried once more; a bad row is dropped and logged (`CuratedCatalog.parse`, `skipped`), so that site falls back to the generated text and the other sites keep theirs. Nothing is filled in.
+- **Rule C.** Curated text never states a number the app computes: a share of sunlight or Earth view, hours or days of light, a distance from the pole or a slope (`rule_c_hits`, `curated.py`). Those come only from the app. When the curated overview itself gives the size of the nearest named feature ("a crater about 32 km across", `statesSizeOf`), the generated Where line leaves out the IAU diameter, so the card never shows two sizes for one feature.
+- **Rule N.** A NaN or null input drops its sentence or clause: the text never contains "NaN", "null", "Infinity" or a negative zero.
+- **Rule W.** Comparisons use whole percents as displayed; "better than" counts only presets that are strictly lower. A value stands out when it beats at least half of the other catalogue sites.
+- **Thresholds** (all inclusive):
+
+| Constant | Value | Effect |
+|---|---|---|
+| `kLongNightH` | 72 h | longest night (`longestDark`) is a watch-out |
+| `kLongOutageH` | 72 h | longest Earth outage, or DSN-contact gap with the DSN required, is a watch-out |
+| `kSteepSlopeDeg` | 10° | preset slope on the LOLA 80 m map (to 0.1°) is a watch-out |
+| `kWatchCap` | 3 | WATCH OUT lines shown; the rest go to Details › More watch-outs |
+| `kNearSiteKm` | 20 km | the facts line names the nearest other catalogue site |
+| `kFeatureMaxKm` | 60 km | an IAU named feature counts as nearby (distance to its centre) |
+| `kNearSkylineKm` | 1 km | a skyline peak this close is "right next to the spot" |
+
+- **Watch-out order.** Never sunlit; Sun and Earth never together (with the DSN required: "Sunlight and Earth contact (DSN) never overlap"); the longest night; the longest Earth outage (with the DSN required: "No Earth contact"); a steep slope; for an Artemis region centre, that the candidate region is about 15 × 15 km; for a peak or ridge point, that the answer depends on the exact spot. "Never sunlit" stands in for the next two lines, which it implies. Under a pending update only the lines that do not depend on the dates are kept.
+- **Where it is.** Directions are the initial great-circle bearing in four sectors (`directionWord`, `place.dart`). A target in the "toward the pole" sector that is no nearer the pole than the start reads "across the pole" (`directionWordTo`). An Artemis III candidate region is named "the <name> region centre", so it is not read as the mountain or crater it is named after.
+- **Rank.** "<k>th of $N$" uses the same ranking as Explore. When $N$ counts the user's own spots the line says so ("sites, including your 2 spots").
+- **(approx.) marks.** A line is marked "(approx.)" when it rests on the 400 m map: every computed line of a custom spot (its skyline, height and comparisons, including "Against <nearest site>"; §16), and a preset's period rank when one of the user's spots ranks above it.
+- **Pending.** While numbers for new choices are computing, the period rows show "Updating for your new choices…" and the ranking shows "Comparing with the catalogue sites…". Only the first pending line is a screen-reader live region; when they settle, the card header announces once that it was updated.
+
 ---
 
 ## 12. Light and shadow map (shadow.dart)

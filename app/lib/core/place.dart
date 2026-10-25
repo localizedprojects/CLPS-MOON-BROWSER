@@ -58,6 +58,15 @@ String directionWord(double az) {
   return 'to the west';
 }
 
+/// [directionWord] for a destination at [toLat], seen from [fromLat]: in the
+/// 'toward the pole' sector a target that is no nearer the pole than the
+/// start reads 'across the pole' (the great circle passes the pole, so the
+/// target is not nearer to it).
+String directionWordTo(double az, double fromLat, double toLat) {
+  final w = directionWord(az);
+  return w == 'toward the pole' && toLat.isFinite && fromLat.isFinite && toLat >= fromLat ? 'across the pole' : w;
+}
+
 /// A distance as the card prints it: below 1 km in 10 m steps ('600 m'),
 /// below 10 km to 0.1 km ('6.8 km'), otherwise whole kilometres ('54 km',
 /// '1,234 km'). The thresholds apply to the rounded value, so 0.996 km reads

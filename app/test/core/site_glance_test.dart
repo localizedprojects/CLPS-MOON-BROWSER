@@ -263,7 +263,7 @@ More Sun and Earth together than 13 of the 16 catalogue sites over your dates (2
 WATCH OUT
 Longest night over your dates: 3 d 8 h, from 1 Jan 2027 00:00 UTC. (approx.)
 HOW IT COMPARES
-5th of 17 for Balanced over your dates. (approx.)
+5th of 17 sites, including your 1 spot, for Balanced over your dates. (approx.)
 Against P09 (16 km away): Sun and Earth together 23% here, 19% there, over your dates. (approx.)
 Long-term averages are only precomputed for the 16 catalogue sites.
 Where it is
@@ -293,7 +293,7 @@ HOW IT COMPARES
 Over 18.6 years at 2 m: Sun and Earth together 30% of the time, joint 6th of 16 catalogue sites.
 Where it is
 91 km from the south pole (-87.00°, -112.50°E).
-The nearest catalogue site is P02, 35 km to the west.
+The nearest catalogue site is the P02 region centre, 35 km to the west.
 Ground and skyline
 Seen from 2 m up, the skyline peaks at 1.5° toward the pole, where the ground rises right next to the spot.
 On average the skyline sits 0.8° up.
@@ -470,19 +470,35 @@ void main() {
 
     test('priority order and the cap of 3, with the rest in moreWatch and Details', () {
       final site = _preset(0, slope: 12); // Artemis region centre
-      final g = buildSiteGlance(_in(site, m: _m(sun: 0, both: 0, darkH: 100, outageH: 100), heightM: 2));
+      final g = buildSiteGlance(_in(site, m: _m(sun: 5, both: 0, darkH: 100, outageH: 100), heightM: 2));
       expect(_texts(g, GlanceRow.watch), [
-        'Never sunlit over your dates at 2 m.',
         'Sun and Earth are never up together over your dates.',
         'Longest night over your dates: 4 d 4 h, from 1 Jan 2027 00:00 UTC.',
+        'Earth out of view for up to 4 d 4 h at a time.',
       ]);
       expect([for (final l in g.moreWatch) l.text], [
-        'Earth out of view for up to 4 d 4 h at a time.',
         '12.0° slope at the point on the 80 m map: a rough guide, not a hazard check.',
         'Region centre: the candidate region is about 15 × 15 km, and other spots in it have different light.',
       ]);
       expect(_group(g, glanceMoreWatchHeading), g.moreWatch);
       expect(kWatchCap, 3);
+    });
+
+    test('never sunlit stands in for never together and the period-long night', () {
+      final g = buildSiteGlance(_in(_custom(lat: -88.2, lon: 60.5),
+          m: _m(sun: 0, both: 0, darkH: 8760, outageH: 100), heightM: 2));
+      expect(_texts(g, GlanceRow.watch), [
+        'Never sunlit over your dates at 2 m.',
+        'Earth out of view for up to 4 d 4 h at a time.',
+      ]);
+      expect(g.moreWatch, isEmpty);
+    });
+
+    test('with the DSN required, no overlap is worded as DSN contact, not geometry', () {
+      final g = buildSiteGlance(_in(_custom(lat: -86.5, lon: 0), m: _m(both: 0), dsn: true));
+      final t = _texts(g, GlanceRow.watch);
+      expect(t, contains('Sunlight and Earth contact (DSN) never overlap over your dates.'));
+      expect(g.plainText, isNot(contains('never up together')));
     });
 
     test('peak or ridge point and the 10 m mast', () {
@@ -621,7 +637,7 @@ void main() {
       final g = buildSiteGlance(_in(_custom(lat: -86.5, lon: 0), m: _m(both: 31)));
       final lines = _row(g, GlanceRow.compare);
       expect([for (final l in lines) l.text], [
-        '17th of 17 for Balanced over your dates.',
+        '17th of 17 sites, including your 1 spot, for Balanced over your dates.',
         'Against P08 (15 km away): Sun and Earth together 31% here, 18% there, over your dates.',
         '$longTermCustomNote.',
       ]);

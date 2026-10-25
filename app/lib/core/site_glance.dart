@@ -253,6 +253,10 @@ String _spell(Interval? i) => i != null && i.hours.isFinite && i.hours >= 0 ? sp
 /// "Earth" stay capitalised (they are names).
 String _mid(String label) => label.startsWith('Sunlight') ? 's${label.substring(1)}' : label;
 
+/// A catalogue site by name; an Artemis region is 'the <short> region
+/// centre', so it is not read as the mountain or crater it is named after.
+String _siteRef(Site p) => p.isArtemisRegion ? 'the ${p.short} region centre' : p.short;
+
 /// ' (21 km across)' or ''.
 String _across(NamedFeature f) => f.diameterKm.isFinite && f.diameterKm > 0 ? ' (${kmText(f.diameterKm)} across)' : '';
 
@@ -337,7 +341,7 @@ SiteGlance buildSiteGlance(GlanceInputs g) {
     if (elevation.isNotEmpty) 'elevation $elevation${custom ? ' (400 m map)' : ''}',
     // slopeText's '4.5° slope', without a negative zero (Rule N)
     if (!custom && s.slopeDeg.isFinite) '${_fixed(s.slopeDeg, 1)}° slope on the LOLA 80 m map',
-    if (near != null && near.km <= kNearSiteKm) '${kmText(near.km)} from ${near.site.short}',
+    if (near != null && near.km <= kNearSiteKm) '${kmText(near.km)} from ${_siteRef(near.site)}',
     if (custom && feature != null) '${kmText(feature.km)} from the IAU centre of ${feature.f.name}${_across(feature.f)}',
   ];
   final factsLine = facts.isEmpty ? null : facts.join(' · ');
@@ -369,14 +373,21 @@ SiteGlance buildSiteGlance(GlanceInputs g) {
   final watch = <(GlanceLine, bool)>[];
   final m = g.m;
   final h = _heightText(g.observerHeightM);
-  if (m.pctSunlit == 0) {
+  // Never sunlit implies never together and a night as long as the period:
+  // the one line stands in for both, so it does not fill all three slots.
+  final neverSun = m.pctSunlit == 0;
+  if (neverSun) {
     watch.add((GlanceLine(h.isEmpty ? 'Never sunlit over your dates.' : 'Never sunlit over your dates at $h m.', approximate: custom), true));
   }
-  if (m.pctBoth == 0) {
-    watch.add((GlanceLine('Sun and Earth are never up together over your dates.', approximate: custom), true));
+  if (m.pctBoth == 0 && !neverSun) {
+    // with the DSN required, pctBoth counts Sun + DSN-visible Earth
+    final none = g.dsn
+        ? 'Sunlight and Earth contact (DSN) never overlap over your dates.'
+        : 'Sun and Earth are never up together over your dates.';
+    watch.add((GlanceLine(none, approximate: custom), true));
   }
   final dark = m.longestDark;
-  if (dark != null && dark.hours.isFinite && dark.hours >= kLongNightH && dark.startMs.isFinite) {
+  if (!neverSun && dark != null && dark.hours.isFinite && dark.hours >= kLongNightH && dark.startMs.isFinite) {
     watch.add((
       GlanceLine('Longest night over your dates: ${_spell(dark)}, from ${dateTime(dark.startMs)}.', approximate: custom),
       true
@@ -423,9 +434,15 @@ SiteGlance buildSiteGlance(GlanceInputs g) {
     final r = g.ranked!;
     final i = r.indexWhere((x) => x.id == s.id);
     if (i >= 0) {
+      // N matches the Explore rank badges (all sites); say so when it counts
+      // the user's spots, and mark a preset's rank approximate when a spot
+      // (400 m map numbers) ranks above it.
+      final presetIds = {for (final p in presets) p.id};
+      final mine = r.where((x) => !presetIds.contains(x.id)).length;
       final goal = g.goal.trim();
-      cmp.add(GlanceLine('${ordinal(i + 1)} of ${r.length}${goal.isEmpty ? '' : ' for $goal'} over your dates.',
-          approximate: custom));
+      final of = mine == 0 ? '' : ' sites, including your $mine spot${mine == 1 ? '' : 's'},';
+      cmp.add(GlanceLine('${ordinal(i + 1)} of ${r.length}$of${goal.isEmpty ? '' : ' for $goal'} over your dates.',
+          approximate: custom || r.take(i).any((x) => !presetIds.contains(x.id))));
     }
   }
   if (!custom) {
@@ -446,7 +463,7 @@ SiteGlance buildSiteGlance(GlanceInputs g) {
       final v = _whole(m.pctBoth), w = pm == null ? null : _whole(pm.pctBoth);
       if (v != null && w != null) {
         cmp.add(GlanceLine(
-            'Against ${near.site.short} (${kmText(near.km)} away): ${_mid(bothMetricLabel(requireDsn: g.dsn))} '
+            'Against ${_siteRef(near.site)} (${kmText(near.km)} away): ${_mid(bothMetricLabel(requireDsn: g.dsn))} '
             '$v% here, $w% there, over your dates.',
             approximate: true));
       } else if (pm == null && !cmp.any((l) => l.pending)) {
@@ -470,13 +487,16 @@ SiteGlance buildSiteGlance(GlanceInputs g) {
   final pos = positionLine(s);
   if (pos != null) where.add(GlanceLine(pos));
   if (near != null) {
-    final dir = directionWord(near.az);
-    where.add(GlanceLine('The nearest catalogue site is ${near.site.short}, ${kmText(near.km)} '
+    final dir = directionWordTo(near.az, s.lat, near.site.lat);
+    where.add(GlanceLine('The nearest catalogue site is ${_siteRef(near.site)}, ${kmText(near.km)} '
         '${dir.isEmpty ? 'away' : dir}.'));
   }
   if (feature != null) {
-    final dir = directionWord(feature.az);
-    where.add(GlanceLine('The nearest named feature is ${feature.f.name}${_across(feature.f)}; '
+    final dir = directionWordTo(feature.az, s.lat, feature.f.lat);
+    // The checked text gives its own size for a feature it names; a second,
+    // different figure (the Gazetteer's) would contradict it on the same card.
+    final size = cur != null && cur.overview.contains(feature.f.name) ? '' : _across(feature.f);
+    where.add(GlanceLine('The nearest named feature is ${feature.f.name}$size; '
         'its centre is ${kmText(feature.km)} ${dir.isEmpty ? 'away' : dir}.'));
   }
   group(glanceWhereHeading, where);

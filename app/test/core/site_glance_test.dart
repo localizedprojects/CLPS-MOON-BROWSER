@@ -210,9 +210,95 @@ SiteGlance _goldenCustom() {
       ranked: [for (final s in cat.take(4)) _r(s.id), _r(site.id), for (final s in cat.skip(4)) _r(s.id)]));
 }
 
-const _presetGolden = r'''PRESET-GOLDEN''';
+/// The frozen uncurated preset: an Artemis region centre with no curated
+/// entry, a steep slope, long nights and outages with DSN on (four watch-outs,
+/// so one overflows into moreWatch), and a whole-percent tie in the 18.6-year
+/// rank.
+SiteGlance _goldenUncurated() {
+  final site = _preset(3, h: -176, slope: 12.3, ltBoth: 30.4);
+  final cat = _presets()..[3] = site;
+  return buildSiteGlance(_in(site,
+      catalogue: cat,
+      features: const [
+        NamedFeature(id: 'f2', name: 'Faraway', kind: 'crater', lat: -84, lon: 30),
+      ],
+      dsn: true,
+      m: _m(both: 21, darkH: 100, outageH: 80)));
+}
 
-const _customGolden = r'''CUSTOM-GOLDEN''';
+const _presetGolden = r'''
+CURATED · 3 SOURCES
+WHAT IT IS
+Sunny ridge on the rim of a test crater
+82 km from the pole · elevation 1,733 m · 4.5° slope on the LOLA 80 m map · 11 km from P09
+WHY HERE
+A ridge that the Sun grazes for most of the year. It sees Earth often.
+WATCH OUT
+Longest night over your dates: 3 d 8 h, from 1 Jan 2027 00:00 UTC.
+Peak or ridge point: the answer depends on the exact spot and mast height.
+HOW IT COMPARES
+2nd of 16 for Balanced over your dates.
+Over 18.6 years at 2 m: Sun and Earth together 45% of the time, 1st of 16 catalogue sites.
+About this site
+A ridge that the Sun grazes for most of the year. It sees Earth often. Studies name it a strong candidate for a long stay.
+Where it is
+82 km from the south pole (-87.30°, 18.00°E).
+The nearest catalogue site is P09, 11 km away from the pole.
+The nearest named feature is Testcrater (21 km across); its centre is 13 km to the west.
+Ground and skyline
+Seen from 2 m up, the skyline peaks at 3.1° to the west, on terrain 9.8 km away.
+On average the skyline is below level (-0.78°): the ground falls away in most directions.
+Sources
+1. A study of polar light (https://example.org/light)
+2. example.net (https://example.net/paper)
+3. Landing site catalogue (https://example.com/sites)''';
+
+const _customGolden = r'''
+WRITTEN BY THE APP FROM ITS NUMBERS
+WHAT IT IS
+A spot you placed 79 km from the south pole.
+79 km from the pole · elevation 1,234 m (400 m map) · 16 km from P09 · 15 km from the IAU centre of Testcrater (21 km across)
+WHAT STANDS OUT
+More Sun and Earth together than 13 of the 16 catalogue sites over your dates (23%). (approx.)
+WATCH OUT
+Longest night over your dates: 3 d 8 h, from 1 Jan 2027 00:00 UTC. (approx.)
+HOW IT COMPARES
+5th of 17 for Balanced over your dates. (approx.)
+Against P09 (16 km away): Sun and Earth together 23% here, 19% there, over your dates. (approx.)
+Long-term averages are only precomputed for the 16 catalogue sites.
+Where it is
+79 km from the south pole (-87.40°, 30.00°E).
+The nearest catalogue site is P09, 16 km to the west.
+The nearest named feature is Testcrater (21 km across); its centre is 15 km to the east.
+Ground and skyline
+Seen from 2 m up, the skyline peaks at 2.4° to the east. (approx.)
+On average the skyline sits 0.4° up. (approx.)
+What this cannot tell you
+For your own spots there are no published sources, no 18.6-year record and no lander-scale slope; the horizon and terrain come from the 400 m map on this device.''';
+
+/// Frozen uncurated preset (spec §8: exact strings for an uncurated preset).
+const _uncuratedGolden = r'''
+WRITTEN BY THE APP FROM ITS NUMBERS
+WHAT IT IS
+Artemis III candidate region.
+91 km from the pole · elevation -176 m · 12.3° slope on the LOLA 80 m map
+WHAT STANDS OUT
+More sunlight and Earth contact (DSN) together than 10 of the 15 other catalogue sites over your dates (21%).
+WATCH OUT
+Longest night over your dates: 4 d 4 h, from 1 Jan 2027 00:00 UTC.
+No Earth contact for up to 3 d 8 h at a time.
+12.3° slope at the point on the 80 m map: a rough guide, not a hazard check.
+HOW IT COMPARES
+4th of 16 for Balanced over your dates.
+Over 18.6 years at 2 m: Sun and Earth together 30% of the time, joint 6th of 16 catalogue sites.
+Where it is
+91 km from the south pole (-87.00°, -112.50°E).
+The nearest catalogue site is P02, 35 km to the west.
+Ground and skyline
+Seen from 2 m up, the skyline peaks at 1.5° toward the pole, where the ground rises right next to the spot.
+On average the skyline sits 0.8° up.
+More watch-outs
+Region centre: the candidate region is about 15 × 15 km, and other spots in it have different light.''';
 
 final _negZero = RegExp(r'-0(?:\.0+)?(?![\d.])');
 
@@ -657,6 +743,10 @@ void main() {
 
     test('frozen custom golden', () {
       expect(_goldenCustom().plainText, _customGolden);
+    });
+
+    test('frozen uncurated preset golden', () {
+      expect(_goldenUncurated().plainText, _uncuratedGolden);
     });
   });
 }

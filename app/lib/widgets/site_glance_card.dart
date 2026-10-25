@@ -155,6 +155,7 @@ class _GlanceLineView extends StatelessWidget {
     final muted = PHText.body.copyWith(color: PH.muted);
     if (line.pending) {
       return Semantics(
+        container: true,
         liveRegion: true,
         child: Padding(
           padding: const EdgeInsets.symmetric(vertical: 2),

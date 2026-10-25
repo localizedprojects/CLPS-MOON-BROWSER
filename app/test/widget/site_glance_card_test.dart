@@ -6,7 +6,6 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart' hide Interval;
-import 'package:flutter/rendering.dart' show SemanticsNode, SemanticsAction, RenderEditable; // DBGIMPORT
 import 'package:polar_horizon/widgets/site_card.dart' show FocusRingInkWell;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:polar_horizon/core/catalog.dart';
@@ -146,6 +145,13 @@ void main() {
     expect(g.curated, isTrue);
     expect(tester.getSemantics(find.text(glanceTitle)), isSemantics(isHeader: true, label: glanceTitle));
     expect(find.text(g.eyebrow), findsOneWidget);
+    // the source count is a number: Plex Mono, like every number on the card
+    final eyebrow = <TextSpan>[];
+    tester.widget<Text>(find.text(g.eyebrow)).textSpan!.visitChildren((s) {
+      if (s is TextSpan && s.text != null) eyebrow.add(s);
+      return true;
+    });
+    expect(eyebrow.any((s) => s.style?.fontFamily == PH.mono && s.text!.startsWith('${g.sources.length}')), isTrue);
     expect(find.bySemanticsLabel(g.eyebrowSpoken), findsOneWidget);
     expect(find.bySemanticsLabel(g.eyebrow), findsNothing);
     for (final (_, label, _) in g.rows) {
@@ -194,28 +200,11 @@ void main() {
   testWidgets('open: the source URLs (long-press targets) meet the 48 dp tap-target guideline', (tester) async {
     final h = tester.ensureSemantics();
     await _pump(tester, card(sr1, open: true), width: 440);
-    expect(find.byType(SelectableText), findsWidgets);
-    await tester.ensureVisible(find.byType(SelectableText).last);
+    // a screen tall enough for the whole open card, so no URL is cut by its edge
+    tester.view.physicalSize = const Size(440, 4000);
     await tester.pump();
-    for (final e in find.byType(SelectableText).evaluate()) {
-      // ignore: avoid_print
-      RenderObject? ed;
-      void v(RenderObject r) { if (r is RenderEditable) ed = r; else r.visitChildren(v); }
-      v(tester.renderObject(find.byWidget(e.widget)));
-      final sn = tester.getSemantics(find.byWidget(e.widget));
-      print('DBG ${tester.getRect(find.byWidget(e.widget))} ed=${(ed as RenderBox).size} ${(ed as RenderEditable).maxLines} sn=${sn.rect} ${sn.transform} ${sn.parent?.rect} ${(sn.parent?.parent)?.rect} ${(e.widget as SelectableText).data!.length}');
-    }
-    void walk(SemanticsNode n, Matrix4 m) {
-      final t = n.transform == null ? m : (m.clone()..multiply(n.transform!));
-      final d = n.getSemanticsData();
-      // ignore: deprecated_member_use
-      if (d.hasAction(SemanticsAction.longPress)) {
-        // ignore: avoid_print
-        print('NODE ${MatrixUtils.transformRect(t, n.rect)} merge=${n.mergeAllDescendantsIntoThisNode} ${d.value.substring(0, 20)}');
-      }
-      n.visitChildren((c) { walk(c, t); return true; });
-    }
-    walk(tester.binding.pipelineOwner.semanticsOwner!.rootSemanticsNode!, Matrix4.identity());
+    expect(find.byType(SelectableText), findsWidgets);
+    expect(tester.getRect(find.byType(SelectableText).last).bottom, lessThan(4000));
     await expectLater(tester, meetsGuideline(androidTapTargetGuideline));
     h.dispose();
   });

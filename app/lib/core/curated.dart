@@ -73,7 +73,11 @@ class CuratedCatalog {
   /// When the research was reviewed, as written in the asset.
   final String reviewed;
 
-  const CuratedCatalog({this.sites = const {}, this.features = const [], this.reviewed = ''});
+  /// The rows [parse] dropped (a wrong shape or empty text), for the log:
+  /// those sites fall back to the generated text, never to filler.
+  final List<String> skipped;
+
+  const CuratedCatalog({this.sites = const {}, this.features = const [], this.reviewed = '', this.skipped = const []});
 
   /// No curated text: every site gets the generated fallback.
   static const empty = CuratedCatalog();
@@ -81,17 +85,37 @@ class CuratedCatalog {
   bool get isEmpty => sites.isEmpty && features.isEmpty;
 
   /// Parses `curated_sites.json`. Throws [FormatException] on bad JSON, an
-  /// unknown `schema` or a wrong shape; the caller then uses [empty].
+  /// unknown `schema` or a wrong overall shape; the caller then uses [empty].
+  /// A bad row (one site or feature of the wrong shape, or a site without a
+  /// headline or overview) is dropped and named in [skipped]; the good rows
+  /// are kept.
   static CuratedCatalog parse(String json) {
     final root = jsonDecode(json);
     if (root is! Map<String, dynamic>) throw const FormatException('curated: not a JSON object');
     final schema = root['schema'];
     if (schema != schemaVersion) throw FormatException('curated: unknown schema $schema');
-    try {
-      final sites = <String, CuratedSite>{};
-      (root['sites'] as Map<String, dynamic>? ?? const {}).forEach((id, v) {
+    final rawSites = root['sites'] ?? const <String, dynamic>{};
+    final rawFeatures = root['features'] ?? const [];
+    if (rawSites is! Map<String, dynamic> || rawFeatures is! List) {
+      throw const FormatException('curated: wrong shape (sites or features)');
+    }
+    final skipped = <String>[];
+    T? row<T>(String what, T Function() read) {
+      try {
+        return read();
+      } on TypeError catch (e) {
+        skipped.add('$what ($e)');
+      } on FormatException catch (e) {
+        skipped.add('$what (${e.message})');
+      }
+      return null;
+    }
+
+    final sites = <String, CuratedSite>{};
+    rawSites.forEach((id, v) {
+      final site = row('site $id', () {
         final j = v as Map<String, dynamic>;
-        sites[id] = CuratedSite(
+        final c = CuratedSite(
           id: id,
           headline: j['headline'] as String,
           lede: j['lede'] as String,
@@ -105,11 +129,15 @@ class CuratedCatalog {
               ),
           ],
         );
+        if (c.headline.trim().isEmpty || c.overview.trim().isEmpty) throw const FormatException('empty text');
+        return c;
       });
-      double d(Object? x) => (x as num?)?.toDouble() ?? double.nan;
-      final features = [
-        for (final f in (root['features'] as List? ?? const []))
-          NamedFeature(
+      if (site != null) sites[id] = site;
+    });
+    double d(Object? x) => (x as num?)?.toDouble() ?? double.nan;
+    final features = <NamedFeature>[];
+    for (final (i, f) in rawFeatures.indexed) {
+      final feature = row('feature $i', () => NamedFeature(
             id: (f as Map<String, dynamic>)['id'] as String,
             name: f['name'] as String,
             kind: (f['kind'] ?? '') as String,
@@ -117,11 +145,9 @@ class CuratedCatalog {
             lon: d(f['lon']),
             diameterKm: d(f['diameterKm']),
             url: (f['url'] ?? '') as String,
-          ),
-      ];
-      return CuratedCatalog(sites: sites, features: features, reviewed: '${root['reviewed'] ?? ''}');
-    } on TypeError catch (e) {
-      throw FormatException('curated: wrong shape ($e)');
+          ));
+      if (feature != null) features.add(feature);
     }
+    return CuratedCatalog(sites: sites, features: features, reviewed: '${root['reviewed'] ?? ''}', skipped: skipped);
   }
 }

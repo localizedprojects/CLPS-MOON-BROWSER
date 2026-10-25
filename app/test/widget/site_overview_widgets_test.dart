@@ -284,8 +284,14 @@ void main() {
         final sky = find.textContaining('the skyline peaks at');
         expect(sky, findsOneWidget, reason: p.id);
         // Text.rich: numbers in Plex Mono, their spaces unbreakable (U+00A0)
-        final text = tester.widget<Text>(sky).textSpan!.toPlainText().replaceAll('\u00A0', ' ');
-        expect(text, isNot(contains('\u00A0')));
+        final span = tester.widget<Text>(sky).textSpan!;
+        final text = span.toPlainText().replaceAll('\u00A0', ' ');
+        var mono = false;
+        span.visitChildren((s) {
+          mono |= s is TextSpan && s.style?.fontFamily == PH.mono && RegExp(r'\d').hasMatch(s.text ?? '');
+          return true;
+        });
+        expect(mono, isTrue, reason: '${p.id}: the numbers are in Plex Mono');
         expect(text, isNot(contains('0 km away')), reason: p.id);
         expect(text.contains('right next to the spot'), p.horizonMaxDistanceKm < 1, reason: '${p.id}: $text');
       }

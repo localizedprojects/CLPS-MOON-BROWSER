@@ -6,6 +6,7 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart' hide Interval;
+import 'package:flutter/rendering.dart' show SemanticsNode, SemanticsAction; // DBGIMPORT
 import 'package:polar_horizon/widgets/site_card.dart' show FocusRingInkWell;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:polar_horizon/core/catalog.dart';
@@ -196,6 +197,21 @@ void main() {
     expect(find.byType(SelectableText), findsWidgets);
     await tester.ensureVisible(find.byType(SelectableText).last);
     await tester.pump();
+    for (final e in find.byType(SelectableText).evaluate()) {
+      // ignore: avoid_print
+      print('DBG ${tester.getRect(find.byWidget(e.widget))} ${tester.getRect(find.ancestor(of: find.byWidget(e.widget), matching: find.byType(ConstrainedBox)).first)} ${tester.view.physicalSize}');
+    }
+    void walk(SemanticsNode n, Matrix4 m) {
+      final t = n.transform == null ? m : (m.clone()..multiply(n.transform!));
+      final d = n.getSemanticsData();
+      // ignore: deprecated_member_use
+      if (d.hasAction(SemanticsAction.longPress)) {
+        // ignore: avoid_print
+        print('NODE ${MatrixUtils.transformRect(t, n.rect)} merge=${n.mergeAllDescendantsIntoThisNode} ${d.value.substring(0, 20)}');
+      }
+      n.visitChildren((c) { walk(c, t); return true; });
+    }
+    walk(tester.binding.pipelineOwner.semanticsOwner!.rootSemanticsNode!, Matrix4.identity());
     await expectLater(tester, meetsGuideline(androidTapTargetGuideline));
     h.dispose();
   });

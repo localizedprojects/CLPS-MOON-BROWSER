@@ -184,15 +184,19 @@ void main() {
     expect(find.text(glanceSourcesHeading), findsOneWidget);
     expect(find.byType(SelectableText), findsNWidgets(n));
     expect(find.text(g.sources.first.url), findsOneWidget);
-    // the URLs (long-press targets) are 48 dp too, with the card open
-    await _pump(tester, card(sr1), width: 440);
-    await tester.ensureVisible(find.byType(SelectableText).last);
-    await tester.pump();
-    await expectLater(tester, meetsGuideline(androidTapTargetGuideline));
-    await _pump(tester, card(sr1), width: 320);
 
     await _toggle(tester);
     expect(find.text(glanceAboutHeading), findsNothing);
+    h.dispose();
+  });
+
+  testWidgets('open: the source URLs (long-press targets) meet the 48 dp tap-target guideline', (tester) async {
+    final h = tester.ensureSemantics();
+    await _pump(tester, card(sr1, open: true), width: 440);
+    expect(find.byType(SelectableText), findsWidgets);
+    await tester.ensureVisible(find.byType(SelectableText).last);
+    await tester.pump();
+    await expectLater(tester, meetsGuideline(androidTapTargetGuideline));
     h.dispose();
   });
 

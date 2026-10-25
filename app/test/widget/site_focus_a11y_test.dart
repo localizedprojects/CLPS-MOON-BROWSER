@@ -92,6 +92,11 @@ void main() {
     // ignore: deprecated_member_use
     expect(md.hasFlag(SemanticsFlag.hasExpandedState), isTrue);
     expect(focusable(more), isTrue);
+    // At a glance's Details: one button node, focusable too (web Tab)
+    final details = tester.getSemantics(find.bySemanticsLabel(RegExp('^Details')));
+    // ignore: deprecated_member_use
+    expect(details.getSemanticsData().hasFlag(SemanticsFlag.isButton), isTrue);
+    expect(focusable(details), isTrue);
     h.dispose();
     await done(tester);
   });

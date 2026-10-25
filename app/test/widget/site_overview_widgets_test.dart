@@ -282,7 +282,9 @@ void main() {
         await tester.pumpAndSettle();
         final sky = find.textContaining('the skyline peaks at');
         expect(sky, findsOneWidget, reason: p.id);
-        final text = tester.widget<Text>(sky).data!;
+        // Text.rich: numbers in Plex Mono, their spaces unbreakable (U+00A0)
+        final text = tester.widget<Text>(sky).textSpan!.toPlainText().replaceAll('\u00A0', ' ');
+        expect(text, isNot(contains('\u00A0')));
         expect(text, isNot(contains('0 km away')), reason: p.id);
         expect(text.contains('right next to the spot'), p.horizonMaxDistanceKm < 1, reason: '${p.id}: $text');
       }

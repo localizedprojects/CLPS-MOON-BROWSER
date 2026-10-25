@@ -10,6 +10,7 @@ import '../core/site_glance.dart' show skylineSentence;
 import '../core/wording.dart';
 import '../theme.dart';
 import 'glyphs.dart';
+import 'site_glance_card.dart' show numSpans;
 import 'stat_bar.dart';
 
 // longTermCustomNote moved to core/wording.dart (the At a glance engine uses it); re-exported here.
@@ -28,8 +29,8 @@ class AboutSite extends StatelessWidget {
   Widget build(BuildContext context) {
     final s = site;
     final muted = PHText.small.copyWith(color: PH.muted);
-    Widget para(String text, {TextStyle? style}) =>
-        Padding(padding: const EdgeInsets.only(bottom: 10), child: Text(text, style: style ?? PHText.body));
+    Widget para(String text, {TextStyle? style}) => Padding(
+        padding: const EdgeInsets.only(bottom: 10), child: Text.rich(numSpans(text, style ?? PHText.body))); // numbers in Mono
     Widget heading(String text) => Padding(
           padding: const EdgeInsets.only(top: 6, bottom: 6),
           child: Semantics(header: true, child: Text(text, style: PHText.body.copyWith(fontWeight: FontWeight.w600))),

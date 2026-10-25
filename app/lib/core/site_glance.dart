@@ -23,7 +23,7 @@ import 'landing_wording.dart' show ordinal;
 import 'metrics.dart';
 import 'place.dart';
 import 'summary.dart' show Ranked, dateTime, spellDuration;
-import 'wording.dart' show bothMetricLabel, earthMetricLabel, longTermCustomNote, siteKindLabel, slopeText;
+import 'wording.dart' show bothMetricLabel, earthMetricLabel, longTermCustomNote, siteKindLabel;
 
 /// A longest night at or above this many hours is a watch-out.
 const double kLongNightH = 72;
@@ -335,7 +335,8 @@ SiteGlance buildSiteGlance(GlanceInputs g) {
   final facts = <String>[
     if (poleText.isNotEmpty) '$poleText from the pole',
     if (elevation.isNotEmpty) 'elevation $elevation${custom ? ' (400 m map)' : ''}',
-    if (!custom && s.slopeDeg.isFinite) '${slopeText(s)} on the LOLA 80 m map',
+    // slopeText's '4.5° slope', without a negative zero (Rule N)
+    if (!custom && s.slopeDeg.isFinite) '${_fixed(s.slopeDeg, 1)}° slope on the LOLA 80 m map',
     if (near != null && near.km <= kNearSiteKm) '${kmText(near.km)} from ${near.site.short}',
     if (custom && feature != null) '${kmText(feature.km)} from the IAU centre of ${feature.f.name}${_across(feature.f)}',
   ];

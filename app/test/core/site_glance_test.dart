@@ -104,9 +104,10 @@ SiteMetrics _m({
 List<Site> _presets() => [for (var i = 0; i < 16; i++) _preset(i)];
 
 /// Preset i: Sun and Earth together 10 + i %, sunlight and Earth 60 %,
-/// longest night 100 h.
+/// longest night 40 h (shorter than the 48 h default, so custom spots do not
+/// stand out on nights unless a test says so).
 Map<String, SiteMetrics> _presetMetrics(List<Site> ps) => {
-      for (var i = 0; i < ps.length; i++) ps[i].id: _m(both: 10.0 + i, darkH: 100),
+      for (var i = 0; i < ps.length; i++) ps[i].id: _m(both: 10.0 + i, darkH: 40),
     };
 
 HorizonMask _mask(List<double> elev) => HorizonMask(360 / elev.length, Float64List.fromList(elev));
@@ -266,7 +267,7 @@ void main() {
       expect([for (final s in g.sources) s.url],
           ['https://example.org/light', 'https://example.net/paper', 'https://example.com/sites']);
       expect(_texts(g, GlanceRow.what), ['Sunny ridge on the rim of a test crater']);
-      expect(g.factsLine, startsWith('85 km from the pole · elevation 1,733 m · 4.5° slope on the LOLA 80 m map · '));
+      expect(g.factsLine, startsWith('82 km from the pole · elevation 1,733 m · 4.5° slope on the LOLA 80 m map · '));
       expect(g.factsLine, endsWith(' km from P09'));
       expect(_texts(g, GlanceRow.why), [_curatedP08.lede]);
       expect(_row(g, GlanceRow.standsOut), isEmpty);
@@ -466,21 +467,21 @@ void main() {
           'More sunlight than any catalogue site over your dates: 70% here, 60% at P00.');
       // Earth 61 % vs presets at 60 % except two at 62 %: 14 beats Sun and Earth together's 9.
       final pm = _presetMetrics(_presets());
-      pm['p00'] = _m(both: 10, earth: 62, darkH: 100);
-      pm['p01'] = _m(both: 11, earth: 62, darkH: 100);
+      pm['p00'] = _m(both: 10, earth: 62, darkH: 40);
+      pm['p01'] = _m(both: 11, earth: 62, darkH: 40);
       expect(standsOut(buildSiteGlance(_in(_custom(), m: _m(both: 19, earth: 61), presetMetrics: pm))),
           'More Earth in view than 14 of the 16 catalogue sites over your dates (61%).');
     });
 
     test('shortest longest night', () {
-      expect(standsOut(buildSiteGlance(_in(_custom(), m: _m(both: 5, sun: 50, earth: 50, darkH: 50)))),
-          'Shorter longest night than any catalogue site over your dates: 2 d 2 h here, 4 d 4 h at P00.');
+      expect(standsOut(buildSiteGlance(_in(_custom(), m: _m(both: 5, sun: 50, earth: 50, darkH: 30)))),
+          'Shorter longest night than any catalogue site over your dates: 1 d 6 h here, 1 d 16 h at P00.');
       final pm = _presetMetrics(_presets());
       for (var i = 0; i < 4; i++) {
-        pm['p0$i'] = _m(both: 10.0 + i, darkH: 40);
+        pm['p0$i'] = _m(both: 10.0 + i, darkH: 20);
       }
-      expect(standsOut(buildSiteGlance(_in(_custom(), m: _m(both: 5, sun: 50, earth: 50, darkH: 50), presetMetrics: pm))),
-          'Shorter longest night than 12 of the 16 catalogue sites: 2 d 2 h.');
+      expect(standsOut(buildSiteGlance(_in(_custom(), m: _m(both: 5, sun: 50, earth: 50, darkH: 30), presetMetrics: pm))),
+          'Shorter longest night than 12 of the 16 catalogue sites: 1 d 6 h.');
     });
 
     test('a site that is never dark drops the night candidate (Rule N)', () {

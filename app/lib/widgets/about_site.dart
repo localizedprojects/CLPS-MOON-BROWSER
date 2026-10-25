@@ -11,13 +11,13 @@ import '../theme.dart';
 import 'glyphs.dart';
 import 'stat_bar.dart';
 
+// longTermCustomNote moved to core/wording.dart (the At a glance engine uses it); re-exported here.
+export '../core/wording.dart' show longTermCustomNote;
+
 const aboutSiteTitle = 'About this site';
 
 /// The exact label of the long-term averages (ux_build_contracts §1.4).
 const longTermLabel = '18.6-year average (2 m above ground, any part of the Sun or Earth)';
-
-/// Shown instead of the long-term averages for a custom spot.
-const longTermCustomNote = 'Long-term averages are only precomputed for the 16 catalogue sites';
 
 class AboutSite extends StatelessWidget {
   final Site site;

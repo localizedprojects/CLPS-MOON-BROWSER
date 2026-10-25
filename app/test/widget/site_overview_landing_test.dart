@@ -195,6 +195,19 @@ void main() {
       final hits = tester.hitTestOnBinding(tester.getCenter(find.byType(Scrollable).first));
       // ignore: avoid_print
       print('DBG4 ${hits.path.take(6).map((e) => e.target.runtimeType).join(' < ')}');
+      await tester.drag(find.byType(Scrollable).first, const Offset(0, -300));
+      await tester.pump(const Duration(milliseconds: 50));
+      // ignore: avoid_print
+      print('DBG5 ${sc.position.pixels}');
+      await tester.dragFrom(const Offset(4, 400), const Offset(0, -300));
+      await tester.pump(const Duration(milliseconds: 50));
+      // ignore: avoid_print
+      print('DBG6 ${sc.position.pixels} ${tester.hitTestOnBinding(tester.getCenter(find.byType(Scrollable).first)).path.take(3).map((e) => e.target.runtimeType).join(' < ')}');
+      for (final e in find.byType(Scrollable).evaluate()) {
+        final st = (e as StatefulElement).state as ScrollableState;
+        // ignore: avoid_print
+        print('DBG7 ${tester.getRect(find.byElementPredicate((x) => x == e))} ${st.position.maxScrollExtent} ${st.widget.physics} ${st.position.physics}');
+      }
       await tester.scrollUntilVisible(find.byType(AboutSite), 300, scrollable: find.byType(Scrollable).first);
       await tester.pump();
       await done(tester);

@@ -27,6 +27,7 @@ import '../../widgets/landing_window_card.dart';
 import '../../widgets/light_snapshot.dart';
 import '../../widgets/plan_for_dark_card.dart';
 import '../../widgets/site_card.dart' show FocusRingInkWell;
+import '../../widgets/site_glance_card.dart';
 import '../../widgets/stat_trio.dart';
 import '../../widgets/feature_guide.dart';
 
@@ -211,6 +212,18 @@ class SiteOverview extends StatelessWidget {
               // 3. "When should you land here?" first
               LandingWindowCard(key: ValueKey('landing-${site.id}')),
               if (s.explainInline) explainOverview,
+              // 4. At a glance: what it is, why here, watch-outs, how it compares
+              // (the custom-horizon badge already sits above)
+              if (s.selectedGlance case final g?)
+                GuideTarget(
+                  id: 'site-glance',
+                  child: SiteGlanceCard(
+                      key: ValueKey('glance-${site.id}'),
+                      glance: g,
+                      siteId: site.id,
+                      showCustomBadge: false,
+                      initiallyOpen: s.expert),
+                ),
               // 5. everything else behind "More about this site"
               GuideTarget(id: 'site-more', child: _MoreRow(metrics: m, requireDsn: dsn, open: open_, onToggle: () => s.setOverviewMoreOpen(!open_))),
               if (open_) ...[

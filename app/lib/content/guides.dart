@@ -33,6 +33,9 @@ const guideSteps = <String, List<GuideStep>>{
     GuideStep('mission-length', 'How long you stay', 'Choose how many days the surface mission lasts.'),
     GuideStep('landing-find', 'Find the best landing window',
         'Finds the earliest landing whose whole mission keeps the Sun and Earth above the skyline.'),
+    GuideStep('site-glance', 'At a glance',
+        'What this place is, why it is on the list, what to watch out for and how it ranks. Catalogue sites are '
+        'written from published sources; your own spots are described by the app from its numbers.'),
     GuideStep('site-more', 'More about this site',
         'The good-days calendar, the longest night to plan for, and the site\'s long-term record.'),
   ],

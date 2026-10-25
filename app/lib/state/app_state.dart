@@ -995,8 +995,7 @@ class AppState extends ChangeNotifier {
       ranked: _rankingDone && !stale ? rankedAll : null,
       goal: goalName(activeGoal),
       presetMetrics: {
-        for (final p in cat.sites)
-          if (metricsFor(p.id) case final pm?) p.id: pm,
+        for (final p in cat.sites) p.id: ?metricsFor(p.id),
       },
     ));
     _glanceSig = sig;

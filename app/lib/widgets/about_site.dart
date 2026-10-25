@@ -6,6 +6,7 @@ library;
 import 'package:flutter/material.dart';
 
 import '../core/catalog.dart';
+import '../core/site_glance.dart' show skylineSentence;
 import '../core/wording.dart';
 import '../theme.dart';
 import 'glyphs.dart';
@@ -33,10 +34,10 @@ class AboutSite extends StatelessWidget {
           padding: const EdgeInsets.only(top: 6, bottom: 6),
           child: Semantics(header: true, child: Text(text, style: PHText.body.copyWith(fontWeight: FontWeight.w600))),
         );
-    final skyline = !s.horizonMaxDeg.isNaN && !s.horizonMaxDistanceKm.isNaN
-        ? 'The highest skyline is ${s.horizonMaxDeg.toStringAsFixed(1)}° up, on terrain '
-            '${s.horizonMaxDistanceKm.toStringAsFixed(0)} km away.'
-        : null;
+    // the same sentence as At a glance (never '0 km away': under 1 km the
+    // ground rises right next to the spot)
+    final sky = skylineSentence(elevDeg: s.horizonMaxDeg, azDeg: s.horizonMaxAzDeg, distKm: s.horizonMaxDistanceKm);
+    final skyline = sky.isEmpty ? null : sky;
     return Card(
       margin: const EdgeInsets.symmetric(vertical: 6),
       clipBehavior: Clip.antiAlias,
@@ -55,7 +56,7 @@ class AboutSite extends StatelessWidget {
           expandedAlignment: Alignment.topLeft,
           children: [
             para('${siteKindLabel(s)} · ${slopeText(s)}'),
-            if (s.isRegionCentre) para('Approximate centre of a ~15 × 15 km candidate region.', style: muted),
+            if (s.isArtemisRegion) para('Approximate centre of a ~15 × 15 km candidate region.', style: muted),
             if (skyline != null) para(skyline),
             heading(s.custom ? 'Long-term averages' : longTermLabel),
             if (s.custom)

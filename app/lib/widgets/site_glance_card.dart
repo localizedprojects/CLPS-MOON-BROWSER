@@ -8,6 +8,8 @@
 /// WATCH OUT label, in the muted text colour.
 library;
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../core/catalog.dart' show SiteSource;
@@ -84,15 +86,33 @@ class _SiteGlanceCardState extends State<SiteGlanceCard> {
   }
 
   /// The pending lines of the same site just gave way to the result: the
-  /// header becomes a live region for this one build, so the result is
-  /// announced once (the pending lines were, the finished ones are not).
+  /// header becomes a live region saying 'updated', so the result is
+  /// announced once (the pending lines were, the finished ones are not), and
+  /// goes back to the plain heading a moment later, so a reader who reaches
+  /// it afterwards hears just its name.
   bool _settled = false;
+  Timer? _settledTimer;
 
   @override
   void didUpdateWidget(SiteGlanceCard old) {
     super.didUpdateWidget(old);
     bool pending(SiteGlance g) => g.pendingPeriod || g.pendingCompare;
-    _settled = old.siteId == widget.siteId && pending(old.glance) && !pending(widget.glance);
+    if (old.siteId == widget.siteId && pending(old.glance) && !pending(widget.glance)) {
+      _settled = true;
+      _settledTimer?.cancel();
+      _settledTimer = Timer(const Duration(seconds: 3), () {
+        if (mounted) setState(() => _settled = false);
+      });
+    } else {
+      _settledTimer?.cancel();
+      _settled = false;
+    }
+  }
+
+  @override
+  void dispose() {
+    _settledTimer?.cancel();
+    super.dispose();
   }
 
   @override

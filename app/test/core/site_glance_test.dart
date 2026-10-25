@@ -244,7 +244,7 @@ A ridge that the Sun grazes for most of the year. It sees Earth often. Studies n
 Where it is
 82 km from the south pole (-87.30°, 18.00°E).
 The nearest catalogue site is P09, 11 km away from the pole.
-The nearest named feature is Testcrater (21 km across); its centre is 13 km to the west.
+The nearest named feature is Testcrater (21 km across in the IAU gazetteer); its centre is 13 km to the west.
 Ground and skyline
 Seen from 2 m up, the skyline peaks at 3.1° to the west, on terrain 9.8 km away.
 On average the skyline is below level (-0.78°): the ground falls away in most directions.
@@ -263,13 +263,13 @@ More Sun and Earth together than 13 of the 16 catalogue sites over your dates (2
 WATCH OUT
 Longest night over your dates: 3 d 8 h, from 1 Jan 2027 00:00 UTC. (approx.)
 HOW IT COMPARES
-5th of 17 sites, including your 1 spot, for Balanced over your dates. (approx.)
+5th of 17 sites, including your spot, for Balanced over your dates. (approx.)
 Against P09 (16 km away): Sun and Earth together 23% here, 19% there, over your dates. (approx.)
 Long-term averages are only precomputed for the 16 catalogue sites.
 Where it is
 79 km from the south pole (-87.40°, 30.00°E).
 The nearest catalogue site is P09, 16 km to the west.
-The nearest named feature is Testcrater (21 km across); its centre is 15 km to the east.
+The nearest named feature is Testcrater (21 km across in the IAU gazetteer); its centre is 15 km to the east.
 Ground and skyline
 Seen from 2 m up, the skyline peaks at 2.4° to the east. (approx.)
 On average the skyline sits 0.4° up. (approx.)
@@ -404,7 +404,7 @@ void main() {
         ]));
         expect(g.factsLine!.contains('60 km from the IAU centre of Fcrater (21 km across)'), shown, reason: '$km');
         final where = [for (final l in _group(g, glanceWhereHeading)) l.text];
-        expect(where.contains('The nearest named feature is Fcrater (21 km across); its centre is 60 km toward the pole.'),
+        expect(where.contains('The nearest named feature is Fcrater (21 km across in the IAU gazetteer); its centre is 60 km toward the pole.'),
             shown,
             reason: '$km: $where');
         expect(g.plainText.contains('inside'), isFalse);
@@ -432,7 +432,7 @@ void main() {
       String whereLine(CuratedSite? c) =>
           _group(buildSiteGlance(_in(site, curated: c, features: const [f])), glanceWhereHeading).last.text;
       expect(whereLine(cur), startsWith('The nearest named feature is Fcrater; its centre is '));
-      expect(whereLine(null), startsWith('The nearest named feature is Fcrater (21 km across); its centre is '));
+      expect(whereLine(null), startsWith('The nearest named feature is Fcrater (21 km across in the IAU gazetteer); its centre is '));
     });
 
     test('statesSizeOf: a size given for the feature itself, not for a longer name', () {
@@ -676,7 +676,7 @@ void main() {
       final g = buildSiteGlance(_in(_custom(lat: -86.5, lon: 0), m: _m(both: 31)));
       final lines = _row(g, GlanceRow.compare);
       expect([for (final l in lines) l.text], [
-        '17th of 17 sites, including your 1 spot, for Balanced over your dates.',
+        '17th of 17 sites, including your spot, for Balanced over your dates.',
         'Against P08 (15 km away): Sun and Earth together 31% here, 18% there, over your dates.',
         '$longTermCustomNote.',
       ]);

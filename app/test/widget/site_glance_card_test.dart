@@ -297,6 +297,14 @@ void main() {
     await tester.pumpWidget(_host(card(sr1), width: 360));
     expect(tester.getSemantics(find.text(glanceTitle)), isSemantics(isLiveRegion: false, label: glanceTitle));
 
+    // with nothing rebuilding the card, the heading goes back to its plain
+    // name a moment later, so a reader who reaches it then hears no 'updated'
+    await tester.pumpWidget(_host(card(sr1, stale: true), width: 360));
+    await tester.pumpWidget(_host(card(sr1), width: 360));
+    expect(tester.getSemantics(find.text(glanceTitle)), isSemantics(isLiveRegion: true, label: glanceUpdatedSemantics));
+    await tester.pump(const Duration(seconds: 3));
+    expect(tester.getSemantics(find.text(glanceTitle)), isSemantics(isLiveRegion: false, label: glanceTitle));
+
     await _pump(tester, card(sr1, withRank: false));
     expect(find.text(glanceComparingText), findsOneWidget);
     expect(tester.getSemantics(find.text(glanceComparingText)), isSemantics(isLiveRegion: true));

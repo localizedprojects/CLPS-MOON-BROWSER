@@ -247,6 +247,17 @@ void main() {
       expect(find.text(longTermCustomNote), findsNothing);
     });
 
+    testWidgets('a source URL (a long-press target) is at least 48 dp tall', (tester) async {
+      final handle = tester.ensureSemantics();
+      await _pump(tester, const AboutSite(site: preset));
+      await tester.tap(find.text(aboutSiteTitle));
+      await tester.pumpAndSettle();
+      expect(tester.getSize(find.ancestor(of: find.byType(SelectableText), matching: find.byType(ConstrainedBox)).first).height,
+          greaterThanOrEqualTo(48));
+      await expectLater(tester, meetsGuideline(androidTapTargetGuideline));
+      handle.dispose();
+    });
+
     testWidgets('custom: the note, the slope text and the approximation badge', (tester) async {
       await _pump(tester, const AboutSite(site: custom), width: 320, textScale: 2);
       await tester.tap(find.text(aboutSiteTitle));

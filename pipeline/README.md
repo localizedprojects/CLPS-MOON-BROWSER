@@ -117,7 +117,7 @@ Run every command from `pipeline/` with the project's Python environment active,
 | build all | `python -m lunarsp.build all` (also the default with no step) | all of the above | ephem, then sites, then validate, then fixtures | 5-6 min |
 | curated | `python -m lunarsp.curated` (`--check` only compares) | `pipeline/research/site_overviews_verified.json`, `site_research_verified.json`, `app/assets/data/sites.json` | `app/assets/data/curated_sites.json` | under 1 s; needs no downloads |
 | Horizons refresh | `python -m lunarsp.horizons --refresh` | JPL Horizons web service (`ssd.jpl.nasa.gov`) | `pipeline/validation/horizons_cache/*.json` | network-bound; only needed to re-query |
-| tests | `python -m pytest` | everything above when present | nothing | about 1-3 min, 545 tests (544 pass, 1 skipped without PyYAML) |
+| tests | `python -m pytest` | everything above when present | nothing | about 1-3 min, 586 tests (585 pass, 1 skipped without PyYAML) |
 
 What each stage does, in plain words:
 - **fetch** downloads in parallel 2 MiB pieces (up to 24 connections), because NASA's servers slow each connection. A file appears under its real name only when complete; an interrupted download resumes. Complete files are skipped. Sizes are checked, and each fresh download is checked against its pinned SHA-256 checksum (a mismatch deletes it).
@@ -148,11 +148,11 @@ Sizes were measured on the committed files on 2026-10-11. "Encoding" comes from 
 | `app/assets/data/map/psr.webp` | `basemap.py` | WebP RGBA: permanently shadowed regions (average Sun visibility = 0), 480 m per pixel, quality 90 | 108,998 B | `app/lib/state/app_state.dart` (loaded by its key in `map.json`), `widgets/map_view.dart` |
 | `app/assets/data/map/dem_400m.bin.gz` | `basemap.py` | 1520 × 1520 int16 heights at 400 m per pixel, "planar-split" (each value stored as its difference from a prediction, low bytes then high bytes) and gzip | 2,110,365 B | `app/lib/state/app_state.dart` (file name from the `dem` block of `map.json`), decoded by `decodeDem` in `app/lib/state/dem_load.dart` with `PolarGrid.decodePlanarSplit` in `app/lib/core/dem.dart`; tests `dem_horizon_test.dart`, `shadow_test.dart`, `light_engine_test.dart` |
 | `app/assets/data/map/map.json` | `basemap.py` | JSON, indent 1: map extent (half-width 304 km), each layer's file, pixel size and source, the DEM encoding | 1,541 B | `app/lib/state/app_state.dart`; tests `dem_horizon_test.dart`, `shadow_test.dart`, `light_engine_test.dart` |
-| `app/assets/data/curated_sites.json` | `curated.py` | JSON, indent 1, sorted keys, no time stamp: per preset a headline, a lede (whole leading sentences, at most 230 characters), the overview and its sources (`titled: false` when only the host name is known), plus the IAU feature centres with their diameters | 32,576 B (added 2026-10-25, not in the total below) | `app/lib/core/curated.dart`, loaded by `app/lib/state/app_state.dart` |
+| `app/assets/data/curated_sites.json` | `curated.py` | JSON, indent 1, sorted keys, no time stamp: per preset a headline, a lede (whole leading sentences, at most 230 characters), the overview and its sources (`titled: false` when only the host name is known), plus the IAU feature centres with their diameters | 33,873 B | `app/lib/core/curated.dart`, loaded by `app/lib/state/app_state.dart` |
 | `app/test/fixtures/spice_truth.json` | `fixtures.py` | Compact JSON: 1000 SPICE az/el cases, 64 visible-fraction cases (40 random + 24 fixed cases across the 0/360° seam), coarse horizons at 3 sites on the 400 m DEM, and 30-day hourly series at 2 sites | 933,228 B | `app/test/core/spice_truth_test.dart`, `dem_horizon_test.dart`, `series_metrics_test.dart` (also checked by `pipeline/tests/test_visibility.py`) |
 | `app/assets/data/renders/` (70 files: 16 sites × `best.webp` + `night.webp`, `manifest.json`, and `overview/` with 36 `frame_XX.webp` + `overview.json`) | `render_post.py`, `render_overview_post.py` | WebP images and JSON | 2,269,943 B in total (site images 9,622-30,384 B each; frames 28,162-61,358 B) | **Not bundled and not read.** `app/pubspec.yaml` lists only `assets/data/`, `ephem/`, `dsn/` and `map/`, and Flutter does not include sub-folders that are not listed, so `renders/` is left out of the app |
 
-The bundled files (everything except `renders/`) add up to 6,955,883 bytes, the "about 7 MB" in the README.
+The bundled files (everything except `renders/`) add up to 6,989,756 bytes, the "about 7 MB" in the README.
 
 ## How accurate is it
 
@@ -211,7 +211,7 @@ The Python package lives in `pipeline/lunarsp/`. Every file is listed below, gro
 - **Azimuth / elevation:** compass direction (clockwise from north) and height above the level horizon, in degrees.
 - **DSN:** NASA's Deep Space Network, the three big dish sites (Goldstone, Madrid, Canberra) that talk to spacecraft.
 
-The test counts below are what `python -m pytest --collect-only` collects at this commit (545 in total). "Needs kernels" or "needs DEMs" means those tests are skipped, not failed, on a fresh clone that has not run `python -m lunarsp.fetch`.
+The test counts below are what `python -m pytest --collect-only` collects at this commit (586 in total). "Needs kernels" or "needs DEMs" means those tests are skipped, not failed, on a fresh clone that has not run `python -m lunarsp.fetch`.
 
 #### Setup and downloads
 
@@ -419,7 +419,7 @@ The tests check each piece of the pipeline against something independent of it: 
 
 The kernels and DEMs are about 450 MB of downloads that live in the cache (`~/.cache/lunar-sp`, or `$LUNAR_SP_CACHE`), never in the repository. A test that needs them is **skipped** on a fresh copy instead of failing. Tests that need only the committed data (`app/assets/data/`, `app/test/fixtures/`, `pipeline/validation/horizons_cache/`) always run.
 
-Run all of them from `pipeline/` with `python -m pytest` (`pipeline/pytest.ini` points pytest at `tests/`). It collects **545 tests**. With all data downloaded, 544 pass and 1 is skipped when PyYAML is not installed. A full run takes about 1-3 minutes on the development laptop. The `pipeline` job in `.github/workflows/ci.yml` runs `python -m pytest -q` on every push to `main` and every pull request, without the downloads. To run one file, use `python -m pytest tests/<file>.py`.
+Run all of them from `pipeline/` with `python -m pytest` (`pipeline/pytest.ini` points pytest at `tests/`). It collects **586 tests**. With all data downloaded, 585 pass and 1 is skipped when PyYAML is not installed. A full run takes about 1-3 minutes on the development laptop. The `pipeline` job in `.github/workflows/ci.yml` runs `python -m pytest -q` on every push to `main` and every pull request, without the downloads. To run one file, use `python -m pytest tests/<file>.py`.
 
 The counts below are the number of tests pytest collects from each file. Where a test is "parametrized" (run once per input from a list), the count is larger than the number of test functions.
 

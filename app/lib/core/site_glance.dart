@@ -273,8 +273,12 @@ bool statesSizeOf(String text, String name) {
   return false;
 }
 
-/// ' (21 km across)' or ''.
-String _across(NamedFeature f) => f.diameterKm.isFinite && f.diameterKm > 0 ? ' (${kmText(f.diameterKm)} across)' : '';
+/// ' (21 km across)' or ''; with [gazetteer], ' (21 km across in the IAU
+/// gazetteer)', so it reads apart from a different published size (Mons
+/// Mouton: about 100 km in the IAU's naming release, 130 km in the gazetteer).
+String _across(NamedFeature f, {bool gazetteer = false}) => f.diameterKm.isFinite && f.diameterKm > 0
+    ? ' (${kmText(f.diameterKm)} across${gazetteer ? ' in the IAU gazetteer' : ''})'
+    : '';
 
 /// The skyline's highest point in one sentence: 'Seen from 2 m up, the
 /// skyline peaks at 3.1° toward the pole, on terrain 9.8 km away.' The end is
@@ -456,7 +460,7 @@ SiteGlance buildSiteGlance(GlanceInputs g) {
       final presetIds = {for (final p in presets) p.id};
       final mine = r.where((x) => !presetIds.contains(x.id)).length;
       final goal = g.goal.trim();
-      final of = mine == 0 ? '' : ' sites, including your $mine spot${mine == 1 ? '' : 's'},';
+      final of = mine == 0 ? '' : ' sites, including ${mine == 1 ? 'your spot' : 'your $mine spots'},';
       cmp.add(GlanceLine('${ordinal(i + 1)} of ${r.length}$of${goal.isEmpty ? '' : ' for $goal'} over your dates.',
           approximate: custom || r.take(i).any((x) => !presetIds.contains(x.id))));
     }
@@ -512,7 +516,7 @@ SiteGlance buildSiteGlance(GlanceInputs g) {
     // The checked text gives its own size for a feature it describes; a
     // second, different figure (the Gazetteer's) would contradict it on the
     // same card.
-    final size = cur != null && statesSizeOf(cur.overview, feature.f.name) ? '' : _across(feature.f);
+    final size = cur != null && statesSizeOf(cur.overview, feature.f.name) ? '' : _across(feature.f, gazetteer: true);
     where.add(GlanceLine('The nearest named feature is ${feature.f.name}$size; '
         'its centre is ${kmText(feature.km)} ${dir.isEmpty ? 'away' : dir}.'));
   }

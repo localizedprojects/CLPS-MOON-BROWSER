@@ -84,9 +84,16 @@ class AboutSite extends StatelessWidget {
                     Text(src.title, style: PHText.body.copyWith(fontWeight: FontWeight.w500)),
                     if (src.says.isNotEmpty) Text(src.says, style: PHText.small),
                     // own storage key: the text field's scroll offset must not
-                    // share a page-storage slot with the tile or the list
+                    // share a page-storage slot with the tile or the list; a
+                    // long-press target, so one node at least 48 dp tall
                     if (src.url.isNotEmpty)
-                      KeyedSubtree(key: PageStorageKey('source-url-$i'), child: SelectableText(src.url, style: muted)),
+                      MergeSemantics(
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(minHeight: 48),
+                          child: KeyedSubtree(
+                              key: PageStorageKey('source-url-$i'), child: SelectableText(src.url, style: muted)),
+                        ),
+                      ),
                   ]),
                 ),
             ],

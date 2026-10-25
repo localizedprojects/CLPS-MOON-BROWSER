@@ -16,8 +16,7 @@ void main() {
       final runs = numberRuns(s);
       expect(runs.map((r) => r.text).join(), s);
       for (var i = 1; i < runs.length; i++) {
-        expect(runs[i].number && runs[i - 1].number && !runs[i].text.startsWith(' '), isFalse,
-            reason: 'two number runs touch in "$s"');
+        expect(runs[i].number && runs[i - 1].number, isFalse, reason: 'two number runs touch in "$s"');
         expect(!runs[i].number && !runs[i - 1].number, isFalse, reason: 'text runs are merged in "$s"');
       }
     }

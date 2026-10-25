@@ -1,3 +1,4 @@
+import 'package:flutter/gestures.dart';
 // Site › Overview with the landing card first (docs/ux_landing_window_spec.md
 // 3.1 and 5): kind line, badges, the card, then "More about this site",
 // collapsed by default, with the hero not built until it opens; expert mode
@@ -194,11 +195,29 @@ void main() {
       print('DBG3 ${find.byType(AboutSite).evaluate().length} ${tester.getRect(find.byType(Scrollable).first)} ${sc.position.pixels} ${sc.position.maxScrollExtent} ${sc.widget.axisDirection}');
       final hits = tester.hitTestOnBinding(tester.getCenter(find.byType(Scrollable).first));
       // ignore: avoid_print
-      print('DBG4 ${hits.path.take(6).map((e) => e.target.runtimeType).join(' < ')}');
-      await tester.drag(find.byType(Scrollable).first, const Offset(0, -300));
+      print('DBG4 ${hits.path.map((e) => e.target.runtimeType).join(' < ')}');
+      for (final e in find.byType(Scrollable).evaluate().skip(1)) {
+        final st = (e as StatefulElement).state as ScrollableState;
+        final p = st.position;
+        // ignore: avoid_print
+        print('DBG8 ${tester.getRect(find.byElementPredicate((x) => x == e))} px=${p.pixels} min=${p.minScrollExtent} max=${p.maxScrollExtent} vp=${p.viewportDimension} accept=${p.physics.shouldAcceptUserOffset(p)}');
+      }
+      final g = await tester.startGesture(tester.getCenter(find.byType(Scrollable).first));
+      await g.moveBy(const Offset(0, -20));
+      // ignore: avoid_print
+      print('DBG5a ${sc.position.pixels} focus=${FocusManager.instance.primaryFocus}');
+      await g.moveBy(const Offset(0, -280));
+      await tester.pump();
+      // ignore: avoid_print
+      print('DBG5b ${sc.position.pixels}');
+      await g.up();
       await tester.pump(const Duration(milliseconds: 50));
       // ignore: avoid_print
-      print('DBG5 ${sc.position.pixels}');
+      print('DBG5c ${sc.position.pixels} focus=${FocusManager.instance.primaryFocus}');
+      await tester.pump(const Duration(milliseconds: 500));
+      // ignore: avoid_print
+      print('DBG5d ${sc.position.pixels}');
+      debugPrintGestureArenaDiagnostics = false;
       await tester.dragFrom(const Offset(4, 400), const Offset(0, -300));
       await tester.pump(const Duration(milliseconds: 50));
       // ignore: avoid_print

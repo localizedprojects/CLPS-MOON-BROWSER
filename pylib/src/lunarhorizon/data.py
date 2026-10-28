@@ -32,7 +32,10 @@ __all__ = [
 
 NAIF = "https://naif.jpl.nasa.gov/pub/naif/generic_kernels"
 LOLA_GDR = "https://pds-geosciences.wustl.edu/lro/lro-l-lola-3-rdr-v1/lrolol_1xxx/data/lola_gdr/polar/img"
-LOLA_EXTRAS = "https://imbrium.mit.edu/EXTRAS/ILLUMINATION/IMG"
+#: LOLA illumination products (AVGVISIB) on NASA's PDS Geosciences Node. The LOLA
+#: team's server https://imbrium.mit.edu/EXTRAS/ILLUMINATION/IMG mirrors the same
+#: files (same sizes and SHA-256); the PDS copy is the archive of record.
+LOLA_EXTRAS = "https://pds-geosciences.wustl.edu/lro/lro-l-lola-3-rdr-v1/lrolol_1xxx/extras/illumination/img"
 
 
 @dataclass(frozen=True)
@@ -124,10 +127,10 @@ DEMS: dict[str, RemoteFile] = {
                         "ae3afc3c75c33d43666ca06c83ca08f0b12ef03b7d36d2d791d972730794391b",
                         "120 m/px, 75S..90S: source of the bundled 400 m DEM's ring beyond 80S "
                         "(provenance only; not fetched by \"dems\")"),
-    "avgvis_sun": _d("avgvis_sun", f"{LOLA_EXTRAS}/AVGVISIB_75S_120M_201608.IMG", "avgvisib_75s_120m_sun.img",
+    "avgvis_sun": _d("avgvis_sun", f"{LOLA_EXTRAS}/avgvisib_75s_120m_201608.img", "avgvisib_75s_120m_sun.img",
                      116_250_752, "a354543b62871227a5066077f5ac61ed7e8dabd5268eb5a5aa4b147aa5bba61e",
                      "LOLA average Sun visibility (cross-check only)"),
-    "avgvis_earth": _d("avgvis_earth", f"{LOLA_EXTRAS}/AVGVISIB_75S_120M_201608_EARTH.IMG",
+    "avgvis_earth": _d("avgvis_earth", f"{LOLA_EXTRAS}/avgvisib_75s_120m_201608_earth.img",
                        "avgvisib_75s_120m_earth.img", 116_250_752,
                        "443ad251a480dea19e96417dfcfe1cb87a91eb02ee158b262d78abe899258fff",
                        "LOLA average Earth visibility (cross-check only)"),

@@ -91,9 +91,9 @@ class LightGrids {
   /// (and so must its ring, `(demSize - regionSizePx) / 2`): the 1.6 km grid
   /// is a whole number of DEM pixels and stays centred on the pole.
   LightGrids(Int16List heights, int demSize, double demPxM, {int? regionSizePx})
-      : region = ShadowGrid.fromHeights(heights, demSize, demPxM, downsample: 2),
-        fine = ShadowGrid.fromHeights(heights, demSize, demPxM, downsample: 1),
-        coarse = ShadowGrid.fromHeights(heights, demSize, demPxM, downsample: 4),
+      : region = ShadowGrid.fromHeights(heights, demSize, demPxM, downsample: 2, refSizePx: regionSizePx),
+        fine = ShadowGrid.fromHeights(heights, demSize, demPxM, downsample: 1, refSizePx: regionSizePx),
+        coarse = ShadowGrid.fromHeights(heights, demSize, demPxM, downsample: 4, refSizePx: regionSizePx),
         regionSizePx = _checkRegion(demSize, regionSizePx);
   LightGrids._(this.region, this.fine, this.coarse, this.regionSizePx);
 
@@ -110,11 +110,11 @@ class LightGrids {
   static Future<LightGrids> sliced(Int16List heights, int demSize, double demPxM,
       {required Future<void> Function() pause, int? regionSizePx}) async {
     final r = _checkRegion(demSize, regionSizePx);
-    final region = ShadowGridBuilder(heights, demSize, demPxM, downsample: 2);
+    final region = ShadowGridBuilder(heights, demSize, demPxM, downsample: 2, refSizePx: r);
     await runSliced(region.step, pause: pause);
-    final fine = ShadowGridBuilder(heights, demSize, demPxM, downsample: 1);
+    final fine = ShadowGridBuilder(heights, demSize, demPxM, downsample: 1, refSizePx: r);
     await runSliced(fine.step, pause: pause);
-    final coarse = ShadowGridBuilder(heights, demSize, demPxM, downsample: 4);
+    final coarse = ShadowGridBuilder(heights, demSize, demPxM, downsample: 4, refSizePx: r);
     await runSliced(coarse.step, pause: pause);
     return LightGrids._(region.grid, fine.grid, coarse.grid, r);
   }

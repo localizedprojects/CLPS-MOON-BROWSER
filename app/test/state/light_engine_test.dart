@@ -262,8 +262,9 @@ void main() {
     test('the IM-1 Odysseus close-up (80.13 S) is centred, with real terrain and shadows north of 80 S', () {
       final im1 = catalog.sites.firstWhere((s) => s.id == 'im-1-odysseus-landed');
       for (final coarse in [false, true]) {
-        final f = computeLightFrame(
-            grids, LightRequest(closeUp: true, lat: im1.lat, lon: im1.lon, sun: sun, earth: earth, tMs: 0, coarse: coarse));
+        // a low Sun over IM-1's meridian (about 2 deg up at 80 S): lit slopes and long shadows
+        final f = computeLightFrame(grids,
+            LightRequest(closeUp: true, lat: im1.lat, lon: im1.lon, sun: lightAt(-8, 0, 1.5e8), earth: earth, tMs: 0, coarse: coarse));
         final side = coarse ? closeUpPx ~/ 2 : closeUpPx;
         expect(f.size, side);
         final (fr, fc) = f.pixelOf(im1.lat, im1.lon);
@@ -305,13 +306,12 @@ void main() {
             expect((f.x0M, f.y0M, f.size), (-info.innerHalfWidthM, info.innerHalfWidthM, coarse ? 380 : 760));
             expect(lightFrameShares(f).inside, 1.0);
           }
-          // the same terrain inside 80 S. Differences: shadows cast from beyond
-          // 80 S, and shadow edges, since the rotated sweep lattice is centred on
-          // the larger grid (a half-sample shift when ceil(n * sqrt2) changes parity)
+          // the same terrain inside 80 S, sampled on the same lattice
+          // (ShadowGrid.sweepRefSize): only shadows cast from beyond 80 S differ
           final a = agree(f, g);
           // ignore: avoid_print
           print('SR1 closeUp $closeUp coarse $coarse: ${(100 * a).toStringAsFixed(3)}% of pixels unchanged');
-          expect(a, greaterThan(0.97));
+          expect(a, closeUp ? 1.0 : greaterThan(0.99));
         }
       }
     });

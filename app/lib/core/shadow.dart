@@ -38,15 +38,26 @@ class ShadowGrid {
   final double pxM; // pixel size in map metres
   final Float32List z; // metres above the pole tangent plane (curvature included)
 
-  ShadowGrid.fromZ(this.size, this.pxM, this.z) : assert(z.length == size * size);
+  /// Side (px) of the pole-centred grid the light sweep's sampling lattice is
+  /// anchored to ([size] by default). A grid that extends a smaller one (the
+  /// DEM to 75 S around the 80-90 S block) passes the smaller side, so the
+  /// rotated samples fall on the same spots relative to the pole as on the
+  /// smaller grid and its results inside that block do not shift by half a
+  /// sample (they change only where terrain beyond it casts shadows).
+  final int sweepRefSize;
+
+  ShadowGrid.fromZ(this.size, this.pxM, this.z, {int? sweepRefSize})
+      : sweepRefSize = sweepRefSize ?? size,
+        assert(z.length == size * size);
 
   /// Build from the shipped 400 m DEM, block-averaged by [downsample].
-  factory ShadowGrid.fromDem(PolarGrid dem, {int downsample = 2}) =>
-      ShadowGrid.fromHeights(dem.heights, dem.size, dem.scaleM, downsample: downsample);
+  /// [refSizePx] (DEM pixels): see [sweepRefSize].
+  factory ShadowGrid.fromDem(PolarGrid dem, {int downsample = 2, int? refSizePx}) =>
+      ShadowGrid.fromHeights(dem.heights, dem.size, dem.scaleM, downsample: downsample, refSizePx: refSizePx);
 
   /// Same as [ShadowGrid.fromDem] from the raw height array (isolate-friendly).
-  factory ShadowGrid.fromHeights(Int16List heights, int demSize, double demPxM, {int downsample = 2}) {
-    final b = ShadowGridBuilder(heights, demSize, demPxM, downsample: downsample);
+  factory ShadowGrid.fromHeights(Int16List heights, int demSize, double demPxM, {int downsample = 2, int? refSizePx}) {
+    final b = ShadowGridBuilder(heights, demSize, demPxM, downsample: downsample, refSizePx: refSizePx);
     b.step(b.n);
     return b.grid;
   }
@@ -83,7 +94,10 @@ class ShadowGridBuilder {
   final Float32List _z;
   int _r = 0;
 
-  ShadowGridBuilder(this.heights, this.demSize, double demPxM, {this.downsample = 2})
+  /// See [ShadowGrid.sweepRefSize] (in DEM pixels; null: the whole DEM).
+  final int? refSizePx;
+
+  ShadowGridBuilder(this.heights, this.demSize, double demPxM, {this.downsample = 2, this.refSizePx})
       : n = demSize ~/ downsample,
         px = demPxM * downsample,
         _z = Float32List((demSize ~/ downsample) * (demSize ~/ downsample));
@@ -115,7 +129,7 @@ class ShadowGridBuilder {
 
   ShadowGrid get grid {
     if (!done) throw StateError('ShadowGridBuilder: ${n - _r} rows left');
-    return ShadowGrid.fromZ(n, px, _z);
+    return ShadowGrid.fromZ(n, px, _z, sweepRefSize: refSizePx == null ? null : refSizePx! ~/ downsample);
   }
 }
 
@@ -203,7 +217,10 @@ class _CastJob {
     ay = d.y / hLen; // (dcol, drow); row axis points to -y
     bx = -ay;
     by = ax;
-    final w = (n * math.sqrt2).ceil() + 2;
+    // the lattice's offset from the pole depends on the parity of w: match
+    // the reference grid's (ShadowGrid.sweepRefSize)
+    var w = (n * math.sqrt2).ceil() + 2;
+    if (g.sweepRefSize != n && (w - ((g.sweepRefSize * math.sqrt2).ceil() + 2)).isOdd) w++;
     half = n / 2.0;
     hw = w / 2.0;
     // rotated rows i0..i1 cross the window; samples beyond jEnd are downstream of it

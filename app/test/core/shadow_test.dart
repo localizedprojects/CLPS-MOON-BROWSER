@@ -262,6 +262,8 @@ void main() {
     final mapMeta = (jsonDecode(File('assets/data/map/map.json').readAsStringSync()) as Map<String, dynamic>)['dem'] as Map;
     final dem = PolarGrid.decodePlanarSplit(
         File('assets/data/map/dem_400m.bin.gz').readAsBytesSync(), mapMeta['size'] as int, (mapMeta['pxM'] as num).toDouble());
+    // the engine's grids: the whole DEM (to about 75 S), sweep lattice anchored to the 80-90 S block
+    final inner = DemInfo.fromJson(mapMeta).innerSize;
     final catalog = SiteCatalog.parse(
         File('assets/data/sites.json').readAsStringSync(), File('assets/data/horizons.json').readAsStringSync());
     late Ephemeris eph;
@@ -272,12 +274,12 @@ void main() {
     });
 
     test('shadow map vs ray-marched horizons at 16 sites x 60 moments', () {
-      final g = ShadowGrid.fromDem(dem, downsample: 1); // 400 m, same DEM as custom sites
+      final g = ShadowGrid.fromDem(dem, downsample: 1, refSizePx: inner); // 400 m, same DEM as custom sites
       final sw = Stopwatch()..start();
       var agreeCoarse = 0, agreeFine = 0, total = 0, frames = 0;
       final rnd = math.Random(7);
       final t0 = DateTime.utc(2026, 10, 9).millisecondsSinceEpoch.toDouble();
-      final g800 = ShadowGrid.fromDem(dem, downsample: 2); // the region view's grid
+      final g800 = ShadowGrid.fromDem(dem, downsample: 2, refSizePx: inner); // the region view's grid
       var agree800Coarse = 0, agree800Fine = 0, ms800 = 0;
       final coarse = {for (final s in catalog.sites) s.id: computeCoarseHorizon(dem, s.lat, s.lon, observerHeightsM: const [2.0])};
       for (var k = 0; k < 60; k++) {
@@ -317,7 +319,7 @@ void main() {
       expect(agreeCoarse / total, greaterThan(0.9));
       expect(agreeFine / total, greaterThan(0.8));
       // the app renders the 800 m grid; time one frame there
-      final g2 = ShadowGrid.fromDem(dem, downsample: 2);
+      final g2 = ShadowGrid.fromDem(dem, downsample: 2, refSizePx: inner);
       final sw2 = Stopwatch()..start();
       computeLightField(g2, eph.sun(t0), eph.earth(t0));
       // ignore: avoid_print

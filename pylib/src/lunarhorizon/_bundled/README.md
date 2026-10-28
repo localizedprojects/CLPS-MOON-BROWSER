@@ -52,5 +52,5 @@ Regenerate this table after re-copying (`tests/test_bundled_matches_app.py` chec
 | `ephem/manifest.json` | 3,607 | `6c23d0469929881e2f7abb5e5061e21459665b59fc2413fa9886fa04a48adcd7` |
 | `horizons.json` | 242,114 | `5478042dfd95f3cbfd0c462b421a57c8ed7ec6281b135ada8c3979e0704a4de0` |
 | `map/dem_400m.bin.gz` | 4,694,460 | `71d285a32a4c1410ffed5c4d8bc62ea8ed04625f443d6f72997fa5d8b0208dbf` |
-| `map/map.json` | 2,594 | `ecae023bcee2779e16d8f321a9c81925e4b53870bf72776d153156b232e353f2` |
+| `map/map.json` | 3,587 | `dec5ebbe43c177e604047169009b966510bf849323e3b702a7abcdceceb3cc79` |
 | `sites.json` | 31,333 | `aa84c2a4835bb3f01e87f2a52bdb3801eed77f2e46262b6d044094287a6b288b` |

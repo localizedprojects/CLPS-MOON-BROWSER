@@ -3,6 +3,37 @@
 All notable changes to `lunar-horizon` (import `lunarhorizon`). Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## Unreleased (2026-10-28)
+
+Follows the app's 400 m DEM extension to about 75 S (IM-1 Odysseus, landed at 80.13 S, sat
+on the close-up map's top edge because the on-device terrain ended at 80 S).
+
+- **Bundled 400 m DEM to about 75 S**: `_bundled/map/dem_400m.bin.gz` is now 2280 x 2280 px
+  (half-width 456 km; corners about 69 S) and `map.json`'s `dem` entry has an `inner` block
+  (offset 380 px, 1520 px). The inner block (80-90 S, LOLA `LDEM_80S_80M` 5 x 5 block means)
+  is byte-identical to before; the ring is LOLA `LDEM_75S_120M` by exact area-overlap means.
+  New `terrain.DemInfo` / `app_dem_info()` read and check that entry like the app's
+  `DemInfo.fromJson`; `app_dem()` is the 2280 px raster. The package is about 7.4 MB.
+- **Horizons and shadows see terrain beyond 80 S**: custom-site coarse horizons and the light
+  and shadow map use the whole DEM.
+- **Sweep reference** (`ShadowGrid.sweep_ref_size`, Dart `ShadowGrid.sweepRefSize`): the
+  shadow sweep's lattice is anchored to the inner 80-90 S block, so the flags there match
+  the app.
+- **Region window** (`ShadowGrid.region_window()`, Dart `LightGrids.regionWindow`): the
+  whole-region light map stays on 80-90 S (760 px of 800 m), as in the app; close-ups
+  (320 px) may now reach past 80 S.
+- **Custom sites**: `Site.custom(..., dem="app")` and `check_site_latlon` take the app's rule
+  `-90 <= lat <= -80.01` (`customMaxLatDeg`, `customLatAllowed`), so -80.0 and -80.005 are
+  refused and -80.01 is accepted (was `-90 <= lat < -80`); `APP_DEM_LAT_LIMIT_DEG` = -80.01.
+- **`Goal.BOTH` removed** (breaking): the app dropped its "Both at once" goal on 2026-10-13
+  as too close to Balanced, so `Goal` is `BALANCED`, `POWER`, `EARTH` (`GOAL_LABELS` too) and
+  the CLI's `--goal` takes `balanced|power|earth`. `ScoreWeights(power=0.5, both=0.6)` gives
+  the same weights as the old goal; `goal_for` now returns None for them.
+  (`DayClass.BOTH` and the `both` share and weight are unchanged.)
+- **Goldens regenerated** on 2026-10-28 from the app's Dart core at `d4b27df`
+  (`tests/data/golden_plan.json`, `golden_shadow.json`; three goals); every plan and shadow
+  parity test passes against them at the unchanged tolerances.
+
 ## 0.1.0 (2026-10-12)
 
 First release: the Lunar Horizon app's science as a Python library.

@@ -13,7 +13,10 @@ ran the app's core functions and wrote JSON. The probe was deleted after the run
 never committed); its full source is stored in each golden file under
 `provenance.probeSource`, together with:
 
-- `gitHead`: the app commit (a development commit of 2026-10-12, before the public history; `app/lib` clean at that commit),
+- `gitHead`: the app commit the probe ran on. The goldens were first made from a development
+  commit of 2026-10-12 and **regenerated on 2026-10-28** for the 2280 px DEM (to about 75 S);
+  that run was on uncommitted work over `cfa9c85` (`gitDirty: true`) that became `d4b27df`,
+  and the recorded SHA-256 of every core file and asset match the app at `d4b27df`,
 - the SHA-256 of `landing.dart`, `timeseries.dart`, `shadow.dart` and the other core files
   and of `light_engine.dart`, and of the asset files used,
 - the Flutter version (3.44.6).
@@ -46,7 +49,7 @@ values each) and terrain height.
 
 ### Cases (golden_shadow.json)
 
-Region grid (400 m DEM averaged by 2, 760 px) at 2027-01-15T00:00Z and 2027-07-01T12:00Z;
+Region grid (the 80-90 S block of the 400 m DEM averaged by 2, 760 px, `region_window`) at 2027-01-15T00:00Z and 2027-07-01T12:00Z;
 close-ups (320 px of the 400 m grid) at the Shackleton rim (2 m) and the custom site (10 m)
 at the first epoch: window, packed flags (gzip + base64), SHA-256 of the packed flags and
 shade bytes, counts of each bit, the Lambert sum, light shares; `ShadowGrid` size, pixel
@@ -54,7 +57,8 @@ size, z at 8 fixed pixels and the sum of z, for both grids.
 
 ## Tolerances and measured differences
 
-Measured on 2026-10-12 with numpy 2.5.4, Python 3.14, Windows 11.
+Measured on 2026-10-12 with numpy 2.5.4, Python 3.14, Windows 11; every parity test passed again
+against the regenerated goldens on 2026-10-28 (numpy 2.5.4, Python 3.13, Linux).
 
 | What | Tolerance (DESIGN.md 4.4) | Measured |
 |---|---|---|

@@ -10,9 +10,9 @@ import 'dart:typed_data';
 
 import 'light_engine.dart';
 
-Future<LightEngine> startLightEngine(Int16List heights, int demSize, double demPxM) async {
+Future<LightEngine> startLightEngine(Int16List heights, int demSize, double demPxM, {int? regionSizePx}) async {
   final inbox = ReceivePort();
-  final isolate = await Isolate.spawn(_worker, (inbox.sendPort, heights, demSize, demPxM), debugName: 'light-engine');
+  final isolate = await Isolate.spawn(_worker, (inbox.sendPort, heights, demSize, demPxM, regionSizePx), debugName: 'light-engine');
   final engine = _IsolateEngine(isolate, inbox);
   await engine._ready.future;
   return engine;
@@ -68,9 +68,9 @@ class _IsolateEngine extends LightEngine {
 Future<LightOverlay> _overlayIsolate(LightFrame f, LightLayer layer, int w, double scale) =>
     Isolate.run(() => lightOverlayPixels(f, layer, w, scale), debugName: 'light-overlay');
 
-void _worker((SendPort, Int16List, int, double) init) {
-  final (out, heights, demSize, demPxM) = init;
-  final grids = LightGrids(heights, demSize, demPxM);
+void _worker((SendPort, Int16List, int, double, int?) init) {
+  final (out, heights, demSize, demPxM, regionSizePx) = init;
+  final grids = LightGrids(heights, demSize, demPxM, regionSizePx: regionSizePx);
   final inbox = ReceivePort();
   out.send(inbox.sendPort);
   inbox.listen((msg) {

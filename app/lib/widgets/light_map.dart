@@ -568,15 +568,18 @@ class _LightMapState extends State<LightMap> {
   LightView get _targetView {
     final f = _images.shown?.frame;
     if (f != null) return f.request.closeUp ? frameView(f) : _withMargin(frameView(f));
-    final half = widget.state.mapLayers?.halfWidthM ?? 304000;
+    final layers = widget.state.mapLayers;
+    final half = layers?.halfWidthM ?? 304000;
     if (!closeUp) return _withMargin((x0: -half, y0: half, ext: 2 * half));
     final (x, y) = latLonToXY(widget.state.site.lat, widget.state.site.lon);
     // the window the engine will compute (ShadowGrid.windowAround on the
     // 800 m grid while playing, 400 m otherwise): on whole pixels of that
-    // grid and kept inside the region (a site near the edge, IM-1 Odysseus,
-    // is not centred), so the first frame does not shift the map at all
+    // grid and kept inside the terrain grid, which reaches about 75°S (so a
+    // site at 80°S, IM-1 Odysseus, is centred too), so the first frame does
+    // not shift the map at all
+    final demHalf = layers?.demHalfWidthM ?? half;
     final pxM = widget.state.playing ? 800.0 : 400.0;
-    final n = (2 * half / pxM).round(), side = math.min(n, (closeUpPx * 400.0 / pxM).round());
+    final n = (2 * demHalf / pxM).round(), side = math.min(n, (closeUpPx * 400.0 / pxM).round());
     int place(double centre) => (centre - side / 2 + 0.5).round().clamp(0, n - side);
     final r0 = place(n / 2 - 0.5 - y / pxM), c0 = place(x / pxM + n / 2 - 0.5);
     return (x0: (c0 - n / 2) * pxM, y0: (n / 2 - r0) * pxM, ext: side * pxM);

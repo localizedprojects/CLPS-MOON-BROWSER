@@ -12,9 +12,9 @@ import 'light_engine.dart';
 
 Future<void> _yield() => Future<void>.delayed(Duration.zero);
 
-Future<LightEngine> startLightEngine(Int16List heights, int demSize, double demPxM) async {
+Future<LightEngine> startLightEngine(Int16List heights, int demSize, double demPxM, {int? regionSizePx}) async {
   await _yield();
-  return _MainThreadEngine(await LightGrids.sliced(heights, demSize, demPxM, pause: _yield));
+  return _MainThreadEngine(await LightGrids.sliced(heights, demSize, demPxM, pause: _yield, regionSizePx: regionSizePx));
 }
 
 class _MainThreadEngine extends LightEngine {

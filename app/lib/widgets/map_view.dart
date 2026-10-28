@@ -20,8 +20,14 @@ import 'feature_guide.dart';
 class MapLayers {
   final ui.Image hillshade;
   final ui.Image? sunvis, earthvis, psr;
+  /// Half-width of the map layers (the hillshade and overlays: 80°S on the axes).
   final double halfWidthM;
-  const MapLayers(this.hillshade, this.sunvis, this.earthvis, this.psr, this.halfWidthM);
+
+  /// Half-width of the 400 m terrain grid behind the light map's close-ups
+  /// (map.json dem: size * pxM / 2; about 75°S), which reaches beyond the map.
+  final double demHalfWidthM;
+  const MapLayers(this.hillshade, this.sunvis, this.earthvis, this.psr, this.halfWidthM, {double? demHalfWidthM})
+      : demHalfWidthM = demHalfWidthM ?? halfWidthM;
 }
 
 enum MapOverlay { none, sunlight, earth, shadow }
@@ -470,7 +476,7 @@ class _MapViewState extends State<MapView> with SingleTickerProviderStateMixin {
     }
     final h = widget.layers.halfWidthM;
     final (lat, lon) = xyToLatLon((p.dx / size - 0.5) * 2 * h, (0.5 - p.dy / size) * 2 * h);
-    if (lat > customMaxLat) return; // outside the terrain map
+    if (lat > customMaxLat) return; // outside the region the map shows
     _setPin((lat, lon));
     // bring the confirm card into view (the map may sit in a scrolling list)
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -830,7 +836,8 @@ class _CoordinatesDialogState extends State<CoordinatesDialog> {
     final v = _parse(t);
     if (v == null || !v.isFinite) return 'Enter a number, for example −89.5';
     if (v < -90 || v > customMaxLat) {
-      return 'Use a latitude from −90 to −80.01. The terrain map ends at 80°S, so −80 itself is just outside it.';
+      return 'Use a latitude from −90 to −80.01. Custom spots go inside the region this map shows, which ends at 80°S, '
+          'so −80 itself is just outside it.';
     }
     return null;
   }

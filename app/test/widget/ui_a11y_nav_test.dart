@@ -511,7 +511,7 @@ void main() {
       await tester.tap(find.text('Add site'));
       await tester.pumpAndSettle();
       expect(find.text('Add a custom site'), findsOneWidget, reason: 'the dialog stays open');
-      expect(find.textContaining('−80 itself is just outside'), findsOneWidget);
+      expect(find.textContaining('Custom spots must be south of 80°S'), findsOneWidget, reason: 'says why: the terrain on the device ends at about 75°S');
       await tester.enterText(find.byType(TextField).first, '−80.5'); // typographic minus accepted
       await tester.enterText(find.byType(TextField).last, '45');
       await tester.tap(find.text('Add site'));

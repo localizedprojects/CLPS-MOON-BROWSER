@@ -43,6 +43,7 @@ It opens with a short animation (the Sun skimming along the south-pole horizon, 
 - **Explore: find the best site for your dates.** All 16 preset sites (and any custom spots) are ranked for the chosen period, which defaults to the next 12 months.
   - The answer comes first: a top-pick card names the best spot, how much of the time the Sun and Earth are both up, and its longest stretch with both. Below it is a computed light snapshot of that site at the start of that stretch.
   - "What matters most?" chips re-rank the sites by goal: *Balanced* (the default), *Power first* or *Earth contact first*.
+  - The map opens on the region inside 80°S. Zoom out (or drag past the edge) to see on to about 75°S: coarser shaded relief there, with the sunlight, Earth and permanent-shadow layers continuing across 80°S. Custom spots still go inside the 80°S circle.
   - Site cards show a terrain thumbnail, bars for sunlight, Earth in view and both together, and the longest night. On phones and tablets Explore shows the terrain map with the top pick and a row of site cards under it; on wide screens the list and the map sit side by side. A tray collects sites to compare.
 - **Site: everything about one site**, in three tabs (deep links `#/site/<id>/overview`, `/sky` and `/light`):
   - **Overview:** *When should you land here?*: pick a surface-mission length (1 to 30 days, 14 by default) and *Find the best landing window* returns the earliest span of landing times in your dates whose whole mission keeps the Sun and Earth above the skyline, with a suggested landing and the mission's end. If no window fits, it gives the closest fit for your goal and the longest Sun + Earth stretch there is. *Use these dates* sets the period around the answer, *Next window that fits* moves on, and an approximation badge states how far the timing can be trusted. Next, *At a glance*: what the place is, why it is on the list (or, for your own spot, what stands out against the catalogue sites), what to watch out for and how it ranks. Catalogue sites are described from published, fact-checked sources, listed under *Details and sources*; your own spots are described by the app from its own numbers, with the coarse-map lines marked approximate. Then, under *More about this site*, a light snapshot of the best moment or of the middle of the longest night; the three headline shares; *Best time to be here* (the longest Sun + Earth stretch, with *Show me* and *See the light at that moment*); a *Which days work?* calendar of good days (Sun and Earth up together at least half the UTC day, with the best stretch outlined); *Plan for the dark* (the longest night that batteries and heaters must last, and the longest time without Earth); and *About this site*, with the source, slope and the 18.6-year average sunlight and Earth visibility for catalogue sites.
@@ -197,6 +198,9 @@ python -m pytest                   # asserts the 0.01′ tolerance against Horiz
 # from app/
 flutter test test/core/spice_truth_test.dart   # Dart core vs SPICE truth vectors (0.01′, 1e-6 relative range)
 flutter test test/core/shadow_test.dart        # prints the light-map agreement figures
+# on an Android emulator (from app/; start one with flutter emulators --launch <avd>):
+flutter test integration_test/app_flow_test.dart -d emulator-5554   # every screen and its guide
+flutter test integration_test/map_75s_test.dart -d emulator-5554    # the Explore map to 75°S, layers, IM-1 Light & shadow
 ```
 
 `build validate` rewrites its own blocks of `validation.json` and keeps the others (`avgvis` from `build sites`, `render_skyline` from `build renders`), so the steps can run in any order.
@@ -224,16 +228,16 @@ flutter test test/core/shadow_test.dart        # prints the light-map agreement 
 | `LDEM_80S_80M` (80 m/px) | <https://pds-geosciences.wustl.edu/lro/lro-l-lola-3-rdr-v1/lrolol_1xxx/data/lola_gdr/polar/img/ldem_80s_80m.img> | preset horizons, the 400 m on-device DEM, the basemap |
 | `LDEM_75S_240M` (240 m/px) | <https://pds-geosciences.wustl.edu/lro/lro-l-lola-3-rdr-v1/lrolol_1xxx/data/lola_gdr/polar/img/ldem_75s_240m.img> | far-field horizons beyond the 80 m grid, to its edge at 75°S |
 | `LDEM_75S_120M` (120 m/px) | <https://pds-geosciences.wustl.edu/lro/lro-l-lola-3-rdr-v1/lrolol_1xxx/data/lola_gdr/polar/img/ldem_75s_120m.img> | the ring of the 400 m on-device DEM beyond 80°S (exact-overlap area mean to 400 m) |
-| `AVGVISIB_75S_120M_201608` (Sun) | <https://imbrium.mit.edu/EXTRAS/ILLUMINATION/IMG/AVGVISIB_75S_120M_201608.IMG> | validation, plus the average-sunlight and permanently-shadowed overlays |
-| `AVGVISIB_75S_120M_201608_EARTH` | <https://imbrium.mit.edu/EXTRAS/ILLUMINATION/IMG/AVGVISIB_75S_120M_201608_EARTH.IMG> | validation, plus the average-Earth-visibility overlay |
+| `AVGVISIB_75S_120M_201608` (Sun) | <https://pds-geosciences.wustl.edu/lro/lro-l-lola-3-rdr-v1/lrolol_1xxx/extras/illumination/img/avgvisib_75s_120m_201608.img> (also on the LOLA team's mirror, imbrium.mit.edu) | validation, plus the average-sunlight and permanently-shadowed overlays (to 75°S) |
+| `AVGVISIB_75S_120M_201608_EARTH` | <https://pds-geosciences.wustl.edu/lro/lro-l-lola-3-rdr-v1/lrolol_1xxx/extras/illumination/img/avgvisib_75s_120m_201608_earth.img> (same mirror) | validation, plus the average-Earth-visibility overlay (to 75°S) |
 
 **JPL Horizons** (<https://ssd.jpl.nasa.gov/api/horizons.api>) provides the independent reference for the direction checks. Its 48 responses (8 sites × 3 windows × 2 bodies) are cached in `pipeline/validation/horizons_cache/`.
 
 > **The map is not a photograph.** The base map is shaded relief computed from LOLA laser altimetry (`pipeline/lunarsp/basemap.py`):
 > - `LDEM_80S_80M` is averaged to 320 m.
-> - The base map stops at 80°S. The 400 m DEM used for custom-site horizons and the light & shadow map reaches further: inside 80°S it is `LDEM_80S_80M` block-averaged (unchanged), beyond 80°S it is `LDEM_75S_120M` area-averaged, to about 75°S. Where the two overlap just inside 80°S they differ by 0.03 m on average (standard deviation 0.95 m, max 18.5 m).
+> - The full-resolution base map stops at 80°S. Beyond it, out to about 75°S, the Explore map shows a coarser ring (map.json `outer`): relief at 480 m from `LDEM_75S_120M` (4 × 4 block means) and the overlays at 960 m, loaded only when the map is zoomed out or dragged past 80°S (`python -m lunarsp.basemap outer`). The 400 m DEM used for custom-site horizons and the light & shadow map reaches further: inside 80°S it is `LDEM_80S_80M` block-averaged (unchanged), beyond 80°S it is `LDEM_75S_120M` area-averaged, to about 75°S. Where the two overlap just inside 80°S they differ by 0.03 m on average (standard deviation 0.95 m, max 18.5 m).
 > - It is lit by a fixed artificial light (azimuth 315°, altitude 35°) with **2× vertical exaggeration** and a gentle elevation tint.
-> - The overlays are the LOLA team's long-term average Sun and Earth visibility, and the permanently shadowed regions (where AVGVISIB = 0), at 480 m.
+> - The overlays are the LOLA team's long-term average Sun and Earth visibility, and the permanently shadowed regions (where AVGVISIB = 0), at 480 m inside 80°S and 960 m in the ring beyond it.
 > - The light and shadow map draws its computed shadows and slope shading on top of this relief. Those layers use the real Sun and Earth directions for the selected moment.
 
 **Site coordinates.** NASA (Artemis III regions update, 28 Oct 2024), Henriksen et al. (2023) and LROC NAC mosaics, De Rosa et al. (2012), LROC images of IM-1 and IM-2, and Beyer et al. (2025) for VIPER. Each site's full source list, with URLs and notes, is in `app/assets/data/sites.json`.
@@ -508,9 +512,9 @@ CLAUDE.md                   conventions for contributors and coding agents
 
 | Suite | Location | Command | Count |
 |---|---|---|---|
-| Flutter: Dart core, state, widgets | `app/test/` | `flutter test` | 1,041 pass, 4 skipped, with `flutter analyze` clean (28 October 2026) |
+| Flutter: Dart core, state, widgets | `app/test/` | `flutter test` | 1,054 pass, 4 skipped, with `flutter analyze` clean (28 October 2026) |
 | Chart bundle | `charts/src/*.test.ts` | `npm test` | 163 (19 October 2026) |
-| Python pipeline | `pipeline/tests/` | `python -m pytest` | 617: 437 pass, 180 skipped without the SPICE kernels in the cache (28 October 2026) |
+| Python pipeline | `pipeline/tests/` | `python -m pytest` | 632: 452 pass, 180 skipped without the SPICE kernels in the cache (28 October 2026) |
 | Python library | `pylib/tests/` | `python -m pytest` (from `pylib/`) | 497: 476 pass, 21 skipped without the SPICE kernels in the cache (28 October 2026) |
 
 Each count is from a full run at the commit given. They change as work continues.

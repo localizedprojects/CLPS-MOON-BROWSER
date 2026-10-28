@@ -16,6 +16,15 @@ of sites near 80 S have terrain all round. Outputs in ``app/assets/data/map/``:
                         block (80-90 S) is the 5 x 5 block mean of LDEM_80S_80M;
                         the ring beyond it is the exact-overlap area mean of
                         LDEM_75S_120M (see :func:`area_mean_resample`).
+* ``*_outer.webp``    - the same four layers, coarser, out to 75 S: the whole
+                        +-456 km square (map.json ``outer``), transparent inside
+                        +-300 km where the layers above cover the map; real data
+                        reaches 4 km inside their +-304 km edge. The hillshade is
+                        LDEM_75S_120M block-mean to 480 m with the same lighting
+                        and tint (zNorm from hillshade.tint zLowM / zHighM); the
+                        overlays are AVGVISIB block-mean to 960 m with the same
+                        colour and alpha mapping. The app loads them only when a
+                        view reaches past 80 S.
 * ``map.json``        - extents + provenance.
 
 ``python -m lunarsp.basemap`` rebuilds every layer (needs the 80 m and 120 m
@@ -24,7 +33,9 @@ DEMs and both AVGVISIB maps). ``python -m lunarsp.basemap dem`` rebuilds only
 and key byte-identical. ``python -m lunarsp.basemap tint`` (80 m DEM only)
 writes only map.json hillshade.tint zLowM / zHighM: the heights the tint maps
 to 0 and 1, so the app can shade the 400 m terrain past the base map's edge
-with the same tones (app/lib/core/relief.dart).
+with the same tones (app/lib/core/relief.dart). ``python -m lunarsp.basemap
+outer`` (120 m DEM and both AVGVISIB maps) writes only the four ``*_outer.webp``
+files and map.json ``outer``, taking the tint levels from map.json.
 """
 
 from __future__ import annotations
@@ -61,6 +72,19 @@ TINT_SHADE = 0.62
 TINT_ELEV = 0.20
 TINT_PCT = (1, 99)
 
+#: Overlay colours (sRGB) and alpha scales: Sun amber and Earth blue as in
+#: app/lib/theme.dart, PSR violet. alpha = sqrt(visibility) * VIS_ALPHA (sqrt
+#: reveals low values); PSR alpha = PSR fraction * PSR_ALPHA.
+SUN_RGB = (255, 176, 0)
+EARTH_RGB = (61, 139, 253)
+PSR_RGB = (120, 90, 255)
+VIS_ALPHA = 220
+PSR_ALPHA = 200
+#: WebP quality per layer kind (method 6 throughout; alpha is lossless).
+HILLSHADE_QUALITY = 82
+VIS_QUALITY = 85
+PSR_QUALITY = 90
+
 
 def hillshade(z: np.ndarray, px_m: float, az_deg: float = HILLSHADE_AZ_DEG, alt_deg: float = HILLSHADE_ALT_DEG,
               exag: float = HILLSHADE_EXAG) -> np.ndarray:
@@ -70,6 +94,30 @@ def hillshade(z: np.ndarray, px_m: float, az_deg: float = HILLSHADE_AZ_DEG, alt_
     az, alt = np.radians(az_deg), np.radians(alt_deg)
     hs = np.sin(alt) * np.cos(slope) + np.cos(alt) * np.sin(slope) * np.cos(az - aspect)
     return np.clip(hs, 0, 1)
+
+
+def tint_grey(z: np.ndarray, hs: np.ndarray, z_low, z_high) -> np.ndarray:
+    """The display grey (0..1) of heights [z] with hillshade [hs]: zNorm maps
+    z_low..z_high to 0..1 (``tint_levels``)."""
+    zn = (z - z_low) / (z_high - z_low)
+    return np.clip(TINT_BASE + TINT_SHADE * hs + TINT_ELEV * np.clip(zn, 0, 1), 0, 1)
+
+
+def vis_rgba(v: np.ndarray, rgb: tuple[int, int, int]) -> np.ndarray:
+    """RGBA overlay of a visibility fraction [v]: constant [rgb], alpha sqrt(v) * VIS_ALPHA."""
+    a = np.clip(v, 0, 1)
+    img = np.zeros(a.shape + (4,), np.uint8)
+    img[..., 0], img[..., 1], img[..., 2] = rgb
+    img[..., 3] = (np.sqrt(a) * VIS_ALPHA).astype(np.uint8)
+    return img
+
+
+def psr_rgba(p: np.ndarray) -> np.ndarray:
+    """RGBA overlay of a PSR fraction [p] (share of never-sunlit 120 m cells)."""
+    img = np.zeros(p.shape + (4,), np.uint8)
+    img[..., 0], img[..., 1], img[..., 2] = PSR_RGB
+    img[..., 3] = (np.clip(p, 0, 1) * PSR_ALPHA).astype(np.uint8)
+    return img
 
 
 def tint_levels(z320: np.ndarray) -> tuple[float, float]:
@@ -324,6 +372,119 @@ def build_tint_only() -> dict:
     return keys
 
 
+# --- outer layers: 75-90 S, coarser, around the base map -------------------
+OUTER_HALF_M = DEM_SIZE * DEM_PX_M / 2  # 456 km: the 400 m DEM's square, about 75.05 S on the axes
+OUTER_HS_PX_M = 480.0  # hillshade: 1900 px, LDEM_75S_120M 4 x 4
+OUTER_VIS_PX_M = 960.0  # sunvis / earthvis / psr: 950 px, AVGVISIB 8 x 8
+#: The outer images are transparent on every pixel lying wholly inside this
+#: half-width, where the base map's own layers (+-304 km) cover the map; real
+#: data reaches 4 km inside their edge, so no gap can show along 80 S.
+OUTER_BLANK_HALF_M = 300_000.0
+OUTER_FILES = {"hillshade": "hillshade_outer.webp", "sunvis": "sunvis_outer.webp",
+               "earthvis": "earthvis_outer.webp", "psr": "psr_outer.webp"}
+
+
+def outer_window(r: PolarRaster, half_m: float = OUTER_HALF_M) -> np.ndarray:
+    """The pole-centred +-half_m square of a polar raster in physical units (float32).
+
+    Refuses a square whose edges do not fall on the raster's pixel edges, one
+    reaching beyond the raster, and any fill DN in the window.
+    """
+    off = r.size / 2 - half_m / r.scale
+    if off < 0 or off != int(off):
+        raise ValueError(f"+-{half_m:g} m does not align with {r.name} ({r.size} px at {r.scale:g} m)")
+    off = int(off)
+    dn = np.asarray(r.data[off:r.size - off, off:r.size - off])
+    if np.isin(dn, DEM_FILL_DN).any():
+        raise ValueError(f"{r.name}: fill values in the +-{half_m:g} m window")
+    return dn.astype(np.float32) * r.dn_scale
+
+
+def outer_blank_mask(size: int, px_m: float, half_m: float = OUTER_HALF_M,
+                     blank_half_m: float = OUTER_BLANK_HALF_M) -> np.ndarray:
+    """True on the pixels of a pole-centred size x size grid of px_m cells whose
+    footprint lies wholly inside +-blank_half_m (left transparent)."""
+    lo = -half_m + px_m * np.arange(size)
+    inside = (lo >= -blank_half_m) & (lo + px_m <= blank_half_m)
+    return inside[:, None] & inside[None, :]
+
+
+def _k(r: PolarRaster, px_m: float) -> int:
+    k = px_m / r.scale
+    if k != int(k):
+        raise ValueError(f"{px_m:g} m is not a whole number of {r.name} pixels")
+    return int(k)
+
+
+def outer_layers(dem: PolarRaster, sun: PolarRaster, earth: PolarRaster,
+                 levels: tuple[float, float]) -> dict[str, np.ndarray]:
+    """The four outer RGBA images (``OUTER_FILES`` keys) before encoding.
+
+    hillshade: [dem] block-mean to OUTER_HS_PX_M, then ``hillshade`` and
+    ``tint_grey`` with the base map's lighting and tint levels [levels] (opaque);
+    sunvis / earthvis / psr: the visibility maps block-mean to OUTER_VIS_PX_M,
+    through ``vis_rgba`` / ``psr_rgba``. Every pixel of ``outer_blank_mask`` has
+    alpha 0 but keeps its colour (the relief grey, the layer colour): lossy WebP
+    codes colour at half resolution and with ringing, so black under the blank
+    square bled into the pixels next to it (Earth / PSR overlays up to 17-20
+    levels off their colour there).
+    """
+    k = _k(dem, OUTER_HS_PX_M)
+    z = _block_mean(outer_window(dem), k)
+    grey = (tint_grey(z, hillshade(z, OUTER_HS_PX_M), *levels) * 255).astype(np.uint8)
+    hs = np.empty(grey.shape + (4,), np.uint8)
+    hs[..., 0] = hs[..., 1] = hs[..., 2] = grey
+    hs[..., 3] = 255
+    out = {"hillshade": hs}
+    k = _k(sun, OUTER_VIS_PX_M)
+    v = outer_window(sun)
+    out["sunvis"] = vis_rgba(_block_mean(v, k), SUN_RGB)
+    out["psr"] = psr_rgba(_block_mean((v <= 0).astype(np.float32), k))
+    del v
+    out["earthvis"] = vis_rgba(_block_mean(outer_window(earth), _k(earth, OUTER_VIS_PX_M)), EARTH_RGB)
+    for img in out.values():
+        img[outer_blank_mask(img.shape[0], 2 * OUTER_HALF_M / img.shape[0]), 3] = 0
+    return {key: out[key] for key in OUTER_FILES}
+
+
+def build_outer(levels: tuple[float, float]) -> dict:
+    """Write the four ``*_outer.webp`` files; returns map.json['outer'].
+    [levels]: the tint's zLowM / zHighM exactly as map.json records them."""
+    imgs = outer_layers(PolarRaster.open("ldem_75s_120m"), PolarRaster.open("avgvis_sun"),
+                        PolarRaster.open("avgvis_earth"), levels)
+    quality = {"hillshade": HILLSHADE_QUALITY, "sunvis": VIS_QUALITY, "earthvis": VIS_QUALITY, "psr": PSR_QUALITY}
+    for key, img in imgs.items():
+        Image.fromarray(img, "RGBA").save(MAP_DIR / OUTER_FILES[key], quality=quality[key], method=6)
+    return {
+        "halfWidthM": OUTER_HALF_M,
+        "blankHalfWidthM": OUTER_BLANK_HALF_M,
+        "hillshade": {"file": f"map/{OUTER_FILES['hillshade']}", "pxM": OUTER_HS_PX_M,
+                      "source": "LOLA LDEM_75S_120M (block-mean to 480 m); lighting and tint as hillshade, "
+                                "zNorm from hillshade.tint zLowM / zHighM"},
+        "sunvis": {"file": f"map/{OUTER_FILES['sunvis']}", "pxM": OUTER_VIS_PX_M,
+                   "source": "LOLA AVGVISIB_75S_120M_201608 (block-mean to 960 m)"},
+        "earthvis": {"file": f"map/{OUTER_FILES['earthvis']}", "pxM": OUTER_VIS_PX_M,
+                     "source": "LOLA AVGVISIB_75S_120M_201608_EARTH (block-mean to 960 m)"},
+        "psr": {"file": f"map/{OUTER_FILES['psr']}", "pxM": OUTER_VIS_PX_M,
+                "source": "AVGVISIB == 0 (never sunlit over the averaging period), fraction per 960 m cell"},
+        "note": ("The layers out to 75 S around the base map, coarser on purpose (memory): the whole "
+                 "+-halfWidthM square, transparent on pixels wholly inside +-blankHalfWidthM, where the "
+                 "layers above cover the map. Same colour, alpha and tint mappings as those layers."),
+    }
+
+
+def build_outer_only() -> dict:
+    """Write the ``*_outer.webp`` files and only map.json['outer'] (tint levels from map.json)."""
+    path = MAP_DIR / "map.json"
+    meta = json.loads(path.read_text())
+    tint = meta["hillshade"]["tint"]
+    meta["outer"] = build_outer((tint["zLowM"], tint["zHighM"]))  # other keys untouched
+    write_json(path, meta, indent=1)
+    for name in OUTER_FILES.values():
+        print(f"{name:22s} {(MAP_DIR / name).stat().st_size / 1e3:8.0f} kB")
+    return meta["outer"]
+
+
 def build() -> dict:
     MAP_DIR.mkdir(parents=True, exist_ok=True)
     dem = PolarRaster.open("ldem_80s_80m")
@@ -335,37 +496,29 @@ def build() -> dict:
     hs = hillshade(z320, 320.0)
     # gentle elevation tint so peaks read as lighter
     lo, hi = TINT_PCT
-    zn = (z320 - np.percentile(z320, lo)) / (np.percentile(z320, hi) - np.percentile(z320, lo))
+    g = tint_grey(z320, hs, np.percentile(z320, lo), np.percentile(z320, hi))
     levels = tint_levels(z320)
-    g = np.clip(TINT_BASE + TINT_SHADE * hs + TINT_ELEV * np.clip(zn, 0, 1), 0, 1)
-    Image.fromarray((g * 255).astype(np.uint8), "L").save(MAP_DIR / "hillshade.webp", quality=82, method=6)
+    Image.fromarray((g * 255).astype(np.uint8), "L").save(MAP_DIR / "hillshade.webp", quality=HILLSHADE_QUALITY,
+                                                          method=6)
 
     # --- coarse DEM for on-device horizons (400 m/px) ------------------------
     _, dem_meta = build_dem(z)
 
     layers = {}
     # --- LOLA team average visibility overlays --------------------------------
-    for key, out, rgb in (("avgvis_sun", "sunvis.webp", (255, 176, 0)), ("avgvis_earth", "earthvis.webp", (61, 139, 253))):
+    for key, out, rgb in (("avgvis_sun", "sunvis.webp", SUN_RGB), ("avgvis_earth", "earthvis.webp", EARTH_RGB)):
         try:
             r = PolarRaster.open(key)
         except FileNotFoundError:
             continue
         v = _crop_to_80s(r, half_m)  # 120 m/px
         k = 4  # -> 480 m/px
-        vv = _block_mean(v, k)
-        a = np.clip(vv, 0, 1)
-        img = np.zeros(a.shape + (4,), np.uint8)
-        img[..., 0], img[..., 1], img[..., 2] = rgb
-        img[..., 3] = (np.sqrt(a) * 220).astype(np.uint8)  # sqrt: reveal low values
-        Image.fromarray(img, "RGBA").save(MAP_DIR / out, quality=85, method=6)
+        Image.fromarray(vis_rgba(_block_mean(v, k), rgb), "RGBA").save(MAP_DIR / out, quality=VIS_QUALITY, method=6)
         layers[key] = {"file": f"map/{out}", "pxM": r.scale * k}
         if key == "avgvis_sun":
             psr = (v <= 0).astype(np.float32)
-            p = _block_mean(psr, k)
-            img = np.zeros(p.shape + (4,), np.uint8)
-            img[..., 0], img[..., 1], img[..., 2] = (120, 90, 255)
-            img[..., 3] = (np.clip(p, 0, 1) * 200).astype(np.uint8)
-            Image.fromarray(img, "RGBA").save(MAP_DIR / "psr.webp", quality=90, method=6)
+            Image.fromarray(psr_rgba(_block_mean(psr, k)), "RGBA").save(MAP_DIR / "psr.webp", quality=PSR_QUALITY,
+                                                                        method=6)
             layers["psr"] = {"file": "map/psr.webp", "pxM": r.scale * k}
 
     meta = {
@@ -378,6 +531,11 @@ def build() -> dict:
         "earthvis": {**layers.get("avgvis_earth", {}), "source": "LOLA AVGVISIB_75S_120M_201608_EARTH"},
         "psr": {**layers.get("psr", {}), "source": "AVGVISIB == 0 (never sunlit over the averaging period)"},
     }
+    tint = meta["hillshade"]["tint"]
+    try:  # the same levels as map.json records (rounded), so `outer` alone reproduces these files
+        meta["outer"] = build_outer((tint["zLowM"], tint["zHighM"]))
+    except FileNotFoundError:
+        pass
     write_json((MAP_DIR / "map.json"), meta, indent=1)
     for f in sorted(MAP_DIR.iterdir()):
         print(f"{f.name:20s} {f.stat().st_size / 1e3:8.0f} kB")
@@ -391,7 +549,9 @@ if __name__ == "__main__":
         build_dem_only()
     elif sys.argv[1:] == ["tint"]:
         build_tint_only()
+    elif sys.argv[1:] == ["outer"]:
+        build_outer_only()
     elif sys.argv[1:]:
-        raise SystemExit("usage: python -m lunarsp.basemap [dem | tint]")
+        raise SystemExit("usage: python -m lunarsp.basemap [dem | tint | outer]")
     else:
         build()

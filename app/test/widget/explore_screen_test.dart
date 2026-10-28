@@ -299,8 +299,10 @@ void main() {
       expect(find.byTooltip('Show the site list'), findsNothing);
       expect(find.byType(TopPickCard), findsOneWidget);
       expect(find.byType(MapView), findsOneWidget);
-      expect(find.text('Tap or hold anywhere on the map to test your own spot'), findsOneWidget);
-      expect(_note(baseMapCaption), findsOneWidget);
+      expect(find.text(tapHintWithRing), findsOneWidget, reason: 'the shipped map has the ring beyond 80°S');
+      // the shipped map has the ring beyond 80°S: the caption names its coarser layers
+      expect(_note(overlayCaption(MapOverlay.none, state.mapLayers!.outer)), findsOneWidget);
+      expect(state.mapLayers!.outer, isNotNull);
       await tester.scrollUntilVisible(find.byType(SiteCarousel), 300, scrollable: vList());
       expect(find.byType(SiteCarousel), findsOneWidget);
       // the group filter works here too, and a group with no sites has a way back
@@ -325,7 +327,7 @@ void main() {
       await tester.pumpAndSettle();
       Navigator.of(tester.element(find.text('Map layers'))).pop();
       await tester.pumpAndSettle();
-      expect(_note(overlayCaption(MapOverlay.shadow)), findsOneWidget);
+      expect(_note(overlayCaption(MapOverlay.shadow, state.mapLayers!.outer)), findsOneWidget);
       expect(overlayCaption(MapOverlay.shadow), contains('artificial light'));
     });
   });

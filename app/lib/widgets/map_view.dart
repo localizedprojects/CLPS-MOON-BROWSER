@@ -2,7 +2,9 @@
 /// LOLA elevations, optional LOLA-team average-visibility / PSR overlays,
 /// graticule and site markers. Tap a marker to select it; tap terrain
 /// (poleward of 80 S) to drop a pin, then confirm it with "Check this spot".
-/// Marker shape encodes the group (never colour alone).
+/// Marker shape encodes the group (never colour alone). Zoomed out below 1x,
+/// or dragged past its edge, the map shows a coarser ring out to about 75 S
+/// ([MapOuter], loaded only then); custom spots stay south of 80 S.
 library;
 
 import 'dart:math' as math;
@@ -31,9 +33,76 @@ class MapLayers {
   /// The base map's hillshade recipe (map.json hillshade), so the light map
   /// can shade the terrain beyond it the same way; null without tint levels.
   final ReliefRecipe? relief;
+
+  /// The coarser ring beyond the base map, out to about 75°S (map.json
+  /// outer); null with older data, and the map then stops at its own edge.
+  final MapOuter? outer;
   const MapLayers(this.hillshade, this.sunvis, this.earthvis, this.psr, this.halfWidthM,
-      {double? demHalfWidthM, this.relief})
+      {double? demHalfWidthM, this.relief, this.outer})
       : demHalfWidthM = demHalfWidthM ?? halfWidthM;
+}
+
+/// The ring's images: relief and the three layers over the whole ±outer
+/// half-width square (blank where the base map's own images lie over them).
+class OuterImages {
+  final ui.Image hillshade;
+  final ui.Image? sunvis, earthvis, psr;
+  const OuterImages(this.hillshade, this.sunvis, this.earthvis, this.psr);
+}
+
+/// The ring beyond the base map (80°S out to about 75°S): coarser LOLA relief
+/// (LDEM_75S_120M) and layers (AVGVISIB_75S_120M) over the ±[halfWidthM]
+/// square. Its images are decoded only when a map first shows past the base
+/// map ([request]), once for every map that shares these layers, and kept; a
+/// failed load leaves the ring empty (the page background, as past the map's
+/// edge before) and is tried again on the next [request].
+class MapOuter extends ChangeNotifier {
+  /// Half-width of the ring's square (m): about 75°S on the axes.
+  final double halfWidthM;
+
+  /// Pixel sizes (m) of the ring's relief and of its three layers.
+  final double hillshadePxM, layerPxM;
+  /// Decodes the four images ([request] calls it).
+  final Future<OuterImages> Function() loader;
+  MapOuter({required this.halfWidthM, this.hillshadePxM = 480, this.layerPxM = 960, required this.loader});
+
+  /// map.json's "outer" entry; [load] decodes its four images.
+  factory MapOuter.fromJson(Map<dynamic, dynamic> m, {required Future<OuterImages> Function() load}) {
+    double px(String key, double fallback) => ((m[key] as Map?)?['pxM'] as num?)?.toDouble() ?? fallback;
+    return MapOuter(
+        halfWidthM: (m['halfWidthM'] as num).toDouble(),
+        hillshadePxM: px('hillshade', 480),
+        layerPxM: px('sunvis', 960),
+        loader: load);
+  }
+
+  OuterImages? _images;
+  Future<void>? _job;
+
+  /// The decoded images, or null until they have loaded.
+  OuterImages? get images => _images;
+
+  /// How many loads were started (tests of the lazy load).
+  @visibleForTesting
+  int loadsStarted = 0;
+
+  /// Load the images unless they are in place or on their way. The future
+  /// completes once they are in place, or once the load failed (logged; the
+  /// next call tries again). It never throws.
+  Future<void> request() {
+    if (_images != null) return Future<void>.value();
+    return _job ??= () async {
+      loadsStarted++;
+      try {
+        _images = await loader();
+        _job = null;
+        notifyListeners();
+      } catch (e) {
+        _job = null;
+        debugPrint('outer map layers unavailable: $e');
+      }
+    }();
+  }
 }
 
 enum MapOverlay { none, sunlight, earth, shadow }
@@ -41,16 +110,36 @@ enum MapOverlay { none, sunlight, earth, shadow }
 const groupColors = {'artemis': Color(0xFFF0F0F0), 'illumination': Color(0xFFE69F00), 'missions': Color(0xFFCC79A7)};
 const _customColor = PH.both;
 
-/// Custom spots must lie inside the region this map shows, which ends at the
-/// 80°S circle; −80.00 itself is refused so a spot never sits on the map's
-/// very edge. The rule is [customMaxLatDeg] in lib/core (AppState applies it
-/// too); the 400 m terrain behind a spot's horizon reaches further, to 75°S.
+/// Custom spots must lie south of the 80°S circle (−80.00 itself is
+/// refused): the terrain on the device ends at about 75°S, and a spot's
+/// horizon needs the hills north of it. The rule is [customMaxLatDeg] in
+/// lib/core (AppState applies it too). The map's ring beyond 80°S is for
+/// looking only.
 const customMaxLat = customMaxLatDeg;
+
+/// Why a spot north of [customMaxLat] is refused (a tap on the map's ring, the
+/// coordinates dialog, AppState.addCustomSite).
+const customSpotEdgeText = 'Custom spots must be south of 80°S (80.01°S or further). The terrain on this device '
+    'ends at about 75°S, so a spot further north would miss the hills just north of it.';
 
 /// What the base map is, in words (shown under the map).
 const baseMapCaption = 'Shaded relief computed from NASA LOLA laser-altimeter elevations (320 m per pixel), '
     'lit by an artificial light from the upper left with heights exaggerated ×2. Not a photo. '
     '0°E up, 90°E right, rings every 2° of latitude.';
+
+/// The ring beyond 80°S, in words: coarser relief and layers.
+String outerCaption(MapOuter o) => 'Beyond 80°S (zoom out or drag): coarser relief, ${o.hillshadePxM.round()} m per '
+    'pixel, from LOLA LDEM_75S_120M, and sunlight, Earth and permanent-shadow layers at ${o.layerPxM.round()} m '
+    'from LOLA AVGVISIB_75S_120M_201608 (sunlight, permanent shadow) and AVGVISIB_75S_120M_201608_EARTH (Earth).';
+
+/// The hint under the map; with the ring beyond 80°S, where taps are refused,
+/// it names the circle custom spots must lie in.
+const tapHint = 'Tap or hold anywhere on the map to test your own spot';
+const tapHintWithRing = 'Tap or hold inside the 80°S circle to test your own spot';
+
+/// A ring's latitude label, with a true minus sign (U+2212) as elsewhere in the
+/// app: '−88°'.
+String _latLabel(double lat) => '\u2212${lat.abs().toStringAsFixed(0)}°';
 
 /// The deepest zoom: on a ~360 px phone map, 8x puts a screen pixel at about
 /// 200 m, already finer than the 320-400 m terrain data behind it.
@@ -60,12 +149,14 @@ const mapMaxZoom = 8.0;
 /// on-screen place. Its first CustomPaint is the map itself.
 const mapViewportKey = ValueKey('map viewport');
 
-/// Where a map is looking: its [zoom] (1 = the whole region fits) and the map
-/// point in the middle of its view, as fractions (0..1) of the map square from
-/// its top-left corner.
+/// Where a map is looking: its [zoom] (1 = the base map's square, 80-90°S,
+/// fits; below 1, down to [MapLayers.outer]'s floor, the ring shows too) and
+/// the map point in the middle of its view, as fractions (0..1) of the base
+/// map's square from its top-left corner.
 typedef MapCamera = ({double zoom, Offset centre});
 
-/// (lat, lon) as fractions of the map square (see [MapCamera]).
+/// (lat, lon) as fractions of the map square (see [MapCamera]); outside 0..1
+/// in the ring beyond it ([MapLayers.outer]).
 Offset mapFractionOf(MapLayers l, double lat, double lon) {
   final (x, y) = latLonToXY(lat, lon);
   final h = l.halfWidthM;
@@ -102,8 +193,8 @@ class MapViewController {
     _state?._takeLayers();
   }
 
-  /// Centre the map on [c]'s point at [c]'s zoom (kept within 1x to
-  /// [mapMaxZoom]), zooming in just enough when the point cannot be in the
+  /// Centre the map on [c]'s point at [c]'s zoom (kept within the zoom floor
+  /// and [mapMaxZoom]), zooming in just enough when the point cannot be in the
   /// middle at that zoom (near the region's edge at 1x), but to at most twice
   /// that zoom: nearer the edge the point shows off-centre. Animated unless
   /// [animate] is false. A map not laid out yet does it at its first layout.
@@ -257,10 +348,15 @@ class MapView extends StatefulWidget {
 
   /// Told after the layer or "Show site names" changes.
   final VoidCallback? onLayersChanged;
+
+  /// Told why a tap north of 80°S (the ring beyond the base map, or the base
+  /// map's corners) drops no pin ([customSpotEdgeText]): the full-screen map
+  /// shows it in its note; null shows it as a snackbar.
+  final ValueChanged<String>? onRefused;
   const MapView({super.key, required this.layers, required this.sites, required this.selectedId,
       required this.onSelect, required this.onPlaceCustom, this.highlightId, this.showControls = true, this.belowMap,
       this.controller, this.initialCamera, this.fill = false, this.onExpand, this.overlay, this.onPinChanged,
-      this.onLayersChanged});
+      this.onLayersChanged, this.onRefused});
   @override
   State<MapView> createState() => _MapViewState();
 }
@@ -283,20 +379,48 @@ class _MapViewState extends State<MapView> with SingleTickerProviderStateMixin {
   (MapCamera, MapCamera)? _moving;
   MapCamera? _asked; // the point [_move] goes to, as asked for
   MapCamera? _keep; // the view to show again after a resize
+  bool _outerAsked = false; // the ring's images were asked for in this view change
 
   double get _scale => _tc.value.entry(0, 0);
+
+  /// The map content's side over the base map's: 1, or about 1.5 with the
+  /// ring beyond 80°S ([MapLayers.outer]).
+  double get _k => switch (widget.layers.outer) { final o? => o.halfWidthM / widget.layers.halfWidthM, null => 1.0 };
+
+  /// The least zoom: the whole content (with the ring) fits the view.
+  double get _minZoom => 1 / _k;
+
+  /// Where the content starts, as a fraction of the base map's square (0, or
+  /// about -0.25 with the ring); it ends at 1 minus that.
+  double get _lo => (1 - _k) / 2;
+
+  /// Whether the view at the current zoom shows less than all of the content,
+  /// so a one-finger drag can move it.
+  bool get _pannable {
+    final content = _k * _side * _scale;
+    return content > _vp.width + 0.5 || content > _vp.height + 0.5;
+  }
+
+  /// The view as it opens: zoom 1, the base map's square in the middle.
+  bool get _atHome {
+    final c = _camera;
+    if (c == null) return true;
+    return (c.zoom - 1).abs() < 0.001 && (c.centre - const Offset(0.5, 0.5)).distance * _side * c.zoom < 0.5;
+  }
   Offset get _shift => Offset(_tc.value.entry(0, 3), _tc.value.entry(1, 3));
 
   /// Screen point -> map point (both in map-widget pixels).
   Offset _toScene(Offset p) => (p - _shift) / _scale;
 
-  /// Zoom [s] with the map shifted by [t], kept inside the map's square so no
-  /// empty space shows at the edges (centred, that way, while the map is
-  /// smaller than the view: the full-screen map).
+  /// Zoom [s] with the map shifted by [t], kept inside the map's content (the
+  /// base map's square, or the ring's larger one) so no empty space shows at
+  /// the edges (centred, that way, while the content is smaller than the
+  /// view: the full-screen map).
   Matrix4 _viewFor(double s, Offset t) {
-    s = s.clamp(1.0, mapMaxZoom);
-    final content = _side * s;
-    double axis(double t, double view) => content <= view ? (view - content) / 2 : t.clamp(view - content, 0.0);
+    s = s.clamp(_minZoom, mapMaxZoom);
+    final content = _k * _side * s, lo = _lo * _side * s;
+    double axis(double t, double view) =>
+        content <= view ? (view - content) / 2 - lo : t.clamp(view - lo - content, -lo);
     return Matrix4.diagonal3Values(s, s, 1)
       ..setEntry(0, 3, axis(t.dx, _vp.width))
       ..setEntry(1, 3, axis(t.dy, _vp.height));
@@ -314,25 +438,26 @@ class _MapViewState extends State<MapView> with SingleTickerProviderStateMixin {
 
   /// Show [c]: its zoom, with its point in the middle where the edges allow.
   void _show(MapCamera c) {
-    final z = c.zoom.clamp(1.0, mapMaxZoom);
+    final z = c.zoom.clamp(_minZoom, mapMaxZoom);
     _tc.value = _viewFor(z, _vp.center(Offset.zero) - c.centre * (_side * z));
   }
 
   void _centreOn(MapCamera c, {required bool animate}) {
     final from = _camera;
     if (from == null) return;
+    _outerAsked = false;
     // the least zoom at which the point can be in the middle of the view; it
     // grows without bound toward the region's edge, so it is capped at twice
     // the zoom asked for (a point that near the edge shows off-centre, as near
     // the middle as the edges allow, instead of a jump to the deepest zoom)
     double need(double f, double view) {
-      final m = math.min(f, 1 - f);
+      final m = math.min(f - _lo, 1 - _lo - f);
       return m <= 0 ? double.infinity : view / (2 * _side * m);
     }
 
-    final ask = c.zoom.clamp(1.0, mapMaxZoom);
+    final ask = c.zoom.clamp(_minZoom, mapMaxZoom);
     final centring = math.max(need(c.centre.dx, _vp.width), need(c.centre.dy, _vp.height));
-    final z = math.max(ask, math.min(centring, 2 * ask)).clamp(1.0, mapMaxZoom);
+    final z = math.max(ask, math.min(centring, 2 * ask)).clamp(_minZoom, mapMaxZoom);
     final to = (zoom: z, centre: c.centre);
     _move?.stop();
     if (!animate) {
@@ -367,10 +492,10 @@ class _MapViewState extends State<MapView> with SingleTickerProviderStateMixin {
   /// it is already against its edge that way, so the drag goes to the page.
   bool _canPan(Offset delta) {
     final t = _shift;
+    final content = _k * _side * _scale, start = _lo * _side * _scale;
     bool can(double d, double v, double view) {
-      final lo = view - _side * _scale;
-      if (lo > -0.5) return false; // the whole map already shows that way
-      return d > 0 ? v < -0.5 : v > lo + 0.5;
+      if (content - view < 0.5) return false; // the whole map already shows that way
+      return d > 0 ? v < -start - 0.5 : v > view - start - content + 0.5;
     }
 
     return delta.dy.abs() >= delta.dx.abs() ? can(delta.dy, t.dy, _vp.height) : can(delta.dx, t.dx, _vp.width);
@@ -378,8 +503,9 @@ class _MapViewState extends State<MapView> with SingleTickerProviderStateMixin {
 
   /// Zoom by [factor] about the screen point [focus].
   void _zoomAbout(double factor, Offset focus) {
+    _outerAsked = false;
     final scene = _toScene(focus);
-    final s = (_scale * factor).clamp(1.0, mapMaxZoom);
+    final s = (_scale * factor).clamp(_minZoom, mapMaxZoom);
     _setView(s, focus - scene * s);
   }
 
@@ -388,9 +514,32 @@ class _MapViewState extends State<MapView> with SingleTickerProviderStateMixin {
     final pin = _pin;
     final mid = _vp.center(Offset.zero);
     if (pin == null) return _zoomAbout(factor, mid);
+    _outerAsked = false;
     final scene = mapFractionOf(widget.layers, pin.$1, pin.$2) * _side;
-    final s = (_scale * factor).clamp(1.0, mapMaxZoom);
+    final s = (_scale * factor).clamp(_minZoom, mapMaxZoom);
     _setView(s, mid - scene * s);
+  }
+
+  /// The Reset button: back to the view the map opens at (zoom 1, centred).
+  void _home() {
+    _move?.stop();
+    widget.controller?._want = null;
+    _outerAsked = false;
+    _show((zoom: 1.0, centre: const Offset(0.5, 0.5)));
+  }
+
+  /// Ask for the ring's images the first time the view shows past the base
+  /// map's square (once per view change: a failed load is tried again on the
+  /// next zoom, drag or move, not in a loop while the view stays out there).
+  void _checkOuter() {
+    final o = widget.layers.outer;
+    if (o == null || o.images != null || _side <= 0) return;
+    final a = _toScene(Offset.zero), b = _toScene(_vp.bottomRight(Offset.zero));
+    final e = 0.5 / _scale; // half a screen pixel
+    final past = a.dx < -e || a.dy < -e || b.dx > _side + e || b.dy > _side + e;
+    if (!past || _outerAsked) return;
+    _outerAsked = true;
+    o.request();
   }
 
   /// A mouse wheel (or a trackpad pinch on the web) zooms about the pointer.
@@ -404,6 +553,7 @@ class _MapViewState extends State<MapView> with SingleTickerProviderStateMixin {
   @override
   void initState() {
     super.initState();
+    _tc.addListener(_checkOuter);
     widget.controller?._state = this;
     if (widget.controller?._layers case (final o, final l)?) {
       overlay = o;
@@ -463,7 +613,8 @@ class _MapViewState extends State<MapView> with SingleTickerProviderStateMixin {
     final size = _side;
     final p = _toScene(screen);
     // beside the map (the full-screen map's margins): nothing there
-    if (p.dx < 0 || p.dy < 0 || p.dx > size || p.dy > size) return;
+    final lo = _lo * size, hi = (1 - _lo) * size;
+    if (p.dx < lo || p.dy < lo || p.dx > hi || p.dy > hi) return;
     final scale = _scale;
     String? best;
     var bestD = 24.0 / scale; // 48 px finger-sized hit target
@@ -482,7 +633,15 @@ class _MapViewState extends State<MapView> with SingleTickerProviderStateMixin {
     }
     final h = widget.layers.halfWidthM;
     final (lat, lon) = xyToLatLon((p.dx / size - 0.5) * 2 * h, (0.5 - p.dy / size) * 2 * h);
-    if (lat > customMaxLat) return; // outside the region the map shows
+    if (lat > customMaxLat) {
+      // north of 80°S (the ring, or the base map's corners): refused, with why
+      _setPin(null);
+      if (widget.onRefused case final told?) return told(customSpotEdgeText);
+      final m = ScaffoldMessenger.maybeOf(context);
+      m?.hideCurrentSnackBar();
+      m?.showSnackBar(const SnackBar(content: Text(customSpotEdgeText)));
+      return;
+    }
     _setPin((lat, lon));
     // bring the confirm card into view (the map may sit in a scrolling list)
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -526,8 +685,9 @@ class _MapViewState extends State<MapView> with SingleTickerProviderStateMixin {
           // a point asked for before this map was laid out (a new map for a
           // new layout, made while the full-screen map was open)
           if (want != null && size > 0) _centreOn(want.$1, animate: want.$2);
-        } else if (old != vp && (_scale > 1.001 || widget.fill || want != null)) {
-          // rotation / window resize while zoomed: the same view (zoom and map
+        } else if (old != vp && ((_scale - 1).abs() > 0.001 || _shift.distance > 0.5 || widget.fill || want != null)) {
+          // rotation / window resize while zoomed (in, or out over the ring
+          // beyond 80°S) or dragged over that ring at 1x: the same view (zoom and map
           // point in the middle) is shown again in the new size, not a rescaled
           // shift (that carries the full-screen map's centring offsets along);
           // a move toward a point asked for goes on toward it in the new size
@@ -560,7 +720,8 @@ class _MapViewState extends State<MapView> with SingleTickerProviderStateMixin {
             );
         return Semantics(
           label: 'South pole map. Tap a site marker to open it, or tap or hold terrain to check a spot of your own. '
-              'Pinch or use the zoom buttons to place a spot precisely.',
+              'Pinch or use the zoom buttons to place a spot precisely.'
+              '${widget.layers.outer != null ? ' Zoom out or drag to see the terrain out to 75°S; spots go south of 80°S.' : ''}',
           hint: 'Keyboard and screen-reader users: choose a site from the site cards, '
               'or use Add a spot by coordinates.',
           child: GuideTarget(id: 'map', child: SizedBox(
@@ -584,9 +745,10 @@ class _MapViewState extends State<MapView> with SingleTickerProviderStateMixin {
                         behavior: HitTestBehavior.opaque,
                         gestures: {
                           _MapScaleRecognizer: GestureRecognizerFactoryWithHandlers<_MapScaleRecognizer>(
-                            () => _MapScaleRecognizer(zoomed: () => _scale > 1.001, canPan: _canPan),
+                            () => _MapScaleRecognizer(zoomed: () => _pannable, canPan: _canPan),
                             (r) => r
                               ..onStart = (d) {
+                                _outerAsked = false;
                                 // first start: from where the fingers came down, so the slop
                                 // is not lost; a restart (finger added or lifted): from now
                                 _startScale = _scale;
@@ -594,7 +756,7 @@ class _MapViewState extends State<MapView> with SingleTickerProviderStateMixin {
                                 r.begun = true;
                               }
                               ..onUpdate = (d) {
-                                final s = (_startScale * d.scale).clamp(1.0, mapMaxZoom);
+                                final s = (_startScale * d.scale).clamp(_minZoom, mapMaxZoom);
                                 _setView(s, d.localFocalPoint - _startFocus * s);
                               },
                           ),
@@ -634,8 +796,8 @@ class _MapViewState extends State<MapView> with SingleTickerProviderStateMixin {
                           // the same "open full screen" button as the charts'
                           if (widget.onExpand case final open?) zoomButton(Icons.open_in_full, 'Open the map full screen', true, open),
                           zoomButton(Icons.add, 'Zoom in', z < mapMaxZoom - 0.001, () => _zoomStep(2)),
-                          zoomButton(Icons.remove, 'Zoom out', z > 1.001, () => _zoomStep(0.5)),
-                          zoomButton(Icons.crop_free, 'Reset zoom', z > 1.001, () => _setView(1, Offset.zero)),
+                          zoomButton(Icons.remove, 'Zoom out', z > _minZoom + 0.001, () => _zoomStep(0.5)),
+                          zoomButton(Icons.crop_free, 'Reset zoom', !_atHome, _home),
                         ]),
                       ),
                     ),
@@ -671,7 +833,7 @@ class _MapViewState extends State<MapView> with SingleTickerProviderStateMixin {
       if (widget.belowMap case final below?) Padding(padding: const EdgeInsets.only(top: 12), child: below),
       if (widget.showControls) ...[
         const SizedBox(height: 8),
-        Text('Tap or hold anywhere on the map to test your own spot', style: PHText.small.copyWith(color: PH.muted)),
+        Text(widget.layers.outer == null ? tapHint : tapHintWithRing, style: PHText.small.copyWith(color: PH.muted)),
         const SizedBox(height: 4),
         Wrap(spacing: 8, runSpacing: 4, crossAxisAlignment: WrapCrossAlignment.center, children: [
           GuideTarget(id: 'map-layers', child: Semantics(
@@ -699,7 +861,7 @@ class _MapViewState extends State<MapView> with SingleTickerProviderStateMixin {
             ),
           ),
         ]),
-        FidelityBadge(text: overlayCaption(overlay)),
+        FidelityBadge(text: overlayCaption(overlay, widget.layers.outer)),
         const Padding(padding: EdgeInsets.only(top: 8), child: MapLegend()),
       ],
     ]);
@@ -732,7 +894,7 @@ class _MapViewState extends State<MapView> with SingleTickerProviderStateMixin {
                       RadioListTile<MapOverlay>(
                         value: o,
                         title: Text(overlayName(o)),
-                        subtitle: Text(overlayCaption(o), style: PHText.small.copyWith(color: PH.muted)),
+                        subtitle: Text(overlayCaption(o, widget.layers.outer), style: PHText.small.copyWith(color: PH.muted)),
                       ),
                   ]),
                 ),
@@ -770,15 +932,19 @@ String overlayName(MapOverlay o) => switch (o) {
       MapOverlay.shadow => 'Permanent shadow',
     };
 
-/// What the map shows with [o], in words (always shown under the map).
-String overlayCaption(MapOverlay o) => switch (o) {
-      MapOverlay.sunlight =>
-        'Overlay: LOLA team average solar visibility (Mazarico et al. method); brighter = more sunlight. Base map: $baseMapCaption',
-      MapOverlay.earth => 'Overlay: LOLA team average Earth visibility; brighter = Earth in view more often. Base map: $baseMapCaption',
-      MapOverlay.shadow =>
-        'Overlay: permanently shadowed regions (never sunlit in the LOLA averaging period). Base map: $baseMapCaption',
-      MapOverlay.none => baseMapCaption,
-    };
+/// What the map shows with [o], in words (always shown under the map); with
+/// the ring beyond 80°S ([outer]), its coarser resolution and sources too.
+String overlayCaption(MapOverlay o, [MapOuter? outer]) {
+  final base = switch (o) {
+    MapOverlay.sunlight =>
+      'Overlay: LOLA team average solar visibility (Mazarico et al. method); brighter = more sunlight. Base map: $baseMapCaption',
+    MapOverlay.earth => 'Overlay: LOLA team average Earth visibility; brighter = Earth in view more often. Base map: $baseMapCaption',
+    MapOverlay.shadow =>
+      'Overlay: permanently shadowed regions (never sunlit in the LOLA averaging period). Base map: $baseMapCaption',
+    MapOverlay.none => baseMapCaption,
+  };
+  return outer == null ? base : '$base ${outerCaption(outer)}';
+}
 
 /// "Check this spot?": a dropped pin is only computed once confirmed.
 class _ConfirmSpot extends StatelessWidget {
@@ -842,8 +1008,7 @@ class _CoordinatesDialogState extends State<CoordinatesDialog> {
     final v = _parse(t);
     if (v == null || !v.isFinite) return 'Enter a number, for example −89.5';
     if (v < -90 || v > customMaxLat) {
-      return 'Use a latitude from −90 to −80.01. Custom spots go inside the region this map shows, which ends at 80°S, '
-          'so −80 itself is just outside it.';
+      return 'Use a latitude from −90 to −80.01. $customSpotEdgeText';
     }
     return null;
   }
@@ -872,7 +1037,7 @@ class _CoordinatesDialogState extends State<CoordinatesDialog> {
         child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
           TextFormField(
             controller: _lat,
-            decoration: const InputDecoration(labelText: 'Latitude (°, −90 to −80.01)', errorMaxLines: 4),
+            decoration: const InputDecoration(labelText: 'Latitude (°, −90 to −80.01)', errorMaxLines: 6),
             keyboardType: numbers,
             textInputAction: TextInputAction.next,
             autovalidateMode: AutovalidateMode.onUserInteraction,
@@ -915,14 +1080,15 @@ class _MapPainter extends CustomPainter {
   final String? highlight;
   _MapPainter(this.l, this.sites, this.selected, this.overlay, this.labels, this.zoom, this.scaler, this.pin, this.highlight,
       Listenable zoomChanges)
-      : super(repaint: zoomChanges);
+      // the ring's images arriving repaint the map too
+      : super(repaint: l.outer == null ? zoomChanges : Listenable.merge([zoomChanges, l.outer]));
 
   @override
   void paint(Canvas canvas, Size size) {
     final dst = Offset.zero & size;
     // zoomed in, smooth the 320 m pixels rather than show blocks
     final quality = zoom() > 1.5 ? FilterQuality.high : FilterQuality.medium;
-    void img(ui.Image? im, [double opacity = 1]) {
+    void img(ui.Image? im, Rect dst, [double opacity = 1]) {
       if (im == null) return;
       canvas.drawImageRect(im, Rect.fromLTWH(0, 0, im.width.toDouble(), im.height.toDouble()), dst,
           Paint()
@@ -930,16 +1096,27 @@ class _MapPainter extends CustomPainter {
             ..color = Color.fromRGBO(255, 255, 255, opacity));
     }
 
-    img(l.hillshade);
-    switch (overlay) {
-      case MapOverlay.sunlight:
-        img(l.sunvis, 0.9);
-      case MapOverlay.earth:
-        img(l.earthvis, 0.9);
-      case MapOverlay.shadow:
-        img(l.psr, 0.95);
-      case MapOverlay.none:
+    void layers(ui.Image hillshade, ui.Image? sunvis, ui.Image? earthvis, ui.Image? psr, Rect dst) {
+      img(hillshade, dst);
+      switch (overlay) {
+        case MapOverlay.sunlight:
+          img(sunvis, dst, 0.9);
+        case MapOverlay.earth:
+          img(earthvis, dst, 0.9);
+        case MapOverlay.shadow:
+          img(psr, dst, 0.95);
+        case MapOverlay.none:
+      }
     }
+
+    // the ring beyond 80°S (once loaded) under the base map: its square spans
+    // ±outer half-width; until then the page background shows there
+    final outer = l.outer;
+    if (outer?.images case final o?) {
+      final k = outer!.halfWidthM / l.halfWidthM, lo = (1 - k) / 2 * size.width, hi = (1 + k) / 2 * size.width;
+      layers(o.hillshade, o.sunvis, o.earthvis, o.psr, Rect.fromLTRB(lo, lo, hi, hi));
+    }
+    layers(l.hillshade, l.sunvis, l.earthvis, l.psr, dst);
     final z = zoom();
     final w = size.width, h = l.halfWidthM;
     Offset px(double lat, double lon) {
@@ -947,17 +1124,28 @@ class _MapPainter extends CustomPainter {
       return Offset((x / h * 0.5 + 0.5) * w, (0.5 - y / h * 0.5) * w);
     }
 
-    // graticule
+    // graticule (out to 75°S with the ring; the 80°S circle, inside which
+    // custom spots go, is thicker and labelled there)
     final grid = Paint()
       ..color = const Color(0x55FFFFFF)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 0.8 / z;
+    final g = mapGraticule(outer: outer != null);
     final c = Offset(w / 2, w / 2);
-    for (var lat = -88.0; lat >= -80.0; lat -= 2) {
+    for (final lat in g.rings) {
       canvas.drawCircle(c, (px(lat, 0) - c).distance, grid);
     }
     for (var lon = 0.0; lon < 360; lon += 30) {
-      canvas.drawLine(c, px(-80, lon), grid);
+      canvas.drawLine(c, px(g.meridiansTo, lon), grid);
+    }
+    if (g.edge case final e?) {
+      final r = (px(e, 0) - c).distance;
+      for (final (colour, width) in [(const Color(0x99000000), 3.2), (const Color(0xCCFFFFFF), 1.6)]) {
+        canvas.drawCircle(c, r, Paint()
+          ..color = colour
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = width / z);
+      }
     }
     final tp = TextPainter(textDirection: TextDirection.ltr, textScaler: scaler);
     void text(String s, Offset at, {Color color = PH.text, double size = 13, bool bold = false}) {
@@ -970,8 +1158,8 @@ class _MapPainter extends CustomPainter {
     for (final (lon, s) in [(0.0, '0°'), (90.0, '90°E'), (180.0, '180°'), (-90.0, '90°W')]) {
       text(s, px(-81.2, lon), color: PH.text);
     }
-    for (var lat = -88.0; lat >= -84.0; lat -= 2) {
-      text('${lat.toStringAsFixed(0)}°', px(lat, 45), color: PH.text);
+    for (final (s, lat, lon) in g.labels) {
+      text(s, px(lat, lon), color: PH.text, bold: lat == g.edge);
     }
 
     // sites (selected drawn last)
@@ -1021,6 +1209,7 @@ class _MapPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _MapPainter old) =>
+      old.l != l ||
       old.selected != selected ||
       old.overlay != overlay ||
       old.labels != labels ||
@@ -1029,6 +1218,23 @@ class _MapPainter extends CustomPainter {
       old.pin != pin ||
       old.highlight != highlight;
 }
+
+/// The map's latitude rings (°), how far its meridians run, the circle drawn
+/// thicker as the edge for custom spots (80°S, with the ring only) and the
+/// direct text labels (text, lat, lon). With the ring beyond 80°S it goes on
+/// to 78 and 76°S, the meridians to 75°S.
+({List<double> rings, double meridiansTo, double? edge, List<(String, double, double)> labels}) mapGraticule(
+        {required bool outer}) =>
+    (
+      rings: [for (var lat = -88.0; lat <= (outer ? -76.0 : -80.0); lat += 2) lat],
+      meridiansTo: outer ? -75.0 : -80.0,
+      edge: outer ? -80.0 : null,
+      labels: [
+        for (var lat = -88.0; lat <= -84.0; lat += 2) (_latLabel(lat), lat, 45.0),
+        // the ring's labels on 45°W: 45°E is under the inline map's controls
+        if (outer) ...[('80°S', -80.0, -45.0), (_latLabel(-78), -78.0, -45.0), (_latLabel(-76), -76.0, -45.0)],
+      ],
+    );
 
 /// A small scale bar: the longest round distance that fits in [maxPx].
 class _ScaleBar extends StatelessWidget {

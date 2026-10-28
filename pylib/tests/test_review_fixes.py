@@ -323,3 +323,32 @@ def test_package_sources_use_lf_line_endings():
     assert files
     crlf = [str(p) for p in files if b"\r\n" in p.read_bytes()]
     assert not crlf, crlf
+
+
+def test_light_map_close_up_past_80s_is_centred():
+    # IM-1 Odysseus (-80.13, 1.44 E): the reported bug put it on the close-up's top edge
+    lm = lh.light_map(T, lat_deg=-80.13, lon_deg=1.44)
+    assert lm.size == 320
+    r, c = lm.pixel_of(-80.13, 1.44)
+    assert abs(r - 159.5) <= 1 and abs(c - 159.5) <= 1
+
+
+def test_dem_info_mirrors_dart():  # app/test/core/dem_horizon_test.dart
+    from lunarhorizon.terrain import DemInfo, app_dem_info
+
+    info = app_dem_info()
+    assert (info.size, info.inner_offset_px, info.inner_size, info.half_width_m) == (2280, 380, 1520, 456000.0)
+    old = DemInfo.from_json({"file": "f", "size": 1520, "pxM": 400})
+    assert (old.inner_size, old.inner_offset_px, old.half_width_m) == (1520, 0, 304000.0)
+
+
+@pytest.mark.parametrize("m", [
+    {"file": "f", "size": 2280, "pxM": 400, "halfWidthM": 304000},                          # halfWidthM
+    {"file": "f", "size": 2280, "pxM": 400, "inner": {"offsetPx": 300, "size": 1520}},      # not centred
+    {"file": "f", "size": 2286, "pxM": 400, "inner": {"offsetPx": 383, "size": 1520}},      # % 4
+])
+def test_dem_info_from_json_refuses_inconsistent_entries(m):
+    from lunarhorizon.terrain import DemInfo
+
+    with pytest.raises(ValueError):
+        DemInfo.from_json(m)

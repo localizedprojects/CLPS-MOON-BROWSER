@@ -6,6 +6,7 @@ import 'package:polar_horizon/core/catalog.dart';
 import 'package:polar_horizon/core/ephemeris.dart';
 import 'package:polar_horizon/state/app_state.dart';
 import 'package:polar_horizon/theme.dart';
+import 'package:polar_horizon/widgets/light_map.dart' show LightFramePainter, frameView, viewBeyondBaseMap;
 import 'package:polar_horizon/widgets/light_snapshot.dart';
 import 'package:provider/provider.dart';
 
@@ -28,12 +29,12 @@ AppState _state() {
   return s;
 }
 
-Widget _host(AppState s, double tMs) => MaterialApp(
+Widget _host(AppState s, double tMs, {Site site = _site}) => MaterialApp(
       theme: buildTheme(),
       home: Scaffold(
         body: ChangeNotifierProvider<AppState>.value(
           value: s,
-          child: SizedBox(width: 360, child: LightSnapshot(site: _site, tMs: tMs)),
+          child: SizedBox(width: 360, child: LightSnapshot(site: site, tMs: tMs)),
         ),
       ),
     );
@@ -72,5 +73,55 @@ void main() {
     expect(find.text(outsideDatesText), findsNothing);
     expect(find.textContaining('Computed light'), findsNothing);
     expect(tester.takeException(), isNull);
+  });
+  // the real catalogue, map and engine: IM-1 Odysseus (80.13 S) has a
+  // close-up past the base map's edge (about 80 S), SR1 (Shackleton rim) not
+  // (a fresh state and light engine per test: a frame still in flight from an
+  // earlier test's fake clock would never finish in the next one)
+  group('past the base map\'s edge (real data)', () {
+    late AppState state;
+    setUp(() async {
+      state = AppState();
+      await state.init();
+    });
+    tearDown(() => state.dispose());
+
+    final paint = find.byWidgetPredicate((w) => w is CustomPaint && w.painter is LightFramePainter);
+    for (final (id, past) in [('im-1-odysseus-landed', true), ('derosa2012-sr1-shackleton-rim', false)]) {
+      testWidgets('$id: the note ${past ? 'says' : 'does not say'} so, and the frame is drawn '
+          '${past ? 'on the device-shaded relief' : 'on the base map alone'}', (tester) async {
+        final site = state.catalog!.byId(id);
+        final t = state.rangeStartMs + 12 * _hour;
+        await tester.pumpWidget(_host(state, t, site: site));
+        await tester.pump();
+        // before the frame: the view the engine will compute already decides the note
+        String note() => tester.widget<FidelityBadge>(find.byType(FidelityBadge)).text;
+        expect(note(), lightSnapshotFidelityFor(past), reason: id);
+        expect(note().contains('Past the base map\'s edge'), past, reason: id);
+        // the frame, then (past the edge) its relief picture, both take real time
+        for (var i = 0; i < 400 && paint.evaluate().isEmpty; i++) {
+          await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 50)));
+          await tester.pump(const Duration(milliseconds: 50));
+        }
+        expect(paint, findsOneWidget, reason: '$id: the frame is computed');
+        LightFramePainter painter() => tester.widget<CustomPaint>(paint).painter! as LightFramePainter;
+        for (var i = 0; i < 100 && past && painter().relief == null; i++) {
+          await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 20)));
+          await tester.pump();
+        }
+        final p = painter(), f = p.images!.frame;
+        expect(viewBeyondBaseMap(frameView(f), p.halfWidthM), past, reason: id);
+        expect(note(), lightSnapshotFidelityFor(past), reason: '$id, with the frame');
+        if (past) {
+          final rl = p.relief!;
+          expect((rl.x0M, rl.y0M, rl.widthM, rl.heightM), (f.x0M, f.y0M, f.extentM, f.extentM), reason: id);
+        } else {
+          expect(p.relief, isNull, reason: id);
+        }
+        expect(tester.takeException(), isNull);
+        await tester.pumpWidget(const SizedBox());
+        await tester.pump(const Duration(milliseconds: 100));
+      });
+    }
   });
 }

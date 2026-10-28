@@ -51,7 +51,8 @@ def test_map_json_records_the_hillshade_parameters_basemap_uses():
     tint = hs["tint"]
     assert (tint["base"], tint["shade"], tint["elevation"]) == (basemap.TINT_BASE, basemap.TINT_SHADE, basemap.TINT_ELEV)
     assert tint["percentiles"] == list(basemap.TINT_PCT)
-    assert {k: v for k, v in hs.items() if k not in ("file", "pxM", "source")} == basemap.hillshade_params()
+    levels = (tint["zLowM"], tint["zHighM"])  # data (tests/test_relief_tint.py checks them against the DEM)
+    assert {k: v for k, v in hs.items() if k not in ("file", "pxM", "source")} == basemap.hillshade_params(levels)
 
 
 def test_hillshade_defaults_are_the_recorded_constants():

@@ -152,7 +152,7 @@ LOLA south polar stereographic projection (the map geometry of every raster).
 - `latlon_to_xy(lat_deg, lon_deg) -> 'tuple[np.ndarray, np.ndarray]'`: Planetocentric lat/lon (deg) to projected metres ``(x, y)``; dem.dart ``latLonToXY``.
 - `xy_to_latlon(x_m, y_m) -> 'tuple[np.ndarray, np.ndarray]'`: Projected metres to ``(lat_deg, lon_deg)``, lon in [-180, 180]; dem.dart ``xyToLatLon``.
 - `map_direction(lon_deg: 'float', az_deg: 'float') -> 'tuple[float, float]'`: Unit map vector ``(dx, dy)`` (x right = 90 E, y up = 0 E) of a horizontal direction.
-- `APP_DEM_LAT_LIMIT_DEG` = `-80.0`, `LOLA_LAT_LIMIT_DEG` = `-75.0`: sites on the bundled 400 m DEM need ``-90 <= lat < -80``, on the LOLA 80 m + 240 m model ``-90 <= lat < -75``.
+- `APP_DEM_LAT_LIMIT_DEG` = `-80.01`, `LOLA_LAT_LIMIT_DEG` = `-75.0`: sites on the bundled 400 m DEM need ``-90 <= lat <= -80.01`` (the app's ``customMaxLatDeg``: custom spots stay inside the 80-90 S map, though the DEM reaches about 75 S), on the LOLA 80 m + 240 m model ``-90 <= lat < -75``.
 - `normalize_lon(lon_deg: 'float') -> 'float'`: A longitude (deg) in [-180, 180). Values already in range are returned unchanged (bit for bit), others are wrapped: ``normalize_lon(400) == 40.0``.
 - `check_lat(lat_deg: 'float') -> 'float'`: ``lat_deg`` as a float after checking it is a real latitude (finite, -90..90 deg).
 - `check_site_latlon(lat_deg: 'float', lon_deg: 'float', dem: 'str' = 'app') -> 'tuple[float, float]'`: ``(lat, lon)`` of a south-polar site, checked against a DEM's coverage, lon in [-180, 180).
@@ -178,6 +178,12 @@ LOLA polar-stereographic rasters: DEM reading, bilinear sampling and terrain hei
   - classmethod `app(cls) -> "'TerrainModel'"`: The bundled 400 m app DEM only.
   - `height_xy(self, x, y) -> 'np.ndarray'`: Height (m above 1737.4 km) at projected metres; NaN where no raster covers the point.
   - `height_latlon(self, lat_deg, lon_deg) -> 'np.ndarray'`: Height (m) at planetocentric lat/lon (deg); NaN outside every raster.
+- **class `DemInfo(file: 'str', size: 'int', px_m: 'float', inner_offset_px: 'int', inner_size: 'int') -> None`**: The bundled 400 m DEM as map.json's ``"dem"`` entry describes it (Dart ``DemInfo``).
+  - classmethod `from_json(cls, m: 'dict') -> "'DemInfo'"`: From map.json["dem"]; raises ``ValueError`` (Dart ``FormatException``) when the entry is inconsistent.
+  - property `half_width_m`: Half the grid's side (m): pole to the grid's edge along an axis.
+  - property `inner_half_width_m`: Half the inner block's side (m): pole to 80 S along an axis.
+- `app_dem_info() -> 'DemInfo'`: :class:`DemInfo` of the bundled 400 m DEM (checked like the app's ``DemInfo.fromJson``).
+- `app_dem() -> 'PolarRaster'`: The 400 m DEM the app ships (2280 x 2280 int16 metres above 1737.4 km), decoded once.
 - `decode_planar_split(blob: 'bytes', size: 'int') -> 'np.ndarray'`: Decode the app's "planar-split" DEM encoding to an int16 ``(size, size)`` array.
 - `terrain_height_m(lat_deg: "'float | np.ndarray'", lon_deg: "'float | np.ndarray'", *, dem: 'str' = 'app') -> "'float | np.ndarray'"`: Terrain height (m above the 1737.4 km sphere) at a site, bilinear.
 - `local_slope_deg(terrain: 'TerrainModel | PolarRaster', lat_deg: 'float', lon_deg: 'float', baseline_m: 'float' = 160.0) -> 'float'`: Terrain slope (deg) from central differences over ``baseline_m`` (diagnostic).
@@ -325,7 +331,7 @@ The transparent site score (port of ``score.dart``, the goals of ``ranking.dart`
   - `to_dict(self) -> 'dict'`: Plain dict of the terms and the total (arrays become lists).
 - **class `Goal(*values)`**: Named ranking goals ("What matters most?"), each a preset pair of weights.
 - `GOAL_LABELS` = `dict (see source)`
-- `weights_for(goal: 'Union[Goal, str]') -> 'ScoreWeights'`: Weights of a goal: balanced (0.5, 0.25), power (0.8, 0.2), earth (0.2, 0.2), both (0.5, 0.6).
+- `weights_for(goal: 'Union[Goal, str]') -> 'ScoreWeights'`: Weights of a goal: balanced (0.5, 0.25), power (0.8, 0.2), earth (0.2, 0.2).
 - `goal_for(w: 'ScoreWeights') -> 'Optional[Goal]'`: The goal whose weights match ``w`` within 1e-9, or None for hand-tuned weights.
 - `as_weights(w: 'Union[ScoreWeights, Goal, str, None]') -> 'ScoreWeights'`: Accept weights, a :class:`Goal` or a goal name (None = balanced).
 - `score_terms(*, pct_sunlit, pct_earth, pct_both, longest_dark_h, longest_outage_h, w: 'Union[ScoreWeights, Goal, str]' = <Goal.BALANCED: 'balanced'>) -> 'ScoreBreakdown'`: The score formula on its own terms (percentages 0..100, gaps in hours).
@@ -380,10 +386,11 @@ Computed light and shadow over the LOLA south-polar map, for any moment.
 - `REGION_DOWNSAMPLE` = `2`
 - `CLOSE_UP_DOWNSAMPLE` = `1`
 - **class `GridWindow(r0: 'int', c0: 'int', size: 'int') -> None`**: A square block of grid pixels: rows ``r0 .. r0+size-1``, cols ``c0 .. c0+size-1``.
-- **class `ShadowGrid(z: 'np.ndarray', px_m: 'float')`**: Heights of the polar grid in the pole-tangent frame, ready for shadowing.
-  - classmethod `from_z(cls, z: 'np.ndarray', px_m: 'float') -> "'ShadowGrid'"`: Grid from ready-made pole-frame heights (Dart ``ShadowGrid.fromZ``).
-  - classmethod `from_heights(cls, heights: 'np.ndarray', px_m: 'float', downsample: 'int' = 2) -> "'ShadowGrid'"`: Build from a polar-stereographic height raster (Dart ``ShadowGridBuilder``).
-  - classmethod `from_app_dem(cls, downsample: 'int' = 2) -> "'ShadowGrid'"`: Grid from the bundled 400 m DEM (``terrain.app_dem()``).
+- **class `ShadowGrid(z: 'np.ndarray', px_m: 'float', sweep_ref_size: 'int | None' = None)`**: Heights of the polar grid in the pole-tangent frame, ready for shadowing.
+  - classmethod `from_z(cls, z: 'np.ndarray', px_m: 'float', sweep_ref_size: 'int | None' = None) -> "'ShadowGrid'"`: Grid from ready-made pole-frame heights (Dart ``ShadowGrid.fromZ``).
+  - classmethod `from_heights(cls, heights: 'np.ndarray', px_m: 'float', downsample: 'int' = 2, ref_size_px: 'int | None' = None) -> "'ShadowGrid'"`: Build from a polar-stereographic height raster (Dart ``ShadowGridBuilder``).
+  - classmethod `from_app_dem(cls, downsample: 'int' = 2) -> "'ShadowGrid'"`: Grid from the bundled 400 m DEM (``terrain.app_dem()``), like the app's ``LightGrids``.
+  - `region_window(self) -> 'GridWindow | None'`: The whole-region view's window: the pole-centred block of :attr:`sweep_ref_size` px (80-90 S on the bundled DEM's grids), or None when that is the whole grid (Dart ``LightGrids.regionWindow``).
   - staticmethod `to_pole_frame(dir_body) -> 'tuple[float, float, float]'`: Unit light direction in the pole frame from a MOON_ME vector toward the body.
   - `pixel_of(self, lat_deg: 'float', lon_deg: 'float') -> 'tuple[float, float]'`: Fractional pixel (row, col) of a lat/lon (deg, planetocentric, east-positive).
   - `window_around(self, row: 'float', col: 'float', side: 'int') -> 'GridWindow'`: Square window of ``side`` pixels centred on (row, col), kept inside the grid.

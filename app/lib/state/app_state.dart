@@ -31,6 +31,7 @@ import '../core/landing.dart';
 import '../core/landing_wording.dart' show goalName;
 import '../core/metrics.dart';
 import '../core/ranking.dart';
+import '../core/relief.dart' show ReliefRecipe;
 import '../core/score.dart';
 import '../core/site_glance.dart' show GlanceInputs, SiteGlance, buildSiteGlance;
 import '../core/summary.dart';
@@ -601,8 +602,9 @@ class AppState extends ChangeNotifier {
   final Map<String, Map<double, HorizonMask>> _customMasks = {};
   bool placingCustom = false;
 
-  /// Shown when a custom site falls outside the 400 m terrain map's coverage.
-  static const customSiteEdgeText = 'That spot is at the very edge of the terrain map, where no height can be read. '
+  /// Shown when a custom site lies north of [customMaxLatDeg] (or, as a second
+  /// guard, outside the 400 m terrain grid).
+  static const customSiteEdgeText = 'That spot is on or beyond the edge of the region this map shows (80° S). '
       'Pick a point a little closer to the pole (80.01° S or further south).';
 
   List<Site> get allSites => [...catalog!.sites, ...customSites];
@@ -1133,7 +1135,9 @@ class AppState extends ChangeNotifier {
       // the four layers are fetched and decoded together (async-2)
       final imgs = await Future.wait<ui.Image?>([_image('map/hillshade.webp'), opt('sunvis'), opt('earthvis'), opt('psr')]);
       if (_disposed) return false;
-      mapLayers = MapLayers(imgs[0]!, imgs[1], imgs[2], imgs[3], (m['halfWidthM'] as num).toDouble());
+      mapLayers = MapLayers(imgs[0]!, imgs[1], imgs[2], imgs[3], (m['halfWidthM'] as num).toDouble(),
+          demHalfWidthM: DemInfo.fromJson(m['dem'] as Map).halfWidthM,
+          relief: ReliefRecipe.fromJson(m['hillshade'] as Map?));
       return true;
     } catch (e) {
       debugPrint('map layers unavailable: $e');
@@ -1152,9 +1156,13 @@ class AppState extends ChangeNotifier {
   Future<PolarGrid>? _demJob;
 
   Future<PolarGrid> _loadDem() async {
-    final m = (jsonDecode(await rootBundle.loadString('assets/data/map/map.json')) as Map<String, dynamic>)['dem'] as Map;
-    return decodeDem(await loadAsset(m['file'] as String), m['size'] as int, (m['pxM'] as num).toDouble());
+    final info = demInfo = DemInfo.fromJson(
+        (jsonDecode(await rootBundle.loadString('assets/data/map/map.json')) as Map<String, dynamic>)['dem'] as Map);
+    return decodeDem(await loadAsset(info.file), info.size, info.pxM);
   }
+
+  /// map.json's description of the 400 m DEM (set once [dem] has loaded).
+  DemInfo? demInfo;
 
   Future<LightEngine>? _light;
 
@@ -1169,16 +1177,19 @@ class AppState extends ChangeNotifier {
     final running = _light;
     if (running != null) return running;
     late final Future<LightEngine> job;
-    job = dem().then((d) => LightEngine.start(d.heights, d.size, d.scaleM)).catchError((Object e) {
+    // the whole-region view is the DEM's inner block (80-90° S); close-ups use all of it
+    job = dem()
+        .then((d) => LightEngine.start(d.heights, d.size, d.scaleM, regionSizePx: demInfo?.innerSize ?? d.size))
+        .catchError((Object e) {
       if (identical(_light, job)) _light = null;
       throw e;
     });
     return _light = job;
   }
 
-  /// Place a custom site: horizon from the 400 m LOLA DEM computed on the device.
-  /// A spot outside the DEM's coverage (the outermost edge of the -80° circle)
-  /// is refused with [customSiteEdgeText]. True once the spot is added and
+  /// Place a custom site: horizon from the 400 m LOLA DEM computed on the device
+  /// (its rays see terrain beyond 80° S too, to about 75° S). A spot north of
+  /// [customMaxLatDeg] (-80.01°) is refused with [customSiteEdgeText]. True once the spot is added and
   /// selected (the full-screen map hands it back only then); false when it was
   /// refused or failed ([error] says why).
   Future<bool> addCustomSite(double lat, double lon) async {
@@ -1187,7 +1198,8 @@ class AppState extends ChangeNotifier {
     var placed = false;
     try {
       final grid = await dem();
-      if (!grid.coversLatLon(lat, lon)) {
+      // the rule (south of 80° S) first; DEM coverage (to about 75° S) as a guard
+      if (!customLatAllowed(lat) || !grid.coversLatLon(lat, lon)) {
         placingCustom = false;
         error = customSiteEdgeText;
         notifyListeners();

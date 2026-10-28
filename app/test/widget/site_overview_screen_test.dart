@@ -152,6 +152,26 @@ void main() {
     expect(find.text(heroMomentCaption(HeroMoment.night)), findsOneWidget);
     await tester.pumpWidget(const SizedBox());
   });
+
+  // the hero's snapshot carries no badge of its own: the one below its caption
+  // says so when the close-up reaches past the base map's edge (IM-1, -80.13)
+  for (final (id, past) in [('im-1-odysseus-landed', true), ('derosa2012-sr1-shackleton-rim', false)]) {
+    testWidgets('$id: the hero\'s note ${past ? 'says' : 'does not say'} the close-up reaches past the base map', (tester) async {
+      final before = state.site.id;
+      addTearDown(() => tester.runAsync(() => state.selectSite(before)));
+      await tester.runAsync(() => state.selectSite(id));
+      expect(state.mapLayers, isNotNull);
+      await pumpAt(tester, 440, hero: true);
+      final badge = find.byWidgetPredicate((w) => w is FidelityBadge && w.text.startsWith(lightSnapshotFidelity));
+      await scrollTo(tester, badge);
+      expect(badge, findsOneWidget, reason: id);
+      expect(tester.widget<FidelityBadge>(badge).text, lightSnapshotFidelityFor(past), reason: id);
+      expect(find.byWidgetPredicate((w) => w is FidelityBadge && w.text.contains('Past the base map\'s edge')),
+          past ? findsOneWidget : findsNothing, reason: id);
+      await tester.pumpWidget(const SizedBox());
+      await tester.pump(const Duration(milliseconds: 100));
+    });
+  }
 }
 
 String _monthName(int m) => const [

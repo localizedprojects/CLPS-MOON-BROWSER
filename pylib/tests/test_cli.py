@@ -95,6 +95,8 @@ def test_errors_exit_nonzero(capsys: pytest.CaptureFixture) -> None:
         main(["sky", "--time", "2027-01-01"])  # no site
     with pytest.raises(SystemExit):
         build_parser().parse_args(["site", "--goal", "fastest"])
+    with pytest.raises(SystemExit):
+        build_parser().parse_args(["site", "--goal", "both"])  # the app dropped "Both at once" (2026-10-13)
 
 
 def test_version() -> None:

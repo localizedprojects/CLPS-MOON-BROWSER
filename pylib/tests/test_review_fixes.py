@@ -30,23 +30,32 @@ T = "2027-01-15T00:00Z"
 
 # --------------------------------------------------------------------------- HIGH: latitude checks
 
-@pytest.mark.parametrize("lat", [-95.0, -90.0001, -80.0, -79.5, -45.0, 0.0, 85.0, 91.0, math.nan, math.inf])
+@pytest.mark.parametrize("lat", [-95.0, -90.0001, -80.0, -80.005, -79.5, -45.0, 0.0, 85.0, 91.0, math.nan,
+                                 math.inf])
 def test_site_custom_rejects_latitudes_outside_the_400m_dem(lat):
-    with pytest.raises(ValueError, match=r"-90 <= lat < -80"):
+    # the app's rule (dem.dart): customLatAllowed(lat) => lat <= customMaxLatDeg (-80.01)
+    with pytest.raises(ValueError, match=r"-90 <= lat <= -80\.01"):
         lh.Site.custom(lat, 0.0)
+
+
+@pytest.mark.parametrize("lat", [-80.01, -80.02])
+def test_site_custom_accepts_the_apps_custom_max_lat(lat):
+    s = lh.Site.custom(lat, 0.0)
+    assert s.lat_deg == lat and math.isfinite(s.terrain_height_m)
 
 
 def test_site_custom_past_the_pole_was_the_mirror_point():
     """The bug: -95 was silently projected to (-85, lon + 180). Now it raises; the real
     point is still accepted."""
-    with pytest.raises(ValueError, match="outside the bundled 400 m DEM"):
+    with pytest.raises(ValueError, match="custom-site region of the bundled 400 m DEM"):
         lh.Site.custom(-95.0, 0.0)
     s = lh.Site.custom(-85.0, 180.0)
     assert s.lat_deg == -85.0 and s.lon_deg == -180.0
 
 
 def test_site_custom_corner_with_data_north_of_80s_is_refused():
-    # the square DEM has data in its corners down to about 77.6 S; the documented coverage is 80 S
+    # the square 400 m DEM has data down to about 75 S (corners about 69 S), but the app's
+    # custom spots stay inside the 80-90 S map (lat <= -80.01)
     with pytest.raises(ValueError):
         lh.Site.custom(-79.9, 45.0)
     with pytest.raises(ValueError):
@@ -314,3 +323,32 @@ def test_package_sources_use_lf_line_endings():
     assert files
     crlf = [str(p) for p in files if b"\r\n" in p.read_bytes()]
     assert not crlf, crlf
+
+
+def test_light_map_close_up_past_80s_is_centred():
+    # IM-1 Odysseus (-80.13, 1.44 E): the reported bug put it on the close-up's top edge
+    lm = lh.light_map(T, lat_deg=-80.13, lon_deg=1.44)
+    assert lm.size == 320
+    r, c = lm.pixel_of(-80.13, 1.44)
+    assert abs(r - 159.5) <= 1 and abs(c - 159.5) <= 1
+
+
+def test_dem_info_mirrors_dart():  # app/test/core/dem_horizon_test.dart
+    from lunarhorizon.terrain import DemInfo, app_dem_info
+
+    info = app_dem_info()
+    assert (info.size, info.inner_offset_px, info.inner_size, info.half_width_m) == (2280, 380, 1520, 456000.0)
+    old = DemInfo.from_json({"file": "f", "size": 1520, "pxM": 400})
+    assert (old.inner_size, old.inner_offset_px, old.half_width_m) == (1520, 0, 304000.0)
+
+
+@pytest.mark.parametrize("m", [
+    {"file": "f", "size": 2280, "pxM": 400, "halfWidthM": 304000},                          # halfWidthM
+    {"file": "f", "size": 2280, "pxM": 400, "inner": {"offsetPx": 300, "size": 1520}},      # not centred
+    {"file": "f", "size": 2286, "pxM": 400, "inner": {"offsetPx": 383, "size": 1520}},      # % 4
+])
+def test_dem_info_from_json_refuses_inconsistent_entries(m):
+    from lunarhorizon.terrain import DemInfo
+
+    with pytest.raises(ValueError):
+        DemInfo.from_json(m)

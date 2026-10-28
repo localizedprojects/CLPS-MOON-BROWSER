@@ -24,7 +24,7 @@ import pytest
 import lunarhorizon as lh
 
 SPECIAL = {"energyKWhM2": "energy_kwh_m2", "minPowerWm2": "min_power_wm2", "meanPowerWm2": "mean_power_wm2"}
-GOALS = ("balanced", "power", "earth", "both")
+GOALS = ("balanced", "power", "earth")
 
 
 def snake(k: str) -> str:

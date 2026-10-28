@@ -87,7 +87,7 @@ def test_score_equals_score_terms_on_metrics():
 
 
 def test_weights_per_goal():
-    expected = {Goal.BALANCED: (0.5, 0.25), Goal.POWER: (0.8, 0.2), Goal.EARTH: (0.2, 0.2), Goal.BOTH: (0.5, 0.6)}
+    expected = {Goal.BALANCED: (0.5, 0.25), Goal.POWER: (0.8, 0.2), Goal.EARTH: (0.2, 0.2)}
     for g, (p, b) in expected.items():
         w = weights_for(g)
         assert (w.power, w.both) == (p, b)
@@ -103,8 +103,12 @@ def test_goal_for_round_trip_and_custom():
     assert goal_for(ScoreWeights(power=0.5, both=0.3)) is None
     assert goal_for(ScoreWeights(power=0.8, both=0.25)) is None
     assert goal_for(ScoreWeights(power=16 / 20, both=0.6 * 4 / 12)) is Goal.POWER
-    assert goal_for(ScoreWeights(power=10 / 20, both=0.6 * 12 / 12)) is Goal.BOTH
-    assert [GOAL_LABELS[g] for g in Goal] == ["Balanced", "Power first", "Earth contact first", "Both at once"]
+    # The app's dropped "Both at once" weights are hand-tuned weights now, not a goal.
+    assert goal_for(ScoreWeights(power=10 / 20, both=0.6 * 12 / 12)) is None
+    assert [GOAL_LABELS[g] for g in Goal] == ["Balanced", "Power first", "Earth contact first"]
+    assert [g.value for g in Goal] == ["balanced", "power", "earth"]  # ranking.dart: enum Goal
+    with pytest.raises(ValueError):
+        weights_for("both")
 
 
 def test_score_accepts_goal_names():

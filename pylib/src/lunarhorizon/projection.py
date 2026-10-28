@@ -32,15 +32,20 @@ R_M = MOON_RADIUS_M
 __all__ = ["R_M", "latlon_to_unit", "unit_to_xy", "latlon_to_xy", "xy_to_latlon", "map_direction",
            "APP_DEM_LAT_LIMIT_DEG", "LOLA_LAT_LIMIT_DEG", "normalize_lon", "check_lat", "check_site_latlon"]
 
-#: Sites on the bundled 400 m DEM (the app's custom sites, the light map) need
-#: ``-90 <= lat < APP_DEM_LAT_LIMIT_DEG``: the DEM is LDEM_80S_80M block-averaged, 80 S to 90 S.
-APP_DEM_LAT_LIMIT_DEG = -80.0
+#: Sites on the bundled 400 m DEM (the app's custom sites, the light map close-up) need
+#: ``-90 <= lat <= APP_DEM_LAT_LIMIT_DEG``: the app's ``customMaxLatDeg`` (``dem.dart``),
+#: inside the 80-90 S region its map shows (-80.00 itself is refused so a spot never sits
+#: on the map's very edge). The DEM reaches further (about 75 S: LDEM_80S_80M inside 80 S,
+#: LDEM_75S_120M beyond), so a site's horizon also sees terrain beyond 80 S.
+APP_DEM_LAT_LIMIT_DEG = -80.01
 #: Sites on the LOLA 80 m + 240 m model (exact mode) need ``-90 <= lat < LOLA_LAT_LIMIT_DEG``:
 #: the 240 m DEM (75 S to 90 S) is the fallback beyond the 80 m DEM's 80 S edge.
 LOLA_LAT_LIMIT_DEG = -75.0
 
-_LAT_LIMITS = {"app": (APP_DEM_LAT_LIMIT_DEG, "the bundled 400 m DEM (80 S to 90 S)"),
-               "lola": (LOLA_LAT_LIMIT_DEG, "the LOLA 80 m + 240 m DEMs (75 S to 90 S)")}
+# (limit, limit included, what): the app's rule is lat <= -80.01 (customLatAllowed)
+_LAT_LIMITS = {"app": (APP_DEM_LAT_LIMIT_DEG, True,
+                       "the app's custom-site region of the bundled 400 m DEM (80 S to 90 S)"),
+               "lola": (LOLA_LAT_LIMIT_DEG, False, "the LOLA 80 m + 240 m DEMs (75 S to 90 S)")}
 
 
 def normalize_lon(lon_deg: float) -> float:
@@ -71,20 +76,21 @@ def check_lat(lat_deg: float) -> float:
 def check_site_latlon(lat_deg: float, lon_deg: float, dem: str = "app") -> tuple[float, float]:
     """``(lat, lon)`` of a south-polar site, checked against a DEM's coverage, lon in [-180, 180).
 
-    ``dem="app"``: the bundled 400 m DEM needs ``-90 <= lat < -80``; ``dem="lola"``: the
-    LOLA 80 m + 240 m model needs ``-90 <= lat < -75``. Raises ``ValueError`` naming the
-    limits otherwise (a point near the DEM's square edge can still be refused later by
-    its no-data check).
+    ``dem="app"``: the app's custom-site rule on the bundled 400 m DEM, ``-90 <= lat <=
+    -80.01`` (Dart ``customLatAllowed``); ``dem="lola"``: the LOLA 80 m + 240 m model needs
+    ``-90 <= lat < -75``. Raises ``ValueError`` naming the limits otherwise (a point near
+    a DEM's square edge can still be refused later by its no-data check).
     """
     if dem not in _LAT_LIMITS:
         raise ValueError(f"dem must be 'app' or 'lola', got {dem!r}")
-    limit, what = _LAT_LIMITS[dem]
+    limit, inclusive, what = _LAT_LIMITS[dem]
     try:
         lat = check_lat(lat_deg)
     except ValueError:
         lat = None
-    if lat is None or not lat < limit:
-        raise ValueError(f"latitude {lat_deg!r} is outside {what}: a site needs -90 <= lat < {limit:g} deg "
+    if lat is None or not (lat <= limit if inclusive else lat < limit):
+        rule = f"-90 <= lat {'<=' if inclusive else '<'} {limit:g}"
+        raise ValueError(f"latitude {lat_deg!r} is outside {what}: a site needs {rule} deg "
                          "(planetocentric; south is negative)")
     return lat, normalize_lon(lon_deg)
 

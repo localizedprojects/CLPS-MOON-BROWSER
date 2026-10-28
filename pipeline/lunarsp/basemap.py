@@ -1,16 +1,30 @@
 """Map layers and the coarse DEM shipped to the app.
 
-All layers cover the same square as LDEM_80S_80M: polar stereographic,
-south pole centred, lon 0 up, 90 E right, half-width 304 km (80 S on the
-axes). Outputs in ``app/assets/data/map/``:
+All layers are polar stereographic, south pole centred, lon 0 up, 90 E right.
+The image layers cover the same square as LDEM_80S_80M, half-width 304 km
+(80 S on the axes; map.json ``halfWidthM``). The 400 m DEM reaches further:
+its own ``dem.halfWidthM`` is 456 km (about 75.05 S on the axes), so close-ups
+of sites near 80 S have terrain all round. Outputs in ``app/assets/data/map/``:
 
 * ``hillshade.webp``  - LOLA hillshade (320 m/px), real topography.
 * ``sunvis.webp``     - LOLA team average solar visibility (AVGVISIB, RGBA).
 * ``earthvis.webp``   - LOLA team average Earth visibility (RGBA).
 * ``psr.webp``        - permanently shadowed regions (AVGVISIB == 0).
-* ``dem_400m.bin.gz`` - int16 heights (m) at 400 m/px for on-device
-                        custom-site horizons (lower fidelity, labelled).
+* ``dem_400m.bin.gz`` - int16 heights (m) at 400 m/px, 2280 x 2280, for
+                        on-device custom-site horizons and the light & shadow
+                        map (lower fidelity, labelled). The inner 1520 x 1520
+                        block (80-90 S) is the 5 x 5 block mean of LDEM_80S_80M;
+                        the ring beyond it is the exact-overlap area mean of
+                        LDEM_75S_120M (see :func:`area_mean_resample`).
 * ``map.json``        - extents + provenance.
+
+``python -m lunarsp.basemap`` rebuilds every layer (needs the 80 m and 120 m
+DEMs and both AVGVISIB maps). ``python -m lunarsp.basemap dem`` rebuilds only
+``dem_400m.bin.gz`` and the ``dem`` entry of map.json, leaving every other file
+and key byte-identical. ``python -m lunarsp.basemap tint`` (80 m DEM only)
+writes only map.json hillshade.tint zLowM / zHighM: the heights the tint maps
+to 0 and 1, so the app can shade the 400 m terrain past the base map's edge
+with the same tones (app/lib/core/relief.dart).
 """
 
 from __future__ import annotations
@@ -22,7 +36,7 @@ import numpy as np
 from PIL import Image
 
 from .config import WEB_DATA_DIR
-from .dem import PolarRaster
+from .dem import PolarRaster, xy_to_latlon
 from .outio import write_json
 
 MAP_DIR = WEB_DATA_DIR / "map"
@@ -58,8 +72,21 @@ def hillshade(z: np.ndarray, px_m: float, az_deg: float = HILLSHADE_AZ_DEG, alt_
     return np.clip(hs, 0, 1)
 
 
-def hillshade_params() -> dict:
-    """The hillshade lighting and tint that ``build`` uses, as written to map.json."""
+def tint_levels(z320: np.ndarray) -> tuple[float, float]:
+    """The heights (m) that zNorm maps to 0 and 1: the TINT_PCT percentiles of
+    the 320 m heights of 80-90 S. Recorded in map.json so the app can shade the
+    400 m terrain beyond the base map with the same tones."""
+    lo, hi = TINT_PCT
+    return float(np.percentile(z320, lo)), float(np.percentile(z320, hi))
+
+
+def _tint_level_keys(levels: tuple[float, float]) -> dict:
+    return {"zLowM": round(levels[0], 3), "zHighM": round(levels[1], 3)}
+
+
+def hillshade_params(levels: tuple[float, float] | None = None) -> dict:
+    """The hillshade lighting and tint that ``build`` uses, as written to map.json;
+    [levels] (``tint_levels``) adds zLowM / zHighM to the tint."""
     return {
         "lightAzimuthDeg": HILLSHADE_AZ_DEG,
         "lightAzimuthFrom": "clockwise from image up (the lon 0 direction)",
@@ -69,6 +96,7 @@ def hillshade_params() -> dict:
             "formula": "grey = clip(base + shade * hillshade + elevation * clip(zNorm, 0, 1), 0, 1); "
                        "zNorm maps the given percentiles of the 320 m heights to 0..1",
             "base": TINT_BASE, "shade": TINT_SHADE, "elevation": TINT_ELEV, "percentiles": list(TINT_PCT),
+            **(_tint_level_keys(levels) if levels is not None else {}),
         },
         "note": "Display shading only (artificial light direction); not a Sun position.",
     }
@@ -104,17 +132,196 @@ def decode_planar(blob: bytes, n: int) -> np.ndarray:
     return z[1:, 1:].astype(np.int16)
 
 
-def build_dem(z: np.ndarray | None = None) -> np.ndarray:
-    """400 m/px int16 DEM for on-device custom-site horizons."""
+#: The app's 400 m DEM. Its size is a multiple of 8 so the app's 2x and 4x
+#: downsampled shadow grids stay pole-centred and keep today's cell boundaries
+#: over the inner block ((DEM_SIZE - DEM_INNER_SIZE) / 2 = 380 is divisible by 4).
+#: 2280 x 400 m = 912 km = 7600 pixels of the 120 m product, which has 7624: the
+#: largest such grid that fits inside LDEM_75S_120M (half-width 457.44 km).
+DEM_PX_M = 400.0
+DEM_SIZE = 2280
+DEM_INNER_SIZE = 1520  # 80-90 S: the whole of LDEM_80S_80M (7600 px / 5)
+DEM_INNER_OFFSET = (DEM_SIZE - DEM_INNER_SIZE) // 2  # 380 px
+DEM_RING_KEY = "ldem_75s_120m"
+#: Width (px) of the band inside the inner block's edge used for the seam check.
+DEM_SEAM_BAND_PX = 5
+#: Raw DN values that would mark missing data in a LOLA int16 product. The
+#: LDEM_75S_120M label has no MISSING_CONSTANT and its data hold none of these,
+#: but the build refuses any that appear rather than read them as heights.
+DEM_FILL_DN = (-32768, 32767)
+
+
+def _overlap_weights(src_px_m: float, dst_px_m: float) -> np.ndarray:
+    """1-D overlap weights over one common period of two aligned grids.
+
+    Returns W with shape (k_dst, k_src), where the period is lcm(src, dst)
+    (in whole metres), k_src = period / src and k_dst = period / dst. W[p, i]
+    is the length of destination cell p that pixel i covers, divided by the
+    cell length, so each row sums to 1.
+    """
+    s, d = int(round(src_px_m)), int(round(dst_px_m))
+    if s != src_px_m or d != dst_px_m or s <= 0 or d <= 0:
+        raise ValueError("pixel sizes must be positive whole metres")
+    period = np.lcm(s, d)
+    k_src, k_dst = period // s, period // d
+    w = np.zeros((k_dst, k_src))
+    for p in range(k_dst):
+        for i in range(k_src):
+            w[p, i] = max(0, min((p + 1) * d, (i + 1) * s) - max(p * d, i * s)) / d
+    return w
+
+
+def area_mean_resample(z: np.ndarray, src_px_m: float, dst_px_m: float, band: int = 64) -> np.ndarray:
+    """Exact-overlap (area-weighted) mean of a square grid onto a coarser grid.
+
+    Both grids are in the same projected metres and share their first (upper
+    left) edge, which must also be the start of a common period (lcm of the two
+    pixel sizes). Each output cell is the mean of the input pixels weighted by
+    the area of their overlap with the cell, i.e. the area mean of the
+    piecewise-constant input surface over the cell. Overlap areas are products
+    of 1-D overlaps, so the weights are separable: out = W z W^T per period.
+    For 120 -> 400 m the period is 1.2 km (10 pixels, 3 cells) and the weights
+    are (1, 1, 1, 1/3), (2/3, 1, 1, 2/3), (1/3, 1, 1, 1) over 10/3 pixels.
+    Sums are taken in float64, ``band`` periods of rows at a time.
+    """
+    w = _overlap_weights(src_px_m, dst_px_m)
+    k_dst, k_src = w.shape
+    n = z.shape[0]
+    if z.ndim != 2 or z.shape[1] != n or n % k_src:
+        raise ValueError(f"need a square grid whose side is a multiple of {k_src} pixels")
+    g = n // k_src
+    out = np.empty((g * k_dst, g * k_dst))
+    for a0 in range(0, g, band):
+        a1 = min(g, a0 + band)
+        blk = np.asarray(z[a0 * k_src:a1 * k_src], dtype=np.float64).reshape(a1 - a0, k_src, g, k_src)
+        out[a0 * k_dst:a1 * k_dst] = np.einsum("pi,aibj,qj->apbq", w, blk, w).reshape((a1 - a0) * k_dst, g * k_dst)
+    return out
+
+
+def dem_inner_400m(z80: np.ndarray) -> np.ndarray:
+    """The 80-90 S block, exactly as shipped before the ring was added: float32 heights of
+    LDEM_80S_80M, 5 x 5 block mean, np.round, int16. Do not change this path:
+    the shipped values are validated against Horizons and the shadow tests."""
+    return np.round(_block_mean(z80, 5)).astype("<i2")
+
+
+def dem_ring_400m(r: PolarRaster, size: int = DEM_SIZE, px_m: float = DEM_PX_M) -> np.ndarray:
+    """Area mean of a polar raster (e.g. LDEM_75S_120M) on the pole-centred
+    ``size`` x ``size`` grid of ``px_m`` cells, in metres (float64).
+
+    Refuses rasters whose pixel edges do not line up with the grid's outer
+    edge, grids that reach beyond the raster, and any fill DN in the window.
+    """
+    half = size * px_m / 2
+    off = r.size / 2 - half / r.scale  # first raster pixel inside the grid
+    n = size * px_m / r.scale
+    if off < 0 or off != int(off) or n != int(n):
+        raise ValueError(f"a {size} x {px_m:g} m grid does not align with {r.name} ({r.size} px at {r.scale:g} m)")
+    off, n = int(off), int(n)
+    dn = np.asarray(r.data[off:off + n, off:off + n])
+    bad = np.isin(dn, DEM_FILL_DN)
+    if bad.any():
+        raise ValueError(f"{r.name}: {int(bad.sum())} fill values in the DEM window")
+    return area_mean_resample(dn, r.scale, px_m) * r.dn_scale
+
+
+def assemble_dem(inner: np.ndarray, ring: np.ndarray) -> np.ndarray:
+    """The ring grid (rounded to int16) with the inner block pasted at its centre."""
+    o = (ring.shape[0] - inner.shape[0]) // 2
+    if (ring.shape[0] - inner.shape[0]) % 2:
+        raise ValueError("inner block must be centred on the ring grid")
+    out = np.round(ring).astype("<i2")
+    out[o:o + inner.shape[0], o:o + inner.shape[1]] = inner
+    return np.ascontiguousarray(out)
+
+
+def seam_stats(inner: np.ndarray, ring: np.ndarray, band_px: int = DEM_SEAM_BAND_PX) -> dict:
+    """Ring-source (120 m-derived) minus inner (80 m-derived) heights over the
+    outermost ``band_px`` pixels inside the inner block's edge (just inside 80 S
+    on the axes), plus the same for the edge row/column alone."""
+    o = (ring.shape[0] - inner.shape[0]) // 2
+    m = inner.shape[0]
+    d = ring[o:o + m, o:o + m] - inner.astype(np.float64)
+    band = np.ones((m, m), bool)
+    band[band_px:m - band_px, band_px:m - band_px] = False
+    edge = np.ones((m, m), bool)
+    edge[1:m - 1, 1:m - 1] = False
+
+    def st(mask):
+        v = d[mask]
+        return {"n": int(v.size), "meanM": round(float(v.mean()), 3), "sdM": round(float(v.std()), 3),
+                "p99AbsM": round(float(np.percentile(np.abs(v), 99)), 2), "maxAbsM": round(float(np.abs(v).max()), 2)}
+
+    return {"bandPx": band_px, **st(band), "edge": st(edge)}
+
+
+def build_dem(z: np.ndarray | None = None) -> tuple[np.ndarray, dict]:
+    """The 400 m/px int16 DEM (inner 80 m block + 120 m ring) and its map.json entry.
+
+    ``z`` is the float32 LDEM_80S_80M height grid if the caller already has it.
+    Writes ``dem_400m.bin.gz``; the caller writes map.json.
+    """
     if z is None:
         dem = PolarRaster.open("ldem_80s_80m")
         z = np.asarray(dem.data, dtype=np.float32) * dem.dn_scale
-    i16 = np.round(_block_mean(z, 5)).astype("<i2")
+    inner = dem_inner_400m(z)
+    if inner.shape != (DEM_INNER_SIZE, DEM_INNER_SIZE):
+        raise ValueError(f"inner block is {inner.shape}, expected {DEM_INNER_SIZE} px")
+    rr = PolarRaster.open(DEM_RING_KEY)
+    ring = dem_ring_400m(rr)
+    i16 = assemble_dem(inner, ring)
     blob = encode_planar(i16)
     assert np.array_equal(decode_planar(blob, i16.shape[0]), i16), "DEM encoding round-trip failed"
     MAP_DIR.mkdir(parents=True, exist_ok=True)
     (MAP_DIR / "dem_400m.bin.gz").write_bytes(blob)
-    return i16
+    seam = seam_stats(inner, ring)
+    half = DEM_SIZE * DEM_PX_M / 2
+    edge_lat = float(xy_to_latlon(half - DEM_PX_M / 2, 0.0)[0])
+    meta = {
+        "file": "map/dem_400m.bin.gz", "size": int(i16.shape[0]), "pxM": DEM_PX_M, "halfWidthM": half,
+        "dtype": "int16-le", "encoding": DEM_ENCODING, "unit": "m above 1737.4 km",
+        "source": ("LOLA LDEM_80S_80M (80-90 S) + LDEM_75S_120M ring (to about 75 S), 400 m "
+                   "(custom-site horizons, light & shadow map)"),
+        "inner": {"offsetPx": DEM_INNER_OFFSET, "size": DEM_INNER_SIZE, "halfWidthM": DEM_INNER_SIZE * DEM_PX_M / 2,
+                  "source": "LOLA LDEM_80S_80M", "method": "5 x 5 block mean of the 80 m grid, rounded to 1 m"},
+        "ring": {"source": "LOLA LDEM_75S_120M",
+                 "method": ("exact-overlap area mean of the 120 m pixels on each 400 m cell (separable 1-D overlaps; "
+                            "per 1.2 km: weights 1,1,1,1/3 | 2/3,1,1,2/3 | 1/3,1,1,1 of 10/3 px), rounded to 1 m"),
+                 "edgeLatDeg": round(edge_lat, 3),
+                 "note": "outside the inner block only; corners reach about 69 S (real LOLA heights, no fill)"},
+        "seam": {**seam, "what": ("120 m-derived minus 80 m-derived 400 m heights over the inner block's outer "
+                                  f"{DEM_SEAM_BAND_PX} px (and its edge pixels alone), i.e. just inside 80 S")},
+    }
+    return i16, meta
+
+
+def build_dem_only() -> dict:
+    """Rebuild ``dem_400m.bin.gz`` and replace only map.json['dem']."""
+    path = MAP_DIR / "map.json"
+    meta = json.loads(path.read_text())
+    _, dem_meta = build_dem()
+    meta["dem"] = dem_meta  # same key, same position: other keys untouched
+    write_json(path, meta, indent=1)
+    print(f"dem_400m.bin.gz {(MAP_DIR / 'dem_400m.bin.gz').stat().st_size:,} B, size {dem_meta['size']} px; "
+          f"seam {dem_meta['seam']}")
+    return dem_meta
+
+
+def z320_80s() -> np.ndarray:
+    """LDEM_80S_80M block-mean to 320 m (m), exactly as ``build`` shades it."""
+    dem = PolarRaster.open("ldem_80s_80m")
+    return _block_mean(np.asarray(dem.data, dtype=np.float32) * dem.dn_scale, 4)
+
+
+def build_tint_only() -> dict:
+    """Record the tint levels (``tint_levels``) in map.json['hillshade']['tint']
+    without rebuilding anything: only the zLowM / zHighM keys change."""
+    path = MAP_DIR / "map.json"
+    meta = json.loads(path.read_text())
+    keys = _tint_level_keys(tint_levels(z320_80s()))
+    meta["hillshade"]["tint"].update(keys)  # existing keys keep their place
+    write_json(path, meta, indent=1)
+    print(f"map.json hillshade.tint {keys}")
+    return keys
 
 
 def build() -> dict:
@@ -129,11 +336,12 @@ def build() -> dict:
     # gentle elevation tint so peaks read as lighter
     lo, hi = TINT_PCT
     zn = (z320 - np.percentile(z320, lo)) / (np.percentile(z320, hi) - np.percentile(z320, lo))
+    levels = tint_levels(z320)
     g = np.clip(TINT_BASE + TINT_SHADE * hs + TINT_ELEV * np.clip(zn, 0, 1), 0, 1)
     Image.fromarray((g * 255).astype(np.uint8), "L").save(MAP_DIR / "hillshade.webp", quality=82, method=6)
 
     # --- coarse DEM for on-device horizons (400 m/px) ------------------------
-    i16 = build_dem(z)
+    _, dem_meta = build_dem(z)
 
     layers = {}
     # --- LOLA team average visibility overlays --------------------------------
@@ -164,10 +372,8 @@ def build() -> dict:
         "projection": "south polar stereographic, sphere R=1737.4 km, lon 0 up, 90E right (LOLA/PDS)",
         "halfWidthM": half_m,
         "hillshade": {"file": "map/hillshade.webp", "pxM": 320.0, "source": "LOLA LDEM_80S_80M (block-mean to 320 m)",
-                      **hillshade_params()},
-        "dem": {"file": "map/dem_400m.bin.gz", "size": int(i16.shape[0]), "pxM": 400.0, "dtype": "int16-le",
-                "encoding": DEM_ENCODING,
-                "unit": "m above 1737.4 km", "source": "LOLA LDEM_80S_80M block-mean to 400 m (custom-site horizons)"},
+                      **hillshade_params(levels)},
+        "dem": dem_meta,
         "sunvis": {**layers.get("avgvis_sun", {}), "source": "LOLA AVGVISIB_75S_120M_201608 (Mazarico et al. 2011 method)"},
         "earthvis": {**layers.get("avgvis_earth", {}), "source": "LOLA AVGVISIB_75S_120M_201608_EARTH"},
         "psr": {**layers.get("psr", {}), "source": "AVGVISIB == 0 (never sunlit over the averaging period)"},
@@ -179,4 +385,13 @@ def build() -> dict:
 
 
 if __name__ == "__main__":
-    build()
+    import sys
+
+    if sys.argv[1:] == ["dem"]:
+        build_dem_only()
+    elif sys.argv[1:] == ["tint"]:
+        build_tint_only()
+    elif sys.argv[1:]:
+        raise SystemExit("usage: python -m lunarsp.basemap [dem | tint]")
+    else:
+        build()

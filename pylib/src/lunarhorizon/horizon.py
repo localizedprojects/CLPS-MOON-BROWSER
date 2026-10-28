@@ -22,8 +22,10 @@ Two methods, both from the app's sources:
   ignored: the 80 m DEM cannot resolve it.
 * coarse (``terrain="app"``, the default of :func:`horizon_mask`, :func:`coarse_horizon_mask`): the app's on-device method
   for custom sites (``horizon_compute.dart``): the 400 m DEM, from 600 m in 100 m steps
-  to 20 km, then +0.5 % per step to 300 km, 0.5 deg azimuth step. Lower fidelity
-  (skyline errors of roughly 0.5 to 1.4 deg); masks are flagged ``approximate=True``.
+  to 20 km, then +0.5 % per step to 300 km, 0.5 deg azimuth step. The DEM reaches about
+  75 S (LDEM_80S_80M inside 80 S, LDEM_75S_120M resampled beyond), so rays from a site
+  near 80 S see real terrain beyond it; samples past the grid's edge are skipped. Lower
+  fidelity (skyline errors of roughly 0.5 to 1.4 deg); masks are flagged ``approximate=True``.
 
 An azimuth with no terrain sample at all gets -90 deg (the Dart rule).
 """
@@ -289,7 +291,8 @@ def coarse_horizon_mask(lat_deg: float, lon_deg: float, observer_heights_m=(2.0,
 
     Raises:
         ValueError: the site is outside the DEM coverage (Dart ``ArgumentError``); on the
-            bundled DEM that includes any latitude outside -90 <= lat < -80.
+            bundled DEM that includes any latitude outside -90 <= lat <= -80.01 (the app's
+            custom-site rule, ``customLatAllowed``).
     """
     if dem is None:
         lat_deg, lon_deg = check_site_latlon(lat_deg, lon_deg, "app")
@@ -349,7 +352,7 @@ def horizon_mask(lat_deg: float, lon_deg: float, observer_height_m: float = 2.0,
     Args:
         terrain: ``"app"`` (default, no download): the app's coarse on-device method on
             the bundled 400 m DEM (:func:`coarse_horizon_mask`, ``approximate=True``,
-            sites at ``-90 <= lat < -80``); ``"lola"``: full resolution on LOLA 80 m +
+            sites at ``-90 <= lat <= -80.01``); ``"lola"``: full resolution on LOLA 80 m +
             240 m, the method of the bundled preset masks (exact mode: needs
             ``lunarhorizon.data.fetch("dems")``, sites at ``-90 <= lat < -75``; about
             15 s per mask and a lot of memory: the 80 m + 240 m DEMs are memory-mapped

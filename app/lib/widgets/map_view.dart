@@ -13,6 +13,7 @@ import 'package:flutter/material.dart';
 
 import '../core/catalog.dart';
 import '../core/dem.dart';
+import '../core/relief.dart';
 import '../theme.dart';
 import 'sheets/sheet_frame.dart';
 import 'feature_guide.dart';
@@ -20,8 +21,19 @@ import 'feature_guide.dart';
 class MapLayers {
   final ui.Image hillshade;
   final ui.Image? sunvis, earthvis, psr;
+  /// Half-width of the map layers (the hillshade and overlays: 80°S on the axes).
   final double halfWidthM;
-  const MapLayers(this.hillshade, this.sunvis, this.earthvis, this.psr, this.halfWidthM);
+
+  /// Half-width of the 400 m terrain grid behind the light map's close-ups
+  /// (map.json dem: size * pxM / 2; about 75°S), which reaches beyond the map.
+  final double demHalfWidthM;
+
+  /// The base map's hillshade recipe (map.json hillshade), so the light map
+  /// can shade the terrain beyond it the same way; null without tint levels.
+  final ReliefRecipe? relief;
+  const MapLayers(this.hillshade, this.sunvis, this.earthvis, this.psr, this.halfWidthM,
+      {double? demHalfWidthM, this.relief})
+      : demHalfWidthM = demHalfWidthM ?? halfWidthM;
 }
 
 enum MapOverlay { none, sunlight, earth, shadow }
@@ -29,10 +41,11 @@ enum MapOverlay { none, sunlight, earth, shadow }
 const groupColors = {'artemis': Color(0xFFF0F0F0), 'illumination': Color(0xFFE69F00), 'missions': Color(0xFFCC79A7)};
 const _customColor = PH.both;
 
-/// Custom spots must lie inside the 400 m LOLA terrain map that their horizon
-/// is computed from. Its outermost pixel centres stop just short of the 80°S
-/// circle near 0°, 90°E, 180° and 90°W, so −80.00 itself can fall outside.
-const customMaxLat = -80.01;
+/// Custom spots must lie inside the region this map shows, which ends at the
+/// 80°S circle; −80.00 itself is refused so a spot never sits on the map's
+/// very edge. The rule is [customMaxLatDeg] in lib/core (AppState applies it
+/// too); the 400 m terrain behind a spot's horizon reaches further, to 75°S.
+const customMaxLat = customMaxLatDeg;
 
 /// What the base map is, in words (shown under the map).
 const baseMapCaption = 'Shaded relief computed from NASA LOLA laser-altimeter elevations (320 m per pixel), '
@@ -469,7 +482,7 @@ class _MapViewState extends State<MapView> with SingleTickerProviderStateMixin {
     }
     final h = widget.layers.halfWidthM;
     final (lat, lon) = xyToLatLon((p.dx / size - 0.5) * 2 * h, (0.5 - p.dy / size) * 2 * h);
-    if (lat > customMaxLat) return; // outside the terrain map
+    if (lat > customMaxLat) return; // outside the region the map shows
     _setPin((lat, lon));
     // bring the confirm card into view (the map may sit in a scrolling list)
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -829,7 +842,8 @@ class _CoordinatesDialogState extends State<CoordinatesDialog> {
     final v = _parse(t);
     if (v == null || !v.isFinite) return 'Enter a number, for example −89.5';
     if (v < -90 || v > customMaxLat) {
-      return 'Use a latitude from −90 to −80.01. The terrain map ends at 80°S, so −80 itself is just outside it.';
+      return 'Use a latitude from −90 to −80.01. Custom spots go inside the region this map shows, which ends at 80°S, '
+          'so −80 itself is just outside it.';
     }
     return null;
   }

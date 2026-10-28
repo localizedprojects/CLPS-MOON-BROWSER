@@ -21,8 +21,9 @@ const closeUpPx = 320;
 const closeUpRadiusM = closeUpPx * 400.0 / 2;
 
 class LightRequest {
-  /// true: [closeUpPx] window of the 400 m grid around (lat, lon);
-  /// false: the whole 80-90 S region on the 800 m grid.
+  /// true: [closeUpPx] window of the 400 m grid around (lat, lon), anywhere
+  /// on the DEM (which reaches about 75 S, so sites at 80 S are centred);
+  /// false: the whole 80-90 S region (the DEM's inner block) on the 800 m grid.
   final bool closeUp;
   final double lat, lon;
   final V3 sun, earth; // MOON_ME, Moon centre -> body (km)
@@ -64,38 +65,67 @@ class LightFrame {
 }
 
 /// Legend shares of a frame: for a close-up, the disc of [closeUpRadiusM]
-/// centred on the requested site's own pixel (off the frame's centre when the
-/// close-up is clamped against the map edge; the part of the disc beyond the
-/// map is not counted, see `inside`); for the whole region, the inscribed
-/// disc (the 80 S boundary).
+/// centred on the requested site's own pixel (off the frame's centre only if
+/// the close-up were clamped against the terrain grid's edge, about 75 S, which
+/// no site south of 80 S reaches; the part of the disc beyond the grid is not
+/// counted, see `inside`); for the whole region, the inscribed disc (80 S).
 LightShares lightFrameShares(LightFrame f) {
   if (!f.request.closeUp) return lightShares(f.flags, f.size);
   final (row, col) = f.pixelOf(f.request.lat, f.request.lon);
   return lightShares(f.flags, f.size, centreRow: row, centreCol: col, radius: closeUpRadiusM / f.pxM);
 }
 
-/// The two terrain grids the engine keeps (built once from the 400 m DEM).
+/// The terrain grids the engine keeps (built once from the 400 m DEM; each is
+/// the whole DEM, so terrain beyond 80 S casts shadows into every view).
 class LightGrids {
   /// region: 800 m (whole region); fine: 400 m (close-ups); coarse: 1.6 km
   /// (the whole region while playing; a playing close-up uses [region]).
   final ShadowGrid region, fine, coarse;
-  LightGrids(Int16List heights, int demSize, double demPxM)
-      : region = ShadowGrid.fromHeights(heights, demSize, demPxM, downsample: 2),
-        fine = ShadowGrid.fromHeights(heights, demSize, demPxM, downsample: 1),
-        coarse = ShadowGrid.fromHeights(heights, demSize, demPxM, downsample: 4);
-  LightGrids._(this.region, this.fine, this.coarse);
+
+  /// Side (DEM pixels) of the pole-centred block the whole-region view shows:
+  /// map.json dem.inner.size (80-90 S, 1520 px), or the whole DEM when it
+  /// has no ring.
+  final int regionSizePx;
+
+  /// [regionSizePx] defaults to [demSize]. The DEM size must be divisible by 4
+  /// (and so must its ring, `(demSize - regionSizePx) / 2`): the 1.6 km grid
+  /// is a whole number of DEM pixels and stays centred on the pole.
+  LightGrids(Int16List heights, int demSize, double demPxM, {int? regionSizePx})
+      : region = ShadowGrid.fromHeights(heights, demSize, demPxM, downsample: 2, refSizePx: regionSizePx),
+        fine = ShadowGrid.fromHeights(heights, demSize, demPxM, downsample: 1, refSizePx: regionSizePx),
+        coarse = ShadowGrid.fromHeights(heights, demSize, demPxM, downsample: 4, refSizePx: regionSizePx),
+        regionSizePx = _checkRegion(demSize, regionSizePx);
+  LightGrids._(this.region, this.fine, this.coarse, this.regionSizePx);
+
+  static int _checkRegion(int demSize, int? regionSizePx) {
+    final r = regionSizePx ?? demSize;
+    if (demSize % 4 != 0 || r > demSize || (demSize - r) % 8 != 0) {
+      throw ArgumentError('DEM $demSize px / region $r px: the shadow grids would leave the pole');
+    }
+    return r;
+  }
 
   /// Same grids as the constructor, built in slices with [pause] between
   /// them (for the web's main thread).
   static Future<LightGrids> sliced(Int16List heights, int demSize, double demPxM,
-      {required Future<void> Function() pause}) async {
-    final region = ShadowGridBuilder(heights, demSize, demPxM, downsample: 2);
+      {required Future<void> Function() pause, int? regionSizePx}) async {
+    final r = _checkRegion(demSize, regionSizePx);
+    final region = ShadowGridBuilder(heights, demSize, demPxM, downsample: 2, refSizePx: r);
     await runSliced(region.step, pause: pause);
-    final fine = ShadowGridBuilder(heights, demSize, demPxM, downsample: 1);
+    final fine = ShadowGridBuilder(heights, demSize, demPxM, downsample: 1, refSizePx: r);
     await runSliced(fine.step, pause: pause);
-    final coarse = ShadowGridBuilder(heights, demSize, demPxM, downsample: 4);
+    final coarse = ShadowGridBuilder(heights, demSize, demPxM, downsample: 4, refSizePx: r);
     await runSliced(coarse.step, pause: pause);
-    return LightGrids._(region.grid, fine.grid, coarse.grid);
+    return LightGrids._(region.grid, fine.grid, coarse.grid, r);
+  }
+
+  /// The whole-region view's window on [g] (one of these grids): the
+  /// pole-centred block of [regionSizePx] DEM pixels; null for the whole grid.
+  GridWindow? regionWindow(ShadowGrid g) {
+    final side = (regionSizePx * fine.pxM / g.pxM).round();
+    if (side >= g.size) return null;
+    final r0 = (g.size - side) ~/ 2;
+    return GridWindow(r0, r0, side);
   }
 }
 
@@ -119,6 +149,8 @@ LightFieldWork _work(LightGrids grids, LightRequest q) {
   if (q.closeUp) {
     final (row, col) = g.pixelOf(q.lat, q.lon);
     win = g.windowAround(row, col, q.coarse ? closeUpPx ~/ 2 : closeUpPx);
+  } else {
+    win = grids.regionWindow(g);
   }
   return LightFieldWork(g, q.sun, q.earth, window: win, observerHeightM: q.observerHeightM);
 }
@@ -534,8 +566,9 @@ abstract class LightEngine {
 
   /// Start an engine over the 400 m DEM heights, with the frame and overlay
   /// caches of [CachedLightEngine] in front of it.
-  static Future<LightEngine> start(Int16List heights, int demSize, double demPxM) async {
-    final inner = await impl.startLightEngine(heights, demSize, demPxM);
+  /// [regionSizePx]: see [LightGrids.regionSizePx].
+  static Future<LightEngine> start(Int16List heights, int demSize, double demPxM, {int? regionSizePx}) async {
+    final inner = await impl.startLightEngine(heights, demSize, demPxM, regionSizePx: regionSizePx);
     return CachedLightEngine(inner, inner.onUiThread ? LightCacheBudget.web : LightCacheBudget.native);
   }
 }

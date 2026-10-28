@@ -44,7 +44,7 @@ print(r.summary_text())
 print(r.metrics.pct_sunlit, r.metrics.longest_dark_hours, r.score.total)
 print(r.landing.status.value, r.landing.suggested.start)        # best 14-day landing
 
-# Any spot inside 80 S, placed like the app's custom sites (400 m DEM, approximate skyline).
+# Any spot inside 80 S (lat <= -80.01), placed like the app's custom sites (400 m DEM, approximate skyline).
 site = lh.Site.custom(-85.98, -0.26)
 s = lh.site_series(site, "2027-01-01", "2027-02-01")             # 10-min samples
 print(s.sun_el[:5], s.sun_frac[:5], s.power[:5], s.dsn[:5])
@@ -71,7 +71,7 @@ and three runnable scripts in [examples/](examples/).
 
 | Mode | Ephemeris | DSN | Horizon | Needs |
 |---|---|---|---|---|
-| **app** (default) | bundled compact hourly ephemeris 2025-2035, 4-point Lagrange | bundled hourly bits (nearest hour) | bundled preset masks (2 m and 10 m), or the 400 m DEM coarse horizon for custom sites | nothing (about 5 MB inside the package) |
+| **app** (default) | bundled compact hourly ephemeris 2025-2035, 4-point Lagrange | bundled hourly bits (nearest hour) | bundled preset masks (2 m and 10 m), or the 400 m DEM coarse horizon for custom sites | nothing (about 7.4 MB inside the package) |
 | **exact** | `SpiceEphemeris`: SPICE DE440 per sample, any epoch 1850-2150 | per sample, ITRF93 | ray-marched on LOLA 80 m + 240 m | `lunarhorizon fetch kernels` / `fetch dems` (about 450 MB) |
 
 App mode is the default of every function, so nothing needs a download unless you ask
@@ -85,8 +85,10 @@ for exact mode. Only these calls need the cache (`lunarhorizon fetch kernels` / 
   `horizon_mask(..., terrain="lola")` and `TerrainModel.lola()`. A full-resolution
   `horizon_mask` on the LOLA maps takes about 15 s per mask and a lot of memory.
 
-Sites must lie on the DEM: `-90 <= lat < -80` in app mode (the bundled 400 m DEM),
-`-90 <= lat < -75` with `dem="lola"`; other latitudes raise `ValueError`. The cache is
+Sites must lie on the DEM: `-90 <= lat <= -80.01` in app mode (the app's custom-spot rule:
+inside the 80-90 S map; the bundled 400 m DEM itself reaches about 75 S, so skylines and
+shadows include the terrain beyond 80 S), `-90 <= lat < -75` with `dem="lola"`; other
+latitudes raise `ValueError`. The cache is
 `$LUNARHORIZON_CACHE`, else `$LUNAR_SP_CACHE`, else `~/.cache/lunar-sp`.
 
 ## Conventions (short)

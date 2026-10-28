@@ -9,9 +9,11 @@ import 'light_engine.dart' show runSliced;
 
 Future<void> _yield() => Future<void>.delayed(Duration.zero);
 
-/// Web: the browser un-gzips the bytes off the main thread
-/// (DecompressionStream; the pure-Dart decoder only where that is missing),
-/// then the residuals are integrated in slices of about 20 ms.
+/// Web (no isolates in this build): the browser un-gzips the bytes off the
+/// main thread (DecompressionStream; the pure-Dart decoder, one blocking
+/// call, only where that is missing), then the residuals are integrated on
+/// the main thread in slices of about 20 ms ([runSliced]) with an event-loop
+/// turn between them.
 Future<PolarGrid> decodeDem(Uint8List gz, int size, double pxM) async {
   List<int> raw;
   try {

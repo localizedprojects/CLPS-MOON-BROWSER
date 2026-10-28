@@ -3,14 +3,14 @@
 These files make the default **app mode** work offline, with the same numbers as the
 Lunar Horizon app. They are byte-identical copies of the app's `app/assets/data/` files
 (checked by `tests/test_bundled_matches_app.py` when the repository is present). Total
-4.8 MB. Nothing here is hand-edited; the app's pipeline (`pipeline/lunarsp`)
+7.4 MB. Nothing here is hand-edited; the app's pipeline (`pipeline/lunarsp`)
 generates them.
 
 | What | Files | Made from |
 |---|---|---|
 | Compact ephemeris | `ephem/manifest.json`, `ephem/2025.bin` .. `2035.bin` | NAIF SPICE: DE440 (`de440s.bsp`), `moon_pa_de440_200625.bpc`, `moon_de440_250416.tf`, `naif0012.tls`. Hourly float32 Moon-centred apparent (`LT+S`) Sun and Earth vectors in `MOON_ME`, km, 2025-01-01T00:00Z .. 2035-12-31T23:00Z. Read by `CompactEphemeris` with 4-point Lagrange interpolation. |
 | DSN bits | `dsn/2025.bin` .. `2035.bin` | SPICE with `earth_1962_260806_2126_combined.bpc` (ITRF93). One byte per hour: bit 0 Goldstone (DSS-14), bit 1 Madrid (DSS-63), bit 2 Canberra (DSS-43) sees the Moon centre at >= 10 deg. |
-| 400 m DEM | `map/dem_400m.bin.gz`, `map/map.json` (only the `dem` block is read) | LOLA `LDEM_80S_80M` block-mean to 400 m, 1520 x 1520 px, south polar stereographic, int16 metres above the 1737.4 km sphere, planar-split + gzip. Used for custom-site heights and coarse horizons and for the light and shadow map. |
+| 400 m DEM | `map/dem_400m.bin.gz`, `map/map.json` (only the `dem` block is read) | 2280 x 2280 px at 400 m (half-width 456 km), south polar stereographic, int16 metres above the 1737.4 km sphere, planar-split + gzip. Inside 80 S (the inner 1520 x 1520 px block at offset 380 px, `dem.inner` in `map.json`): LOLA `LDEM_80S_80M` 5 x 5 block means. The ring to about 75 S (edge 75.05 S; corners about 69 S, real LOLA heights, no fill): LOLA `LDEM_75S_120M` exact area-overlap means of the 120 m pixels on each 400 m cell. Used for custom-site heights and coarse horizons and for the light and shadow map (the region view stays on the 80-90 S block). |
 | Preset sites | `sites.json` | Site catalog: coordinates, terrain height (LOLA 80 m + 240 m), sources. |
 | Preset horizon masks | `horizons.json` | Ray-marched skylines on LOLA `LDEM_80S_80M` + `LDEM_75S_240M`, 0.25 deg azimuth step, centidegrees, observer 2 m and 10 m above terrain, terrain nearer than 120 m ignored. |
 
@@ -51,6 +51,6 @@ Regenerate this table after re-copying (`tests/test_bundled_matches_app.py` chec
 | `ephem/2035.bin` | 210,240 | `a7a610dc921ba697d93ba0a541cf15e44dacf15aeeb2ab95f50cf1ceb32846f0` |
 | `ephem/manifest.json` | 3,607 | `6c23d0469929881e2f7abb5e5061e21459665b59fc2413fa9886fa04a48adcd7` |
 | `horizons.json` | 242,114 | `5478042dfd95f3cbfd0c462b421a57c8ed7ec6281b135ada8c3979e0704a4de0` |
-| `map/dem_400m.bin.gz` | 2,110,365 | `fe1046c640e73d705c5c94410dd49012e0d1f9155872804520f35d9a005d780f` |
-| `map/map.json` | 1,541 | `fd601d4db45379969c14cca7a2c844ab35d037b0fe9bb2884d83d656bb16a326` |
+| `map/dem_400m.bin.gz` | 4,694,460 | `71d285a32a4c1410ffed5c4d8bc62ea8ed04625f443d6f72997fa5d8b0208dbf` |
+| `map/map.json` | 2,594 | `ecae023bcee2779e16d8f321a9c81925e4b53870bf72776d153156b232e353f2` |
 | `sites.json` | 31,333 | `aa84c2a4835bb3f01e87f2a52bdb3801eed77f2e46262b6d044094287a6b288b` |

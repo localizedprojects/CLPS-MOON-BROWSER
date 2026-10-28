@@ -114,7 +114,10 @@ void main() {
     await tester.pump();
     final from = sourcesLine(state.site);
     if (from != null) {
-      expect(tester.getRect(find.text(from)).bottom, lessThanOrEqualTo(tester.getRect(find.byType(AboutSite)).top));
+      // the two edges touch: allow for floating-point noise in the layout
+      // (1e-13 px), not for any real overlap
+      expect(tester.getRect(find.text(from)).bottom,
+          lessThanOrEqualTo(tester.getRect(find.byType(AboutSite)).top + 1e-3));
     }
     await tester.pumpWidget(const SizedBox());
     await done(tester);

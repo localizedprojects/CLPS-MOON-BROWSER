@@ -53,10 +53,10 @@ which gives every formula with the source line that implements it.
 | Runs | maximal runs of a flag; touching the period's ends marks them truncated; the longest is the first of equal maxima | 9.4 |
 | Energy | left Riemann sum: sum(power) x step_h / 1000 kWh/m^2 | 9.4 |
 | Score | Power = 0.6 sunlit % + 0.4 night survival; Comms = 0.6 Earth % + 0.4 outage tolerance; survival/tolerance = 100 x (1 - min(gap / 720 h, 1)); Score = (1 - b)(a Power + (1 - a) Comms) + b Both % | 10 |
-| Goals | balanced (a 0.5, b 0.25), power (0.8, 0.2), earth (0.2, 0.2), both (0.5, 0.6) | 11.6 |
+| Goals | balanced (a 0.5, b 0.25), power (0.8, 0.2), earth (0.2, 0.2); the app dropped "both at once" (0.5, 0.6) on 2026-10-13 | 11.6 |
 | Day classes | both >= 1/2 of the day's samples: "both"; else sun >= 1/2: "sun only"; else earth >= 1/2: "earth only"; else "dark"; UTC days | 11.5 |
 | Landing window | tier 1 "full fit": the earliest run of landing times whose whole mission has both flags on every sample, the suggested landing keeping the largest margin above the skyline; tier 2: the best partial window by the goal's score, landing with Sun and Earth up where possible, earliest within 0.5 points of the top | 11.10 |
-| Light map | 400 m DEM placed on the sphere, parallel light, heightfield sweep along the light; Sun upper limb (any light) and lower limb (full Sun), Earth centre; observer 2 m above each pixel; terrain nearer than 1.5 sample spacings ignored (the unresolved near field); region = DEM averaged by 2 (800 m), close-up = 320 px of the 400 m grid | 12 |
+| Light map | 400 m DEM placed on the sphere, parallel light, heightfield sweep along the light; Sun upper limb (any light) and lower limb (full Sun), Earth centre; observer 2 m above each pixel; terrain nearer than 1.5 sample spacings ignored (the unresolved near field); region = the 80-90 S block of the DEM averaged by 2 (800 m, 760 px), close-up = 320 px of the 400 m grid (the whole 2280 px DEM, to about 75 S, casts shadows; the sweep lattice is anchored to the 80-90 S block) | 12 |
 
 ## Data modes
 

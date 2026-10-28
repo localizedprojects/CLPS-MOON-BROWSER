@@ -37,7 +37,7 @@ from lunarhorizon.series import FLAG_BOTH, FLAG_EARTH, FLAG_SUN, Series, SeriesO
 
 GOLDEN = Path(__file__).resolve().parent / "data" / "golden_plan.json"
 CASES = ["case1", "case2", "case3", "case4", "case5"]
-GOALS = ["balanced", "power", "earth", "both"]
+GOALS = ["balanced", "power", "earth"]
 NUM_TOL = 1e-9
 
 

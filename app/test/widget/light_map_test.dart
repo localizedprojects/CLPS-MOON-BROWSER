@@ -1,7 +1,10 @@
 // Light & shadow map: arrow wording under the stricter rules, the overlay
 // image keeper (per-layer reuse, no work off screen, the web cap), the phone
-// landscape layout, the reduced-motion spinner, and no recompute on return.
+// landscape layout, the reduced-motion spinner, no recompute on return, and
+// the device-shaded relief (and its note) past the base map's edge (IM-1).
 import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
 import 'dart:math' as math;
 import 'dart:typed_data';
 import 'dart:ui' as ui;
@@ -11,6 +14,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:polar_horizon/core/catalog.dart';
 import 'package:polar_horizon/core/dem.dart';
 import 'package:polar_horizon/core/geo.dart';
+import 'package:polar_horizon/core/relief.dart';
 import 'package:polar_horizon/core/shadow.dart';
 import 'package:polar_horizon/core/visibility.dart';
 import 'package:polar_horizon/state/app_state.dart';
@@ -267,6 +271,59 @@ void main() {
       kw.update(side: 900, dpr: 2); // a resize drag above the cap
       await settle(tester, kw);
       expect(web.overlays, 1);
+    });
+  });
+
+  group('relief keeper', () {
+    const v = (x0: -6400.0, y0: 6400.0, ext: 12800.0);
+    const recipe = ReliefRecipe(zLowM: -5000, zHighM: 4000);
+    final grid = PolarGrid(64, 400, Int16List(64 * 64));
+
+    testWidgets('a failed terrain load is tried again on the next ask of the same view, once per ask', (tester) async {
+      await tester.runAsync(() async {
+        Future<void> settle(bool Function() done) async {
+          for (var i = 0; i < 100 && !done(); i++) {
+            await Future<void>.delayed(const Duration(milliseconds: 20));
+          }
+        }
+
+        var calls = 0, changes = 0;
+        Future<PolarGrid> flaky() async {
+          if (++calls == 1) throw StateError('offline');
+          return grid;
+        }
+
+        final k = ReliefKeeper(onChange: () => changes++);
+        addTearDown(k.dispose);
+        k.want(v, flaky, recipe);
+        await settle(() => calls == 1);
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+        expect((calls, k.builds, k.shown), (1, 0, null), reason: 'the load failed, nothing is drawn');
+        // AppState.dem tries a failed load again: so does the next ask of that view
+        k.want(v, flaky, recipe);
+        await settle(() => k.builds == 1);
+        expect((calls, k.builds, changes), (2, 1, 1));
+        expect(k.shown, isNotNull);
+        k.want(v, flaky, recipe);
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+        expect((calls, k.builds), (2, 1), reason: 'built: the same view asks for nothing more');
+
+        // offline for good: one load per ask, never a loop
+        var fails = 0;
+        Future<PolarGrid> offline() async {
+          fails++;
+          throw StateError('offline');
+        }
+
+        final k2 = ReliefKeeper(onChange: () {});
+        addTearDown(k2.dispose);
+        k2.want(v, offline, recipe);
+        await Future<void>.delayed(const Duration(milliseconds: 100));
+        expect(fails, 1);
+        k2.want(v, offline, recipe);
+        await Future<void>.delayed(const Duration(milliseconds: 100));
+        expect((fails, k2.shown), (2, null));
+      });
     });
   });
 
@@ -531,6 +588,120 @@ void main() {
       await tester.pumpWidget(const SizedBox());
       await tester.pump(const Duration(milliseconds: 100));
     });
+
+    test('the map layers from map.json: the terrain grid reaches about 75°S, the relief recipe is the base map\'s', () {
+      final m = jsonDecode(File('assets/data/map/map.json').readAsStringSync()) as Map<String, dynamic>;
+      final hs = m['hillshade'] as Map, tint = hs['tint'] as Map;
+      final layers = state.mapLayers!;
+      expect((layers.halfWidthM, layers.demHalfWidthM), (304000, 456000));
+      expect(layers.demHalfWidthM, (m['dem'] as Map)['halfWidthM']);
+      final r = layers.relief!;
+      expect((r.azimuthDeg, r.altitudeDeg, r.exaggeration),
+          (hs['lightAzimuthDeg'], hs['lightAltitudeDeg'], hs['verticalExaggeration']));
+      expect((r.base, r.shade, r.elevation, r.zLowM, r.zHighM),
+          (tint['base'], tint['shade'], tint['elevation'], tint['zLowM'], tint['zHighM']));
+      // the pipeline's hillshade() and tint (basemap.py)
+      expect((r.azimuthDeg, r.altitudeDeg, r.exaggeration, r.base, r.shade, r.elevation), (315, 35, 2, 0.18, 0.62, 0.2));
+      expect(r.zLowM, lessThan(r.zHighM));
+    });
+  });
+
+  // a fresh state (and light engine) per test, as in light_play_odysseus_test:
+  // a frame or picture still in flight from an earlier test's fake clock
+  // would never finish in the next one
+  group('past the base map\'s edge (real data)', () {
+    late AppState state;
+    setUpAll(loadPlexFonts);
+    setUp(() async {
+      state = AppState();
+      await state.init();
+    });
+    tearDown(() => state.dispose());
+
+    Finder mapPaint() => find.byWidgetPredicate((w) => w is CustomPaint && w.painter is LightFramePainter);
+    LightFramePainter painter(WidgetTester tester) => tester.widget<CustomPaint>(mapPaint()).painter! as LightFramePainter;
+    // the desktop right pane: the short note and the badge are both on screen
+    Widget host() => MaterialApp(
+          theme: buildTheme(),
+          home: Builder(
+            builder: (context) => MediaQuery(
+              data: MediaQuery.of(context).copyWith(disableAnimations: true),
+              child: Scaffold(
+                body: Align(
+                  alignment: Alignment.topLeft,
+                  child: SizedBox(width: 740, height: 620, child: LightMap(state: state, active: true, onSelect: (_) {})),
+                ),
+              ),
+            ),
+          ),
+        );
+
+    for (final (id, past) in [('im-1-odysseus-landed', true), ('derosa2012-sr1-shackleton-rim', false)]) {
+      testWidgets('$id: the close-up ${past ? 'reaches' : 'stays inside'} the base map\'s edge; ${past ? 'labelled and drawn '
+          'on the device-shaded relief of its window' : 'no such note, no relief picture'}', (tester) async {
+        tester.view.physicalSize = const Size(1280, 800);
+        tester.view.devicePixelRatio = 1;
+        addTearDown(tester.view.reset);
+        final grid = (await tester.runAsync(state.dem))!;
+        await tester.runAsync(() => state.selectSite(id));
+        expect(state.site.id, id);
+        await tester.pumpWidget(host());
+        await tester.pump();
+        // before the first frame the relief is drawn already: the note says so then too
+        expect(find.byWidgetPredicate((w) => w is FidelityBadge && w.text.contains(lightPastMapNote)),
+            past ? findsOneWidget : findsNothing, reason: '$id, before the frame');
+        for (var i = 0; i < 400 && find.text('Computing shadows…').evaluate().isNotEmpty; i++) {
+          await tester.pump(const Duration(milliseconds: 70)); // debounce
+          await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 50)));
+        }
+        expect(find.text('Computing shadows…'), findsNothing, reason: '$id: the frame is computed');
+        // the relief picture is built on the device (its decode takes real time)
+        for (var i = 0; i < 100 && past && painter(tester).relief == null; i++) {
+          await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 20)));
+          await tester.pump();
+        }
+        final p = painter(tester), v = p.view;
+        expect(p.closeUp, isTrue, reason: id);
+        expect(viewBeyondBaseMap(v, p.halfWidthM), past, reason: id);
+        final badges = tester.widgetList<FidelityBadge>(find.byType(FidelityBadge)).map((b) => b.text).toList();
+        expect(badges.where((t) => t.contains(lightPastMapNote)), hasLength(past ? 1 : 0), reason: '$id: $badges');
+        expect(badges.where((t) => t.contains('plain grey')), isEmpty, reason: 'the old wording is gone');
+        // the short note under the map says it in its first sentence, which it shows whole
+        final short = badges.where((t) => t.startsWith('Approximate: shadows from a 400 m terrain grid')).single;
+        expect(FidelityBadge.summaryOf(short).contains('past about 80°S the relief is shaded on this device'), past,
+            reason: short);
+        expect(FidelityBadge.summaryOf(short), isNot(endsWith('…')), reason: short);
+        expect(find.textContaining(FidelityBadge.summaryOf(short)), findsOneWidget, reason: id);
+        // the canvas is square, so the close-up's square fills it exactly
+        final size = tester.getSize(mapPaint());
+        expect(size.width, size.height, reason: id);
+        if (!past) {
+          expect(p.relief, isNull, reason: id);
+        } else {
+          final rl = p.relief!;
+          // on the 400 m grid's own pixels, exactly the close-up's 128 km square
+          expect((rl.x0M, rl.y0M, rl.widthM, rl.heightM), (v.x0, v.y0, v.ext, v.ext), reason: id);
+          expect((rl.image.width, rl.image.height), (320, 320), reason: id);
+          // and the picture is the core's relief of that window, pixel for pixel
+          final win = reliefWindow(v.x0, v.y0, v.ext, grid.size, grid.scaleM)!;
+          final grey = reliefGrey(grid.heights, grid.size, grid.scaleM, win, state.mapLayers!.relief!);
+          final rgba = (await tester.runAsync(() => rl.image.toByteData()))!;
+          var off = 0;
+          for (var i = 0; i < grey.length; i++) {
+            if (rgba.getUint8(4 * i) != grey[i] || rgba.getUint8(4 * i + 3) != 255) off++;
+          }
+          expect(off, 0, reason: '$id: pixels unlike reliefGrey');
+          // the part past the base map's edge (y > 304 km) has real relief, not a flat ground
+          final edgeRow = ((v.y0 - p.halfWidthM) / grid.scaleM).round();
+          expect(edgeRow, greaterThan(10), reason: 'IM-1\'s close-up reaches 60 km past the edge');
+          final outside = grey.sublist(0, edgeRow * win.cols).toSet();
+          expect(outside.length, greaterThan(50), reason: 'many tones past the edge');
+        }
+        await tester.pumpWidget(const SizedBox());
+        await tester.pump(const Duration(milliseconds: 100));
+        expect(tester.takeException(), isNull);
+      });
+    }
   });
 
   group('playback on the real map', () {

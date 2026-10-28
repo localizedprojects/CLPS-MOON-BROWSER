@@ -22,6 +22,7 @@ import '../state/light_engine.dart';
 import '../theme.dart';
 import 'chart_bridge.dart' show nowAt;
 import 'light_map.dart';
+import 'map_view.dart' show MapLayers;
 
 /// Shown instead of the Sun / Earth arrows when the moment is not inside the
 /// chosen period (only that period's directions are loaded).
@@ -31,6 +32,22 @@ const outsideDatesText = 'This moment is outside your chosen dates.';
 /// wording is on the Light & shadow map and in Learn).
 const lightSnapshotFidelity = 'Approximate: shadows computed on this device from a 400 m terrain map; '
     'the grey relief is lit by an artificial light, not a photo.';
+
+/// [lightSnapshotFidelity], plus a sentence when the close-up reaches past
+/// the base map's edge ([beyondBaseMap]), as the Light & shadow map says
+/// ([lightPastMapNote]).
+String lightSnapshotFidelityFor(bool pastMap) => pastMap
+    ? '$lightSnapshotFidelity Past the base map\'s edge (about 80°S) the relief is shaded on this device from the '
+        '400 m terrain grid (LOLA LDEM_75S_120M there), and map distances are up to about 1% longer.'
+    : lightSnapshotFidelity;
+
+/// Whether a still snapshot of [site] reaches past the base map's edge: its
+/// close-up square ([closeUpTargetView], which the computed frame matches)
+/// crosses the base map's edge ([viewBeyondBaseMap]). For a badge placed
+/// outside the snapshot ([lightSnapshotFidelityFor]).
+bool snapshotPastMap(MapLayers? layers, Site site) =>
+    layers != null &&
+    viewBeyondBaseMap(closeUpTargetView(site.lat, site.lon, layers.demHalfWidthM, playing: false), layers.halfWidthM);
 
 final _fmt = DateFormat('d MMM yyyy, HH:mm');
 
@@ -72,6 +89,9 @@ class _LightSnapshotState extends State<LightSnapshot> {
   late final _images = LightImageKeeper(onChange: () {
     if (mounted) setState(() {});
   });
+  late final _relief = ReliefKeeper(onChange: () {
+    if (mounted) setState(() {});
+  });
   LightRequest? _queued;
   String? _sentKey;
   bool _busy = false;
@@ -92,6 +112,7 @@ class _LightSnapshotState extends State<LightSnapshot> {
   @override
   void dispose() {
     _images.dispose();
+    _relief.dispose();
     super.dispose();
   }
 
@@ -167,6 +188,15 @@ class _LightSnapshotState extends State<LightSnapshot> {
     }
     final img = _images.shown;
     final fresh = q != null && img != null && img.frame.request.key == q.key;
+    // the close-up's square (the frame's, or the one the engine will compute):
+    // past the base map's edge its ground is shaded on the device (ReliefKeeper)
+    final view = layers == null
+        ? null
+        : fresh
+            ? frameView(img.frame)
+            : closeUpTargetView(site.lat, site.lon, layers.demHalfWidthM, playing: false);
+    final pastMap = view != null && viewBeyondBaseMap(view, layers!.halfWidthM);
+    if (q != null) _relief.want(pastMap ? view : null, s.dem, layers!.relief);
     final o = s.options;
     final dsnUp = eph != null && cover != null && cover.computable && eph.dsnMask(t) != 0;
 
@@ -216,6 +246,7 @@ class _LightSnapshotState extends State<LightSnapshot> {
                 painter: LightFramePainter(
                   hillshade: layers.hillshade,
                   halfWidthM: layers.halfWidthM,
+                  relief: _relief.shown,
                   images: img,
                   view: frameView(img.frame),
                   sites: s.allSites,
@@ -261,7 +292,7 @@ class _LightSnapshotState extends State<LightSnapshot> {
           ),
         ),
       if (showFidelity && computed)
-        const FidelityBadge(text: lightSnapshotFidelity),
+        FidelityBadge(text: lightSnapshotFidelityFor(pastMap)),
     ]);
   }
 

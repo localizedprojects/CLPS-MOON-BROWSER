@@ -64,7 +64,8 @@ const calcSections = <CalcSection>[
     plain: 'Walking outward from the spot in every direction, the app reads NASA LOLA laser-altimeter heights and '
         'keeps the steepest angle up to the terrain, including the Moon\'s curvature. That traces the real skyline. '
         'The 16 preset sites use the 80 m elevation map, then the 240 m map beyond its edge, out to 600 km. Your own '
-        'spots are computed on your device from the 400 m map out to 300 km.',
+        'spots are computed on your device from the 400 m map out to 300 km (made from the 80 m map inside 80°S and '
+        'LOLA\'s 120 m map beyond it, to about 75°S).',
     maths: [
       'angle to terrain = atan2((R + h)·cos θ − (R + h₀), (R + h)·sin θ)',
       'skyline(azimuth) = the largest angle along that direction',
@@ -115,7 +116,10 @@ const calcSections = <CalcSection>[
     title: 'The light & shadow map',
     plain: 'For the moment you pick, the app sweeps the Sun\'s and Earth\'s light across the whole elevation map, '
         'row by row along the light\'s direction, and marks every pixel the terrain blocks. Slopes facing the Sun are '
-        'drawn brighter. The close-up uses the 400 m map over 128 km; the whole region uses an 800 m map.',
+        'drawn brighter. The close-up uses the 400 m map over 128 km; the whole region uses an 800 m map. The grey '
+        'ground under the colours is shaded relief lit by an artificial light, not the Sun: the base map\'s, and where '
+        'a close-up reaches past the base map\'s edge (about 80°S), the same shading worked out on your device from '
+        'the 400 m map.',
     maths: [
       'a pixel is lit if its height ≥ the highest terrain toward the light, minus distance × tan(light elevation)',
       'run for the Sun\'s top edge, its bottom edge, and Earth\'s centre',

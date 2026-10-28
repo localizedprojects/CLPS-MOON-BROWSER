@@ -9,7 +9,9 @@ Three terrain sources:
 * ``PolarRaster.open("ldem_80s_80m")`` / ``"ldem_75s_240m"``: the full LOLA grids from
   the data cache (read-only memory maps; ``lunarhorizon.data.fetch("dems")``).
 * :func:`app_dem`: the 400 m DEM the app ships (decoded from the bundled
-  ``_bundled/map/dem_400m.bin.gz``), used for custom sites in app mode.
+  ``_bundled/map/dem_400m.bin.gz``, 2280 x 2280 px: LDEM_80S_80M inside 80 S and
+  LDEM_75S_120M resampled beyond it, to about 75 S; :func:`app_dem_info` describes it),
+  used for custom sites in app mode and for the light map.
 * ``PolarRaster.from_array``: any in-memory grid, and :meth:`PolarRaster.crop` for small
   windows that keep their place on the map (row/col offsets), so tests and quick looks
   never need to load 115 MB.
@@ -24,6 +26,7 @@ from __future__ import annotations
 import functools
 import gzip
 import json
+from dataclasses import dataclass
 from pathlib import Path
 
 import numpy as np
@@ -31,8 +34,8 @@ import numpy as np
 from .projection import latlon_to_xy
 
 __all__ = [
-    "PolarRaster", "TerrainModel", "app_dem", "decode_planar_split", "terrain_height_m",
-    "local_slope_deg",
+    "PolarRaster", "TerrainModel", "DemInfo", "app_dem", "app_dem_info", "decode_planar_split",
+    "terrain_height_m", "local_slope_deg",
 ]
 
 
@@ -211,7 +214,7 @@ class TerrainModel:
 
     The pipeline's (and the preset horizons') model is 80 m LOLA inside 80 S with the
     240 m grid beyond it: :meth:`lola`. The app's custom-site model is the 400 m DEM
-    alone: :meth:`app`.
+    alone (80 m-derived inside 80 S, 120 m-derived beyond, to about 75 S): :meth:`app`.
     """
 
     def __init__(self, fine: PolarRaster, coarse: PolarRaster | None = None):
@@ -281,20 +284,79 @@ def _app_dem_meta() -> dict:
     return json.loads(Path(bundled_path("map/map.json")).read_text(encoding="utf-8"))["dem"]
 
 
+@dataclass(frozen=True)
+class DemInfo:
+    """The bundled 400 m DEM as map.json's ``"dem"`` entry describes it (Dart ``DemInfo``).
+
+    The whole grid is ``size`` px of ``px_m`` m, centred on the pole; the inner block of
+    ``inner_size`` px at ``inner_offset_px`` holds the 80-90 S region (LOLA LDEM_80S_80M)
+    and the ring around it, to about 75 S, comes from LDEM_75S_120M.
+    """
+
+    file: str
+    size: int
+    px_m: float
+    inner_offset_px: int
+    inner_size: int
+
+    @property
+    def half_width_m(self) -> float:
+        """Half the grid's side (m): pole to the grid's edge along an axis."""
+        return self.size * self.px_m / 2
+
+    @property
+    def inner_half_width_m(self) -> float:
+        """Half the inner block's side (m): pole to 80 S along an axis."""
+        return self.inner_size * self.px_m / 2
+
+    @classmethod
+    def from_json(cls, m: dict) -> "DemInfo":
+        """From map.json["dem"]. An entry without ``"inner"`` (the 1520 px DEM of 80-90 S
+        only) is all inner block. Raises ``ValueError`` (Dart ``FormatException``) when the
+        entry is inconsistent: ``halfWidthM`` not ``size * pxM / 2``, an inner block that is
+        not centred on the pole, or a size the shadow grids cannot halve twice without
+        shifting off the pole (size and inner offset divisible by 4).
+        """
+        size, px_m = int(m["size"]), float(m["pxM"])
+        inner = m.get("inner")
+        inner_size = size if inner is None else int(inner["size"])
+        off = 0 if inner is None else int(inner["offsetPx"])
+        hw = m.get("halfWidthM")
+        if hw is not None and abs(float(hw) - size * px_m / 2) > 1e-6:
+            raise ValueError(f"DEM halfWidthM {hw} != size * pxM / 2 = {size * px_m / 2}")
+        if inner_size > size or 2 * off + inner_size != size:
+            raise ValueError(f"DEM inner block ({off}, {inner_size}) is not centred in {size} px")
+        if size % 4 != 0 or off % 4 != 0:
+            raise ValueError(f"DEM size {size} / inner offset {off} not divisible by 4 "
+                             "(shadow grids would leave the pole)")
+        return cls(str(m["file"]), size, px_m, off, inner_size)
+
+
+@functools.lru_cache(maxsize=1)
+def app_dem_info() -> DemInfo:
+    """:class:`DemInfo` of the bundled 400 m DEM (checked like the app's ``DemInfo.fromJson``)."""
+    return DemInfo.from_json(_app_dem_meta())
+
+
 @functools.lru_cache(maxsize=1)
 def app_dem() -> PolarRaster:
-    """The 400 m DEM the app ships (1520 x 1520 int16 metres above 1737.4 km), decoded once.
+    """The 400 m DEM the app ships (2280 x 2280 int16 metres above 1737.4 km), decoded once.
 
-    It is LOLA LDEM_80S_80M block-averaged 5 x 5 and rounded to whole metres; the app
-    uses it for custom-site heights and horizons and for the light and shadow map.
+    The inner 1520 x 1520 px block (80-90 S, :func:`app_dem_info`) is LOLA LDEM_80S_80M
+    block-averaged 5 x 5; the ring around it, to about 75 S on the axes (the corners
+    reach about 69 S), is LOLA LDEM_75S_120M averaged by exact area overlap onto the
+    400 m cells; both rounded to whole metres. The app uses it for custom-site heights
+    and horizons (so a spot near 80 S sees real terrain beyond it) and for the light and
+    shadow map. Custom spots themselves must lie at or south of
+    :data:`lunarhorizon.projection.APP_DEM_LAT_LIMIT_DEG` (-80.01 deg).
     """
     from .data import bundled_path
 
-    meta = _app_dem_meta()
-    blob = Path(bundled_path(meta["file"])).read_bytes()
-    z = decode_planar_split(blob, int(meta["size"]))
+    info = app_dem_info()
+    blob = Path(bundled_path(info.file)).read_bytes()
+    z = decode_planar_split(blob, info.size)
     z.setflags(write=False)
-    return PolarRaster("dem_400m", z, float(meta["pxM"]), 1.0)
+    return PolarRaster("dem_400m", z, info.px_m, 1.0)
 
 
 def terrain_height_m(lat_deg: "float | np.ndarray", lon_deg: "float | np.ndarray", *,

@@ -184,12 +184,19 @@ def test_grid_parity(name):
 def test_region_field_parity(epoch, capsys):
     gold = GOLDEN["region"][epoch]
     g = _grid("region")
+    # the region view is the 80-90 S block of the grid (LightGrids.regionWindow)
+    win = g.region_window()
+    gw = gold.get("window")
+    if gw is None:  # a golden of the 1520 px DEM (80-90 S only): the whole grid
+        assert win is None
+    else:
+        assert (win.r0, win.c0, win.size) == (gw["r0"], gw["c0"], gw["size"])
     sun = np.array(gold["sunBodyKm"], dtype=np.float64)
     earth = np.array(gold["earthBodyKm"], dtype=np.float64)
-    f = sh.compute_light_field(g, sun, earth)
+    f = sh.compute_light_field(g, sun, earth, window=win)
     shares = sh.light_shares(f.pack_flags())
     report: list[str] = []
-    _check_field(g, f, gold["field"], sun, earth, None, 2.0, shares, report, f"region {epoch}")
+    _check_field(g, f, gold["field"], sun, earth, win, 2.0, shares, report, f"region {epoch}")
     with capsys.disabled():
         print("\n  " + "\n  ".join(report))
 
@@ -237,6 +244,7 @@ def test_light_map_through_bundled_ephemeris():
     epoch = sorted(GOLDEN["region"])[0]
     gold = GOLDEN["region"][epoch]
     lm = sh.light_map(gold["tMs"])
+    assert lm.size == gold["field"]["size"]
     assert np.allclose(lm.sun_body_km, gold["sunBodyKm"], rtol=0, atol=1e-6)
     assert np.allclose(lm.earth_body_km, gold["earthBodyKm"], rtol=0, atol=1e-6)
     assert lm.origin_x_m == gold["originXM"] and lm.origin_y_m == gold["originYM"]

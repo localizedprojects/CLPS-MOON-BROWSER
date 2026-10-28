@@ -13,7 +13,10 @@ ran the app's core functions and wrote JSON. The probe was deleted after the run
 never committed); its full source is stored in each golden file under
 `provenance.probeSource`, together with:
 
-- `gitHead`: the app commit (a development commit of 2026-10-12, before the public history; `app/lib` clean at that commit),
+- `gitHead`: the app commit the probe ran on. The goldens were first made from a development
+  commit of 2026-10-12 and **regenerated on 2026-10-28** for the 2280 px DEM (to about 75 S);
+  that run was on uncommitted work over `cfa9c85` (`gitDirty: true`) that became `d4b27df`,
+  and the recorded SHA-256 of every core file and asset match the app at `d4b27df`,
 - the SHA-256 of `landing.dart`, `timeseries.dart`, `shadow.dart` and the other core files
   and of `light_engine.dart`, and of the asset files used,
 - the Flutter version (3.44.6).
@@ -46,7 +49,7 @@ values each) and terrain height.
 
 ### Cases (golden_shadow.json)
 
-Region grid (400 m DEM averaged by 2, 760 px) at 2027-01-15T00:00Z and 2027-07-01T12:00Z;
+Region grid (the 80-90 S block of the 400 m DEM averaged by 2, 760 px, `region_window`) at 2027-01-15T00:00Z and 2027-07-01T12:00Z;
 close-ups (320 px of the 400 m grid) at the Shackleton rim (2 m) and the custom site (10 m)
 at the first epoch: window, packed flags (gzip + base64), SHA-256 of the packed flags and
 shade bytes, counts of each bit, the Lambert sum, light shares; `ShadowGrid` size, pixel
@@ -54,14 +57,15 @@ size, z at 8 fixed pixels and the sum of z, for both grids.
 
 ## Tolerances and measured differences
 
-Measured on 2026-10-12 with numpy 2.5.4, Python 3.14, Windows 11.
+Measured on 2026-10-12 with numpy 2.5.4, Python 3.14, Windows 11; every parity test passed again
+against the regenerated goldens on 2026-10-28 (numpy 2.5.4, Python 3.13, Linux).
 
 | What | Tolerance (DESIGN.md 4.4) | Measured |
 |---|---|---|
 | Per-sample az, el, horizon, visible share (cases 1-5) | 1e-9 deg / 1e-9 | **0** (bit-identical) |
 | Power per sample | 1e-6 W/m^2 | **0** |
 | Flags and DSN bytes (cases 1-5) | identical SHA-256 | **identical** |
-| Metrics, score (4 goals), landing plans (4 lengths x 4 goals + not-before) | 1e-9; times exact | **0** (all fields equal) |
+| Metrics, score (3 goals), landing plans (4 lengths x 3 goals + not-before) | 1e-9; times exact | **0** (all fields equal) |
 | Custom-site coarse masks (2 m, 10 m) and terrain height | 1e-6 deg, 1e-9 m | **0** |
 | Light map flags, region and close-ups | identical except sweep-margin ties | **identical** (0 pixels differ) |
 | Shade bytes, Lambert sum, shares | shade identical except x.5 ties; 1e-6; 1e-4 | **identical**; Lambert sum relative difference <= 3.2e-16 (summation order only); shares 0 |
@@ -73,7 +77,7 @@ A further check through the command line, with the ephemeris loaded **the way th
 it** (only the years the period needs, `EphemerisRepository.range`, rather than the whole
 2025-2035 coverage): `lunarhorizon site --json` for Malapert peak (MP1) and Shackleton rim
 (SR1), 2027-01-01 to 2028-01-01 (30 min samples), observer 2 m and 10 m, each of the four
-goals, against a temporary Dart probe of the app's core. Sunlit / Earth / both %, mean power,
+goals the app had then (it has three since 2026-10-13), against a temporary Dart probe of the app's core. Sunlit / Earth / both %, mean power,
 energy, longest night, longest Earth outage, longest both window, window count, all five
 score terms and the total, and the best 14-day landing window (status, landing and end time,
 window score, longest both run) were **identical** in all 16 combinations (largest relative

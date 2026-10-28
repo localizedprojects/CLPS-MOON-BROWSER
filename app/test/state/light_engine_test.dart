@@ -1,5 +1,6 @@
 // Light engine: frames (sliced = one-shot, observer height), legend shares
-// centred on the site (clamped close-ups such as IM-1 Odysseus), overlay
+// centred on the site (IM-1 Odysseus at 80.13 S is centred on the DEM that
+// reaches 75 S; the whole region stays the 80-90 S block), overlay
 // pixels (table-driven = the per-pixel rule) and the web cost cap.
 import 'dart:convert';
 import 'dart:io';
@@ -12,6 +13,7 @@ import 'package:polar_horizon/core/dem.dart';
 import 'package:polar_horizon/core/geo.dart';
 import 'package:polar_horizon/core/shadow.dart';
 import 'package:polar_horizon/state/light_engine.dart';
+import 'package:polar_horizon/widgets/light_map.dart' show closeUpTargetView, frameView;
 
 /// Body-fixed direction (km) of a light [elDeg] above the pole's horizon,
 /// toward meridian [lonDeg], at distance [r].
@@ -235,22 +237,105 @@ void main() {
     });
   });
 
-  test('real map: the IM-1 Odysseus close-up (80.13 S) is clamped and its legend disc follows the site', () {
+  group('real map (DEM to about 75 S)', () {
     final meta = (jsonDecode(File('assets/data/map/map.json').readAsStringSync()) as Map<String, dynamic>)['dem'] as Map;
-    final dem = PolarGrid.decodePlanarSplit(
-        File('assets/data/map/dem_400m.bin.gz').readAsBytesSync(), meta['size'] as int, (meta['pxM'] as num).toDouble());
+    final info = DemInfo.fromJson(meta);
+    final dem = PolarGrid.decodePlanarSplit(File('assets/data/map/dem_400m.bin.gz').readAsBytesSync(), info.size, info.pxM);
     final catalog = SiteCatalog.parse(
         File('assets/data/sites.json').readAsStringSync(), File('assets/data/horizons.json').readAsStringSync());
-    final im1 = catalog.sites.firstWhere((s) => s.id == 'im-1-odysseus-landed');
-    final grids = LightGrids(dem.heights, dem.size, dem.scaleM);
-    final f = computeLightFrame(
-        grids, LightRequest(closeUp: true, lat: im1.lat, lon: im1.lon, sun: lightAt(1, 120, 1.5e8), earth: lightAt(4, 0, 3.8e5), tMs: 0));
-    final (fr, fc) = f.pixelOf(im1.lat, im1.lon);
-    // IM-1 sits near the top edge of the map (0 E is up): the frame is pushed down
-    expect(fr, lessThan(closeUpPx / 2 - 40));
-    expect(fc, closeTo(closeUpPx / 2, 2));
-    final s = lightFrameShares(f);
-    expect(s, lightShares(f.flags, f.size, centreRow: fr, centreCol: fc, radius: closeUpRadiusM / f.pxM));
-    expect(s.inside, lessThan(0.9));
+    final grids = LightGrids(dem.heights, dem.size, dem.scaleM, regionSizePx: info.innerSize);
+    // the inner block alone (80-90 S, what the DEM held before the 75 S ring)
+    final n = info.innerSize, o = info.innerOffsetPx;
+    final innerHeights = Int16List(n * n);
+    for (var r = 0; r < n; r++) {
+      innerHeights.setRange(r * n, (r + 1) * n, dem.heights, (r + o) * info.size + o);
+    }
+    final innerGrids = LightGrids(innerHeights, n, info.pxM);
+    final sun = lightAt(1, 120, 1.5e8), earth = lightAt(4, 0, 3.8e5);
+    double agree(LightFrame a, LightFrame b) {
+      var same = 0;
+      for (var i = 0; i < a.flags.length; i++) {
+        if (a.flags[i] == b.flags[i]) same++;
+      }
+      return same / a.flags.length;
+    }
+
+    test('the IM-1 Odysseus close-up (80.13 S) is centred, with real terrain and shadows north of 80 S', () {
+      final im1 = catalog.sites.firstWhere((s) => s.id == 'im-1-odysseus-landed');
+      for (final coarse in [false, true]) {
+        // a low Sun over IM-1's meridian (about 2 deg up at 80 S): lit slopes and long shadows
+        final f = computeLightFrame(grids,
+            LightRequest(closeUp: true, lat: im1.lat, lon: im1.lon, sun: lightAt(-8, 0, 1.5e8), earth: earth, tMs: 0, coarse: coarse));
+        final side = coarse ? closeUpPx ~/ 2 : closeUpPx;
+        expect(f.size, side);
+        final (fr, fc) = f.pixelOf(im1.lat, im1.lon);
+        expect(fr, closeTo(side / 2, 1), reason: 'coarse $coarse');
+        expect(fc, closeTo(side / 2, 1), reason: 'coarse $coarse');
+        // fully inside the DEM, nowhere near its edge
+        expect(f.y0M, lessThan(info.halfWidthM - 50000));
+        final s = lightFrameShares(f);
+        expect(s, lightShares(f.flags, f.size, centreRow: fr, centreCol: fc, radius: closeUpRadiusM / f.pxM));
+        expect(s.inside, closeTo(1.0, 1e-9));
+        // rows north of 80 S (map y > the inner block's edge): about 47% of the frame, lit and shadowed both
+        final rows = ((f.y0M - info.innerHalfWidthM) / f.pxM).floor();
+        expect(rows, greaterThan(side * 0.4));
+        var lit = 0, dark = 0;
+        for (var i = 0; i < rows * f.size; i++) {
+          if (f.flags[i] & lightSunAny != 0) {
+            lit++;
+          } else {
+            dark++;
+          }
+        }
+        expect(lit, greaterThan(rows * f.size * 0.05), reason: 'coarse $coarse');
+        expect(dark, greaterThan(rows * f.size * 0.05), reason: 'coarse $coarse');
+        // the view the UI shows before this frame (light_map _targetView:
+        // closeUpTargetView, clamped against the DEM's half-width) is this one
+        expect(closeUpTargetView(im1.lat, im1.lon, info.halfWidthM, playing: coarse), frameView(f), reason: 'coarse $coarse');
+        // ... and clamping against the base map's half-width (80 S) instead would not be
+        expect(closeUpTargetView(im1.lat, im1.lon, info.innerHalfWidthM, playing: coarse), isNot(frameView(f)));
+      }
+    });
+
+    test('the close-up view the map shows first is the engine\'s frame, at the DEM\'s own edge too', () {
+      // 75.2 S, 0 E: the 128 km window would run off the DEM (to about 75.05 S): both clamp it the same way
+      for (final coarse in [false, true]) {
+        final f = computeLightFrame(grids,
+            LightRequest(closeUp: true, lat: -75.2, lon: 0, sun: sun, earth: earth, tMs: 0, coarse: coarse));
+        expect(f.y0M, info.halfWidthM, reason: 'the window is clamped to the DEM\'s top edge');
+        expect(closeUpTargetView(-75.2, 0, info.halfWidthM, playing: coarse), frameView(f), reason: 'coarse $coarse');
+      }
+    });
+
+    test('a pole site (SR1) and the whole region are where they were (80-90 S block)', () {
+      final sr1 = catalog.sites.firstWhere((s) => s.id == 'derosa2012-sr1-shackleton-rim');
+      LightRequest q(bool closeUp, bool coarse) =>
+          LightRequest(closeUp: closeUp, lat: sr1.lat, lon: sr1.lon, sun: sun, earth: earth, tMs: 0, coarse: coarse);
+      for (final closeUp in [true, false]) {
+        for (final coarse in [false, true]) {
+          final f = computeLightFrame(grids, q(closeUp, coarse)), g = computeLightFrame(innerGrids, q(closeUp, coarse));
+          expect((f.size, f.pxM, f.x0M, f.y0M), (g.size, g.pxM, g.x0M, g.y0M), reason: 'closeUp $closeUp coarse $coarse');
+          if (closeUp) expect(closeUpTargetView(sr1.lat, sr1.lon, info.halfWidthM, playing: coarse), frameView(f));
+          if (!closeUp) {
+            expect((f.x0M, f.y0M, f.size), (-info.innerHalfWidthM, info.innerHalfWidthM, coarse ? 380 : 760));
+            expect(lightFrameShares(f).inside, 1.0);
+          }
+          // the same terrain inside 80 S, sampled on the same lattice
+          // (ShadowGrid.sweepRefSize): only shadows cast from beyond 80 S differ
+          final a = agree(f, g);
+          // ignore: avoid_print
+          print('SR1 closeUp $closeUp coarse $coarse: ${(100 * a).toStringAsFixed(3)}% of pixels unchanged');
+          expect(a, closeUp ? 1.0 : greaterThan(0.99));
+        }
+      }
+    });
+
+    test('grid sizes that would leave the pole are refused', () {
+      expect(() => LightGrids(Int16List(6 * 6), 6, 400), throwsArgumentError);
+      expect(() => LightGrids(Int16List(16 * 16), 16, 400, regionSizePx: 12), throwsArgumentError);
+      expect(grids.regionWindow(grids.region), const GridWindow(190, 190, 760));
+      expect(grids.regionWindow(grids.coarse), const GridWindow(95, 95, 380));
+      expect(innerGrids.regionWindow(innerGrids.region), isNull);
+    });
   });
 }

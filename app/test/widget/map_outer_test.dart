@@ -120,7 +120,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(shift(tester), Offset.zero, reason: 'the map does not move at 1x');
     expect(scroll.offset, greaterThan(80), reason: 'the page scrolls instead');
-    expect(mapGraticule(outer: false).labels.map((l) => l.$1), ['-88°', '-86°', '-84°']);
+    expect(mapGraticule(outer: false).labels.map((l) => l.$1), ['\u221288°', '\u221286°', '\u221284°']);
     expect(tester.widget<FidelityBadge>(find.byType(FidelityBadge)).text, isNot(contains('LDEM_75S_120M')));
   });
 
@@ -266,7 +266,9 @@ void main() {
     expect(g.rings, containsAllInOrder([-80.0, -78.0, -76.0]));
     expect(g.meridiansTo, -75);
     expect(g.edge, -80);
-    expect(g.labels, contains(('80°S', -80.0, 45.0)));
+    expect(g.labels, contains(('80°S', -80.0, -45.0)));
+    expect(g.labels, contains(('\u221278°', -78.0, -45.0)), reason: 'one label style: a true minus, as the inner rings');
+    expect(g.labels.where((l) => l.$1.contains('-')), isEmpty, reason: 'no ASCII hyphen as a minus');
     final (l, o) = layers();
     for (final ov in MapOverlay.values) {
       final c = overlayCaption(ov, o);
@@ -274,6 +276,7 @@ void main() {
       expect(c, contains('960 m'), reason: '$ov');
       expect(c, contains('LDEM_75S_120M'), reason: '$ov');
       expect(c, contains('AVGVISIB_75S_120M'), reason: '$ov');
+      expect(c, contains('AVGVISIB_75S_120M_201608_EARTH'), reason: 'the Earth layer is credited to its own product ($ov)');
       expect(overlayCaption(ov), isNot(contains('480 m')), reason: 'no ring, no ring text');
     }
     await pump(tester, l);

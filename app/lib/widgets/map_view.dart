@@ -130,7 +130,16 @@ const baseMapCaption = 'Shaded relief computed from NASA LOLA laser-altimeter el
 /// The ring beyond 80°S, in words: coarser relief and layers.
 String outerCaption(MapOuter o) => 'Beyond 80°S (zoom out or drag): coarser relief, ${o.hillshadePxM.round()} m per '
     'pixel, from LOLA LDEM_75S_120M, and sunlight, Earth and permanent-shadow layers at ${o.layerPxM.round()} m '
-    'from LOLA AVGVISIB_75S_120M.';
+    'from LOLA AVGVISIB_75S_120M_201608 (sunlight, permanent shadow) and AVGVISIB_75S_120M_201608_EARTH (Earth).';
+
+/// The hint under the map; with the ring beyond 80°S, where taps are refused,
+/// it names the circle custom spots must lie in.
+const tapHint = 'Tap or hold anywhere on the map to test your own spot';
+const tapHintWithRing = 'Tap or hold inside the 80°S circle to test your own spot';
+
+/// A ring's latitude label, with a true minus sign (U+2212) as elsewhere in the
+/// app: '−88°'.
+String _latLabel(double lat) => '\u2212${lat.abs().toStringAsFixed(0)}°';
 
 /// The deepest zoom: on a ~360 px phone map, 8x puts a screen pixel at about
 /// 200 m, already finer than the 320-400 m terrain data behind it.
@@ -824,7 +833,7 @@ class _MapViewState extends State<MapView> with SingleTickerProviderStateMixin {
       if (widget.belowMap case final below?) Padding(padding: const EdgeInsets.only(top: 12), child: below),
       if (widget.showControls) ...[
         const SizedBox(height: 8),
-        Text('Tap or hold anywhere on the map to test your own spot', style: PHText.small.copyWith(color: PH.muted)),
+        Text(widget.layers.outer == null ? tapHint : tapHintWithRing, style: PHText.small.copyWith(color: PH.muted)),
         const SizedBox(height: 4),
         Wrap(spacing: 8, runSpacing: 4, crossAxisAlignment: WrapCrossAlignment.center, children: [
           GuideTarget(id: 'map-layers', child: Semantics(
@@ -1221,8 +1230,9 @@ class _MapPainter extends CustomPainter {
       meridiansTo: outer ? -75.0 : -80.0,
       edge: outer ? -80.0 : null,
       labels: [
-        for (var lat = -88.0; lat <= -84.0; lat += 2) ('${lat.toStringAsFixed(0)}°', lat, 45.0),
-        if (outer) ...[('80°S', -80.0, 45.0), ('-78°', -78.0, 45.0), ('-76°', -76.0, 45.0)],
+        for (var lat = -88.0; lat <= -84.0; lat += 2) (_latLabel(lat), lat, 45.0),
+        // the ring's labels on 45°W: 45°E is under the inline map's controls
+        if (outer) ...[('80°S', -80.0, -45.0), (_latLabel(-78), -78.0, -45.0), (_latLabel(-76), -76.0, -45.0)],
       ],
     );
 

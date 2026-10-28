@@ -140,7 +140,7 @@ class ValidationPage extends StatelessWidget {
               ]),
               _section('Limitations', null, const [
                 _Bullet('Preset horizons come from the LOLA 80 m DEM (240 m beyond 80°S). Terrain within 120 m is not resolved and is ignored; boulders and local slopes need higher-resolution data.'),
-                _Bullet('Custom sites use a 400 m DEM computed on the device: typically 0.5–1.4° horizon error (up to ~6° on sharp rims). Use them to explore, not to decide.'),
+                _Bullet('Custom sites use a 400 m DEM (to about 75°S) computed on the device: typically 0.5–1.4° horizon error (up to ~6° on sharp rims). Use them to explore, not to decide.'),
                 _Bullet('Artemis III presets are approximate centres of ~15×15 km regions (LROC/Henriksen et al. 2023), not official landing points. Slater Plain is omitted: no published centre.'),
                 _Bullet('Earth visibility does not include lunar-surface multipath, antenna masks or link budgets.'),
                 _Bullet('The Explore map\'s base layer is shaded relief computed from LOLA elevations (320 m per pixel) with an artificial light from the upper left and heights exaggerated ×2. It shows the shape of the terrain, not a photo and not real lighting.'),

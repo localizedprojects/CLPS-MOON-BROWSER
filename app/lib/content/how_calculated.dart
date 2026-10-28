@@ -64,7 +64,8 @@ const calcSections = <CalcSection>[
     plain: 'Walking outward from the spot in every direction, the app reads NASA LOLA laser-altimeter heights and '
         'keeps the steepest angle up to the terrain, including the Moon\'s curvature. That traces the real skyline. '
         'The 16 preset sites use the 80 m elevation map, then the 240 m map beyond its edge, out to 600 km. Your own '
-        'spots are computed on your device from the 400 m map out to 300 km.',
+        'spots are computed on your device from the 400 m map out to 300 km (made from the 80 m map inside 80°S and '
+        'LOLA\'s 120 m map beyond it, to about 75°S).',
     maths: [
       'angle to terrain = atan2((R + h)·cos θ − (R + h₀), (R + h)·sin θ)',
       'skyline(azimuth) = the largest angle along that direction',

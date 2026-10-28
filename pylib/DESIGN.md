@@ -64,13 +64,13 @@ Sources it is built from (read them; do not edit them):
 The app does not call SPICE at run time. It ships a compact hourly ephemeris
 (float32 Moon-centred apparent Sun and Earth vectors, 2025-01-01 to 2035-12-31T23:00 UTC,
 plus hourly DSN bitmasks), a 400 m DEM, the preset sites and their precomputed horizon
-masks. These are about 5 MB together:
+masks. These are about 7.4 MB together:
 
 | File (app/assets/data/...) | Size |
 |---|---|
 | `ephem/manifest.json` + `ephem/2025..2035.bin` | 2.3 MB |
 | `dsn/2025..2035.bin` | 136 kB |
-| `map/dem_400m.bin.gz` + the `dem` block of `map/map.json` | 2.1 MB |
+| `map/dem_400m.bin.gz` + the `dem` block of `map/map.json` (2280 x 2280 px, to about 75 S) | 4.7 MB |
 | `horizons.json` | 240 kB |
 | `sites.json` | 32 kB |
 
@@ -300,7 +300,11 @@ class TerrainModel:           # fine raster with coarse fallback
     def app(cls) -> "TerrainModel"                           # the bundled 400 m DEM only
     def height_xy(x, y); height_latlon(lat, lon)
 
-def app_dem() -> PolarRaster                                  # bundled dem_400m.bin.gz decoded (size 1520, 400 m), cached
+@dataclass(frozen=True)
+class DemInfo: file: str; size: int; px_m: float; inner_offset_px: int; inner_size: int   # dem.dart DemInfo (map.json "dem")
+    half_width_m (property); inner_half_width_m (property); from_json(m) -> DemInfo     # ValueError = FormatException
+def app_dem_info() -> DemInfo                                 # the bundled DEM's map.json entry, checked
+def app_dem() -> PolarRaster                                  # bundled dem_400m.bin.gz decoded (size 2280, 400 m; inner 1520 px block = 80-90 S), cached
 def decode_planar_split(blob: bytes, size: int) -> np.ndarray # int16 (basemap.decode_planar / dem.dart PlanarSplitWork)
 def terrain_height_m(lat_deg, lon_deg, *, dem: str = "app") -> float   # "app" (400 m) | "lola" (80 m + 240 m)
 def local_slope_deg(terrain, lat_deg, lon_deg, baseline_m=160.0) -> float
@@ -501,8 +505,11 @@ CLOSE_UP_PX = 320; CLOSE_UP_RADIUS_M = CLOSE_UP_PX * 400.0 / 2
 class GridWindow: r0: int; c0: int; size: int
 class ShadowGrid:
     size: int; px_m: float; z: np.ndarray       # float32 (size, size), metres above the pole tangent plane
+    sweep_ref_size: int                          # ShadowGrid.sweepRefSize: the sweep lattice is anchored to this pole-centred
+                                                 # block (the DEM's inner 80-90 S block), so flags there match the 1520 px DEM
+    def region_window(self) -> GridWindow | None  # LightGrids.regionWindow: the 80-90 S block, None when it is the whole grid
     @classmethod
-    def from_heights(cls, heights: np.ndarray, px_m: float, downsample: int = 2) -> "ShadowGrid"  # ShadowGridBuilder (block mean in float64, z stored float32)
+    def from_heights(cls, heights: np.ndarray, px_m: float, downsample: int = 2, ref_size_px: int | None = None) -> "ShadowGrid"  # ShadowGridBuilder (block mean in float64, z stored float32)
     @classmethod
     def from_app_dem(cls, downsample: int = 2) -> "ShadowGrid"     # bundled 400 m DEM; 2 = region view, 1 = close-up
     @staticmethod
@@ -521,7 +528,7 @@ def compute_light_field(g, sun_body_km, earth_body_km, *, window=None, observer_
 def light_shares(flags, *, centre_row=None, centre_col=None, radius=None) -> dict  # sun, sun_full, earth, both, inside
 def light_map(time, *, lat_deg=None, lon_deg=None, observer_height_m=2.0,
               ephemeris: Ephemeris | str = "app") -> "LightMap"
-    # the app's frame: region (downsample 2, whole map) when no site is given, else the close-up
+    # the app's frame: region (downsample 2, region_window = 80-90 S) when no site is given, else the close-up
     # (downsample 1, CLOSE_UP_PX window around the site). LightMap = LightField + px_m, origin_x_m,
     # origin_y_m (map metres of the window's top-left corner, as light_engine _frame), shares.
 ```

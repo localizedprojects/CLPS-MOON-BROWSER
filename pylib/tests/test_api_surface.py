@@ -65,7 +65,7 @@ def test_constants_match_conventions() -> None:
     assert lh.DSN_MIN_ELEV_DEG == 10.0
     assert list(lh.DSN_COMPLEXES) == ["goldstone", "madrid", "canberra"]
     assert (lh.FLAG_SUN, lh.FLAG_EARTH, lh.FLAG_BOTH) == (1, 2, 4)
-    assert {g.value for g in lh.Goal} == {"balanced", "power", "earth", "both"}
+    assert {g.value for g in lh.Goal} == {"balanced", "power", "earth"}  # ranking.dart (no "both" since 2026-10-13)
 
 
 def test_import_does_not_load_spice() -> None:

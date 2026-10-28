@@ -214,7 +214,7 @@ class TerrainModel:
 
     The pipeline's (and the preset horizons') model is 80 m LOLA inside 80 S with the
     240 m grid beyond it: :meth:`lola`. The app's custom-site model is the 400 m DEM
-    alone: :meth:`app`.
+    alone (80 m-derived inside 80 S, 120 m-derived beyond, to about 75 S): :meth:`app`.
     """
 
     def __init__(self, fine: PolarRaster, coarse: PolarRaster | None = None):

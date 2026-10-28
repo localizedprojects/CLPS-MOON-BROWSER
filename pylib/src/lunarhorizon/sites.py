@@ -110,9 +110,11 @@ class Site:
         ``dem="app"``: the app's method (400 m DEM bilinear height, coarse horizon on the
         400 m DEM, 0.5 deg; ``approximate=True``). ``dem="lola"``: LOLA 80 m + 240 m
         height and the full-resolution horizon (0.25 deg). Raises ``ValueError`` outside
-        the DEM coverage: ``dem="app"`` needs ``-90 <= lat < -80`` (the 400 m DEM reaches
-        about -80.01 deg everywhere), ``dem="lola"`` needs ``-90 <= lat < -75`` (the 240 m
-        DEM's edge; north of 80 S the height and near field come from the 240 m DEM only).
+        the DEM coverage: ``dem="app"`` needs ``-90 <= lat <= -80.01`` (the app's custom-spot
+        rule, ``customLatAllowed`` in ``dem.dart``: inside the 80-90 S map; the 400 m DEM
+        itself reaches about 75 S, so the horizon sees terrain beyond 80 S), ``dem="lola"``
+        needs ``-90 <= lat < -75`` (the 240 m DEM's edge; north of 80 S the height and near
+        field come from the 240 m DEM only).
         ``lon_deg`` is normalised to [-180, 180) (400 -> 40).
         """
         from .projection import check_site_latlon

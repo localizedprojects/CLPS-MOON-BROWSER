@@ -17,7 +17,9 @@
    "percentiles": [
     1,
     99
-   ]
+   ],
+   "zLowM": -5358.469,
+   "zHighM": 4317.157
   },
   "note": "Display shading only (artificial light direction); not a Sun position."
  },

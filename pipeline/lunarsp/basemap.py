@@ -69,8 +69,21 @@ def hillshade(z: np.ndarray, px_m: float, az_deg: float = HILLSHADE_AZ_DEG, alt_
     return np.clip(hs, 0, 1)
 
 
-def hillshade_params() -> dict:
-    """The hillshade lighting and tint that ``build`` uses, as written to map.json."""
+def tint_levels(z320: np.ndarray) -> tuple[float, float]:
+    """The heights (m) that zNorm maps to 0 and 1: the TINT_PCT percentiles of
+    the 320 m heights of 80-90 S. Recorded in map.json so the app can shade the
+    400 m terrain beyond the base map with the same tones."""
+    lo, hi = TINT_PCT
+    return float(np.percentile(z320, lo)), float(np.percentile(z320, hi))
+
+
+def _tint_level_keys(levels: tuple[float, float]) -> dict:
+    return {"zLowM": round(levels[0], 3), "zHighM": round(levels[1], 3)}
+
+
+def hillshade_params(levels: tuple[float, float] | None = None) -> dict:
+    """The hillshade lighting and tint that ``build`` uses, as written to map.json;
+    [levels] (``tint_levels``) adds zLowM / zHighM to the tint."""
     return {
         "lightAzimuthDeg": HILLSHADE_AZ_DEG,
         "lightAzimuthFrom": "clockwise from image up (the lon 0 direction)",
@@ -80,6 +93,7 @@ def hillshade_params() -> dict:
             "formula": "grey = clip(base + shade * hillshade + elevation * clip(zNorm, 0, 1), 0, 1); "
                        "zNorm maps the given percentiles of the 320 m heights to 0..1",
             "base": TINT_BASE, "shade": TINT_SHADE, "elevation": TINT_ELEV, "percentiles": list(TINT_PCT),
+            **(_tint_level_keys(levels) if levels is not None else {}),
         },
         "note": "Display shading only (artificial light direction); not a Sun position.",
     }
@@ -289,6 +303,24 @@ def build_dem_only() -> dict:
     return dem_meta
 
 
+def z320_80s() -> np.ndarray:
+    """LDEM_80S_80M block-mean to 320 m (m), exactly as ``build`` shades it."""
+    dem = PolarRaster.open("ldem_80s_80m")
+    return _block_mean(np.asarray(dem.data, dtype=np.float32) * dem.dn_scale, 4)
+
+
+def build_tint_only() -> dict:
+    """Record the tint levels (``tint_levels``) in map.json['hillshade']['tint']
+    without rebuilding anything: only the zLowM / zHighM keys change."""
+    path = MAP_DIR / "map.json"
+    meta = json.loads(path.read_text())
+    keys = _tint_level_keys(tint_levels(z320_80s()))
+    meta["hillshade"]["tint"].update(keys)  # existing keys keep their place
+    write_json(path, meta, indent=1)
+    print(f"map.json hillshade.tint {keys}")
+    return keys
+
+
 def build() -> dict:
     MAP_DIR.mkdir(parents=True, exist_ok=True)
     dem = PolarRaster.open("ldem_80s_80m")
@@ -301,6 +333,7 @@ def build() -> dict:
     # gentle elevation tint so peaks read as lighter
     lo, hi = TINT_PCT
     zn = (z320 - np.percentile(z320, lo)) / (np.percentile(z320, hi) - np.percentile(z320, lo))
+    levels = tint_levels(z320)
     g = np.clip(TINT_BASE + TINT_SHADE * hs + TINT_ELEV * np.clip(zn, 0, 1), 0, 1)
     Image.fromarray((g * 255).astype(np.uint8), "L").save(MAP_DIR / "hillshade.webp", quality=82, method=6)
 
@@ -336,7 +369,7 @@ def build() -> dict:
         "projection": "south polar stereographic, sphere R=1737.4 km, lon 0 up, 90E right (LOLA/PDS)",
         "halfWidthM": half_m,
         "hillshade": {"file": "map/hillshade.webp", "pxM": 320.0, "source": "LOLA LDEM_80S_80M (block-mean to 320 m)",
-                      **hillshade_params()},
+                      **hillshade_params(levels)},
         "dem": dem_meta,
         "sunvis": {**layers.get("avgvis_sun", {}), "source": "LOLA AVGVISIB_75S_120M_201608 (Mazarico et al. 2011 method)"},
         "earthvis": {**layers.get("avgvis_earth", {}), "source": "LOLA AVGVISIB_75S_120M_201608_EARTH"},
@@ -353,7 +386,9 @@ if __name__ == "__main__":
 
     if sys.argv[1:] == ["dem"]:
         build_dem_only()
+    elif sys.argv[1:] == ["tint"]:
+        build_tint_only()
     elif sys.argv[1:]:
-        raise SystemExit("usage: python -m lunarsp.basemap [dem]")
+        raise SystemExit("usage: python -m lunarsp.basemap [dem | tint]")
     else:
         build()

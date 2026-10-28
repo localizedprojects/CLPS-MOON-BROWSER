@@ -578,7 +578,7 @@ def analyze_site(site: Site | str | tuple[float, float], start, end, *, observer
 ```
 lunarhorizon sites                                   # list presets
 lunarhorizon site (--site ID | --lat LAT --lon LON) [--start ISO --end ISO] [--height 2]
-                  [--mission-days 14] [--goal balanced|power|earth|both] [--sun upper-limb|center|full-disk]
+                  [--mission-days 14] [--goal balanced|power|earth] [--sun upper-limb|center|full-disk]
                   [--earth center|any-part] [--dsn] [--ephemeris app|spice] [--dem app|lola] [--json]
     # prints the metrics, the score with its terms and the best landing window; default period = 365 days from today (clamped to the bundled ephemeris)
 lunarhorizon sky (--site ID | --lat --lon) --time ISO [--height 2] [--json]

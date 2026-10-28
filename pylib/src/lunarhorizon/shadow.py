@@ -30,7 +30,16 @@ blocked". The Sun's 0.53 deg disc is handled by sweeping the upper limb
 (``e + rho``, "any sunlight", the app's default rule) and the lower limb
 (``e - rho``, "full Sun"); the Earth is swept at its centre. Horizontal
 distances are map metres (the polar stereographic scale differs from true
-distance by < 1 % within 80 S). See formula.md section 12.
+distance by < 1 % within 80 S, 1.7 % at 75 S and about 3.5 % in the DEM's corners
+near 69 S, which only far blockers of close-ups near 80 S use). See formula.md
+section 12.
+
+The bundled 400 m DEM reaches about 75 S (2280 px: LDEM_80S_80M inside 80 S, the
+LDEM_75S_120M ring beyond), so terrain beyond 80 S casts shadows into every view. Its
+grids anchor the sweep's sampling lattice to the 80-90 S block
+(:attr:`ShadowGrid.sweep_ref_size`), so results inside 80 S equal those on the
+1520 px DEM of 80-90 S alone except where terrain beyond it casts shadows; the
+whole-region view is that block (:meth:`ShadowGrid.region_window`).
 
 Conventions
 -----------
@@ -180,9 +189,17 @@ class ShadowGrid:
         float32, shape (size, size): metres above the pole's tangent plane,
         curvature included (``z = (R + h) cos(colat) - R``). Row 0 is the top
         of the map (+y = 0 E), column 0 the left (-x).
+    sweep_ref_size : int
+        Side (px) of the pole-centred grid the light sweep's sampling lattice is
+        anchored to (``size`` by default; Dart ``ShadowGrid.sweepRefSize``). A grid
+        that extends a smaller one (the DEM to 75 S around the 80-90 S block) passes
+        the smaller side, so the rotated samples fall on the same spots relative to
+        the pole as on the smaller grid and its results inside that block do not
+        shift by half a sample (they change only where terrain beyond it casts
+        shadows). It is also the side of :meth:`region_window`.
     """
 
-    def __init__(self, z: np.ndarray, px_m: float):
+    def __init__(self, z: np.ndarray, px_m: float, sweep_ref_size: int | None = None):
         z = np.asarray(z)
         if z.ndim == 1:
             n = int(round(math.sqrt(z.size)))
@@ -196,17 +213,22 @@ class ShadowGrid:
         self.z = np.ascontiguousarray(z, dtype=np.float32)
         self.size = int(z.shape[0])
         self.px_m = float(px_m)
+        self.sweep_ref_size = self.size if sweep_ref_size is None else int(sweep_ref_size)
+        if self.sweep_ref_size < 1:
+            raise ValueError(f"sweep_ref_size must be >= 1, got {sweep_ref_size!r}")
 
     def __repr__(self) -> str:
-        return f"ShadowGrid(size={self.size}, px_m={self.px_m})"
+        ref = "" if self.sweep_ref_size == self.size else f", sweep_ref_size={self.sweep_ref_size}"
+        return f"ShadowGrid(size={self.size}, px_m={self.px_m}{ref})"
 
     @classmethod
-    def from_z(cls, z: np.ndarray, px_m: float) -> "ShadowGrid":
+    def from_z(cls, z: np.ndarray, px_m: float, sweep_ref_size: int | None = None) -> "ShadowGrid":
         """Grid from ready-made pole-frame heights (Dart ``ShadowGrid.fromZ``)."""
-        return cls(z, px_m)
+        return cls(z, px_m, sweep_ref_size)
 
     @classmethod
-    def from_heights(cls, heights: np.ndarray, px_m: float, downsample: int = 2) -> "ShadowGrid":
+    def from_heights(cls, heights: np.ndarray, px_m: float, downsample: int = 2,
+                     ref_size_px: int | None = None) -> "ShadowGrid":
         """Build from a polar-stereographic height raster (Dart ``ShadowGridBuilder``).
 
         Parameters
@@ -219,6 +241,10 @@ class ShadowGrid:
         downsample : int
             Block size of the mean (2 = the app's region view, 1 = close-up).
             The grid side is ``N // downsample`` (trailing rows/cols dropped).
+        ref_size_px : int, optional
+            Side (in ``heights`` pixels) of the pole-centred block the sweep lattice is
+            anchored to; the grid's :attr:`sweep_ref_size` is ``ref_size_px //
+            downsample`` (Dart ``refSizePx``). Default: the whole raster.
 
         The block mean is summed in float64 in the Dart order, then
         ``z = (R + h) cos(colat) - R`` with ``colat = 2 atan(rho / 2R)`` and
@@ -253,16 +279,30 @@ class ShadowGrid:
         yy = y[:, None]
         colat = 2 * np.arctan(np.sqrt(xx * xx + yy * yy) / (2 * _R_M))
         z = (_R_M + h) * np.cos(colat) - _R_M
-        return cls(z.astype(np.float32), px)
+        return cls(z.astype(np.float32), px, None if ref_size_px is None else int(ref_size_px) // ds)
 
     @classmethod
     def from_app_dem(cls, downsample: int = 2) -> "ShadowGrid":
-        """Grid from the bundled 400 m DEM (``terrain.app_dem()``).
+        """Grid from the bundled 400 m DEM (``terrain.app_dem()``), like the app's ``LightGrids``.
 
-        ``downsample=2`` is the app's region view (760 px of 800 m),
-        ``downsample=1`` the close-up grid (1520 px of 400 m). Cached.
+        The whole DEM (2280 px of 400 m, to about 75 S), so terrain beyond 80 S casts
+        shadows: ``downsample=2`` is the app's region grid (1140 px of 800 m; the region
+        view is its :meth:`region_window`, 760 px of 80-90 S), ``downsample=1`` the
+        close-up grid (2280 px of 400 m), ``downsample=4`` the 1.6 km grid. The sweep
+        lattice is anchored to map.json's ``dem.inner`` block (``sweep_ref_size``).
+        Cached.
         """
         return _app_grid(int(downsample))
+
+    def region_window(self) -> GridWindow | None:
+        """The whole-region view's window: the pole-centred block of :attr:`sweep_ref_size`
+        px (80-90 S on the bundled DEM's grids), or None when that is the whole grid
+        (Dart ``LightGrids.regionWindow``)."""
+        side = self.sweep_ref_size
+        if side >= self.size:
+            return None
+        r0 = (self.size - side) // 2
+        return GridWindow(r0, r0, side)
 
     @staticmethod
     def to_pole_frame(dir_body) -> tuple[float, float, float]:
@@ -300,11 +340,16 @@ def _app_grid(downsample: int) -> ShadowGrid:
     from . import terrain  # lazy: P-terrain module
 
     dem = terrain.app_dem()
+    info = terrain.app_dem_info()
+    r = info.inner_size
+    # LightGrids._checkRegion: the 1.6 km grid stays a whole number of DEM pixels on the pole
+    if info.size % 4 != 0 or r > info.size or (info.size - r) % 8 != 0:
+        raise ValueError(f"DEM {info.size} px / region {r} px: the shadow grids would leave the pole")
     heights = np.asarray(dem.data)
     dn_scale = float(getattr(dem, "dn_scale", 1.0))
     if dn_scale != 1.0:
         heights = heights.astype(np.float64) * dn_scale
-    return ShadowGrid.from_heights(heights, float(dem.scale_m), downsample=downsample)
+    return ShadowGrid.from_heights(heights, float(dem.scale_m), downsample=downsample, ref_size_px=r)
 
 
 # --- the sweep ---------------------------------------------------------------
@@ -339,7 +384,12 @@ class _Sweep:
         self.ay = dy / h_len  # (dcol, drow); the row axis points to -y
         self.bx = -self.ay
         self.by = self.ax
+        # the lattice's offset from the pole depends on the parity of w: match the
+        # reference grid's (ShadowGrid.sweep_ref_size)
         w = math.ceil(n * _SQRT2) + 2
+        ref = g.sweep_ref_size
+        if ref != n and (w - (math.ceil(ref * _SQRT2) + 2)) % 2 != 0:
+            w += 1
         self.w = w
         self.half = n / 2.0
         self.hw = w / 2.0
@@ -739,18 +789,23 @@ def light_map(time, *, lat_deg: float | None = None, lon_deg: float | None = Non
     time : Unix ms (UTC), datetime (naive = UTC), ISO-8601 string or datetime64
     lat_deg, lon_deg : float, optional
         Site. Without a site: the whole 80-90 S region on the 800 m grid (the
-        400 m DEM block-averaged by 2). With a site: the close-up, a
-        ``CLOSE_UP_PX`` (320 px = 128 km) window of the 400 m grid around the
-        site, clamped inside the map; its shares use the disc of
-        ``CLOSE_UP_RADIUS_M`` (64 km) centred on the site's own pixel. Like
-        ``Site.custom``, a site outside the 400 m DEM (``-90 <= lat < -80`` and inside
-        its square) raises ``ValueError``; ``lon_deg`` is normalised to [-180, 180).
+        400 m DEM block-averaged by 2; :meth:`ShadowGrid.region_window`, 760 px,
+        with terrain beyond 80 S casting shadows into it). With a site: the
+        close-up, a ``CLOSE_UP_PX`` (320 px = 128 km) window of the 400 m grid
+        centred on the site anywhere on the DEM (which reaches about 75 S, so a
+        site at 80 S is centred; the window is clamped only at the grid's edge);
+        its shares use the disc of ``CLOSE_UP_RADIUS_M`` (64 km) centred on the
+        site's own pixel. Like ``Site.custom``, a site outside the app's
+        custom-site region (``-90 <= lat <= -80.01``) raises ``ValueError``;
+        ``lon_deg`` is normalised to [-180, 180).
     observer_height_m : float
         Viewpoint height above every pixel, metres (default 2).
     ephemeris : "app" (bundled compact ephemeris, the app's numbers), "spice",
         or an object with ``sun(t_ms)`` / ``earth(t_ms)`` returning (N, 3) km.
     grid : ShadowGrid, optional
         Use this grid instead of the bundled DEM (advanced; e.g. a custom raster).
+        Without a site its :meth:`ShadowGrid.region_window` is shown (the whole grid
+        unless it was built with a smaller ``sweep_ref_size``).
 
     Returns
     -------
@@ -772,7 +827,7 @@ def light_map(time, *, lat_deg: float | None = None, lon_deg: float | None = Non
             lat_deg, lon_deg = check_lat(lat_deg), normalize_lon(lon_deg)
     if grid is None:
         grid = ShadowGrid.from_app_dem(CLOSE_UP_DOWNSAMPLE if close_up else REGION_DOWNSAMPLE)
-    win = None
+    win = None if close_up else grid.region_window()
     if close_up:
         row, col = grid.pixel_of(float(lat_deg), float(lon_deg))
         if not (0.0 <= row <= grid.size - 1 and 0.0 <= col <= grid.size - 1):

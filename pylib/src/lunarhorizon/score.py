@@ -103,23 +103,24 @@ class Goal(str, Enum):
     BALANCED = "balanced"
     POWER = "power"
     EARTH = "earth"
-    BOTH = "both"
 
 
 _GOAL_WEIGHTS = {
     Goal.BALANCED: ScoreWeights(power=0.5, both=0.25),
     Goal.POWER: ScoreWeights(power=0.8, both=0.2),
     Goal.EARTH: ScoreWeights(power=0.2, both=0.2),
-    Goal.BOTH: ScoreWeights(power=0.5, both=0.6),
 }
 
 #: The app's labels for the goals.
-GOAL_LABELS = {Goal.BALANCED: "Balanced", Goal.POWER: "Power first", Goal.EARTH: "Earth contact first",
-               Goal.BOTH: "Both at once"}
+GOAL_LABELS = {Goal.BALANCED: "Balanced", Goal.POWER: "Power first", Goal.EARTH: "Earth contact first"}
 
 
 def weights_for(goal: Union[Goal, str]) -> ScoreWeights:
-    """Weights of a goal: balanced (0.5, 0.25), power (0.8, 0.2), earth (0.2, 0.2), both (0.5, 0.6)."""
+    """Weights of a goal: balanced (0.5, 0.25), power (0.8, 0.2), earth (0.2, 0.2).
+
+    The app dropped its fourth goal, "Both at once" (0.5, 0.6), on 2026-10-13 as too close to
+    Balanced; ``ScoreWeights(power=0.5, both=0.6)`` gives those weights.
+    """
     return _GOAL_WEIGHTS[Goal(getattr(goal, "value", goal))]
 
 

@@ -4,7 +4,7 @@ Subcommands::
 
     lunarhorizon sites [--json]
     lunarhorizon site (--site ID | --lat LAT --lon LON) [--start ISO --end ISO] [--height 2]
-                      [--mission-days 14] [--goal balanced|power|earth|both]
+                      [--mission-days 14] [--goal balanced|power|earth]
                       [--sun upper-limb|center|full-disk] [--earth center|any-part] [--dsn]
                       [--ephemeris app|spice] [--dem app|lola] [--json]
     lunarhorizon sky (--site ID | --lat LAT --lon LON) --time ISO [--height 2] [--ephemeris app|spice] [--json]
@@ -262,7 +262,7 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--end", help="period end, exclusive (ISO, UTC); default start + 365 days")
     sp.add_argument("--height", type=float, default=2.0, help="observer height above terrain, m (default 2)")
     sp.add_argument("--mission-days", type=int, default=14, help="mission length for the landing search (1..30)")
-    sp.add_argument("--goal", choices=["balanced", "power", "earth", "both"], default="balanced")
+    sp.add_argument("--goal", choices=["balanced", "power", "earth"], default="balanced")
     sp.add_argument("--sun", choices=["upper-limb", "center", "full-disk"], default="upper-limb")
     sp.add_argument("--earth", choices=["center", "any-part"], default="center")
     sp.add_argument("--dsn", action="store_true", help="Earth also needs a DSN complex in view")

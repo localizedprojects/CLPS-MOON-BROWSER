@@ -107,6 +107,8 @@ def test_goal_for_round_trip_and_custom():
     assert goal_for(ScoreWeights(power=10 / 20, both=0.6 * 12 / 12)) is None
     assert [GOAL_LABELS[g] for g in Goal] == ["Balanced", "Power first", "Earth contact first"]
     assert [g.value for g in Goal] == ["balanced", "power", "earth"]  # ranking.dart: enum Goal
+    with pytest.raises(ValueError):
+        weights_for("both")
 
 
 def test_score_accepts_goal_names():

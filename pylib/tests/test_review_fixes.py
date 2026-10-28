@@ -30,23 +30,32 @@ T = "2027-01-15T00:00Z"
 
 # --------------------------------------------------------------------------- HIGH: latitude checks
 
-@pytest.mark.parametrize("lat", [-95.0, -90.0001, -80.0, -79.5, -45.0, 0.0, 85.0, 91.0, math.nan, math.inf])
+@pytest.mark.parametrize("lat", [-95.0, -90.0001, -80.0, -80.005, -79.5, -45.0, 0.0, 85.0, 91.0, math.nan,
+                                 math.inf])
 def test_site_custom_rejects_latitudes_outside_the_400m_dem(lat):
-    with pytest.raises(ValueError, match=r"-90 <= lat < -80"):
+    # the app's rule (dem.dart): customLatAllowed(lat) => lat <= customMaxLatDeg (-80.01)
+    with pytest.raises(ValueError, match=r"-90 <= lat <= -80\.01"):
         lh.Site.custom(lat, 0.0)
+
+
+@pytest.mark.parametrize("lat", [-80.01, -80.02])
+def test_site_custom_accepts_the_apps_custom_max_lat(lat):
+    s = lh.Site.custom(lat, 0.0)
+    assert s.lat_deg == lat and math.isfinite(s.terrain_height_m)
 
 
 def test_site_custom_past_the_pole_was_the_mirror_point():
     """The bug: -95 was silently projected to (-85, lon + 180). Now it raises; the real
     point is still accepted."""
-    with pytest.raises(ValueError, match="outside the bundled 400 m DEM"):
+    with pytest.raises(ValueError, match="custom-site region of the bundled 400 m DEM"):
         lh.Site.custom(-95.0, 0.0)
     s = lh.Site.custom(-85.0, 180.0)
     assert s.lat_deg == -85.0 and s.lon_deg == -180.0
 
 
 def test_site_custom_corner_with_data_north_of_80s_is_refused():
-    # the square DEM has data in its corners down to about 77.6 S; the documented coverage is 80 S
+    # the square 400 m DEM has data down to about 75 S (corners about 69 S), but the app's
+    # custom spots stay inside the 80-90 S map (lat <= -80.01)
     with pytest.raises(ValueError):
         lh.Site.custom(-79.9, 45.0)
     with pytest.raises(ValueError):

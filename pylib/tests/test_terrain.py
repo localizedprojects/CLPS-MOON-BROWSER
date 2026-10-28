@@ -53,8 +53,11 @@ def truth():
 def test_app_dem_matches_spice_truth(truth):
     ch = truth["coarseHorizon"]
     d = tr.app_dem()
-    assert d.size == ch["size"] == 1520
-    assert d.scale_m == ch["pxM"] == 400.0
+    from lunarhorizon.data import bundled_path
+
+    meta = json.loads(bundled_path("map/map.json").read_text())["dem"]  # 2280 px since the 75 S ring
+    assert d.size == ch["size"] == meta["size"]
+    assert d.scale_m == ch["pxM"] == meta["pxM"] == 400.0
     assert d.data.dtype == np.int16
     assert int(d.data.astype(np.int64).sum()) == ch["sum"]
     for i, j, v in ch["samples"]:

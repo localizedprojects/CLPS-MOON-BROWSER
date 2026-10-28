@@ -63,7 +63,8 @@ def test_latlon_to_unit():
 
 
 @pytest.mark.parametrize("key, edge_lat", [("ldem_80s_80m", -80.0), ("ldem_75s_240m", -75.0),
-                                            ("avgvis_sun", -75.0), ("avgvis_earth", -75.0)])
+                                            ("ldem_75s_120m", -75.0), ("avgvis_sun", -75.0),
+                                            ("avgvis_earth", -75.0)])
 def test_pds_grid_edge_latitude(key, edge_lat):
     """The half-width of each grid (N/2 * scale) lands on the product's
     nominal edge latitude (80S / 75S), at all four edge midpoints."""

@@ -60,7 +60,7 @@ pipeline/ (Python: spiceypy, numpy)              app/assets/data/ (committed, ~1
 
 **Horizon masks.**
 - **Preset sites:** ray-marched in Python through LOLA `LDEM_80S_80M`, falling back to `LDEM_75S_240M` out to 600 km. Uses exact spherical-Moon geometry. Azimuth step is 0.25°, observer heights are 2 m and 10 m.
-- **Custom sites:** computed on the device in a background isolate from a 400 m/px downsample of the same DEM, and **labeled lower-fidelity** in the UI.
+- **Custom sites:** computed on the device in a background isolate from a 400 m/px downsample of the same DEM (and, beyond 80°S to about 75°S, of LDEM_75S_120M), and **labeled lower-fidelity** in the UI.
 
 **Visibility model.** The geometry is airless and refraction-free. Sun visibility offers three criteria: *center*, *upper limb (any part)*, and *full disk*. A continuous **visible solar-disk fraction** is computed by strip integration against the jagged horizon. That fraction drives the power proxy: 1361 W/m² × (1 au/r)² × fraction, on a vertical sun-tracking panel. Earth visibility uses Earth center or any part of the disk. An optional **"DSN in view"** check requires a DSN complex to see the Moon at ≥10° elevation.
 

@@ -67,9 +67,9 @@ class MapOuter extends ChangeNotifier {
 
   /// Pixel sizes (m) of the ring's relief and of its three layers.
   final double hillshadePxM, layerPxM;
-  final Future<OuterImages> Function() _load;
-  MapOuter({required this.halfWidthM, this.hillshadePxM = 480, this.layerPxM = 960, required Future<OuterImages> Function() load})
-      : _load = load;
+  /// Decodes the four images ([request] calls it).
+  final Future<OuterImages> Function() loader;
+  MapOuter({required this.halfWidthM, this.hillshadePxM = 480, this.layerPxM = 960, required this.loader});
 
   /// map.json's "outer" entry; [load] decodes its four images.
   factory MapOuter.fromJson(Map<dynamic, dynamic> m, {required Future<OuterImages> Function() load}) {
@@ -78,7 +78,7 @@ class MapOuter extends ChangeNotifier {
         halfWidthM: (m['halfWidthM'] as num).toDouble(),
         hillshadePxM: px('hillshade', 480),
         layerPxM: px('sunvis', 960),
-        load: load);
+        loader: load);
   }
 
   OuterImages? _images;
@@ -99,7 +99,7 @@ class MapOuter extends ChangeNotifier {
     return _job ??= () async {
       loadsStarted++;
       try {
-        _images = await _load();
+        _images = await loader();
         _job = null;
         notifyListeners();
       } catch (e) {
@@ -604,7 +604,8 @@ class _MapViewState extends State<MapView> with SingleTickerProviderStateMixin {
     final size = _side;
     final p = _toScene(screen);
     // beside the map (the full-screen map's margins): nothing there
-    if (p.dx < 0 || p.dy < 0 || p.dx > size || p.dy > size) return;
+    final lo = _lo * size, hi = (1 - _lo) * size;
+    if (p.dx < lo || p.dy < lo || p.dx > hi || p.dy > hi) return;
     final scale = _scale;
     String? best;
     var bestD = 24.0 / scale; // 48 px finger-sized hit target
@@ -623,7 +624,14 @@ class _MapViewState extends State<MapView> with SingleTickerProviderStateMixin {
     }
     final h = widget.layers.halfWidthM;
     final (lat, lon) = xyToLatLon((p.dx / size - 0.5) * 2 * h, (0.5 - p.dy / size) * 2 * h);
-    if (lat > customMaxLat) return; // outside the region the map shows
+    if (lat > customMaxLat) {
+      // north of 80°S (the ring, or the base map's corners): refused, with why
+      _setPin(null);
+      final m = ScaffoldMessenger.maybeOf(context);
+      m?.hideCurrentSnackBar();
+      m?.showSnackBar(const SnackBar(content: Text(customSpotEdgeText)));
+      return;
+    }
     _setPin((lat, lon));
     // bring the confirm card into view (the map may sit in a scrolling list)
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -701,7 +709,8 @@ class _MapViewState extends State<MapView> with SingleTickerProviderStateMixin {
             );
         return Semantics(
           label: 'South pole map. Tap a site marker to open it, or tap or hold terrain to check a spot of your own. '
-              'Pinch or use the zoom buttons to place a spot precisely.',
+              'Pinch or use the zoom buttons to place a spot precisely.'
+              '${widget.layers.outer != null ? ' Zoom out or drag to see the terrain out to 75°S; spots go south of 80°S.' : ''}',
           hint: 'Keyboard and screen-reader users: choose a site from the site cards, '
               'or use Add a spot by coordinates.',
           child: GuideTarget(id: 'map', child: SizedBox(
@@ -725,9 +734,10 @@ class _MapViewState extends State<MapView> with SingleTickerProviderStateMixin {
                         behavior: HitTestBehavior.opaque,
                         gestures: {
                           _MapScaleRecognizer: GestureRecognizerFactoryWithHandlers<_MapScaleRecognizer>(
-                            () => _MapScaleRecognizer(zoomed: () => _scale > 1.001, canPan: _canPan),
+                            () => _MapScaleRecognizer(zoomed: () => _pannable, canPan: _canPan),
                             (r) => r
                               ..onStart = (d) {
+                                _outerAsked = false;
                                 // first start: from where the fingers came down, so the slop
                                 // is not lost; a restart (finger added or lifted): from now
                                 _startScale = _scale;
@@ -735,7 +745,7 @@ class _MapViewState extends State<MapView> with SingleTickerProviderStateMixin {
                                 r.begun = true;
                               }
                               ..onUpdate = (d) {
-                                final s = (_startScale * d.scale).clamp(1.0, mapMaxZoom);
+                                final s = (_startScale * d.scale).clamp(_minZoom, mapMaxZoom);
                                 _setView(s, d.localFocalPoint - _startFocus * s);
                               },
                           ),
@@ -775,8 +785,8 @@ class _MapViewState extends State<MapView> with SingleTickerProviderStateMixin {
                           // the same "open full screen" button as the charts'
                           if (widget.onExpand case final open?) zoomButton(Icons.open_in_full, 'Open the map full screen', true, open),
                           zoomButton(Icons.add, 'Zoom in', z < mapMaxZoom - 0.001, () => _zoomStep(2)),
-                          zoomButton(Icons.remove, 'Zoom out', z > 1.001, () => _zoomStep(0.5)),
-                          zoomButton(Icons.crop_free, 'Reset zoom', z > 1.001, () => _setView(1, Offset.zero)),
+                          zoomButton(Icons.remove, 'Zoom out', z > _minZoom + 0.001, () => _zoomStep(0.5)),
+                          zoomButton(Icons.crop_free, 'Reset zoom', !_atHome, _home),
                         ]),
                       ),
                     ),
@@ -840,7 +850,7 @@ class _MapViewState extends State<MapView> with SingleTickerProviderStateMixin {
             ),
           ),
         ]),
-        FidelityBadge(text: overlayCaption(overlay)),
+        FidelityBadge(text: overlayCaption(overlay, widget.layers.outer)),
         const Padding(padding: EdgeInsets.only(top: 8), child: MapLegend()),
       ],
     ]);
@@ -873,7 +883,7 @@ class _MapViewState extends State<MapView> with SingleTickerProviderStateMixin {
                       RadioListTile<MapOverlay>(
                         value: o,
                         title: Text(overlayName(o)),
-                        subtitle: Text(overlayCaption(o), style: PHText.small.copyWith(color: PH.muted)),
+                        subtitle: Text(overlayCaption(o, widget.layers.outer), style: PHText.small.copyWith(color: PH.muted)),
                       ),
                   ]),
                 ),
@@ -911,15 +921,19 @@ String overlayName(MapOverlay o) => switch (o) {
       MapOverlay.shadow => 'Permanent shadow',
     };
 
-/// What the map shows with [o], in words (always shown under the map).
-String overlayCaption(MapOverlay o) => switch (o) {
-      MapOverlay.sunlight =>
-        'Overlay: LOLA team average solar visibility (Mazarico et al. method); brighter = more sunlight. Base map: $baseMapCaption',
-      MapOverlay.earth => 'Overlay: LOLA team average Earth visibility; brighter = Earth in view more often. Base map: $baseMapCaption',
-      MapOverlay.shadow =>
-        'Overlay: permanently shadowed regions (never sunlit in the LOLA averaging period). Base map: $baseMapCaption',
-      MapOverlay.none => baseMapCaption,
-    };
+/// What the map shows with [o], in words (always shown under the map); with
+/// the ring beyond 80°S ([outer]), its coarser resolution and sources too.
+String overlayCaption(MapOverlay o, [MapOuter? outer]) {
+  final base = switch (o) {
+    MapOverlay.sunlight =>
+      'Overlay: LOLA team average solar visibility (Mazarico et al. method); brighter = more sunlight. Base map: $baseMapCaption',
+    MapOverlay.earth => 'Overlay: LOLA team average Earth visibility; brighter = Earth in view more often. Base map: $baseMapCaption',
+    MapOverlay.shadow =>
+      'Overlay: permanently shadowed regions (never sunlit in the LOLA averaging period). Base map: $baseMapCaption',
+    MapOverlay.none => baseMapCaption,
+  };
+  return outer == null ? base : '$base ${outerCaption(outer)}';
+}
 
 /// "Check this spot?": a dropped pin is only computed once confirmed.
 class _ConfirmSpot extends StatelessWidget {
@@ -983,8 +997,7 @@ class _CoordinatesDialogState extends State<CoordinatesDialog> {
     final v = _parse(t);
     if (v == null || !v.isFinite) return 'Enter a number, for example −89.5';
     if (v < -90 || v > customMaxLat) {
-      return 'Use a latitude from −90 to −80.01. Custom spots go inside the region this map shows, which ends at 80°S, '
-          'so −80 itself is just outside it.';
+      return 'Use a latitude from −90 to −80.01. $customSpotEdgeText';
     }
     return null;
   }
@@ -1013,7 +1026,7 @@ class _CoordinatesDialogState extends State<CoordinatesDialog> {
         child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
           TextFormField(
             controller: _lat,
-            decoration: const InputDecoration(labelText: 'Latitude (°, −90 to −80.01)', errorMaxLines: 4),
+            decoration: const InputDecoration(labelText: 'Latitude (°, −90 to −80.01)', errorMaxLines: 6),
             keyboardType: numbers,
             textInputAction: TextInputAction.next,
             autovalidateMode: AutovalidateMode.onUserInteraction,
@@ -1056,14 +1069,15 @@ class _MapPainter extends CustomPainter {
   final String? highlight;
   _MapPainter(this.l, this.sites, this.selected, this.overlay, this.labels, this.zoom, this.scaler, this.pin, this.highlight,
       Listenable zoomChanges)
-      : super(repaint: zoomChanges);
+      // the ring's images arriving repaint the map too
+      : super(repaint: l.outer == null ? zoomChanges : Listenable.merge([zoomChanges, l.outer]));
 
   @override
   void paint(Canvas canvas, Size size) {
     final dst = Offset.zero & size;
     // zoomed in, smooth the 320 m pixels rather than show blocks
     final quality = zoom() > 1.5 ? FilterQuality.high : FilterQuality.medium;
-    void img(ui.Image? im, [double opacity = 1]) {
+    void img(ui.Image? im, Rect dst, [double opacity = 1]) {
       if (im == null) return;
       canvas.drawImageRect(im, Rect.fromLTWH(0, 0, im.width.toDouble(), im.height.toDouble()), dst,
           Paint()
@@ -1071,16 +1085,27 @@ class _MapPainter extends CustomPainter {
             ..color = Color.fromRGBO(255, 255, 255, opacity));
     }
 
-    img(l.hillshade);
-    switch (overlay) {
-      case MapOverlay.sunlight:
-        img(l.sunvis, 0.9);
-      case MapOverlay.earth:
-        img(l.earthvis, 0.9);
-      case MapOverlay.shadow:
-        img(l.psr, 0.95);
-      case MapOverlay.none:
+    void layers(ui.Image hillshade, ui.Image? sunvis, ui.Image? earthvis, ui.Image? psr, Rect dst) {
+      img(hillshade, dst);
+      switch (overlay) {
+        case MapOverlay.sunlight:
+          img(sunvis, dst, 0.9);
+        case MapOverlay.earth:
+          img(earthvis, dst, 0.9);
+        case MapOverlay.shadow:
+          img(psr, dst, 0.95);
+        case MapOverlay.none:
+      }
     }
+
+    // the ring beyond 80°S (once loaded) under the base map: its square spans
+    // ±outer half-width; until then the page background shows there
+    final outer = l.outer;
+    if (outer?.images case final o?) {
+      final k = outer!.halfWidthM / l.halfWidthM, lo = (1 - k) / 2 * size.width, hi = (1 + k) / 2 * size.width;
+      layers(o.hillshade, o.sunvis, o.earthvis, o.psr, Rect.fromLTRB(lo, lo, hi, hi));
+    }
+    layers(l.hillshade, l.sunvis, l.earthvis, l.psr, dst);
     final z = zoom();
     final w = size.width, h = l.halfWidthM;
     Offset px(double lat, double lon) {
@@ -1088,17 +1113,28 @@ class _MapPainter extends CustomPainter {
       return Offset((x / h * 0.5 + 0.5) * w, (0.5 - y / h * 0.5) * w);
     }
 
-    // graticule
+    // graticule (out to 75°S with the ring; the 80°S circle, inside which
+    // custom spots go, is thicker and labelled there)
     final grid = Paint()
       ..color = const Color(0x55FFFFFF)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 0.8 / z;
+    final g = mapGraticule(outer: outer != null);
     final c = Offset(w / 2, w / 2);
-    for (var lat = -88.0; lat >= -80.0; lat -= 2) {
+    for (final lat in g.rings) {
       canvas.drawCircle(c, (px(lat, 0) - c).distance, grid);
     }
     for (var lon = 0.0; lon < 360; lon += 30) {
-      canvas.drawLine(c, px(-80, lon), grid);
+      canvas.drawLine(c, px(g.meridiansTo, lon), grid);
+    }
+    if (g.edge case final e?) {
+      final r = (px(e, 0) - c).distance;
+      for (final (colour, width) in [(const Color(0x99000000), 3.2), (const Color(0xCCFFFFFF), 1.6)]) {
+        canvas.drawCircle(c, r, Paint()
+          ..color = colour
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = width / z);
+      }
     }
     final tp = TextPainter(textDirection: TextDirection.ltr, textScaler: scaler);
     void text(String s, Offset at, {Color color = PH.text, double size = 13, bool bold = false}) {
@@ -1111,8 +1147,8 @@ class _MapPainter extends CustomPainter {
     for (final (lon, s) in [(0.0, '0°'), (90.0, '90°E'), (180.0, '180°'), (-90.0, '90°W')]) {
       text(s, px(-81.2, lon), color: PH.text);
     }
-    for (var lat = -88.0; lat >= -84.0; lat -= 2) {
-      text('${lat.toStringAsFixed(0)}°', px(lat, 45), color: PH.text);
+    for (final (s, lat, lon) in g.labels) {
+      text(s, px(lat, lon), color: PH.text, bold: lat == g.edge);
     }
 
     // sites (selected drawn last)
@@ -1162,6 +1198,7 @@ class _MapPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _MapPainter old) =>
+      old.l != l ||
       old.selected != selected ||
       old.overlay != overlay ||
       old.labels != labels ||
@@ -1170,6 +1207,22 @@ class _MapPainter extends CustomPainter {
       old.pin != pin ||
       old.highlight != highlight;
 }
+
+/// The map's latitude rings (°), how far its meridians run, the circle drawn
+/// thicker as the edge for custom spots (80°S, with the ring only) and the
+/// direct text labels (text, lat, lon). With the ring beyond 80°S it goes on
+/// to 78 and 76°S, the meridians to 75°S.
+({List<double> rings, double meridiansTo, double? edge, List<(String, double, double)> labels}) mapGraticule(
+        {required bool outer}) =>
+    (
+      rings: [for (var lat = -88.0; lat >= (outer ? -76.0 : -80.0); lat -= 2) lat],
+      meridiansTo: outer ? -75.0 : -80.0,
+      edge: outer ? -80.0 : null,
+      labels: [
+        for (var lat = -88.0; lat >= -84.0; lat -= 2) ('${lat.toStringAsFixed(0)}°', lat, 45.0),
+        if (outer) ...[('80°S', -80.0, 45.0), ('-78°', -78.0, 45.0), ('-76°', -76.0, 45.0)],
+      ],
+    );
 
 /// A small scale bar: the longest round distance that fits in [maxPx].
 class _ScaleBar extends StatelessWidget {

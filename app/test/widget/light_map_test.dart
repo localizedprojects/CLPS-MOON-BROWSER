@@ -1,7 +1,10 @@
 // Light & shadow map: arrow wording under the stricter rules, the overlay
 // image keeper (per-layer reuse, no work off screen, the web cap), the phone
-// landscape layout, the reduced-motion spinner, and no recompute on return.
+// landscape layout, the reduced-motion spinner, no recompute on return, and
+// the device-shaded relief (and its note) past the base map's edge (IM-1).
 import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
 import 'dart:math' as math;
 import 'dart:typed_data';
 import 'dart:ui' as ui;
@@ -11,6 +14,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:polar_horizon/core/catalog.dart';
 import 'package:polar_horizon/core/dem.dart';
 import 'package:polar_horizon/core/geo.dart';
+import 'package:polar_horizon/core/relief.dart';
 import 'package:polar_horizon/core/shadow.dart';
 import 'package:polar_horizon/core/visibility.dart';
 import 'package:polar_horizon/state/app_state.dart';
@@ -530,6 +534,85 @@ void main() {
       expect(tester.takeException(), isNull);
       await tester.pumpWidget(const SizedBox());
       await tester.pump(const Duration(milliseconds: 100));
+    });
+
+    test('the map layers from map.json: the terrain grid reaches about 75°S, the relief recipe is the base map\'s', () {
+      final m = jsonDecode(File('assets/data/map/map.json').readAsStringSync()) as Map<String, dynamic>;
+      final hs = m['hillshade'] as Map, tint = hs['tint'] as Map;
+      final layers = state.mapLayers!;
+      expect((layers.halfWidthM, layers.demHalfWidthM), (304000, 456000));
+      expect(layers.demHalfWidthM, (m['dem'] as Map)['halfWidthM']);
+      final r = layers.relief!;
+      expect((r.azimuthDeg, r.altitudeDeg, r.exaggeration),
+          (hs['lightAzimuthDeg'], hs['lightAltitudeDeg'], hs['verticalExaggeration']));
+      expect((r.base, r.shade, r.elevation, r.zLowM, r.zHighM),
+          (tint['base'], tint['shade'], tint['elevation'], tint['zLowM'], tint['zHighM']));
+      // the pipeline's hillshade() and tint (basemap.py)
+      expect((r.azimuthDeg, r.altitudeDeg, r.exaggeration, r.base, r.shade, r.elevation), (315, 35, 2, 0.18, 0.62, 0.2));
+      expect(r.zLowM, lessThan(r.zHighM));
+    });
+
+    // last in this group: it changes the selected site (and ends on the default, SR1)
+    testWidgets('a close-up past the base map\'s edge (IM-1 Odysseus) is labelled and drawn on the device-shaded '
+        'relief of that window; one inside the map (SR1) is not', (tester) async {
+      tester.view.physicalSize = const Size(1280, 800);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      LightFramePainter painter() => tester.widget<CustomPaint>(mapPaint()).painter! as LightFramePainter;
+      final grid = (await tester.runAsync(state.dem))!;
+      for (final (id, past) in [('im-1-odysseus-landed', true), ('derosa2012-sr1-shackleton-rim', false)]) {
+        await tester.runAsync(() => state.selectSite(id));
+        // the desktop pane: the short note and the badge are both on screen
+        await tester.pumpWidget(host(const Size(740, 620), reduceMotion: true));
+        await tester.pump();
+        for (var i = 0; i < 400 && find.text('Computing shadows…').evaluate().isNotEmpty; i++) {
+          await tester.pump(const Duration(milliseconds: 70)); // debounce
+          await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 50)));
+        }
+        expect(find.text('Computing shadows…'), findsNothing, reason: '$id: the frame is computed');
+        // the relief picture is built on the device (its decode takes real time)
+        for (var i = 0; i < 100 && past && painter().relief == null; i++) {
+          await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 20)));
+          await tester.pump();
+        }
+        final p = painter(), v = p.view;
+        expect(p.closeUp, isTrue, reason: id);
+        expect(viewBeyondBaseMap(v, p.halfWidthM), past, reason: id);
+        final badges = tester.widgetList<FidelityBadge>(find.byType(FidelityBadge)).map((b) => b.text).toList();
+        expect(badges.where((t) => t.contains(lightPastMapNote)), hasLength(past ? 1 : 0), reason: '$id: $badges');
+        expect(badges.where((t) => t.contains('plain grey')), isEmpty, reason: 'the old wording is gone');
+        expect(find.textContaining('past the base map\'s edge (about 80°S) the relief is shaded on this device'),
+            past ? findsOneWidget : findsNothing, reason: id);
+        // the canvas is square, so the close-up's square fills it exactly
+        final size = tester.getSize(mapPaint());
+        expect(size.width, size.height, reason: id);
+        if (!past) {
+          expect(p.relief, isNull, reason: id);
+        } else {
+          final rl = p.relief!;
+          // on the 400 m grid's own pixels, exactly the close-up's 128 km square
+          expect((rl.x0M, rl.y0M, rl.widthM, rl.heightM), (v.x0, v.y0, v.ext, v.ext), reason: id);
+          expect((rl.image.width, rl.image.height), (320, 320), reason: id);
+          // and the picture is the core's relief of that window, pixel for pixel
+          final win = reliefWindow(v.x0, v.y0, v.ext, grid.size, grid.scaleM)!;
+          final grey = reliefGrey(grid.heights, grid.size, grid.scaleM, win, state.mapLayers!.relief!);
+          final rgba = (await tester.runAsync(() => rl.image.toByteData()))!;
+          var off = 0;
+          for (var i = 0; i < grey.length; i++) {
+            if (rgba.getUint8(4 * i) != grey[i] || rgba.getUint8(4 * i + 3) != 255) off++;
+          }
+          expect(off, 0, reason: '$id: pixels unlike reliefGrey');
+          // the part past the base map's edge (y > 304 km) has real relief, not a flat ground
+          final edgeRow = ((v.y0 - p.halfWidthM) / grid.scaleM).round();
+          expect(edgeRow, greaterThan(10), reason: 'IM-1\'s close-up reaches 60 km past the edge');
+          final outside = grey.sublist(0, edgeRow * win.cols).toSet();
+          expect(outside.length, greaterThan(50), reason: 'many tones past the edge');
+        }
+        await tester.pumpWidget(const SizedBox());
+        await tester.pump(const Duration(milliseconds: 100));
+      }
+      expect(state.selectedId, 'derosa2012-sr1-shackleton-rim');
+      expect(tester.takeException(), isNull);
     });
   });
 

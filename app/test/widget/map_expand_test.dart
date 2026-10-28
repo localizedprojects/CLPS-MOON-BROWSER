@@ -595,14 +595,17 @@ void main() {
 
   testWidgets('centring a point near the region\'s edge zooms in to at most twice the zoom, not to 8x', (tester) async {
     await pumpPage(tester);
-    for (final f in const [Offset(0.02, 0.5), Offset(0.0, 0.97)]) {
+    // points near the edge of the map's content: the base map's square, or
+    // the ring beyond 80°S when there is one (lo() < 0)
+    final l = lo();
+    for (final f in [Offset(l + 0.02, 0.5), Offset(l, 1 - l - 0.03)]) {
       inline.centreOn((zoom: 1.0, centre: f), animate: false);
       await tester.pump();
       expect(inline.camera!.zoom, closeTo(2.0, 1e-9), reason: 'at most twice the zoom asked for ($f)');
       expect(tester.getRect(viewport()).inflate(0.5).contains(at(tester, f)), isTrue, reason: '$f shows on the map');
       expectCentredOn(tester, f, '$f');
     }
-    inline.centreOn((zoom: 3.0, centre: const Offset(0.01, 0.01)), animate: false);
+    inline.centreOn((zoom: 3.0, centre: Offset(l + 0.01, l + 0.01)), animate: false);
     await tester.pump();
     expect(inline.camera!.zoom, closeTo(6.0, 1e-9), reason: 'twice 3x');
     expect(tester.takeException(), isNull);

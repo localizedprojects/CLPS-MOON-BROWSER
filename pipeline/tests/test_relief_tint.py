@@ -10,7 +10,6 @@ anything else; the tests that need LDEM_80S_80M skip without it.
 from __future__ import annotations
 
 import json
-import shutil
 
 import numpy as np
 import pytest
@@ -26,7 +25,7 @@ def _shipped():
 
 
 def test_tint_levels_are_the_percentiles():
-    z = np.arange(1001, dtype=np.float32).reshape(7, 143)[:, :143]  # 0..1000 (1001 values)
+    z = np.arange(1001, dtype=np.float32).reshape(7, 143)  # 0..1000 (1001 values)
     assert tint_levels(z) == pytest.approx((10.0, 990.0))
 
 
@@ -86,4 +85,3 @@ def test_tint_cli_changes_only_the_levels(z320, tmp_path, monkeypatch):
     basemap.build_tint_only()
     assert (tmp_path / "map.json").read_bytes() == shipped
     assert not (tmp_path / "hillshade.webp").exists()  # nothing else is written
-    shutil.rmtree(tmp_path)

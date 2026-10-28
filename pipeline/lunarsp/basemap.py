@@ -21,7 +21,10 @@ of sites near 80 S have terrain all round. Outputs in ``app/assets/data/map/``:
 ``python -m lunarsp.basemap`` rebuilds every layer (needs the 80 m and 120 m
 DEMs and both AVGVISIB maps). ``python -m lunarsp.basemap dem`` rebuilds only
 ``dem_400m.bin.gz`` and the ``dem`` entry of map.json, leaving every other file
-and key byte-identical.
+and key byte-identical. ``python -m lunarsp.basemap tint`` (80 m DEM only)
+writes only map.json hillshade.tint zLowM / zHighM: the heights the tint maps
+to 0 and 1, so the app can shade the 400 m terrain past the base map's edge
+with the same tones (app/lib/core/relief.dart).
 """
 
 from __future__ import annotations

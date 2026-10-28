@@ -13,6 +13,7 @@ import 'package:polar_horizon/core/dem.dart';
 import 'package:polar_horizon/core/geo.dart';
 import 'package:polar_horizon/core/shadow.dart';
 import 'package:polar_horizon/state/light_engine.dart';
+import 'package:polar_horizon/widgets/light_map.dart' show closeUpTargetView, frameView;
 
 /// Body-fixed direction (km) of a light [elDeg] above the pole's horizon,
 /// toward meridian [lonDeg], at distance [r].
@@ -288,9 +289,21 @@ void main() {
         }
         expect(lit, greaterThan(rows * f.size * 0.05), reason: 'coarse $coarse');
         expect(dark, greaterThan(rows * f.size * 0.05), reason: 'coarse $coarse');
-        // the frame the UI shows first (light_map _targetView) is this one: on
-        // whole pixels of the grid, clamped only against the DEM's half-width
-        expect(((f.x0M + info.halfWidthM) / f.pxM) % 1, 0);
+        // the view the UI shows before this frame (light_map _targetView:
+        // closeUpTargetView, clamped against the DEM's half-width) is this one
+        expect(closeUpTargetView(im1.lat, im1.lon, info.halfWidthM, playing: coarse), frameView(f), reason: 'coarse $coarse');
+        // ... and clamping against the base map's half-width (80 S) instead would not be
+        expect(closeUpTargetView(im1.lat, im1.lon, info.innerHalfWidthM, playing: coarse), isNot(frameView(f)));
+      }
+    });
+
+    test('the close-up view the map shows first is the engine\'s frame, at the DEM\'s own edge too', () {
+      // 75.2 S, 0 E: the 128 km window would run off the DEM (to about 75.05 S): both clamp it the same way
+      for (final coarse in [false, true]) {
+        final f = computeLightFrame(grids,
+            LightRequest(closeUp: true, lat: -75.2, lon: 0, sun: sun, earth: earth, tMs: 0, coarse: coarse));
+        expect(f.y0M, info.halfWidthM, reason: 'the window is clamped to the DEM\'s top edge');
+        expect(closeUpTargetView(-75.2, 0, info.halfWidthM, playing: coarse), frameView(f), reason: 'coarse $coarse');
       }
     });
 
@@ -302,6 +315,7 @@ void main() {
         for (final coarse in [false, true]) {
           final f = computeLightFrame(grids, q(closeUp, coarse)), g = computeLightFrame(innerGrids, q(closeUp, coarse));
           expect((f.size, f.pxM, f.x0M, f.y0M), (g.size, g.pxM, g.x0M, g.y0M), reason: 'closeUp $closeUp coarse $coarse');
+          if (closeUp) expect(closeUpTargetView(sr1.lat, sr1.lon, info.halfWidthM, playing: coarse), frameView(f));
           if (!closeUp) {
             expect((f.x0M, f.y0M, f.size), (-info.innerHalfWidthM, info.innerHalfWidthM, coarse ? 380 : 760));
             expect(lightFrameShares(f).inside, 1.0);

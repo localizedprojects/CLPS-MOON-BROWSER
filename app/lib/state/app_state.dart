@@ -31,6 +31,7 @@ import '../core/landing.dart';
 import '../core/landing_wording.dart' show goalName;
 import '../core/metrics.dart';
 import '../core/ranking.dart';
+import '../core/relief.dart' show ReliefRecipe;
 import '../core/score.dart';
 import '../core/site_glance.dart' show GlanceInputs, SiteGlance, buildSiteGlance;
 import '../core/summary.dart';
@@ -1135,7 +1136,8 @@ class AppState extends ChangeNotifier {
       final imgs = await Future.wait<ui.Image?>([_image('map/hillshade.webp'), opt('sunvis'), opt('earthvis'), opt('psr')]);
       if (_disposed) return false;
       mapLayers = MapLayers(imgs[0]!, imgs[1], imgs[2], imgs[3], (m['halfWidthM'] as num).toDouble(),
-          demHalfWidthM: DemInfo.fromJson(m['dem'] as Map).halfWidthM);
+          demHalfWidthM: DemInfo.fromJson(m['dem'] as Map).halfWidthM,
+          relief: ReliefRecipe.fromJson(m['hillshade'] as Map?));
       return true;
     } catch (e) {
       debugPrint('map layers unavailable: $e');

@@ -24,6 +24,7 @@ import 'package:flutter/material.dart';
 
 import '../core/catalog.dart';
 import '../core/dem.dart';
+import '../core/relief.dart';
 import '../core/shadow.dart';
 import '../core/visibility.dart' show EarthCriterion, SunCriterion, earthVisible;
 import '../core/wording.dart';
@@ -51,6 +52,32 @@ typedef LightView = ({double x0, double y0, double ext});
 
 /// The view of a computed frame.
 LightView frameView(LightFrame f) => (x0: f.x0M, y0: f.y0M, ext: f.extentM);
+
+/// What the light map's note adds for a close-up that reaches past the base
+/// map's edge ([beyondBaseMap]); the snapshot says it too
+/// ([lightSnapshotFidelityFor]). The scale figure: a close-up of a spot
+/// south of -80.01° reaches about 77-78°S, where polar stereographic
+/// distances are 2 / (1 + sin 77.8°) = 1.011 times true ones (1.013 at
+/// worst, a frame corner at 77.1°S).
+const lightPastMapNote = 'This close-up reaches past the base map\'s edge (about 80°S): there the terrain is LOLA\'s '
+    '120 m map (LDEM_75S_120M) averaged to 400 m, the relief under the colours is shaded on this device from that '
+    '400 m grid with the same artificial light as the map (a little smoother than the map\'s 320 m relief), and map '
+    'distances run up to about 1% longer than true ones, so shadows cast from there are a little less exact.';
+
+/// The close-up view the light engine will compute around ([lat], [lon]) on
+/// a terrain grid of half-width [demHalfWidthM] (map.json dem; about 75°S):
+/// ShadowGrid.windowAround on the 800 m grid while [playing], 400 m
+/// otherwise, so on whole pixels of that grid and kept inside it (a site at
+/// 80°S, IM-1 Odysseus, is centred too). The map shows it before the first
+/// frame arrives, so that frame does not shift the map at all.
+LightView closeUpTargetView(double lat, double lon, double demHalfWidthM, {required bool playing}) {
+  final (x, y) = latLonToXY(lat, lon);
+  final pxM = playing ? 800.0 : 400.0;
+  final n = (2 * demHalfWidthM / pxM).round(), side = math.min(n, (closeUpPx * 400.0 / pxM).round());
+  int place(double centre) => (centre - side / 2 + 0.5).round().clamp(0, n - side);
+  final r0 = place(n / 2 - 0.5 - y / pxM), c0 = place(x / pxM + n / 2 - 0.5);
+  return (x0: (c0 - n / 2) * pxM, y0: (n / 2 - r0) * pxM, ext: side * pxM);
+}
 
 /// Arrow-label suffix for a light the user's rule does not count, saying
 /// why: Earth hidden only by the "DSN station in view" rule is "no DSN"
@@ -282,6 +309,94 @@ class LightImageKeeper {
   }
 }
 
+/// A [reliefGrey] picture placed on the map: top-left corner and size (m).
+typedef ReliefImage = ({ui.Image image, double x0M, double y0M, double widthM, double heightM});
+
+/// The shaded relief of the 400 m terrain grid under a close-up that reaches
+/// past the base map's edge (about 80°S), where hillshade.webp has no pixels:
+/// the base map's recipe ([ReliefRecipe], from map.json) worked out on the
+/// device, so the ground's tones carry on across the edge. Built once per
+/// window ([want]); kept while the view stays there (e.g. while playing).
+/// Each picture is drawn at its own place on the map, so one still being
+/// replaced is never in the wrong spot.
+class ReliefKeeper {
+  ReliefKeeper({required this.onChange});
+
+  /// Called when [shown] changes (never during a build).
+  final VoidCallback onChange;
+
+  ReliefImage? get shown => _shown;
+  ReliefImage? _shown;
+  ReliefWindow? _shownWin;
+
+  /// How many pictures have been built (tests).
+  int builds = 0;
+
+  LightView? _view, _asked;
+  Future<PolarGrid> Function()? _dem;
+  ReliefRecipe? _recipe;
+  bool _building = false, _scheduled = false, _disposed = false;
+
+  /// Ask for the relief under [view] (a close-up's square) from the terrain
+  /// grid [dem] returns; a null [view] or [recipe] asks for nothing.
+  void want(LightView? view, Future<PolarGrid> Function() dem, ReliefRecipe? recipe) {
+    if (view == null || recipe == null || _disposed) return;
+    _view = view;
+    _dem = dem;
+    _recipe = recipe;
+    if (view != _asked && !_scheduled) {
+      _scheduled = true;
+      scheduleMicrotask(_run);
+    }
+  }
+
+  Future<void> _run() async {
+    _scheduled = false;
+    final v = _view, dem = _dem, recipe = _recipe;
+    if (_building || _disposed || v == null || dem == null || recipe == null || v == _asked) return;
+    _asked = v;
+    _building = true;
+    try {
+      final grid = await dem();
+      final win = reliefWindow(v.x0, v.y0, v.ext, grid.size, grid.scaleM);
+      if (win != null && win != _shownWin && !_disposed) {
+        final grey = reliefGrey(grid.heights, grid.size, grid.scaleM, win, recipe);
+        final rgba = Uint8List(grey.length * 4);
+        for (var i = 0, j = 0; i < grey.length; i++, j += 4) {
+          rgba[j] = rgba[j + 1] = rgba[j + 2] = grey[i];
+          rgba[j + 3] = 255;
+        }
+        final c = Completer<ui.Image>();
+        ui.decodeImageFromPixels(rgba, win.cols, win.rows, ui.PixelFormat.rgba8888, c.complete);
+        final image = await c.future;
+        if (_disposed) {
+          image.dispose();
+        } else {
+          final r = reliefRect(win, grid.size, grid.scaleM), old = _shown;
+          _shown = (image: image, x0M: r.x0M, y0M: r.y0M, widthM: r.widthM, heightM: r.heightM);
+          _shownWin = win;
+          builds++;
+          onChange();
+          if (old != null) WidgetsBinding.instance.addPostFrameCallback((_) => old.image.dispose());
+        }
+      }
+    } catch (e) {
+      // the neutral ground stays (the shadows themselves need the same grid)
+      debugPrint('relief unavailable: $e');
+    } finally {
+      _building = false;
+    }
+    // catch up with a view asked for meanwhile
+    if (!_disposed && _view != _asked) _run();
+  }
+
+  void dispose() {
+    _disposed = true;
+    _shown?.image.dispose();
+    _shown = null;
+  }
+}
+
 class LightMap extends StatefulWidget {
   final AppState state;
 
@@ -415,6 +530,9 @@ class _LightMapState extends State<LightMap> {
     setState(() {});
     _reportPending(); // an overlay came in (or failed): Play may step again
   });
+  late final _relief = ReliefKeeper(onChange: () {
+    if (mounted) setState(() {});
+  });
   LightRequest? _queued;
   bool _busy = false;
   String? _sentKey, _error;
@@ -469,6 +587,7 @@ class _LightMapState extends State<LightMap> {
     _debounce?.cancel();
     if (widget.active) LightMap.framePending.value = false;
     _images.dispose();
+    _relief.dispose();
     super.dispose();
   }
 
@@ -571,18 +690,8 @@ class _LightMapState extends State<LightMap> {
     final layers = widget.state.mapLayers;
     final half = layers?.halfWidthM ?? 304000;
     if (!closeUp) return _withMargin((x0: -half, y0: half, ext: 2 * half));
-    final (x, y) = latLonToXY(widget.state.site.lat, widget.state.site.lon);
-    // the window the engine will compute (ShadowGrid.windowAround on the
-    // 800 m grid while playing, 400 m otherwise): on whole pixels of that
-    // grid and kept inside the terrain grid, which reaches about 75°S (so a
-    // site at 80°S, IM-1 Odysseus, is centred too), so the first frame does
-    // not shift the map at all
-    final demHalf = layers?.demHalfWidthM ?? half;
-    final pxM = widget.state.playing ? 800.0 : 400.0;
-    final n = (2 * demHalf / pxM).round(), side = math.min(n, (closeUpPx * 400.0 / pxM).round());
-    int place(double centre) => (centre - side / 2 + 0.5).round().clamp(0, n - side);
-    final r0 = place(n / 2 - 0.5 - y / pxM), c0 = place(x / pxM + n / 2 - 0.5);
-    return (x0: (c0 - n / 2) * pxM, y0: (n / 2 - r0) * pxM, ext: side * pxM);
+    return closeUpTargetView(widget.state.site.lat, widget.state.site.lon, layers?.demHalfWidthM ?? half,
+        playing: widget.state.playing);
   }
 
   @override
@@ -717,7 +826,7 @@ class _LightMapState extends State<LightMap> {
         exact: s.expert);
     final h = s.observerHeightM;
     final heightText = '${h.toStringAsFixed(h == h.roundToDouble() ? 0 : 1)} m';
-    // a close-up reaching past the base map (80°S): terrain and ground there are labelled
+    // a close-up reaching past the base map's edge (about 80°S): terrain and ground there are labelled
     final pastMap = shownFrame != null && fine && beyondBaseMap(shownFrame, layers.halfWidthM);
     // agreement figures: test/core/shadow_test.dart (16 preset sites x 60 random moments, 2 m observer)
     final badge = FidelityBadge(
@@ -729,9 +838,7 @@ class _LightMapState extends State<LightMap> {
           'between grid cells. The terrain under the colours is shaded relief from the same LOLA elevations, lit '
           'by an artificial light from the upper left with heights exaggerated 2x: it is not a photo and not the '
           'real lighting, and inside shadows it is drawn faintly for orientation only.'
-          '${pastMap ? ' This close-up reaches past 80°S, where the base map ends: there the terrain is LOLA\'s 120 m '
-              'map (LDEM_75S_120M) averaged to 400 m, the ground under the colours is plain grey with no relief, and map '
-              'distances run up to about 2% longer than true ones, so shadows cast from there are a little less exact.' : ''}'
+          '${pastMap ? ' $lightPastMapNote' : ''}'
           '${coarseShown ? ' While playing, the map uses a coarser ${shownFrame!.pxM.round()} m grid so it can keep up, and the '
               'legend\'s shares are from that grid; the agreement figures above are for the paused map. Pause for full detail.' : ''}',
     );
@@ -743,6 +850,8 @@ class _LightMapState extends State<LightMap> {
     Widget mapBox(double side, {bool bottomMayHide = false}) {
       _images.update(side: side, dpr: MediaQuery.devicePixelRatioOf(context));
       final view = _targetView;
+      // the ground past the base map's edge: shaded on the device (ReliefKeeper)
+      _relief.want(fine && viewBeyondBaseMap(view, layers.halfWidthM) ? view : null, s.dem, layers.relief);
       if (!s.playing) _labelMemory.clear();
       final playNote = 'Coarser while playing, pause for full detail. Showing ${utcLabel(tMap)}';
       final semantic = '${s.site.short}, ${utcLabel(tMap)}. '
@@ -850,6 +959,7 @@ class _LightMapState extends State<LightMap> {
                   painter: LightFramePainter(
                     hillshade: layers.hillshade,
                     halfWidthM: layers.halfWidthM,
+                    relief: _relief.shown,
                     images: img,
                     view: view,
                     sites: sites,
@@ -986,7 +1096,8 @@ class _LightMapState extends State<LightMap> {
                   ? 'Approximate: while playing, shadows from a coarser ${shownFrame!.pxM.round()} m grid; pause for the '
                       '${fine ? '400 m' : '800 m'} map. Status, legend and details below.'
                   : 'Approximate: shadows from a ${fine ? '400 m' : '800 m'} terrain grid'
-                      '${pastMap ? '; plain grey ground beyond 80°S' : ''}. Status, legend and details below.');
+                      '${pastMap ? '; past the base map\'s edge (about 80°S) the relief is shaded on this device' : ''}. '
+                      'Status, legend and details below.');
           List<Widget> below() => [
                 const SizedBox(height: 12),
                 status,
@@ -1385,12 +1496,16 @@ class ArrowLabelMemory {
 /// The square [view] is centred in the canvas and cropped to it, so a
 /// non-square canvas shows a centre crop of the frame (LightSnapshot).
 /// Whether part of [f] lies outside the base map's square (±[mapHalfWidthM]).
-bool beyondBaseMap(LightFrame f, double mapHalfWidthM) =>
-    f.x0M < -mapHalfWidthM || f.y0M > mapHalfWidthM || f.x0M + f.extentM > mapHalfWidthM || f.y0M - f.extentM < -mapHalfWidthM;
+bool beyondBaseMap(LightFrame f, double mapHalfWidthM) => viewBeyondBaseMap(frameView(f), mapHalfWidthM);
 
-/// Neutral mid-grey ground under a close-up's light colours beyond the base
-/// map (80°S), where no shaded relief exists: no meaning of its own (a grey
-/// near the relief's average, so multiply/screen read the same as on it).
+/// Whether part of the view [v] lies outside the base map's square (±[mapHalfWidthM]).
+bool viewBeyondBaseMap(LightView v, double mapHalfWidthM) =>
+    v.x0 < -mapHalfWidthM || v.y0 > mapHalfWidthM || v.x0 + v.ext > mapHalfWidthM || v.y0 - v.ext < -mapHalfWidthM;
+
+/// Neutral mid-grey under a close-up's light colours beyond the base map
+/// only for the moment its shaded relief ([ReliefKeeper]) is being built, or
+/// when map.json has no tint levels: no meaning of its own (a grey near the
+/// relief's average, so multiply / screen read the same as on it).
 const beyondMapGround = Color(0xFF6E737B);
 
 class LightFramePainter extends CustomPainter {
@@ -1400,6 +1515,11 @@ class LightFramePainter extends CustomPainter {
   final LightView view;
   final List<Site> sites;
   final Site selected;
+
+  /// Shaded relief of the 400 m terrain grid ([ReliefKeeper]), drawn where it
+  /// lies under a close-up that reaches past the base map; the base map's
+  /// relief (hillshade.webp) is drawn over it inside ±[halfWidthM].
+  final ReliefImage? relief;
 
   /// nowAt() state of [selected]; null draws no Sun / Earth arrows.
   final Map<String, dynamic>? now;
@@ -1426,7 +1546,7 @@ class LightFramePainter extends CustomPainter {
   LightFramePainter({required this.hillshade, required this.halfWidthM, required this.images, required this.view,
       required this.sites, required this.selected, required this.now, required this.closeUp,
       this.siteNames = true, this.arrowFrac = 0.24, this.earthRule = EarthCriterion.center, this.requireDsn = false,
-      this.textScaler = TextScaler.noScaling, this.exact = false, this.noteArea, this.labelMemory});
+      this.textScaler = TextScaler.noScaling, this.exact = false, this.noteArea, this.labelMemory, this.relief});
 
   /// Keeps each arrow label on its spot from frame to frame (Play).
   final ArrowLabelMemory? labelMemory;
@@ -1455,11 +1575,20 @@ class LightFramePainter extends CustomPainter {
     final frameDst = fr == null
         ? null
         : Rect.fromLTWH(dst.left + (fr.x0M - view.x0) * k, dst.top + (view.y0 - fr.y0M) * k, fr.extentM * k, fr.extentM * k);
-    // a close-up reaches past the base map (80°S) where the terrain grid goes
-    // on to about 75°S: a flat neutral ground there (no relief; named in the
-    // FidelityBadge), so the shadows drawn over it still show
-    if (frameDst != null && fr!.request.closeUp && beyondBaseMap(fr, halfWidthM)) {
-      canvas.drawRect(frameDst, Paint()..color = beyondMapGround);
+    // a close-up reaches past the base map's edge (about 80°S) where the
+    // terrain grid goes on to about 75°S: the relief shaded on the device
+    // from that grid with the base map's recipe (named in the FidelityBadge),
+    // over a neutral grey for the moment it is being built
+    if (closeUp && viewBeyondBaseMap(view, halfWidthM)) {
+      if (frameDst != null && fr!.request.closeUp) canvas.drawRect(frameDst, Paint()..color = beyondMapGround);
+      final rl = relief;
+      if (rl != null) {
+        canvas.drawImageRect(
+            rl.image,
+            Rect.fromLTWH(0, 0, rl.image.width.toDouble(), rl.image.height.toDouble()),
+            Rect.fromPoints(px(rl.x0M, rl.y0M), px(rl.x0M + rl.widthM, rl.y0M - rl.heightM)),
+            Paint()..filterQuality = FilterQuality.medium);
+      }
     }
     // NASA LOLA shaded relief (artificial light), cropped to the view
     // only the part of the view the map covers (the whole region has a margin)
@@ -1702,6 +1831,7 @@ class LightFramePainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant LightFramePainter old) =>
       old.images != images ||
+      old.relief != relief ||
       old.noteArea != noteArea ||
       old.labelMemory != labelMemory ||
       old.view != view ||

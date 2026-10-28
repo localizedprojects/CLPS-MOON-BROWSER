@@ -13,6 +13,7 @@ import 'package:flutter/material.dart';
 
 import '../core/catalog.dart';
 import '../core/dem.dart';
+import '../core/relief.dart';
 import '../theme.dart';
 import 'sheets/sheet_frame.dart';
 import 'feature_guide.dart';
@@ -26,7 +27,12 @@ class MapLayers {
   /// Half-width of the 400 m terrain grid behind the light map's close-ups
   /// (map.json dem: size * pxM / 2; about 75°S), which reaches beyond the map.
   final double demHalfWidthM;
-  const MapLayers(this.hillshade, this.sunvis, this.earthvis, this.psr, this.halfWidthM, {double? demHalfWidthM})
+
+  /// The base map's hillshade recipe (map.json hillshade), so the light map
+  /// can shade the terrain beyond it the same way; null without tint levels.
+  final ReliefRecipe? relief;
+  const MapLayers(this.hillshade, this.sunvis, this.earthvis, this.psr, this.halfWidthM,
+      {double? demHalfWidthM, this.relief})
       : demHalfWidthM = demHalfWidthM ?? halfWidthM;
 }
 

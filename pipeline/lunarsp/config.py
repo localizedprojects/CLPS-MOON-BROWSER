@@ -104,6 +104,11 @@ DEMS = {
     # 240 m/px, 75S..90S - far-field horizon beyond the 80S grid
     "ldem_75s_240m": RemoteFile(f"{LOLA_GDR}/ldem_75s_240m.img", DEM_DIR / "ldem_75s_240m.img", 29_062_688,
                                   sha256="d031efe2611b17dfbf3c158f5e15dc04cd5719349dcbf6384bb21fd97697c490"),
+    # 120 m/px, 75S..90S - only the ring of the app's 400 m DEM beyond 80S
+    # (basemap.build_dem; area-weighted to 400 m). The square product holds
+    # real heights in its corners too (no MISSING_CONSTANT, no fill values).
+    "ldem_75s_120m": RemoteFile(f"{LOLA_GDR}/ldem_75s_120m.img", DEM_DIR / "ldem_75s_120m.img", 116_250_752,
+                                  sha256="ae3afc3c75c33d43666ca06c83ca08f0b12ef03b7d36d2d791d972730794391b"),
     # LOLA-team average Sun / Earth visibility maps (Mazarico et al. 2011),
     # used ONLY as an independent cross-check of our horizon+ephemeris chain.
     "avgvis_sun": RemoteFile(f"{LOLA_EXTRAS}/AVGVISIB_75S_120M_201608.IMG", DEM_DIR / "avgvisib_75s_120m_sun.img", 116_250_752,
@@ -118,6 +123,7 @@ DEMS = {
 RASTERS = {
     "ldem_80s_80m": {"size": 7600, "scale": 80.0, "dn_scale": 0.5},
     "ldem_75s_240m": {"size": 3812, "scale": 240.0, "dn_scale": 0.5},
+    "ldem_75s_120m": {"size": 7624, "scale": 120.0, "dn_scale": 0.5},
     "avgvis_sun": {"size": 7624, "scale": 120.0, "dn_scale": 0.00004},
     "avgvis_earth": {"size": 7624, "scale": 120.0, "dn_scale": 0.00004},
 }

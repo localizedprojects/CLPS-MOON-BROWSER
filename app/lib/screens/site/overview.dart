@@ -319,7 +319,7 @@ class _HeroState extends State<_Hero> {
         padding: const EdgeInsets.fromLTRB(4, 6, 4, 0),
         child: Text(which == null ? 'At the time on the time bar' : heroMomentCaption(which), style: PHText.small),
       ),
-      const FidelityBadge(text: lightSnapshotFidelity),
+      FidelityBadge(text: lightSnapshotFidelityFor(snapshotPastMap(context.watch<AppState>().mapLayers, widget.site))),
     ]);
   }
 }

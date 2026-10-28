@@ -144,7 +144,7 @@ class TopPickCard extends StatelessWidget {
           const SizedBox(height: 12),
           LightSnapshot(key: ValueKey('top-${site.id}'), site: site, tMs: tMs, aspect: 2.0, showFidelity: false),
           const SizedBox(height: 8),
-          const FidelityBadge(text: lightSnapshotFidelity),
+          FidelityBadge(text: lightSnapshotFidelityFor(snapshotPastMap(s.mapLayers, site))),
         ]),
       ),
     );

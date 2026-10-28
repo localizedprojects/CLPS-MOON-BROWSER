@@ -22,6 +22,7 @@ import '../state/light_engine.dart';
 import '../theme.dart';
 import 'chart_bridge.dart' show nowAt;
 import 'light_map.dart';
+import 'map_view.dart' show MapLayers;
 
 /// Shown instead of the Sun / Earth arrows when the moment is not inside the
 /// chosen period (only that period's directions are loaded).
@@ -39,6 +40,14 @@ String lightSnapshotFidelityFor(bool pastMap) => pastMap
     ? '$lightSnapshotFidelity Past the base map\'s edge (about 80°S) the relief is shaded on this device from the '
         '400 m terrain grid (LOLA LDEM_75S_120M there), and map distances are up to about 1% longer.'
     : lightSnapshotFidelity;
+
+/// Whether a still snapshot of [site] reaches past the base map's edge: its
+/// close-up square ([closeUpTargetView], which the computed frame matches)
+/// crosses the base map's edge ([viewBeyondBaseMap]). For a badge placed
+/// outside the snapshot ([lightSnapshotFidelityFor]).
+bool snapshotPastMap(MapLayers? layers, Site site) =>
+    layers != null &&
+    viewBeyondBaseMap(closeUpTargetView(site.lat, site.lon, layers.demHalfWidthM, playing: false), layers.halfWidthM);
 
 final _fmt = DateFormat('d MMM yyyy, HH:mm');
 

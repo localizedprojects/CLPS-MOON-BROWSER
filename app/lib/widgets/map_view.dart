@@ -29,10 +29,11 @@ enum MapOverlay { none, sunlight, earth, shadow }
 const groupColors = {'artemis': Color(0xFFF0F0F0), 'illumination': Color(0xFFE69F00), 'missions': Color(0xFFCC79A7)};
 const _customColor = PH.both;
 
-/// Custom spots must lie inside the 400 m LOLA terrain map that their horizon
-/// is computed from. Its outermost pixel centres stop just short of the 80°S
-/// circle near 0°, 90°E, 180° and 90°W, so −80.00 itself can fall outside.
-const customMaxLat = -80.01;
+/// Custom spots must lie inside the region this map shows, which ends at the
+/// 80°S circle; −80.00 itself is refused so a spot never sits on the map's
+/// very edge. The rule is [customMaxLatDeg] in lib/core (AppState applies it
+/// too); the 400 m terrain behind a spot's horizon reaches further, to 75°S.
+const customMaxLat = customMaxLatDeg;
 
 /// What the base map is, in words (shown under the map).
 const baseMapCaption = 'Shaded relief computed from NASA LOLA laser-altimeter elevations (320 m per pixel), '

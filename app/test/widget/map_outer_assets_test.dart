@@ -55,4 +55,20 @@ void main() {
       expect(alpha(mid, w - 1 - edge - d), 255, reason: 'bottom edge');
     }
   }, skip: outer == null ? 'map.json has no "outer" yet' : false);
+
+  test('a failed load of the ring is tried again on the next request', () async {
+    final state = AppState();
+    addTearDown(state.dispose);
+    await state.ensureMap();
+    final o = state.mapLayers!.outer!;
+    state.debugFailOuterLoads = 1;
+    await o.request();
+    expect(o.images, isNull, reason: 'the first load failed');
+    expect(o.loadsStarted, 1);
+    await o.request();
+    expect(o.images, isNotNull, reason: 'tried again');
+    expect(o.loadsStarted, 2);
+    await o.request();
+    expect(o.loadsStarted, 2, reason: 'kept once loaded');
+  }, skip: outer == null ? 'map.json has no "outer" yet' : false);
 }

@@ -138,12 +138,20 @@ void main() {
     expect(Offset(gx - wx, gy - wy).distance, lessThan(300), reason: 'metres between the pin and the tapped terrain point');
   });
 
-  testWidgets('at full view a vertical drag scrolls the page; zoomed in it pans the map', (tester) async {
+  testWidgets('at full view a vertical drag scrolls the page (after the ring beyond 80°S); zoomed in it pans the map',
+      (tester) async {
     final scroll = await pumpMap(tester);
-    await tester.dragFrom(origin(tester) + const Offset(180, 250), const Offset(0, -120));
-    await tester.pumpAndSettle();
+    // with the ring (map.json "outer") the map moves at 1x too, over the
+    // ring's width at most, then the page takes the drags
+    final l = state.mapLayers!;
+    final ring = switch (l.outer) { final o? => size * (o.halfWidthM / l.halfWidthM - 1) / 2, null => 0.0 };
+    for (var i = 0; i < 4 && scroll.offset == 0; i++) {
+      await tester.dragFrom(origin(tester) + const Offset(180, 250), const Offset(0, -120));
+      await tester.pumpAndSettle();
+    }
     expect(scroll.offset, greaterThan(80), reason: 'at scale 1 the page scrolls');
-    expect(shift(tester), Offset.zero);
+    expect(shift(tester).dx, 0);
+    expect(shift(tester).dy, closeTo(-ring, 1e-6), reason: 'the map against its edge (no ring: not moved)');
 
     scroll.jumpTo(0);
     await tester.pumpAndSettle();
@@ -229,7 +237,10 @@ void main() {
     expect(shift(tester).dx, lessThan(-2000));
     tester.view.physicalSize = const Size(360, 900);
     await tester.pumpAndSettle();
-    final lo = 360 - 360 * scale(tester);
+    // the map's content: the base map's square, or the ring's larger one
+    final l = state.mapLayers!;
+    final k = switch (l.outer) { final o? => o.halfWidthM / l.halfWidthM, null => 1.0 };
+    final lo = 360 - (1 + k) / 2 * 360 * scale(tester);
     expect(shift(tester).dx, greaterThanOrEqualTo(lo - 0.5));
     expect(shift(tester).dy, greaterThanOrEqualTo(lo - 0.5));
     expect(scale(tester), closeTo(4, 1e-9));

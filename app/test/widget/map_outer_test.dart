@@ -310,4 +310,25 @@ void main() {
     expect(o.images, isNotNull);
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets('a resize keeps a zoomed-out view, and a 1x view dragged over the ring', (tester) async {
+    final (l, _) = layers();
+    await pump(tester, l);
+    await press(tester, 'Zoom out');
+    tester.view.physicalSize = const Size(300, 800);
+    await tester.pumpAndSettle();
+    expect(scale(tester), closeTo(floor, 1e-9), reason: 'still zoomed out');
+    expect(shift(tester).dx, closeTo((300 - 300 * floor) / 2, 1e-6), reason: 'the ring still fills the view');
+
+    await press(tester, 'Reset zoom');
+    await tester.dragFrom(origin(tester) + const Offset(150, 150), const Offset(200, 0));
+    await tester.pumpAndSettle();
+    expect(shift(tester).dx, closeTo(300 * (outerHalf / half - 1) / 2, 1e-6), reason: 'against the ring\'s left edge');
+    tester.view.physicalSize = const Size(size, 800);
+    await tester.pumpAndSettle();
+    expect(scale(tester), 1);
+    expect(shift(tester).dx, closeTo(size * (outerHalf / half - 1) / 2, 1e-6), reason: 'the same view in the new size');
+    expect(shift(tester).dy, closeTo(0, 1e-6));
+    expect(tester.takeException(), isNull);
+  });
 }

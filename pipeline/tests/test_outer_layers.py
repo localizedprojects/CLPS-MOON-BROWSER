@@ -62,8 +62,11 @@ def test_outer_grid_geometry():
     assert (7624 - 2 * OUTER_HALF_M / 120) / 2 == OUTER_VIS_FIRST_PX  # central 7600 px of the 120 m products
     lat_edge, _ = xy_to_latlon(OUTER_HALF_M, 0.0)
     assert -75.1 < lat_edge < -75.0
+    # The base map's +-304 km edge lies 6 m south of 80 S on the axes: 80 S is at
+    # 2R tan(5 deg) = 304.006 km (R = 1737.4 km), so the edge reads -80.0002, not
+    # just north of -80.
     lat_80, _ = xy_to_latlon(INNER_HALF_M, 0.0)
-    assert -80.0 < lat_80 < -79.99
+    assert -80.001 < lat_80 < -80.0
 
 
 @pytest.mark.parametrize("px_m", [OUTER_HS_PX_M, OUTER_VIS_PX_M])
@@ -131,14 +134,24 @@ def test_map_json_outer_entry():
     assert o["note"]
 
 
-def test_outer_images_are_blank_inside_and_opaque_relief_outside(outer):
+def test_outer_images_are_blank_inside_and_opaque_relief_outside(outer, inner):
     for key, img in outer.items():
         m = outer_blank_mask(img.shape[0], 2 * OUTER_HALF_M / img.shape[0])
         assert (img[..., 3][m] == 0).all(), key
         if key == "hillshade":
             assert (img[..., 3][~m] == 255).all()  # the relief is opaque wherever it has data
             g = img[..., 0][~m]
-            assert g.min() >= int(basemap.TINT_BASE * 255) - 3  # tint floor (lossy WebP aside)
+            # Tint floor: TINT_BASE (45) before encoding. Lossy WebP (quality 82)
+            # moves isolated pixels near sharp shadow edges by up to about 20
+            # levels: the shipped inner hillshade.webp decodes to a minimum of 36
+            # against its raw minimum of 45. So: the floor holds for all but
+            # 1e-4 of the pixels, and no pixel goes below the inner relief's own
+            # decoded minimum by more than 3 levels.
+            floor = int(basemap.TINT_BASE * 255)
+            below = record("outer: hillshade share below tint floor - 3", (g < floor - 3).mean(), "")
+            record("outer: hillshade min grey (decoded)", g.min(), "grey levels")
+            assert below < 1e-4
+            assert g.min() >= inner["hillshade"][..., 0].min() - 3
 
 
 def test_80s_edge_has_data_on_both_sides(outer, inner):

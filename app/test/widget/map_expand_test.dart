@@ -121,8 +121,18 @@ void main() {
   Offset fracOf(Site s) => mapFractionOf(state.mapLayers!, s.lat, s.lon);
   double margin(Offset f) => [f.dx, 1 - f.dx, f.dy, 1 - f.dy].reduce(math.min);
 
-  /// The least page-map zoom that can centre [f] (the page map is square).
-  double needed(Offset f) => math.max(1.0, 1 / (2 * margin(f)));
+  /// Where the map's content starts, as a fraction of the base map's square:
+  /// 0, or below 0 with the ring beyond 80°S (map.json "outer"); it ends at 1
+  /// minus that.
+  double lo() => switch (state.mapLayers!.outer) {
+        final o? => (1 - o.halfWidthM / state.mapLayers!.halfWidthM) / 2,
+        null => 0.0,
+      };
+
+  /// The least page-map zoom that can centre [f] (the page map is square):
+  /// the content (with the ring) must reach half a view past it every way.
+  double needed(Offset f) =>
+      math.max(1.0, 1 / (2 * [f.dx - lo(), 1 - lo() - f.dx, f.dy - lo(), 1 - lo() - f.dy].reduce(math.min)));
 
   /// A site whose marker shows on the visible map, clear of the buttons and of
   /// every other marker (a tap picks the nearest marker within 24 px).
@@ -179,7 +189,7 @@ void main() {
     expect(find.byType(MapFocusPage), findsNothing, reason: 'the full-screen map has closed');
     final r = tester.getRect(viewport()), z = view(tester).entry(0, 0), content = math.min(r.width, r.height) * z;
     expect(z, greaterThanOrEqualTo(math.min(needed(f), 2.0) - 1e-6), reason: 'zoomed in to centre $what (up to 2x)');
-    double axis(double f, double v) => (v / 2 - f * content).clamp(v - content, 0.0) + f * content;
+    double axis(double f, double v) => (v / 2 - f * content).clamp(v - (1 - lo()) * content, -lo() * content) + f * content;
     final d = (at(tester, f) - (r.topLeft + Offset(axis(f.dx, r.width), axis(f.dy, r.height)))).distance;
     expect(d, lessThan(0.5), reason: '$what is in the middle of the page map, or as near as its edges allow (off by $d px)');
   }
@@ -690,6 +700,27 @@ void main() {
     expect(tester.hasRunningAnimations, isFalse);
     expect(inline.camera!.zoom, closeTo(reached.zoom, 1e-6));
     expectCentredOn(tester, fracOf(site), site.short);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('full screen, a tap on the ring beyond 80°S drops no pin and says why in the note', (tester) async {
+    if (state.mapLayers!.outer == null) return; // older data: no ring
+    await pumpPage(tester);
+    await expand(tester);
+    final r = tester.getRect(viewport()), m = view(tester), side = math.min(r.width, r.height);
+    // below the base map's square (the full-screen map is taller than wide):
+    // the ring, 40 px or so north of the 80°S circle at 180°
+    const f = Offset(0.5, 1.12);
+    final p = r.topLeft + Offset(m.entry(0, 3), m.entry(1, 3)) + f * side * m.entry(0, 0);
+    expect(r.deflate(100).contains(p), isTrue, reason: 'the ring shows below the base map, clear of the note');
+    await tester.tapAt(p);
+    await tester.pump();
+    expect(find.text('Check this spot'), findsNothing);
+    expect(find.descendant(of: find.byKey(const ValueKey('map-focus-refused')), matching: find.text(customSpotEdgeText)),
+        findsOneWidget);
+    expect(find.byType(SnackBar), findsNothing, reason: 'in the note, not a snackbar');
+    expect(find.byType(MapFocusPage), findsOneWidget, reason: 'the map stays open');
+    expect(placed, isEmpty);
     expect(tester.takeException(), isNull);
   });
 }

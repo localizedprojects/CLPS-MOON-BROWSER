@@ -423,8 +423,11 @@ def outer_layers(dem: PolarRaster, sun: PolarRaster, earth: PolarRaster,
     hillshade: [dem] block-mean to OUTER_HS_PX_M, then ``hillshade`` and
     ``tint_grey`` with the base map's lighting and tint levels [levels] (opaque);
     sunvis / earthvis / psr: the visibility maps block-mean to OUTER_VIS_PX_M,
-    through ``vis_rgba`` / ``psr_rgba``. Every pixel of ``outer_blank_mask`` is
-    (0, 0, 0, 0).
+    through ``vis_rgba`` / ``psr_rgba``. Every pixel of ``outer_blank_mask`` has
+    alpha 0 but keeps its colour (the relief grey, the layer colour): lossy WebP
+    codes colour at half resolution and with ringing, so black under the blank
+    square bled into the pixels next to it (Earth / PSR overlays up to 17-20
+    levels off their colour there).
     """
     k = _k(dem, OUTER_HS_PX_M)
     z = _block_mean(outer_window(dem), k)
@@ -440,7 +443,7 @@ def outer_layers(dem: PolarRaster, sun: PolarRaster, earth: PolarRaster,
     del v
     out["earthvis"] = vis_rgba(_block_mean(outer_window(earth), _k(earth, OUTER_VIS_PX_M)), EARTH_RGB)
     for img in out.values():
-        img[outer_blank_mask(img.shape[0], 2 * OUTER_HALF_M / img.shape[0])] = 0
+        img[outer_blank_mask(img.shape[0], 2 * OUTER_HALF_M / img.shape[0]), 3] = 0
     return {key: out[key] for key in OUTER_FILES}
 
 

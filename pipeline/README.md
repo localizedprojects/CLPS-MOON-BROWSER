@@ -31,7 +31,7 @@ The generated files are committed to git, so a fresh clone of the app runs witho
 flowchart LR
   subgraph NASA["NASA inputs (cache: ~/.cache/lunar-sp)"]
     K["SPICE kernels<br/>NAIF / JPL"]
-    D["LOLA DEMs 80 m + 240 m<br/>PDS Geosciences"]
+    D["LOLA DEMs 80 m + 120 m + 240 m<br/>PDS Geosciences"]
     V["LOLA AVGVISIB maps<br/>Sun + Earth"]
     H["JPL Horizons answers<br/>pipeline/validation/horizons_cache"]
     C["site_catalog.json<br/>(16 preset sites)"]

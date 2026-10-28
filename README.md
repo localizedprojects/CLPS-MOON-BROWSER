@@ -85,7 +85,7 @@ All coordinates come with citations in `app/assets/data/sites.json`.
 ```mermaid
 flowchart TD
   K["NAIF SPICE kernels<br/>DE440 · MOON_ME · ITRF93"] --> P
-  D["LRO LOLA DEMs<br/>LDEM_80S_80M · LDEM_75S_240M"] --> P
+  D["LRO LOLA DEMs<br/>LDEM_80S_80M · LDEM_75S_120M · LDEM_75S_240M"] --> P
   A["LOLA AVGVISIB maps<br/>(cross-check and map overlays)"] --> P
   H["JPL Horizons<br/>(cached responses)"] --> P
   P["Python pipeline · pipeline/lunarsp<br/>ephemeris, DSN masks, horizon masks,<br/>basemap, validation, test fixtures"]
@@ -98,8 +98,8 @@ flowchart TD
 
 The work is split between offline precomputation and on-device computation:
 
-- **Offline:** the Python pipeline does the heavy, data-hungry work once. It needs about 450 MB of downloads (about 490 MB with the optional DE442 kernel).
-- **On the device:** the app ships compact results (Sun and Earth vectors, DSN masks, horizon masks, map images and a 400 m DEM; about 7 MB) and computes the time series, metrics, scores, custom-site horizons and the light and shadow map itself. This lets any custom location work without a server.
+- **Offline:** the Python pipeline does the heavy, data-hungry work once. It needs about 570 MB of downloads (about 605 MB with the optional DE442 kernel).
+- **On the device:** the app ships compact results (Sun and Earth vectors, DSN masks, horizon masks, map images and a 400 m DEM reaching about 75°S; about 9.6 MB) and computes the time series, metrics, scores, custom-site horizons and the light and shadow map itself. This lets any custom location work without a server.
 - **Charts:** these are render-only. Flutter sends them chart-ready JSON (`window.phRender`) and they post events back. The message schema is in `charts/src/bridge.ts` and `app/lib/widgets/chart_bridge.dart`.
 
 **Key methods.** The full maths, with `file:line` references, is in [formula.md](formula.md).
@@ -108,7 +108,7 @@ The work is split between offline precomputation and on-device computation:
 - **Site geometry.** The app subtracts the site vector (topocentric parallax) and rotates the result into local East-North-Up, using the spherical normal, to get azimuth, elevation and range (§3).
 - **Terrain horizon.** A ray-march over the LOLA DEM on an exact sphere (§5):
   - Preset sites use the 80 m DEM, then the 240 m DEM, with rays marched to 600 km (the 240 m grid ends at 75°S, about 457 km from the pole, and nothing beyond it is sampled), at a 0.25° azimuth step, for 2 m and 10 m observers.
-  - Custom sites use the 400 m DEM, computed on the device, at a 0.5° step out to 300 km.
+  - Custom sites use the 400 m DEM, computed on the device, at a 0.5° step out to 300 km. That DEM is the 80 m DEM averaged to 400 m inside 80°S and the 120 m DEM (`LDEM_75S_120M`) averaged to 400 m beyond it, out to about 456 km from the pole (75.05°S on the axes).
 - **Visibility.** The Sun's and Earth's angular radius is asin(R / r). The visible fraction of each disk is integrated over 16 strips against the jagged horizon (§6).
 - **Power proxy.** 1361 W/m² × (1 au / r)² × the visible fraction of the solar disk: the sunlight on a panel facing the Sun (§7). A vertical panel turned toward the Sun would get cos(elevation) times this: within 0.1 % while the Sun is below 2.5° (most of the time near the pole), about 2 % at the 11° the Sun can reach at 80°S.
 - **DSN check.** At least one of Goldstone, Madrid or Canberra must see the Moon's centre at 10° elevation or more. Earth orientation comes from ITRF93 (§8).
@@ -223,6 +223,7 @@ flutter test test/core/shadow_test.dart        # prints the light-map agreement 
 |---|---|---|
 | `LDEM_80S_80M` (80 m/px) | <https://pds-geosciences.wustl.edu/lro/lro-l-lola-3-rdr-v1/lrolol_1xxx/data/lola_gdr/polar/img/ldem_80s_80m.img> | preset horizons, the 400 m on-device DEM, the basemap |
 | `LDEM_75S_240M` (240 m/px) | <https://pds-geosciences.wustl.edu/lro/lro-l-lola-3-rdr-v1/lrolol_1xxx/data/lola_gdr/polar/img/ldem_75s_240m.img> | far-field horizons beyond the 80 m grid, to its edge at 75°S |
+| `LDEM_75S_120M` (120 m/px) | <https://pds-geosciences.wustl.edu/lro/lro-l-lola-3-rdr-v1/lrolol_1xxx/data/lola_gdr/polar/img/ldem_75s_120m.img> | the ring of the 400 m on-device DEM beyond 80°S (exact-overlap area mean to 400 m) |
 | `AVGVISIB_75S_120M_201608` (Sun) | <https://imbrium.mit.edu/EXTRAS/ILLUMINATION/IMG/AVGVISIB_75S_120M_201608.IMG> | validation, plus the average-sunlight and permanently-shadowed overlays |
 | `AVGVISIB_75S_120M_201608_EARTH` | <https://imbrium.mit.edu/EXTRAS/ILLUMINATION/IMG/AVGVISIB_75S_120M_201608_EARTH.IMG> | validation, plus the average-Earth-visibility overlay |
 
@@ -230,6 +231,7 @@ flutter test test/core/shadow_test.dart        # prints the light-map agreement 
 
 > **The map is not a photograph.** The base map is shaded relief computed from LOLA laser altimetry (`pipeline/lunarsp/basemap.py`):
 > - `LDEM_80S_80M` is averaged to 320 m.
+> - The base map stops at 80°S. The 400 m DEM used for custom-site horizons and the light & shadow map reaches further: inside 80°S it is `LDEM_80S_80M` block-averaged (unchanged), beyond 80°S it is `LDEM_75S_120M` area-averaged, to about 75°S. Where the two overlap just inside 80°S they differ by 0.03 m on average (standard deviation 0.95 m, max 18.5 m).
 > - It is lit by a fixed artificial light (azimuth 315°, altitude 35°) with **2× vertical exaggeration** and a gentle elevation tint.
 > - The overlays are the LOLA team's long-term average Sun and Earth visibility, and the permanently shadowed regions (where AVGVISIB = 0), at 480 m.
 > - The light and shadow map draws its computed shadows and slope shading on top of this relief. Those layers use the real Sun and Earth directions for the selected moment.
@@ -304,7 +306,7 @@ The app does **not** model surface composition, water ice, temperature, dust, bo
   - Terrain within 120 m (1.5 pixels of the 80 m DEM) is not resolved and is ignored.
   - Boulders and local slopes need higher-resolution data.
 - **Custom sites** must be at 80°S or further south.
-  - Their horizon is computed on the device from a 400 m block average of the same DEM, out to 300 km, with terrain within 600 m excluded.
+  - Their horizon is computed on the device from a 400 m block average of the same DEM (and, beyond 80°S, a 400 m area average of the 120 m `LDEM_75S_120M`), out to 300 km, with terrain within 600 m excluded.
   - Compared with the 80 m preset masks at four sites, the mean difference is 0.46°–1.41° and the maximum is 1.99°–6.14° (`app/test/core/dem_horizon_test.dart`, formula.md §5.2). The app labels custom sites with this caveat.
   - Use custom sites to explore, not to decide.
   - Long-term averages, the LOLA cross-check and local slope are not available for custom sites.
@@ -316,7 +318,7 @@ The app does **not** model surface composition, water ice, temperature, dust, bo
 - **Approximations:**
   - The light is treated as parallel, with one direction taken from the Moon's centre.
   - Each solar limb is treated as a single point on the bearing of the disk centre.
-  - Heights are measured above a plane tangent at the pole, and distances are horizontal map metres (scale ≤ 1.0077 at 80°S).
+  - Heights are measured above a plane tangent at the pole, and distances are horizontal map metres (scale 1.0077 at 80°S, 1.017 at 75°S and about 1.035 at the 400 m DEM's corners near 69°S).
   - Blockers closer than 2 pixels are ignored: 0.8 km on the 400 m grid and 1.6 km on the 800 m grid.
   - The map uses the chosen observer height (2 m or 10 m) and always the Earth's centre, whatever the Earth rule says (`app/lib/core/shadow.dart`). The agreement figures below are for a 2 m observer.
 - **Accuracy.** Agreement with the per-site horizons is 82–94 %, depending on the grid and the horizon source (see [Validation](#validation)). The map can therefore differ from a site's own status near shadow edges, and the app says so in an accuracy badge.
@@ -436,11 +438,13 @@ cd pipeline
 (In `cmd.exe` the activation line is `.venv\Scripts\activate.bat`.) The `pip install` takes about 2.5 minutes on the development laptop. With the venv active and `pipeline/` as the current folder, these commands are the same in every shell:
 
 ```sh
-python -m lunarsp.fetch                # SPICE kernels, LOLA DEMs and AVGVISIB maps (about 450 MB)
+python -m lunarsp.fetch                # SPICE kernels, LOLA DEMs and AVGVISIB maps (about 570 MB)
 python -m lunarsp.fetch extra          # DE442 only (about 33 MB), for the DE440 vs DE442 cross-check in `build validate`
 python -m lunarsp.fetch lsk moon_bpc   # single files by their key in config.py; every file is size- and SHA-256-pinned
 python -m lunarsp.basemap              # map layers and the 400 m DEM (not part of `all`; run it first,
                                        # because `build fixtures` reads map/map.json and the 400 m DEM)
+python -m lunarsp.basemap dem          # only the 400 m DEM and map.json's `dem` entry (80 m + 120 m DEMs, about 25 s)
+python -m lunarsp.fixtures coarse      # only the coarse-horizon answer key, after a new 400 m DEM (no SPICE kernels)
 python -m lunarsp.build all            # ephem -> sites -> validate -> fixtures
 python -m lunarsp.build ephem sites    # or selected steps
 python -m lunarsp.horizons --refresh   # re-query JPL Horizons (needs network)
@@ -452,7 +456,7 @@ Windows and data notes:
 
 - **Without activating.** The venv's Python on Windows is `.venv\Scripts\python.exe`. From `pipeline/` that is `..\.venv\Scripts\python.exe -m lunarsp.build all` in PowerShell, or `../.venv/Scripts/python.exe -m lunarsp.build all` in Git Bash (`../.venv/bin/python` on macOS / Linux).
 - **Reproducible stamps.** The JSON outputs of `build ephem`, `sites`, `validate` and `fixtures` carry a time stamp (`generatedUtc`; `generated` in `app/test/fixtures/spice_truth.json`). Set `SOURCE_DATE_EPOCH` to a fixed Unix time (in whole seconds) and the stamp uses that time instead of the clock (`pipeline/lunarsp/outio.py`), so two runs with the same inputs and the same value give byte-identical files. PowerShell: `$env:SOURCE_DATE_EPOCH = "<seconds>"`; Git Bash, macOS and Linux: `export SOURCE_DATE_EPOCH=<seconds>`. To leave a committed file's stamp unchanged, use the time already stamped in it; the committed files carry different stamps, so run those steps one at a time, each with its own value. The committed `map/map.json` still differs from a fresh `lunarsp.basemap` run in the key order of its `dem` block (same values).
-- **Runtimes** measured on the development laptop (CPU only), for planning: `python -m lunarsp.basemap` about 8-11 minutes, `python -m lunarsp.build all` about 5-6 minutes, `pip install -r pipeline/requirements.txt` about 2.5 minutes, and `python -m pytest` about 1-3 minutes. `python -m lunarsp.fetch` depends on the network (about 450 MB).
+- **Runtimes** measured on the development laptop (CPU only), for planning: `python -m lunarsp.basemap` about 8-11 minutes (its DEM-only step `python -m lunarsp.basemap dem` about 25 s), `python -m lunarsp.build all` about 5-6 minutes, `pip install -r pipeline/requirements.txt` about 2.5 minutes, and `python -m pytest` about 1-3 minutes. `python -m lunarsp.fetch` depends on the network (about 450 MB).
 - **Short clone path on Windows.** Clone into a short path such as `C:\src\CLPS-MOON-BROWSER`, or enable Windows long paths. numpy's wheel has deeply nested test files, so `pip install` fails with an `OSError` (No such file or directory) when the venv is in a deep folder.
 - **Line endings.** `.gitattributes` keeps text files LF. If an old checkout has CRLF files, run `git add --renormalize .` before building the chart bundle, because CRLF in `charts/index.html` ends up in the committed `app/assets/charts/index.html` and fails the CI stale-bundle check.
 - **Downloads** go to `$LUNAR_SP_CACHE`, which defaults to `~/.cache/lunar-sp`. Keep this folder outside the repository and outside synced folders. The downloads are resumable.

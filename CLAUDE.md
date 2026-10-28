@@ -30,8 +30,8 @@ This is a NASA Space Apps entry: a Flutter app (web + Android) for comparing sou
 ## Commands
 On Windows, the venv Python is `.venv\Scripts\python.exe`. Run pipeline commands from `pipeline/`.
 - Python env: `python -m venv .venv && .venv/Scripts/pip install -r pipeline/requirements.txt`
-- Fetch data (about 450 MB, 490 MB with DE442): `python -m lunarsp.fetch` (add `extra` for DE442)
-- Precompute everything: `python -m lunarsp.build all`. Sub-steps: `ephem`, `sites`, `validate`, `fixtures`. The map layers are a separate module: `python -m lunarsp.basemap`.
+- Fetch data (about 570 MB, 605 MB with DE442): `python -m lunarsp.fetch` (add `extra` for DE442)
+- Precompute everything: `python -m lunarsp.build all`. Sub-steps: `ephem`, `sites`, `validate`, `fixtures`. The map layers are a separate module: `python -m lunarsp.basemap` (`python -m lunarsp.basemap dem` rebuilds only the 400 m DEM and its `map.json` entry; then `python -m lunarsp.fixtures coarse` refreshes the coarse-horizon fixture).
 - Refresh the Horizons cache (needs network): `python -m lunarsp.horizons --refresh`
 - Python tests: `python -m pytest` (from `pipeline/`). Runs offline from the cache; tests needing kernels or DEMs skip if those are absent.
 - Flutter (from `app/`):

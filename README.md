@@ -508,10 +508,10 @@ CLAUDE.md                   conventions for contributors and coding agents
 
 | Suite | Location | Command | Count |
 |---|---|---|---|
-| Flutter: Dart core, state, widgets | `app/test/` | `flutter test` | 1,016 pass, 4 skipped, with `flutter analyze` clean (25 October 2026) |
+| Flutter: Dart core, state, widgets | `app/test/` | `flutter test` | 1,041 pass, 4 skipped, with `flutter analyze` clean (28 October 2026) |
 | Chart bundle | `charts/src/*.test.ts` | `npm test` | 163 (19 October 2026) |
-| Python pipeline | `pipeline/tests/` | `python -m pytest` | 586: 585 pass, 1 skipped without PyYAML (25 October 2026) |
-| Python library | `pylib/tests/` | `python -m pytest` (from `pylib/`) | 494: 492 pass, 2 skipped (12 October 2026) |
+| Python pipeline | `pipeline/tests/` | `python -m pytest` | 617: 437 pass, 180 skipped without the SPICE kernels in the cache (28 October 2026) |
+| Python library | `pylib/tests/` | `python -m pytest` (from `pylib/`) | 497: 476 pass, 21 skipped without the SPICE kernels in the cache (28 October 2026) |
 
 Each count is from a full run at the commit given. They change as work continues.
 

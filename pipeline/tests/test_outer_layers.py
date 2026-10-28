@@ -256,15 +256,31 @@ def test_orientation_earth_is_up_on_the_near_side(outer):
 
 def test_orientation_shackleton_psr_in_the_inner_layer(inner):
     """The overlap tests tie the outer layers to the inner ones; this ties the
-    inner PSR layer to a known feature: Shackleton's floor (89.67 S, 129.78 E)
-    is permanently shadowed, its mirror across the pole is not."""
+    inner layers to known features. Shackleton's floor (89.67 S, 129.78 E) is
+    permanently shadowed; read through a left-right or an up-down flip it would
+    land on mostly lit ground (the left-right mirror is the control of
+    tests/test_dem_projection.py). The 180 deg rotation (89.67 S, 50.22 W) is no
+    control: AVGVISIB itself is 0 there (another cold trap), so the Earth check
+    covers a rotation: Earth stays up on the near side (lon 0) at 80.5-82 S and
+    never rises on the far side (lon 180)."""
     a = inner["psr"][..., 3].astype(float)
     h = INNER_HALF_M - 40.0  # the inner overlays start 40 m inside -304 km (see INNER_VIS_FIRST_PX)
-    r, c = _px(-89.67, 129.78, h, 480.0)
-    rm, cm = _px(-89.67, 129.78 - 180.0, h, 480.0)
-    floor = record("outer: inner psr alpha, Shackleton floor", a[r - 1:r + 2, c - 1:c + 2].mean(), "alpha levels")
-    mirror = record("outer: inner psr alpha, mirror point", a[rm - 1:rm + 2, cm - 1:cm + 2].mean(), "alpha levels")
-    assert floor > 150 and mirror < 50
+
+    def psr(lon: float) -> float:
+        r, c = _px(-89.67, lon, h, 480.0)
+        return float(a[r - 1:r + 2, c - 1:c + 2].mean())
+
+    floor = record("outer: inner psr alpha, Shackleton floor", psr(129.78), "alpha levels")
+    lr = record("outer: inner psr alpha, left-right mirror (129.78 W)", psr(-129.78), "alpha levels")
+    ud = record("outer: inner psr alpha, up-down mirror (50.22 E)", psr(50.22), "alpha levels")
+    assert floor > 150 and lr < 100 and ud < 50
+    e = inner["earthvis"][..., 3].astype(float)
+    lats = (-80.5, -81.0, -81.5, -82.0)
+    near = [e[_px(lat, lon, h, 480.0)] for lat in lats for lon in (-5, 0, 5)]
+    far = [e[_px(lat, lon, h, 480.0)] for lat in lats for lon in (175, 180, -175)]
+    record("outer: inner earthvis alpha near side (lon 0, 80.5-82S)", np.mean(near), "alpha levels")
+    record("outer: inner earthvis alpha far side (lon 180, 80.5-82S)", np.mean(far), "alpha levels")
+    assert np.mean(near) > 120 and np.mean(far) < 10
 
 
 # --- rebuild from the LOLA sources ------------------------------------------------

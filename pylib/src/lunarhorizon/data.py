@@ -109,8 +109,10 @@ EXTRA_FILES: dict[str, RemoteFile] = {
 #: Kernels furnished for every computation (order matters only for SPICE precedence).
 PRODUCTION_KERNELS: list[str] = ["lsk", "pck", "moon_fk", "moon_bpc", "earth_bpc", "spk"]
 
-#: LOLA rasters. The two LDEMs are the terrain; the average-visibility maps (Mazarico et
-#: al. 2011) are an optional, independent cross-check and are not fetched by "dems".
+#: LOLA rasters. The 80 m and 240 m LDEMs are the terrain; the 120 m LDEM is the source of
+#: the bundled 400 m DEM's ring beyond 80 S (pinned for provenance, fetched only by "all"
+#: or by its key); the average-visibility maps (Mazarico et al. 2011) are an optional,
+#: independent cross-check. Only the 80 m and 240 m LDEMs are fetched by "dems".
 DEMS: dict[str, RemoteFile] = {
     "ldem_80s_80m": _d("ldem_80s_80m", f"{LOLA_GDR}/ldem_80s_80m.img", "ldem_80s_80m.img", 115_520_000,
                        "e6591eeea35402ca5e124ca00f5bf0774381a2d4fa919144b455d82b8ff65fdc",
@@ -118,6 +120,10 @@ DEMS: dict[str, RemoteFile] = {
     "ldem_75s_240m": _d("ldem_75s_240m", f"{LOLA_GDR}/ldem_75s_240m.img", "ldem_75s_240m.img", 29_062_688,
                         "d031efe2611b17dfbf3c158f5e15dc04cd5719349dcbf6384bb21fd97697c490",
                         "240 m/px, 75S..90S: far-field horizon beyond the 80S grid"),
+    "ldem_75s_120m": _d("ldem_75s_120m", f"{LOLA_GDR}/ldem_75s_120m.img", "ldem_75s_120m.img", 116_250_752,
+                        "ae3afc3c75c33d43666ca06c83ca08f0b12ef03b7d36d2d791d972730794391b",
+                        "120 m/px, 75S..90S: source of the bundled 400 m DEM's ring beyond 80S "
+                        "(provenance only; not fetched by \"dems\")"),
     "avgvis_sun": _d("avgvis_sun", f"{LOLA_EXTRAS}/AVGVISIB_75S_120M_201608.IMG", "avgvisib_75s_120m_sun.img",
                      116_250_752, "a354543b62871227a5066077f5ac61ed7e8dabd5268eb5a5aa4b147aa5bba61e",
                      "LOLA average Sun visibility (cross-check only)"),
@@ -136,6 +142,7 @@ DEFAULT_DEMS: list[str] = ["ldem_80s_80m", "ldem_75s_240m"]
 RASTERS: dict[str, dict[str, Any]] = {
     "ldem_80s_80m": {"size": 7600, "scale": 80.0, "dn_scale": 0.5},
     "ldem_75s_240m": {"size": 3812, "scale": 240.0, "dn_scale": 0.5},
+    "ldem_75s_120m": {"size": 7624, "scale": 120.0, "dn_scale": 0.5},
     "avgvis_sun": {"size": 7624, "scale": 120.0, "dn_scale": 0.00004},
     "avgvis_earth": {"size": 7624, "scale": 120.0, "dn_scale": 0.00004},
 }
@@ -223,6 +230,8 @@ def _select(what: str | list[str] | tuple[str, ...]) -> list[RemoteFile]:
         files += [KERNELS[k] for k in PRODUCTION_KERNELS]
     if "dems" in which or "all" in which:
         files += [DEMS[k] for k in DEFAULT_DEMS]
+    if "all" in which:
+        files += [DEMS["ldem_75s_120m"]]
     if "avgvis" in which or "all" in which:
         files += [DEMS["avgvis_sun"], DEMS["avgvis_earth"]]
     if "extra" in which or "all" in which:
@@ -238,7 +247,8 @@ def fetch(what: str | list[str] = "kernels", *, dest: Path | None = None, verbos
     Args:
         what: ``"kernels"`` (production SPICE set, about 77 MB), ``"dems"`` (the 80 m
             and 240 m LDEMs, about 145 MB), ``"avgvis"`` (LOLA average-visibility
-            maps, 232 MB, cross-check only), ``"extra"`` (DE442), ``"all"``, or file
+            maps, 232 MB, cross-check only), ``"extra"`` (DE442), ``"all"`` (also the 120 m LDEM,
+            116 MB, source of the bundled DEM's ring beyond 80 S), or file
             keys such as ``"lsk"``; a list mixes them.
         dest: cache root to write into (default :func:`cache_dir`); files land in
             ``dest/kernels`` and ``dest/dem``.

@@ -305,11 +305,13 @@ void main() {
             expect((f.x0M, f.y0M, f.size), (-info.innerHalfWidthM, info.innerHalfWidthM, coarse ? 380 : 760));
             expect(lightFrameShares(f).inside, 1.0);
           }
-          // the same terrain inside 80 S; only shadows cast from beyond 80 S can differ
+          // the same terrain inside 80 S. Differences: shadows cast from beyond
+          // 80 S, and shadow edges, since the rotated sweep lattice is centred on
+          // the larger grid (a half-sample shift when ceil(n * sqrt2) changes parity)
           final a = agree(f, g);
           // ignore: avoid_print
           print('SR1 closeUp $closeUp coarse $coarse: ${(100 * a).toStringAsFixed(3)}% of pixels unchanged');
-          expect(a, closeUp ? 1.0 : greaterThan(0.97));
+          expect(a, greaterThan(0.97));
         }
       }
     });

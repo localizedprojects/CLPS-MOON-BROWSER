@@ -320,6 +320,15 @@ class _MapFocusPageState extends State<MapFocusPage> {
                                 _choose(mapFractionOf(layers, site.lat, site.lon), site.short);
                               },
                               onPlaceCustom: (lat, lon) => _place(mapFractionOf(layers, lat, lon), lat, lon),
+                              // a tap north of 80°S: why, in the note over the map
+                              onRefused: (why) {
+                                setState(() {
+                                  _seq++;
+                                  _chosen = null;
+                                  _refused = why;
+                                });
+                                _wait();
+                              },
                               overlay: _chip(),
                             ),
                           ),

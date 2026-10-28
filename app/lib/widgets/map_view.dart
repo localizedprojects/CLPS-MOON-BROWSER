@@ -339,10 +339,15 @@ class MapView extends StatefulWidget {
 
   /// Told after the layer or "Show site names" changes.
   final VoidCallback? onLayersChanged;
+
+  /// Told why a tap north of 80°S (the ring beyond the base map, or the base
+  /// map's corners) drops no pin ([customSpotEdgeText]): the full-screen map
+  /// shows it in its note; null shows it as a snackbar.
+  final ValueChanged<String>? onRefused;
   const MapView({super.key, required this.layers, required this.sites, required this.selectedId,
       required this.onSelect, required this.onPlaceCustom, this.highlightId, this.showControls = true, this.belowMap,
       this.controller, this.initialCamera, this.fill = false, this.onExpand, this.overlay, this.onPinChanged,
-      this.onLayersChanged});
+      this.onLayersChanged, this.onRefused});
   @override
   State<MapView> createState() => _MapViewState();
 }
@@ -622,6 +627,7 @@ class _MapViewState extends State<MapView> with SingleTickerProviderStateMixin {
     if (lat > customMaxLat) {
       // north of 80°S (the ring, or the base map's corners): refused, with why
       _setPin(null);
+      if (widget.onRefused case final told?) return told(customSpotEdgeText);
       final m = ScaffoldMessenger.maybeOf(context);
       m?.hideCurrentSnackBar();
       m?.showSnackBar(const SnackBar(content: Text(customSpotEdgeText)));

@@ -21,11 +21,11 @@ For the app as a whole, see the main [README](../README.md). For every formula w
 
 The pipeline is the "kitchen" of Lunar Horizon. It runs once, on a developer's computer, and never on the phone or in the browser.
 First it downloads raw NASA data: SPICE kernels and LOLA rasters. A **SPICE kernel** is a data file from NASA's NAIF team that tells software where the planets are, how the Moon is turned, and how clocks relate (leap seconds). A **DEM** (digital elevation model) is a map whose pixels hold terrain heights; LOLA is the laser altimeter on NASA's Lunar Reconnaissance Orbiter that measured them.
-From these the pipeline computes small files that the app ships in `app/assets/data/` (about 7 MB in total): hourly Sun and Earth positions for 2025-2035, Deep Space Network (DSN) contact bits, the 16 preset sites with their horizon masks, map images, a coarse 400 m terrain file, and an accuracy report.
+From these the pipeline computes small files that the app ships in `app/assets/data/` (about 9.6 MB in total): hourly Sun and Earth positions for 2025-2035, Deep Space Network (DSN) contact bits, the 16 preset sites with their horizon masks, map images, a coarse 400 m terrain file (80 m-derived to 80°S, 120 m-derived beyond, to about 75°S), and an accuracy report.
 A **horizon mask** is the outline of the surrounding terrain seen from one spot: for each compass direction, how many degrees above level the skyline is.
 The app then does the rest on the device: it combines these files to work out, for any date and site, when the Sun and Earth are above the skyline.
 The pipeline also writes an "answer key" (`app/test/fixtures/spice_truth.json`) that the Dart tests check the app's maths against.
-The generated files are committed to git, so a fresh clone of the app runs without the roughly 450 MB of downloads.
+The generated files are committed to git, so a fresh clone of the app runs without the roughly 570 MB of downloads.
 
 ```mermaid
 flowchart LR
@@ -90,12 +90,13 @@ Two kernels (`moon_fk` and `earth_bpc`) have dates in their names. NAIF replaces
 
 | Key | File (as downloaded) | What it is | Size | Publisher and host | What needs it |
 |---|---|---|---|---|---|
-| `ldem_80s_80m` | `ldem_80s_80m.img` | Terrain heights, 80 m per pixel, 7600 × 7600 pixels, 80°S to the pole; height = value × 0.5 m above the 1737.4 km sphere | 115,520,000 B (115.5 MB) | NASA PDS Geosciences Node, `pds-geosciences.wustl.edu` (LRO LOLA GDR polar) | sites (near terrain), basemap, render prep, DEM tests |
+| `ldem_80s_80m` | `ldem_80s_80m.img` | Terrain heights, 80 m per pixel, 7600 × 7600 pixels, 80°S to the pole; height = value × 0.5 m above the 1737.4 km sphere | 115,520,000 B (115.5 MB) | NASA PDS Geosciences Node, `pds-geosciences.wustl.edu` (LRO LOLA GDR polar) | sites (near terrain), basemap (hillshade and the inner 80-90°S block of `dem_400m.bin.gz`), render prep, DEM tests |
 | `ldem_75s_240m` | `ldem_75s_240m.img` | Terrain heights, 240 m per pixel, 3812 × 3812 pixels, 75°S to the pole | 29,062,688 B (29.1 MB) | same | sites and render prep (far terrain beyond the 80 m map), DEM tests |
+| `ldem_75s_120m` | `ldem_75s_120m.img` | Terrain heights, 120 m per pixel, 7624 × 7624 pixels, 75°S to the pole (the square's corners hold real heights to about 69°S; the label has no missing-data value and the data hold no fill values) | 116,250,752 B (116.3 MB) | same | basemap (the ring of `dem_400m.bin.gz` beyond 80°S), DEM tests |
 | `avgvis_sun` | `avgvisib_75s_120m_sun.img` (remote name `AVGVISIB_75S_120M_201608.IMG`) | The LOLA team's average Sun visibility map (Mazarico et al. 2011 method), 120 m per pixel, value × 0.00004 = fraction of time | 116,250,752 B (116.3 MB) | LOLA data server `imbrium.mit.edu` (EXTRAS/ILLUMINATION) | sites (independent cross-check), basemap (sunlight overlay and PSR layer) |
 | `avgvis_earth` | `avgvisib_75s_120m_earth.img` (remote name `AVGVISIB_75S_120M_201608_EARTH.IMG`) | The same for Earth visibility | 116,250,752 B (116.3 MB) | same | sites (cross-check), basemap (Earth overlay) |
 
-The production set (all six kernels and four rasters) adds up to about 454 MB; with DE442 it is about 487 MB. That matches the "about 450 MB (490 MB with DE442)" quoted in the README.
+The production set (all six kernels and five rasters) adds up to about 570 MB; with DE442 it is about 603 MB. That matches the "about 570 MB (605 MB with DE442)" quoted in the README.
 
 **Other inputs that are already in the repository:**
 - `pipeline/lunarsp/site_catalog.json`: the 16 preset sites with their sources (made by `pipeline/research/make_catalog.py`).
@@ -108,12 +109,14 @@ Run every command from `pipeline/` with the project's Python environment active,
 | Stage | Command | Reads | Writes | Time |
 |---|---|---|---|---|
 | Install | `pip install -r pipeline/requirements.txt` | `requirements.txt` | the Python environment | about 2.5 min |
-| fetch | `python -m lunarsp.fetch` (add `extra` for DE442, or name single keys such as `lsk moon_bpc`) | the web addresses in `config.py` | kernels and rasters in `$LUNAR_SP_CACHE` | network-bound; about 450 MB (490 MB with DE442) |
-| basemap | `python -m lunarsp.basemap` | 80 m DEM, both AVGVISIB maps | `app/assets/data/map/`: `hillshade.webp`, `sunvis.webp`, `earthvis.webp`, `psr.webp`, `dem_400m.bin.gz`, `map.json` | 8-11 min |
+| fetch | `python -m lunarsp.fetch` (add `extra` for DE442, or name single keys such as `lsk moon_bpc`) | the web addresses in `config.py` | kernels and rasters in `$LUNAR_SP_CACHE` | network-bound; about 570 MB (605 MB with DE442) |
+| basemap | `python -m lunarsp.basemap` | 80 m and 120 m DEMs, both AVGVISIB maps | `app/assets/data/map/`: `hillshade.webp`, `sunvis.webp`, `earthvis.webp`, `psr.webp`, `dem_400m.bin.gz`, `map.json` | 8-11 min |
+| basemap, DEM only | `python -m lunarsp.basemap dem` | 80 m and 120 m DEMs | `dem_400m.bin.gz` and the `dem` entry of `map.json` only (every other file and key keeps its bytes) | about 25 s |
 | ephem | `python -m lunarsp.build ephem` | SPICE kernels | `ephem/<year>.bin`, `dsn/<year>.bin` and `ephem/manifest.json` for 2025-2035 | about 30 s |
 | sites | `python -m lunarsp.build sites` | `site_catalog.json`, SPICE kernels, 80 m and 240 m DEMs, AVGVISIB maps | `sites.json`, `horizons.json`, and the `avgvis` block of `validation.json` | about 4.5-5 min |
 | validate | `python -m lunarsp.build validate` | SPICE kernels, the shipped `ephem/` files, the Horizons cache, DE442 if present | `validation.json` (its own blocks; keeps `avgvis` and `render_skyline`) | about 20 s |
 | fixtures | `python -m lunarsp.build fixtures` | SPICE kernels, `sites.json`, `horizons.json`, `map/map.json`, `map/dem_400m.bin.gz` | `app/test/fixtures/spice_truth.json` | about 5 s |
+| fixtures, coarse horizons only | `python -m lunarsp.fixtures coarse` | `map/map.json`, `map/dem_400m.bin.gz` (no SPICE kernels) | the `coarseHorizon` key of `spice_truth.json` only | about 1 s |
 | build all | `python -m lunarsp.build all` (also the default with no step) | all of the above | ephem, then sites, then validate, then fixtures | 5-6 min |
 | curated | `python -m lunarsp.curated` (`--check` only compares) | `pipeline/research/site_overviews_verified.json`, `site_research_verified.json`, `app/assets/data/sites.json` | `app/assets/data/curated_sites.json` | under 1 s; needs no downloads |
 | Horizons refresh | `python -m lunarsp.horizons --refresh` | JPL Horizons web service (`ssd.jpl.nasa.gov`) | `pipeline/validation/horizons_cache/*.json` | network-bound; only needed to re-query |
@@ -146,13 +149,13 @@ Sizes were measured on the committed files on 2026-10-11. "Encoding" comes from 
 | `app/assets/data/map/sunvis.webp` | `basemap.py` | WebP RGBA tinted overlay of LOLA average Sun visibility, 480 m per pixel, quality 85 | 866,024 B | `app/lib/state/app_state.dart` (loaded by its key in `map.json`), `widgets/map_view.dart` |
 | `app/assets/data/map/earthvis.webp` | `basemap.py` | WebP RGBA overlay of LOLA average Earth visibility, 480 m per pixel, quality 85 | 693,836 B | `app/lib/state/app_state.dart` (loaded by its key in `map.json`), `widgets/map_view.dart` |
 | `app/assets/data/map/psr.webp` | `basemap.py` | WebP RGBA: permanently shadowed regions (average Sun visibility = 0), 480 m per pixel, quality 90 | 108,998 B | `app/lib/state/app_state.dart` (loaded by its key in `map.json`), `widgets/map_view.dart` |
-| `app/assets/data/map/dem_400m.bin.gz` | `basemap.py` | 1520 × 1520 int16 heights at 400 m per pixel, "planar-split" (each value stored as its difference from a prediction, low bytes then high bytes) and gzip | 2,110,365 B | `app/lib/state/app_state.dart` (file name from the `dem` block of `map.json`), decoded by `decodeDem` in `app/lib/state/dem_load.dart` with `PolarGrid.decodePlanarSplit` in `app/lib/core/dem.dart`; tests `dem_horizon_test.dart`, `shadow_test.dart`, `light_engine_test.dart` |
-| `app/assets/data/map/map.json` | `basemap.py` | JSON, indent 1: map extent (half-width 304 km), each layer's file, pixel size and source, the DEM encoding | 1,541 B | `app/lib/state/app_state.dart`; tests `dem_horizon_test.dart`, `shadow_test.dart`, `light_engine_test.dart` |
+| `app/assets/data/map/dem_400m.bin.gz` | `basemap.py` | 2280 × 2280 int16 heights at 400 m per pixel (±456 km, to about 75.05°S on the axes): the inner 1520 × 1520 block (80-90°S) is the 5 × 5 block mean of LDEM_80S_80M, unchanged since before the ring was added; the ring beyond it is the exact-overlap area mean of LDEM_75S_120M. "planar-split" (each value stored as its difference from a prediction, low bytes then high bytes) and gzip | 4,694,460 B | `app/lib/state/app_state.dart` (file name from the `dem` block of `map.json`), decoded by `decodeDem` in `app/lib/state/dem_load.dart` with `PolarGrid.decodePlanarSplit` in `app/lib/core/dem.dart`; tests `dem_horizon_test.dart`, `shadow_test.dart`, `light_engine_test.dart` |
+| `app/assets/data/map/map.json` | `basemap.py` | JSON, indent 1: map extent of the image layers (`halfWidthM`, 304 km), each layer's file, pixel size and source; the DEM's own size and extent (`dem.halfWidthM`, 456 km), encoding, inner block, ring method and measured seam statistics | 2,548 B | `app/lib/state/app_state.dart`; tests `dem_horizon_test.dart`, `shadow_test.dart`, `light_engine_test.dart` |
 | `app/assets/data/curated_sites.json` | `curated.py` | JSON, indent 1, sorted keys, no time stamp: per preset a headline, a lede (whole leading sentences, at most 230 characters), the overview and its sources (`titled: false` when only the host name is known), plus the IAU feature centres with their diameters | 33,873 B | `app/lib/core/curated.dart`, loaded by `app/lib/state/app_state.dart` |
-| `app/test/fixtures/spice_truth.json` | `fixtures.py` | Compact JSON: 1000 SPICE az/el cases, 64 visible-fraction cases (40 random + 24 fixed cases across the 0/360° seam), coarse horizons at 3 sites on the 400 m DEM, and 30-day hourly series at 2 sites | 933,228 B | `app/test/core/spice_truth_test.dart`, `dem_horizon_test.dart`, `series_metrics_test.dart` (also checked by `pipeline/tests/test_visibility.py`) |
+| `app/test/fixtures/spice_truth.json` | `fixtures.py` | Compact JSON: 1000 SPICE az/el cases, 64 visible-fraction cases (40 random + 24 fixed cases across the 0/360° seam), coarse horizons at 3 sites on the 400 m DEM, and 30-day hourly series at 2 sites | 933,217 B | `app/test/core/spice_truth_test.dart`, `dem_horizon_test.dart`, `series_metrics_test.dart` (also checked by `pipeline/tests/test_visibility.py`) |
 | `app/assets/data/renders/` (70 files: 16 sites × `best.webp` + `night.webp`, `manifest.json`, and `overview/` with 36 `frame_XX.webp` + `overview.json`) | `render_post.py`, `render_overview_post.py` | WebP images and JSON | 2,269,943 B in total (site images 9,622-30,384 B each; frames 28,162-61,358 B) | **Not bundled and not read.** `app/pubspec.yaml` lists only `assets/data/`, `ephem/`, `dsn/` and `map/`, and Flutter does not include sub-folders that are not listed, so `renders/` is left out of the app |
 
-The bundled files (everything except `renders/`) add up to 6,989,756 bytes, the "about 7 MB" in the README.
+The bundled files (everything except `renders/`) add up to 9,574,858 bytes, the "about 9.6 MB" in the README.
 
 ## How accurate is it
 
@@ -197,7 +200,7 @@ Two helpers in `pipeline/lunarsp/outio.py` make a rerun produce the same bytes a
 
 To keep a committed file's stamp unchanged, set `SOURCE_DATE_EPOCH` to the time already stamped in it. The committed files carry different stamps, so run those steps one at a time, each with its own value. PowerShell: `$env:SOURCE_DATE_EPOCH = "<seconds>"`; Git Bash, macOS and Linux: `export SOURCE_DATE_EPOCH=<seconds>`.
 
-Known exception (from the README): the committed `map/map.json` still differs from a fresh `lunarsp.basemap` run in the key order of its `dem` block (same values). `map.json` has no time stamp. The binary files (`ephem`, `dsn`, `dem_400m.bin.gz`) have no stamp either; the gzip header of the committed `dem_400m.bin.gz` holds a zero time, not a date.
+`map.json` has no time stamp; its `dem` block is written by the same `build_dem` code in a full `lunarsp.basemap` run and in the DEM-only step. The binary files (`ephem`, `dsn`, `dem_400m.bin.gz`) have no stamp either; the gzip header of the committed `dem_400m.bin.gz` holds a zero time, not a date.
 
 ## Every Python file
 
@@ -238,7 +241,7 @@ The test counts below are what `python -m pytest --collect-only` collects at thi
 - **Run it:** not run directly.
 
 ##### `pipeline/lunarsp/fetch.py`
-- **What it does:** Downloads the SPICE kernels and LOLA maps into the cache: about 450 MB, or 490 MB with DE442. NASA's servers are slow per connection, so big files are fetched as many 2 MiB pieces at once (up to 24 connections). Each file is built in a `.part` file and only gets its real name when complete; a small side file records finished pieces so an interrupted download resumes. Files already present are skipped, sizes are checked, and a new download whose SHA-256 checksum does not match the pinned one is deleted.
+- **What it does:** Downloads the SPICE kernels and LOLA maps into the cache: about 570 MB, or 605 MB with DE442. NASA's servers are slow per connection, so big files are fetched as many 2 MiB pieces at once (up to 24 connections). Each file is built in a `.part` file and only gets its real name when complete; a small side file records finished pieces so an interrupted download resumes. Files already present are skipped, sizes are checked, and a new download whose SHA-256 checksum does not match the pinned one is deleted.
 - **Reads:** the file list in `config.py`; NAIF, PDS and imbrium.mit.edu web servers.
 - **Writes:** `$LUNAR_SP_CACHE/kernels/` and `$LUNAR_SP_CACHE/dem/` (never the repo).
 - **Used by:** you, before any build step. `spice_env.py` and `dem.py` tell you to run it when a file is missing or unfinished. Tested by `pipeline/tests/test_fetch.py` (18 tests, offline, no network: the web is faked): an interrupted download never appears under its final name, mirrors are tried on a 404, size and checksum mismatches are refused, HTML error pages are refused, damaged progress files restart instead of skipping data, and every remote file has a pinned size and checksum.
@@ -287,7 +290,7 @@ The test counts below are what `python -m pytest --collect-only` collects at thi
 - **What it does:** Opens the LOLA south-pole maps and converts between latitude/longitude and map pixels. The map projection puts the pole in the centre, longitude 0 straight up and 90°E to the right. Heights come out in metres (stored value × 0.5). `TerrainModel` uses the 80 m map first and falls back to the 240 m map where the 80 m map has no data. It refuses to open a half-finished download.
 - **Reads:** the LOLA files in `$LUNAR_SP_CACHE/dem/` (read in place, not loaded whole into memory).
 - **Writes:** nothing; it is a library.
-- **Used by:** `horizon.py`, `sites.py`, `basemap.py`, `fixtures.py`, `render_prep.py`, `render_overview_prep.py`, `pipeline/tests/test_fetch.py`. Tested by `pipeline/tests/test_dem_projection.py` (26 tests; the real-terrain ones need the 80 m and/or 240 m DEMs): map conversions round-trip, and the map is the right way up, checked on terrain that cannot be mistaken (Shackleton crater's floor versus its mirror point, and Mons Mouton above 5 km).
+- **Used by:** `horizon.py`, `sites.py`, `basemap.py`, `fixtures.py`, `render_prep.py`, `render_overview_prep.py`, `pipeline/tests/test_fetch.py`. Tested by `pipeline/tests/test_dem_projection.py` (27 tests; the real-terrain ones need the 80 m and/or 240 m DEMs): map conversions round-trip, and the map is the right way up, checked on terrain that cannot be mistaken (Shackleton crater's floor versus its mirror point, and Mons Mouton above 5 km).
 - **Run it:** not run directly.
 
 ##### `pipeline/lunarsp/horizon.py`
@@ -327,16 +330,16 @@ The test counts below are what `python -m pytest --collect-only` collects at thi
 - **Run it:** `python -m lunarsp.build sites` (about 4.5-5 minutes).
 
 ##### `pipeline/lunarsp/basemap.py`
-- **What it does:** Makes the map images and the coarse terrain file behind the app's map and custom-site feature. Everything covers the 80 m map's square (304 km from the pole to each edge, 80°S on the axes).
-- **Reads:** the 80 m LOLA DEM and the two LOLA average-visibility maps.
+- **What it does:** Makes the map images and the coarse terrain file behind the app's map and custom-site feature. The images cover the 80 m map's square (304 km from the pole to each edge, 80°S on the axes). The 400 m terrain file reaches further, 456 km from the pole (about 75°S on the axes), so the light & shadow close-up of a site near 80°S (IM-1 Odysseus at 80.13°S) has terrain on every side.
+- **Reads:** the 80 m and 120 m LOLA DEMs and the two LOLA average-visibility maps.
 - **Writes:** in `app/assets/data/map/`:
   - `hillshade.webp`: shaded relief at 320 m per pixel. The light direction is a display choice, not a Sun position, and is recorded in `map.json`.
   - `sunvis.webp` and `earthvis.webp`: LOLA's average Sun and Earth visibility as tinted overlays, 480 m per pixel.
   - `psr.webp`: permanently shadowed regions (average Sun visibility is zero).
-  - `dem_400m.bin.gz`: heights at 400 m per pixel, packed with a small lossless scheme ("planar-split" plus gzip). The app uses it to compute a horizon for any point you tap; that horizon is coarser than the presets and labelled so. The script checks the file decodes back exactly.
+  - `dem_400m.bin.gz`: heights at 400 m per pixel, 2280 × 2280, packed with a small lossless scheme ("planar-split" plus gzip). The inner 1520 × 1520 block (80-90°S) is the 5 × 5 block mean of the 80 m DEM, byte-identical to the file shipped before the ring was added. The ring beyond 80°S comes from LDEM_75S_120M: each 400 m cell is the mean of the 120 m pixels weighted by the area each one covers in the cell (exact overlaps; 3 cells per 10 pixels, weights 1, 1, 1, 1/3 | 2/3, 1, 1, 2/3 | 1/3, 1, 1, 1). The build refuses fill values, records the seam check (120 m-derived minus 80 m-derived heights over the inner block's outer 5 px: mean 0.03 m, standard deviation 0.95 m, 99th percentile 3.0 m, max 18.5 m) in `map.json`, and checks the file decodes back exactly. The app uses it to compute a horizon for any point you tap and for the light & shadow map; both are coarser than the presets and labelled so.
   - `map.json`: extents, settings and sources.
 - **Used by:** you; it is not part of `build all`. In the app, `app/lib/state/app_state.dart` loads the files, and `app/lib/widgets/map_view.dart`, `light_map.dart`, `light_snapshot.dart` and `terrain_thumb.dart` draw them. The Dart tests `app/test/core/dem_horizon_test.dart`, `app/test/core/shadow_test.dart` and `app/test/state/light_engine_test.dart` read `map.json` and `dem_400m.bin.gz`, and so does `fixtures.py`. `pipeline/tests/test_data_provenance.py` checks `map.json` records the hillshade settings the code uses.
-- **Run it:** `python -m lunarsp.basemap` (8-11 minutes on the dev laptop). Run it before `build fixtures`.
+- **Run it:** `python -m lunarsp.basemap` (8-11 minutes on the dev laptop). Run it before `build fixtures`. `python -m lunarsp.basemap dem` rebuilds only `dem_400m.bin.gz` and the `dem` entry of `map.json` (about 25 s; needs only the 80 m and 120 m DEMs), then `python -m lunarsp.fixtures coarse` refreshes the coarse-horizon answer key.
 
 #### Checks
 
@@ -372,7 +375,7 @@ The test counts below are what `python -m pytest --collect-only` collects at thi
 - **Reads:** SPICE; `app/assets/data/sites.json` and `horizons.json` (from `sites.py`); `app/assets/data/map/map.json` and `dem_400m.bin.gz` (from `basemap.py`).
 - **Writes:** `app/test/fixtures/spice_truth.json`.
 - **Used by:** `build.py` (step `fixtures`). Read by the Dart tests `app/test/core/spice_truth_test.dart`, `dem_horizon_test.dart` and `series_metrics_test.dart`, and by the Python tests `test_visibility.py` and `test_data_provenance.py`.
-- **Run it:** `python -m lunarsp.build fixtures` (about 5 s).
+- **Run it:** `python -m lunarsp.build fixtures` (about 5 s). After a new `dem_400m.bin.gz`, `python -m lunarsp.fixtures coarse` rewrites only the coarse horizons (`coarseHorizon`) and needs no SPICE kernels; every other key keeps its bytes.
 
 ##### `pipeline/lunarsp/curated.py`
 - **What it does:** Builds the text of the app's *At a glance* card for the 16 preset sites from the committed research record. It checks that the ids match `sites.json`, that each headline is one short sentence, that no text states a computed number (Rule C: `%`, hours or days of sunlight, a distance in km or degrees from the pole, a slope in degrees), that no claim marked unsupported survives, that every source is https, unique and cited by a checked verdict, and that every logged edit adds no new word of four or more letters and no new number. Each lede is the overview's leading whole sentences, at most 230 characters. Source titles come from `sites.json`, then the research file, else the host name; titles are never invented. Features are the IAU Gazetteer centres, with the diameter when the Gazetteer states one.
@@ -417,7 +420,7 @@ The app no longer shows Blender renders. They are kept only as an independent ch
 
 The tests check each piece of the pipeline against something independent of it: exact formulas, SPICE's own routines, saved answers from NASA JPL Horizons, published station positions and the real LOLA terrain. Errors are given in arcminutes (′), as in [How accurate is it](#how-accurate-is-it); here "DEMs" means LOLA's 80 m and 240 m south-pole terrain maps.
 
-The kernels and DEMs are about 450 MB of downloads that live in the cache (`~/.cache/lunar-sp`, or `$LUNAR_SP_CACHE`), never in the repository. A test that needs them is **skipped** on a fresh copy instead of failing. Tests that need only the committed data (`app/assets/data/`, `app/test/fixtures/`, `pipeline/validation/horizons_cache/`) always run.
+The kernels and DEMs are about 570 MB of downloads that live in the cache (`~/.cache/lunar-sp`, or `$LUNAR_SP_CACHE`), never in the repository. A test that needs them is **skipped** on a fresh copy instead of failing. Tests that need only the committed data (`app/assets/data/`, `app/test/fixtures/`, `pipeline/validation/horizons_cache/`) always run.
 
 Run all of them from `pipeline/` with `python -m pytest` (`pipeline/pytest.ini` points pytest at `tests/`). It collects **586 tests**. With all data downloaded, 585 pass and 1 is skipped when PyYAML is not installed. A full run takes about 1-3 minutes on the development laptop. The `pipeline` job in `.github/workflows/ci.yml` runs `python -m pytest -q` on every push to `main` and every pull request, without the downloads. To run one file, use `python -m pytest tests/<file>.py`.
 
@@ -480,9 +483,16 @@ The files are listed in pipeline order: shared setup, download, time and geometr
 - **Reads:** `lunarsp/dem.py`, `lunarsp/config.py`; a tiny made-up map in a temporary folder; the real DEMs when present.
 - **Writes:** only temporary test folders.
 - **Used by:** pytest, CI.
-- **Run it:** `python -m pytest tests/test_dem_projection.py`. 26 tests (19 functions). 20 run anywhere; 6 need the DEMs (3 need the 80 m map, 1 the 240 m map and 2 both).
+- **Run it:** `python -m pytest tests/test_dem_projection.py`. 27 tests (19 functions). 21 run anywhere; 6 need the DEMs (3 need the 80 m map, 1 the 240 m map and 2 both).
 
 #### Horizons and visibility
+
+##### `pipeline/tests/test_dem400.py`
+- **What it does:** Protects the app's 400 m terrain file. The resampler that turns the 120 m DEM into 400 m cells must match an independent brute-force reference (each pixel copied onto a 40 m grid, then plain block means), keep constants constant, conserve the sum over every 1.2 km period, and refuse grids that do not line up and any fill value. The assembly must paste the inner block unchanged, and the planar-split encoding must round-trip at the full 2280 px. On the shipped file (no downloads needed): the size and extents agree with `map.json`, the inner 1520 × 1520 block has the SHA-256 and sum of the file shipped before the ring was added, the recorded seam statistics are within tolerance (mean below 0.5 m, standard deviation below 2 m, 99th percentile below 6 m, max below 40 m), and steps across 80°S look like the steps either side. With the DEMs: the inner block equals a fresh 80 m-only build, the ring equals a fresh 120 m rebuild, and the seam statistics recomputed from both DEMs equal those in `map.json`.
+- **Reads:** `lunarsp/basemap.py`, `lunarsp/dem.py`, `lunarsp/config.py`; `app/assets/data/map/map.json` and `dem_400m.bin.gz`; the 80 m and 120 m DEMs when present.
+- **Writes:** nothing.
+- **Used by:** pytest, CI.
+- **Run it:** `python -m pytest tests/test_dem400.py`. 24 tests (21 functions). 21 run anywhere; 3 need the DEMs (1 the 80 m map, 1 the 120 m map and 1 both; about 30 s with both).
 
 ##### `pipeline/tests/test_horizon.py`
 - **What it does:** Protects the horizon calculation (`lunarsp/horizon.py`), which walks outward from a site in every direction and keeps the highest terrain angle. It uses made-up terrain where the true answer is an exact formula: a smooth sphere, a ring of hills, a long straight wall and a single peak. For example, on a smooth sphere the horizon must dip below level by about √(2h/R). It also checks that a taller observer never sees a higher horizon, that peaks appear at the right compass direction (at the pole and away from it), that slope is computed correctly and that a site off the map is an error. With the real DEMs, it runs a check at the Connecting Ridge and proves the 10 m step size is fine enough: halving it changes the horizon by less than 0.5′ on average.

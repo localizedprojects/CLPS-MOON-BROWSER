@@ -32,6 +32,7 @@ HAVE_DE442 = HAVE_KERNELS and EXTRA_FILES["spk442"].dest.exists()
 HAVE_DEM80 = _dem_present("ldem_80s_80m")
 HAVE_DEM240 = _dem_present("ldem_75s_240m")
 HAVE_DEM120 = _dem_present("ldem_75s_120m")
+HAVE_AVGVIS = _dem_present("avgvis_sun") and _dem_present("avgvis_earth")
 
 requires_kernels = pytest.mark.skipif(
     not HAVE_KERNELS, reason="SPICE kernels missing (run `python -m lunarsp.fetch`)")
@@ -43,6 +44,8 @@ requires_dem240 = pytest.mark.skipif(
     not HAVE_DEM240, reason="LDEM_75S_240M missing or incomplete (run `python -m lunarsp.fetch`)")
 requires_dem120 = pytest.mark.skipif(
     not HAVE_DEM120, reason="LDEM_75S_120M missing or incomplete (run `python -m lunarsp.fetch`)")
+requires_avgvis = pytest.mark.skipif(
+    not HAVE_AVGVIS, reason="AVGVISIB Sun / Earth maps missing or incomplete (run `python -m lunarsp.fetch`)")
 
 
 # ---------------------------------------------------------------------------

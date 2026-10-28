@@ -102,7 +102,9 @@ void main() {
   double scale(WidgetTester tester) => view(tester).entry(0, 0);
   Offset shift(WidgetTester tester) => Offset(view(tester).entry(0, 3), view(tester).entry(1, 3));
   Offset origin(WidgetTester tester) => tester.getTopLeft(find.byKey(mapViewportKey).first);
-  bool enabled(WidgetTester tester, String label) => tester.widget<IconButton>(find.byTooltip(label).first).onPressed != null;
+  bool enabled(WidgetTester tester, String label) =>
+      tester.widget<IconButton>(find.ancestor(of: find.byTooltip(label).first, matching: find.byType(IconButton)).first).onPressed !=
+      null;
 
   Future<void> press(WidgetTester tester, String label) async {
     await tester.tap(find.byTooltip(label).first);
@@ -119,7 +121,7 @@ void main() {
     expect(shift(tester), Offset.zero, reason: 'the map does not move at 1x');
     expect(scroll.offset, greaterThan(80), reason: 'the page scrolls instead');
     expect(mapGraticule(outer: false).labels.map((l) => l.$1), ['-88°', '-86°', '-84°']);
-    expect(find.textContaining('LDEM_75S_120M'), findsNothing);
+    expect(tester.widget<FidelityBadge>(find.byType(FidelityBadge)).text, isNot(contains('LDEM_75S_120M')));
   });
 
   testWidgets('with the ring: opens at 1x centred, zooms out to the floor, and pans over the ring', (tester) async {
@@ -176,6 +178,8 @@ void main() {
     // more views past the edge, on either map: no new load
     await press(tester, 'Zoom in');
     await press(tester, 'Zoom out');
+    await tester.ensureVisible(find.byTooltip('Zoom out').last);
+    await tester.pumpAndSettle();
     await tester.tap(find.byTooltip('Zoom out').last);
     await tester.pumpAndSettle();
     expect(scale(tester), closeTo(floor, 1e-9));
@@ -273,7 +277,8 @@ void main() {
       expect(overlayCaption(ov), isNot(contains('480 m')), reason: 'no ring, no ring text');
     }
     await pump(tester, l);
-    expect(find.textContaining('LDEM_75S_120M'), findsOneWidget, reason: 'in the fidelity badge under the map');
+    expect(tester.widget<FidelityBadge>(find.byType(FidelityBadge)).text, contains('LDEM_75S_120M'),
+        reason: 'in the fidelity badge under the map');
   });
 
   testWidgets('the full-screen map starts at a zoomed-out view it is handed, and asks for the ring', (tester) async {

@@ -1215,11 +1215,11 @@ class _MapPainter extends CustomPainter {
 ({List<double> rings, double meridiansTo, double? edge, List<(String, double, double)> labels}) mapGraticule(
         {required bool outer}) =>
     (
-      rings: [for (var lat = -88.0; lat >= (outer ? -76.0 : -80.0); lat -= 2) lat],
+      rings: [for (var lat = -88.0; lat <= (outer ? -76.0 : -80.0); lat += 2) lat],
       meridiansTo: outer ? -75.0 : -80.0,
       edge: outer ? -80.0 : null,
       labels: [
-        for (var lat = -88.0; lat >= -84.0; lat -= 2) ('${lat.toStringAsFixed(0)}°', lat, 45.0),
+        for (var lat = -88.0; lat <= -84.0; lat += 2) ('${lat.toStringAsFixed(0)}°', lat, 45.0),
         if (outer) ...[('80°S', -80.0, 45.0), ('-78°', -78.0, 45.0), ('-76°', -76.0, 45.0)],
       ],
     );

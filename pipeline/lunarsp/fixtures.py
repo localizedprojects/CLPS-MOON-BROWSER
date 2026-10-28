@@ -9,6 +9,10 @@
     the Python ``visible_fraction`` result (Dart must match to 1e-9),
     followed by fixed az-wrap cases (``"case": "wrap/..."``) whose disks
     straddle the 0/360 azimuth seam.
+  * ``coarseHorizon``: Python reference horizons on the shipped 400 m DEM
+    (``map/dem_400m.bin.gz``, 2280 px to about 75 S). ``python -m
+    lunarsp.fixtures coarse`` rewrites only this key (no SPICE kernels), e.g.
+    after ``python -m lunarsp.basemap dem``.
 """
 
 from __future__ import annotations

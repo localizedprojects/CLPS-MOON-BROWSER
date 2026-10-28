@@ -116,7 +116,10 @@ const calcSections = <CalcSection>[
     title: 'The light & shadow map',
     plain: 'For the moment you pick, the app sweeps the Sun\'s and Earth\'s light across the whole elevation map, '
         'row by row along the light\'s direction, and marks every pixel the terrain blocks. Slopes facing the Sun are '
-        'drawn brighter. The close-up uses the 400 m map over 128 km; the whole region uses an 800 m map.',
+        'drawn brighter. The close-up uses the 400 m map over 128 km; the whole region uses an 800 m map. The grey '
+        'ground under the colours is shaded relief lit by an artificial light, not the Sun: the base map\'s, and where '
+        'a close-up reaches past the base map\'s edge (about 80°S), the same shading worked out on your device from '
+        'the 400 m map.',
     maths: [
       'a pixel is lit if its height ≥ the highest terrain toward the light, minus distance × tan(light elevation)',
       'run for the Sun\'s top edge, its bottom edge, and Earth\'s centre',

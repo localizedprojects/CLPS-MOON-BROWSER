@@ -2,11 +2,11 @@
 
 Two kinds of data:
 
-* **Bundled** (inside the package, ``lunarhorizon/_bundled/``, about 5 MB): the app's
+* **Bundled** (inside the package, ``lunarhorizon/_bundled/``, about 7.4 MB): the app's
   compact hourly ephemeris and DSN bits, the 400 m DEM, the preset sites and their
   horizon masks. Used by the default "app" mode; no download needed.
-* **Cache** (about 450 MB, 490 MB with DE442): the SPICE kernels and the LOLA DEMs
-  used by the "exact" mode. Fetched once with :func:`fetch`.
+* **Cache** (about 570 MB, 605 MB with DE442, everything ``fetch("all")`` gets): the SPICE
+  kernels and the LOLA DEMs used by the "exact" mode. Fetched once with :func:`fetch`.
 
 Cache directory (:func:`cache_dir`): ``$LUNARHORIZON_CACHE``, else ``$LUNAR_SP_CACHE``
 (the Lunar Horizon pipeline's variable), else ``~/.cache/lunar-sp``. Layout below it is

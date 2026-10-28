@@ -356,6 +356,7 @@ class ReliefKeeper {
     if (_building || _disposed || v == null || dem == null || recipe == null || v == _asked) return;
     _asked = v;
     _building = true;
+    var failed = false;
     try {
       final grid = await dem();
       final win = reliefWindow(v.x0, v.y0, v.ext, grid.size, grid.scaleM);
@@ -383,11 +384,15 @@ class ReliefKeeper {
     } catch (e) {
       // the neutral ground stays (the shadows themselves need the same grid)
       debugPrint('relief unavailable: $e');
+      // the next want() of this view tries again (AppState.dem retries a failed
+      // load); not at once, so an offline fetch does not loop
+      if (_asked == v) _asked = null;
+      failed = true;
     } finally {
       _building = false;
     }
     // catch up with a view asked for meanwhile
-    if (!_disposed && _view != _asked) _run();
+    if (!_disposed && !failed && _view != _asked) _run();
   }
 
   void dispose() {
@@ -826,8 +831,9 @@ class _LightMapState extends State<LightMap> {
         exact: s.expert);
     final h = s.observerHeightM;
     final heightText = '${h.toStringAsFixed(h == h.roundToDouble() ? 0 : 1)} m';
-    // a close-up reaching past the base map's edge (about 80°S): terrain and ground there are labelled
-    final pastMap = shownFrame != null && fine && beyondBaseMap(shownFrame, layers.halfWidthM);
+    // a close-up reaching past the base map's edge (about 80°S): terrain and ground there are labelled,
+    // from the view mapBox shades (its relief is drawn before the first frame arrives, too)
+    final pastMap = fine && viewBeyondBaseMap(_targetView, layers.halfWidthM);
     // agreement figures: test/core/shadow_test.dart (16 preset sites x 60 random moments, 2 m observer)
     final badge = FidelityBadge(
       text: 'Shadows are computed on this device from the NASA LOLA elevation map at ${fine ? '400 m' : '800 m'} '

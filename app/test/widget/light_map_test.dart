@@ -274,6 +274,59 @@ void main() {
     });
   });
 
+  group('relief keeper', () {
+    const v = (x0: -6400.0, y0: 6400.0, ext: 12800.0);
+    const recipe = ReliefRecipe(zLowM: -5000, zHighM: 4000);
+    final grid = PolarGrid(64, 400, Int16List(64 * 64));
+
+    testWidgets('a failed terrain load is tried again on the next ask of the same view, once per ask', (tester) async {
+      await tester.runAsync(() async {
+        Future<void> settle(bool Function() done) async {
+          for (var i = 0; i < 100 && !done(); i++) {
+            await Future<void>.delayed(const Duration(milliseconds: 20));
+          }
+        }
+
+        var calls = 0, changes = 0;
+        Future<PolarGrid> flaky() async {
+          if (++calls == 1) throw StateError('offline');
+          return grid;
+        }
+
+        final k = ReliefKeeper(onChange: () => changes++);
+        addTearDown(k.dispose);
+        k.want(v, flaky, recipe);
+        await settle(() => calls == 1);
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+        expect((calls, k.builds, k.shown), (1, 0, null), reason: 'the load failed, nothing is drawn');
+        // AppState.dem tries a failed load again: so does the next ask of that view
+        k.want(v, flaky, recipe);
+        await settle(() => k.builds == 1);
+        expect((calls, k.builds, changes), (2, 1, 1));
+        expect(k.shown, isNotNull);
+        k.want(v, flaky, recipe);
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+        expect((calls, k.builds), (2, 1), reason: 'built: the same view asks for nothing more');
+
+        // offline for good: one load per ask, never a loop
+        var fails = 0;
+        Future<PolarGrid> offline() async {
+          fails++;
+          throw StateError('offline');
+        }
+
+        final k2 = ReliefKeeper(onChange: () {});
+        addTearDown(k2.dispose);
+        k2.want(v, offline, recipe);
+        await Future<void>.delayed(const Duration(milliseconds: 100));
+        expect(fails, 1);
+        k2.want(v, offline, recipe);
+        await Future<void>.delayed(const Duration(milliseconds: 100));
+        expect((fails, k2.shown), (2, null));
+      });
+    });
+  });
+
   group('the map widget (real data)', () {
     late AppState state;
     setUpAll(() async {
@@ -594,6 +647,9 @@ void main() {
         expect(state.site.id, id);
         await tester.pumpWidget(host());
         await tester.pump();
+        // before the first frame the relief is drawn already: the note says so then too
+        expect(find.byWidgetPredicate((w) => w is FidelityBadge && w.text.contains(lightPastMapNote)),
+            past ? findsOneWidget : findsNothing, reason: '$id, before the frame');
         for (var i = 0; i < 400 && find.text('Computing shadows…').evaluate().isNotEmpty; i++) {
           await tester.pump(const Duration(milliseconds: 70)); // debounce
           await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 50)));

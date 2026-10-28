@@ -14,6 +14,9 @@ on the close-up map's top edge because the on-device terrain ended at 80 S).
   is byte-identical to before; the ring is LOLA `LDEM_75S_120M` by exact area-overlap means.
   New `terrain.DemInfo` / `app_dem_info()` read and check that entry like the app's
   `DemInfo.fromJson`; `app_dem()` is the 2280 px raster. The package is about 7.4 MB.
+- **Data pins**: `data.DEMS` gains the pinned `ldem_75s_120m` (LOLA 120 m, the source of the
+  bundled DEM's ring beyond 80 S; not in `"dems"`), and `fetch("all")` now also downloads it
+  (+116 MB; about 570 MB, 605 MB with DE442).
 - **Horizons and shadows see terrain beyond 80 S**: custom-site coarse horizons and the light
   and shadow map use the whole DEM.
 - **Sweep reference** (`ShadowGrid.sweep_ref_size`, Dart `ShadowGrid.sweepRefSize`): the

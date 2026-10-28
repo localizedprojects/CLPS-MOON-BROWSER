@@ -537,8 +537,12 @@ Vectorisation: build all rotated rows at once ((rows, cols) bilinear sampling wi
 `np.maximum.accumulate` on `t = where(ok, rowZ + j*step, -inf)` shifted right by `lag`
 along axis 1, and `vis = rowZ + h >= mx - j*step` where ok, else 1. This is the same
 recurrence as `_sweep`; check it against a literal loop port on small grids. Memory: the
-region grid is 760 px, rotated about 1077 x 1077 float64 = 9 MB per array; fine. Process
-rows in blocks of 256 to stay well under 100 MB. Dart `.round()` rounds half away from
+region grid is 1140 px (w = 1615) swept over its 760 px `region_window`, so the rotated
+arrays are about 1080 x 1350. The close-up is a 320 px window of the 2280 px grid
+(w = 3228); its arrays are at most about 456 x 3228, which is 1.5 MB as uint8 flags or
+12 MB as float64 margins. Both are fine. Process the rotated rows in blocks of
+`_BLOCK_ELEMS` = 2^19 elements (`_BLOCK_ELEMS // cols` rows, about 160-390) so each float64
+temporary stays near 4 MB and the sweep stays well under 100 MB. Dart `.round()` rounds half away from
 zero; numpy `rint` rounds half to even: use `np.floor(x + 0.5)` for non-negative values
 and an explicit sign-aware helper otherwise (back-mapping indices can be negative).
 

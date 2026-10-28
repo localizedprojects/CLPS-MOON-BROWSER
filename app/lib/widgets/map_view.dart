@@ -40,11 +40,6 @@ class MapLayers {
   const MapLayers(this.hillshade, this.sunvis, this.earthvis, this.psr, this.halfWidthM,
       {double? demHalfWidthM, this.relief, this.outer})
       : demHalfWidthM = demHalfWidthM ?? halfWidthM;
-
-  /// These layers without the ring (the map as it was before map.json had
-  /// "outer"): zoom floor 1x, no drag past the edge.
-  MapLayers withoutOuter() =>
-      MapLayers(hillshade, sunvis, earthvis, psr, halfWidthM, demHalfWidthM: demHalfWidthM, relief: relief);
 }
 
 /// The ring's images: relief and the three layers over the whole ±outer
@@ -675,8 +670,9 @@ class _MapViewState extends State<MapView> with SingleTickerProviderStateMixin {
           // a point asked for before this map was laid out (a new map for a
           // new layout, made while the full-screen map was open)
           if (want != null && size > 0) _centreOn(want.$1, animate: want.$2);
-        } else if (old != vp && (_scale > 1.001 || widget.fill || want != null)) {
-          // rotation / window resize while zoomed: the same view (zoom and map
+        } else if (old != vp && ((_scale - 1).abs() > 0.001 || _shift.distance > 0.5 || widget.fill || want != null)) {
+          // rotation / window resize while zoomed (in, or out over the ring
+          // beyond 80°S) or dragged over that ring at 1x: the same view (zoom and map
           // point in the middle) is shown again in the new size, not a rescaled
           // shift (that carries the full-screen map's centring offsets along);
           // a move toward a point asked for goes on toward it in the new size

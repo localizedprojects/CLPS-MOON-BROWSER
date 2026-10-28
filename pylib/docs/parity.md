@@ -61,7 +61,7 @@ Measured on 2026-10-12 with numpy 2.5.4, Python 3.14, Windows 11.
 | Per-sample az, el, horizon, visible share (cases 1-5) | 1e-9 deg / 1e-9 | **0** (bit-identical) |
 | Power per sample | 1e-6 W/m^2 | **0** |
 | Flags and DSN bytes (cases 1-5) | identical SHA-256 | **identical** |
-| Metrics, score (4 goals), landing plans (4 lengths x 4 goals + not-before) | 1e-9; times exact | **0** (all fields equal) |
+| Metrics, score (3 goals), landing plans (4 lengths x 3 goals + not-before) | 1e-9; times exact | **0** (all fields equal) |
 | Custom-site coarse masks (2 m, 10 m) and terrain height | 1e-6 deg, 1e-9 m | **0** |
 | Light map flags, region and close-ups | identical except sweep-margin ties | **identical** (0 pixels differ) |
 | Shade bytes, Lambert sum, shares | shade identical except x.5 ties; 1e-6; 1e-4 | **identical**; Lambert sum relative difference <= 3.2e-16 (summation order only); shares 0 |
@@ -73,7 +73,7 @@ A further check through the command line, with the ephemeris loaded **the way th
 it** (only the years the period needs, `EphemerisRepository.range`, rather than the whole
 2025-2035 coverage): `lunarhorizon site --json` for Malapert peak (MP1) and Shackleton rim
 (SR1), 2027-01-01 to 2028-01-01 (30 min samples), observer 2 m and 10 m, each of the four
-goals, against a temporary Dart probe of the app's core. Sunlit / Earth / both %, mean power,
+goals the app had then (it has three since 2026-10-13), against a temporary Dart probe of the app's core. Sunlit / Earth / both %, mean power,
 energy, longest night, longest Earth outage, longest both window, window count, all five
 score terms and the total, and the best 14-day landing window (status, landing and end time,
 window score, longest both run) were **identical** in all 16 combinations (largest relative

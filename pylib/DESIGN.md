@@ -449,8 +449,8 @@ class ScoreBreakdown: power: float; comms: float; both: float; night_survival: f
 def score_terms(*, pct_sunlit, pct_earth, pct_both, longest_dark_h, longest_outage_h, w: ScoreWeights) -> ScoreBreakdown
     # also accepts numpy arrays (returns a ScoreBreakdown of arrays) for the landing search
 def score(m: SiteMetrics, w: ScoreWeights | "Goal" = Goal.BALANCED) -> ScoreBreakdown
-class Goal(str, Enum): BALANCED="balanced"; POWER="power"; EARTH="earth"; BOTH="both"
-def weights_for(goal) -> ScoreWeights   # balanced (0.5, 0.25), power (0.8, 0.2), earth (0.2, 0.2), both (0.5, 0.6)
+class Goal(str, Enum): BALANCED="balanced"; POWER="power"; EARTH="earth"   # the app's three goals (no "Both at once" since 2026-10-13)
+def weights_for(goal) -> ScoreWeights   # balanced (0.5, 0.25), power (0.8, 0.2), earth (0.2, 0.2)
 def goal_for(w) -> Goal | None
 def formula_text(w) -> str
 @dataclass(frozen=True)

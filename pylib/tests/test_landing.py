@@ -491,7 +491,7 @@ def test_mission_length_helpers():
 def test_to_dict_is_json():
     import json
 
-    p = best_landing_window(planted(), 1, Goal.BOTH)
+    p = best_landing_window(planted(), 1, ScoreWeights(power=0.5, both=0.6))
     d = p.to_dict()
     json.dumps(d)
     assert d["status"] == "partial" and d["suggested"]["score"]["total"] == p.suggested.score.total

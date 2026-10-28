@@ -83,8 +83,13 @@ void main() {
       await settle(t);
       final option = find.descendant(of: find.byType(RadioListTile<MapOverlay>), matching: find.text(overlayName(ov)));
       expect(await waitFor(t, option, timeout: const Duration(seconds: 10)), isTrue, reason: 'the Layers sheet');
+      // the sheet's captions run long, so the last option starts below the
+      // screen's bottom edge: scroll the sheet to it first
+      await t.ensureVisible(option.first);
+      await settle(t, 3);
       await t.tap(option.first);
       await settle(t);
+      expect(t.widget<RadioGroup<MapOverlay>>(find.byType(RadioGroup<MapOverlay>)).groupValue, ov, reason: 'picked');
       await Navigator.of(t.element(option.first)).maybePop();
       await settle(t);
       expect(option, findsNothing, reason: 'the sheet closed');

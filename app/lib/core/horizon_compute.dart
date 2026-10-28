@@ -6,7 +6,10 @@
 /// masks (80 m / 240 m DEM) and is always labelled as approximate.
 /// Sampling: from 600 m (1.5 px, unresolved near field excluded) in 100 m
 /// steps to 20 km, then +0.5 % per step to 300 km. Shared with the Python
-/// fixture generator (fixtures.py: COARSE_* constants).
+/// fixture generator (fixtures.py: COARSE_* constants). The DEM reaches about
+/// 75 S (LDEM_80S_80M inside 80 S, LDEM_75S_120M resampled beyond), so rays
+/// from a spot near 80 S see real terrain beyond it; samples past the grid's
+/// edge (only beyond about 75 S) are skipped as before.
 library;
 
 import 'dart:math' as math;

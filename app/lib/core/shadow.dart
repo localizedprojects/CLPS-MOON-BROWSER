@@ -14,7 +14,9 @@
 /// The Sun's 0.53 deg disk is handled by sweeping the upper limb (e + rho,
 /// "any sunlight", the app's default rule) and the lower limb (e - rho,
 /// "full Sun"). Horizontal distances use map metres (polar stereographic
-/// scale differs from true distance by < 1 % within 80 S).
+/// scale differs from true distance by < 1 % within 80 S, 1.7 % at 75 S and
+/// about 3.5 % in the DEM's corners near 69 S, which only far blockers of
+/// close-ups near 80 S use).
 ///
 /// Every computation also exists as a resumable job ([ShadowGridBuilder],
 /// [LightFieldWork]) that does a few rows per `step` call, so a caller with

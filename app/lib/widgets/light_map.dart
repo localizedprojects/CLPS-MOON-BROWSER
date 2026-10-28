@@ -717,6 +717,8 @@ class _LightMapState extends State<LightMap> {
         exact: s.expert);
     final h = s.observerHeightM;
     final heightText = '${h.toStringAsFixed(h == h.roundToDouble() ? 0 : 1)} m';
+    // a close-up reaching past the base map (80°S): terrain and ground there are labelled
+    final pastMap = shownFrame != null && fine && beyondBaseMap(shownFrame, layers.halfWidthM);
     // agreement figures: test/core/shadow_test.dart (16 preset sites x 60 random moments, 2 m observer)
     final badge = FidelityBadge(
       text: 'Shadows are computed on this device from the NASA LOLA elevation map at ${fine ? '400 m' : '800 m'} '
@@ -727,6 +729,9 @@ class _LightMapState extends State<LightMap> {
           'between grid cells. The terrain under the colours is shaded relief from the same LOLA elevations, lit '
           'by an artificial light from the upper left with heights exaggerated 2x: it is not a photo and not the '
           'real lighting, and inside shadows it is drawn faintly for orientation only.'
+          '${pastMap ? ' This close-up reaches past 80°S, where the base map ends: there the terrain is LOLA\'s 120 m '
+              'map (LDEM_75S_120M) averaged to 400 m, the ground under the colours is plain grey with no relief, and map '
+              'distances run up to about 2% longer than true ones, so shadows cast from there are a little less exact.' : ''}'
           '${coarseShown ? ' While playing, the map uses a coarser ${shownFrame!.pxM.round()} m grid so it can keep up, and the '
               'legend\'s shares are from that grid; the agreement figures above are for the paused map. Pause for full detail.' : ''}',
     );
@@ -980,7 +985,8 @@ class _LightMapState extends State<LightMap> {
               text: playFrame
                   ? 'Approximate: while playing, shadows from a coarser ${shownFrame!.pxM.round()} m grid; pause for the '
                       '${fine ? '400 m' : '800 m'} map. Status, legend and details below.'
-                  : 'Approximate: shadows from a ${fine ? '400 m' : '800 m'} terrain grid. Status, legend and details below.');
+                  : 'Approximate: shadows from a ${fine ? '400 m' : '800 m'} terrain grid'
+                      '${pastMap ? '; plain grey ground beyond 80°S' : ''}. Status, legend and details below.');
           List<Widget> below() => [
                 const SizedBox(height: 12),
                 status,
@@ -1378,6 +1384,15 @@ class ArrowLabelMemory {
 ///
 /// The square [view] is centred in the canvas and cropped to it, so a
 /// non-square canvas shows a centre crop of the frame (LightSnapshot).
+/// Whether part of [f] lies outside the base map's square (±[mapHalfWidthM]).
+bool beyondBaseMap(LightFrame f, double mapHalfWidthM) =>
+    f.x0M < -mapHalfWidthM || f.y0M > mapHalfWidthM || f.x0M + f.extentM > mapHalfWidthM || f.y0M - f.extentM < -mapHalfWidthM;
+
+/// Neutral mid-grey ground under a close-up's light colours beyond the base
+/// map (80°S), where no shaded relief exists: no meaning of its own (a grey
+/// near the relief's average, so multiply/screen read the same as on it).
+const beyondMapGround = Color(0xFF6E737B);
+
 class LightFramePainter extends CustomPainter {
   final ui.Image hillshade;
   final double halfWidthM;
@@ -1435,6 +1450,17 @@ class LightFramePainter extends CustomPainter {
 
     canvas.save();
     canvas.clipRect(box);
+    final im = images;
+    final fr = im?.frame;
+    final frameDst = fr == null
+        ? null
+        : Rect.fromLTWH(dst.left + (fr.x0M - view.x0) * k, dst.top + (view.y0 - fr.y0M) * k, fr.extentM * k, fr.extentM * k);
+    // a close-up reaches past the base map (80°S) where the terrain grid goes
+    // on to about 75°S: a flat neutral ground there (no relief; named in the
+    // FidelityBadge), so the shadows drawn over it still show
+    if (frameDst != null && fr!.request.closeUp && beyondBaseMap(fr, halfWidthM)) {
+      canvas.drawRect(frameDst, Paint()..color = beyondMapGround);
+    }
     // NASA LOLA shaded relief (artificial light), cropped to the view
     // only the part of the view the map covers (the whole region has a margin)
     final hk = hillshade.width / (2 * halfWidthM);
@@ -1446,14 +1472,10 @@ class LightFramePainter extends CustomPainter {
         Rect.fromLTRB(dst.left + (vx0 - view.x0) * k, dst.top + (view.y0 - vy0) * k, dst.left + (vx1 - view.x0) * k,
             dst.top + (view.y0 - vy1) * k),
         Paint()..filterQuality = FilterQuality.medium);
-    final im = images;
     if (im != null) {
       final src = Rect.fromLTWH(0, 0, im.w.toDouble(), im.w.toDouble());
-      // the frame's own square inside the view (the whole view for a close-up)
-      final fr = im.frame;
-      final frameDst =
-          Rect.fromLTWH(dst.left + (fr.x0M - view.x0) * k, dst.top + (view.y0 - fr.y0M) * k, fr.extentM * k, fr.extentM * k);
-      canvas.drawImageRect(im.mul, src, frameDst, Paint()
+      // the frame's own square inside the view (the whole view for a close-up): frameDst
+      canvas.drawImageRect(im.mul, src, frameDst!, Paint()
         ..blendMode = BlendMode.multiply
         ..filterQuality = FilterQuality.low);
       canvas.drawImageRect(im.scr, src, frameDst, Paint()

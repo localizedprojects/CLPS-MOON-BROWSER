@@ -40,7 +40,10 @@ HORIZONS_CACHE_DIR = VALIDATION_DIR / "horizons_cache"
 
 NAIF = "https://naif.jpl.nasa.gov/pub/naif/generic_kernels"
 LOLA_GDR = "https://pds-geosciences.wustl.edu/lro/lro-l-lola-3-rdr-v1/lrolol_1xxx/data/lola_gdr/polar/img"
-LOLA_EXTRAS = "https://imbrium.mit.edu/EXTRAS/ILLUMINATION/IMG"
+#: LOLA illumination products (AVGVISIB) on NASA's PDS Geosciences Node. The LOLA
+#: team's server https://imbrium.mit.edu/EXTRAS/ILLUMINATION/IMG mirrors the same
+#: files (same sizes and SHA-256); the PDS copy is the archive of record.
+LOLA_EXTRAS = "https://pds-geosciences.wustl.edu/lro/lro-l-lola-3-rdr-v1/lrolol_1xxx/extras/illumination/img"
 
 
 @dataclass(frozen=True)
@@ -109,11 +112,12 @@ DEMS = {
     # real heights in its corners too (no MISSING_CONSTANT, no fill values).
     "ldem_75s_120m": RemoteFile(f"{LOLA_GDR}/ldem_75s_120m.img", DEM_DIR / "ldem_75s_120m.img", 116_250_752,
                                   sha256="ae3afc3c75c33d43666ca06c83ca08f0b12ef03b7d36d2d791d972730794391b"),
-    # LOLA-team average Sun / Earth visibility maps (Mazarico et al. 2011),
-    # used ONLY as an independent cross-check of our horizon+ephemeris chain.
-    "avgvis_sun": RemoteFile(f"{LOLA_EXTRAS}/AVGVISIB_75S_120M_201608.IMG", DEM_DIR / "avgvisib_75s_120m_sun.img", 116_250_752,
+    # LOLA-team average Sun / Earth visibility maps (Mazarico et al. 2011): an
+    # independent cross-check of our horizon+ephemeris chain, and the Explore
+    # map's long-term sunlight / Earth / PSR layers (basemap; 75-90 S).
+    "avgvis_sun": RemoteFile(f"{LOLA_EXTRAS}/avgvisib_75s_120m_201608.img", DEM_DIR / "avgvisib_75s_120m_sun.img", 116_250_752,
                                sha256="a354543b62871227a5066077f5ac61ed7e8dabd5268eb5a5aa4b147aa5bba61e"),
-    "avgvis_earth": RemoteFile(f"{LOLA_EXTRAS}/AVGVISIB_75S_120M_201608_EARTH.IMG", DEM_DIR / "avgvisib_75s_120m_earth.img", 116_250_752,
+    "avgvis_earth": RemoteFile(f"{LOLA_EXTRAS}/avgvisib_75s_120m_201608_earth.img", DEM_DIR / "avgvisib_75s_120m_earth.img", 116_250_752,
                                  sha256="443ad251a480dea19e96417dfcfe1cb87a91eb02ee158b262d78abe899258fff"),
 }
 

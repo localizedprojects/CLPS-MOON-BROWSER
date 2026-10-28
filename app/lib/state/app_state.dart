@@ -37,7 +37,7 @@ import '../core/site_glance.dart' show GlanceInputs, SiteGlance, buildSiteGlance
 import '../core/summary.dart';
 import '../core/timeseries.dart';
 import '../core/visibility.dart';
-import '../widgets/map_view.dart' show MapLayers;
+import '../widgets/map_view.dart' show MapLayers, MapOuter, OuterImages, customSpotEdgeText;
 import 'dem_load.dart';
 import 'light_engine.dart';
 
@@ -603,9 +603,8 @@ class AppState extends ChangeNotifier {
   bool placingCustom = false;
 
   /// Shown when a custom site lies north of [customMaxLatDeg] (or, as a second
-  /// guard, outside the 400 m terrain grid).
-  static const customSiteEdgeText = 'That spot is on or beyond the edge of the region this map shows (80° S). '
-      'Pick a point a little closer to the pole (80.01° S or further south).';
+  /// guard, outside the 400 m terrain grid): why spots stay south of 80°S.
+  static const customSiteEdgeText = customSpotEdgeText;
 
   List<Site> get allSites => [...catalog!.sites, ...customSites];
   Site get site => customSites.where((s) => s.id == selectedId).firstOrNull ?? catalog!.byId(selectedId);
@@ -1135,14 +1134,37 @@ class AppState extends ChangeNotifier {
       // the four layers are fetched and decoded together (async-2)
       final imgs = await Future.wait<ui.Image?>([_image('map/hillshade.webp'), opt('sunvis'), opt('earthvis'), opt('psr')]);
       if (_disposed) return false;
+      final outer = m['outer'] as Map?;
       mapLayers = MapLayers(imgs[0]!, imgs[1], imgs[2], imgs[3], (m['halfWidthM'] as num).toDouble(),
           demHalfWidthM: DemInfo.fromJson(m['dem'] as Map).halfWidthM,
-          relief: ReliefRecipe.fromJson(m['hillshade'] as Map?));
+          relief: ReliefRecipe.fromJson(m['hillshade'] as Map?),
+          outer: outer == null ? null : MapOuter.fromJson(outer, load: () => _loadOuter(outer)));
       return true;
     } catch (e) {
       debugPrint('map layers unavailable: $e');
       return false;
     }
+  }
+
+  /// Makes the next [n] loads of the map's ring fail (tests of its retry).
+  @visibleForTesting
+  int debugFailOuterLoads = 0;
+
+  /// The ring beyond the base map (map.json outer): its four images, decoded
+  /// together. Only called once a map shows past the base map
+  /// ([MapOuter.request]), never at start-up.
+  Future<OuterImages> _loadOuter(Map<dynamic, dynamic> m) async {
+    if (debugFailOuterLoads > 0) {
+      debugFailOuterLoads--;
+      throw StateError('test failure of the map\'s ring');
+    }
+    Future<ui.Image?> opt(String key) async {
+      final f = (m[key] as Map?)?['file'] as String?;
+      return f == null ? null : _image(f);
+    }
+
+    final imgs = await Future.wait<ui.Image?>([_image((m['hillshade'] as Map)['file'] as String), opt('sunvis'), opt('earthvis'), opt('psr')]);
+    return OuterImages(imgs[0]!, imgs[1], imgs[2], imgs[3]);
   }
 
   /// The 400 m LOLA DEM (custom-site horizons, light map), loaded on first use

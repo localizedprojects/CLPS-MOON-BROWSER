@@ -76,5 +76,30 @@
   "file": "map/psr.webp",
   "pxM": 480.0,
   "source": "AVGVISIB == 0 (never sunlit over the averaging period)"
+ },
+ "outer": {
+  "halfWidthM": 456000.0,
+  "blankHalfWidthM": 300000.0,
+  "hillshade": {
+   "file": "map/hillshade_outer.webp",
+   "pxM": 480.0,
+   "source": "LOLA LDEM_75S_120M (block-mean to 480 m); lighting and tint as hillshade, zNorm from hillshade.tint zLowM / zHighM"
+  },
+  "sunvis": {
+   "file": "map/sunvis_outer.webp",
+   "pxM": 960.0,
+   "source": "LOLA AVGVISIB_75S_120M_201608 (block-mean to 960 m)"
+  },
+  "earthvis": {
+   "file": "map/earthvis_outer.webp",
+   "pxM": 960.0,
+   "source": "LOLA AVGVISIB_75S_120M_201608_EARTH (block-mean to 960 m)"
+  },
+  "psr": {
+   "file": "map/psr_outer.webp",
+   "pxM": 960.0,
+   "source": "AVGVISIB == 0 (never sunlit over the averaging period), fraction per 960 m cell"
+  },
+  "note": "The layers out to 75 S around the base map, coarser on purpose (memory): the whole +-halfWidthM square, transparent on pixels wholly inside +-blankHalfWidthM, where the layers above cover the map. Same colour, alpha and tint mappings as those layers."
  }
 }

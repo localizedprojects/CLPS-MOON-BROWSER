@@ -76,13 +76,15 @@ void main() {
   });
   // the real catalogue, map and engine: IM-1 Odysseus (80.13 S) has a
   // close-up past the base map's edge (about 80 S), SR1 (Shackleton rim) not
+  // (a fresh state and light engine per test: a frame still in flight from an
+  // earlier test's fake clock would never finish in the next one)
   group('past the base map\'s edge (real data)', () {
     late AppState state;
-    setUpAll(() async {
+    setUp(() async {
       state = AppState();
       await state.init();
     });
-    tearDownAll(() => state.dispose());
+    tearDown(() => state.dispose());
 
     final paint = find.byWidgetPredicate((w) => w is CustomPaint && w.painter is LightFramePainter);
     for (final (id, past) in [('im-1-odysseus-landed', true), ('derosa2012-sr1-shackleton-rim', false)]) {

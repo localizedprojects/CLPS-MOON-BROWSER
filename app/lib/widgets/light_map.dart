@@ -1096,7 +1096,8 @@ class _LightMapState extends State<LightMap> {
                   ? 'Approximate: while playing, shadows from a coarser ${shownFrame!.pxM.round()} m grid; pause for the '
                       '${fine ? '400 m' : '800 m'} map. Status, legend and details below.'
                   : 'Approximate: shadows from a ${fine ? '400 m' : '800 m'} terrain grid'
-                      '${pastMap ? '; past the base map\'s edge (about 80°S) the relief is shaded on this device' : ''}. '
+                      // (kept under FidelityBadge's 110-character first-sentence summary, so it is read whole)
+                      '${pastMap ? '; past about 80°S the relief is shaded on this device' : ''}. '
                       'Status, legend and details below.');
           List<Widget> below() => [
                 const SizedBox(height: 12),

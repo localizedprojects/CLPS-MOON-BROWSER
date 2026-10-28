@@ -551,19 +551,48 @@ void main() {
       expect((r.azimuthDeg, r.altitudeDeg, r.exaggeration, r.base, r.shade, r.elevation), (315, 35, 2, 0.18, 0.62, 0.2));
       expect(r.zLowM, lessThan(r.zHighM));
     });
+  });
 
-    // last in this group: it changes the selected site (and ends on the default, SR1)
-    testWidgets('a close-up past the base map\'s edge (IM-1 Odysseus) is labelled and drawn on the device-shaded '
-        'relief of that window; one inside the map (SR1) is not', (tester) async {
-      tester.view.physicalSize = const Size(1280, 800);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(tester.view.reset);
-      LightFramePainter painter() => tester.widget<CustomPaint>(mapPaint()).painter! as LightFramePainter;
-      final grid = (await tester.runAsync(state.dem))!;
-      for (final (id, past) in [('im-1-odysseus-landed', true), ('derosa2012-sr1-shackleton-rim', false)]) {
+  // a fresh state (and light engine) per test, as in light_play_odysseus_test:
+  // a frame or picture still in flight from an earlier test's fake clock
+  // would never finish in the next one
+  group('past the base map\'s edge (real data)', () {
+    late AppState state;
+    setUpAll(loadPlexFonts);
+    setUp(() async {
+      state = AppState();
+      await state.init();
+    });
+    tearDown(() => state.dispose());
+
+    Finder mapPaint() => find.byWidgetPredicate((w) => w is CustomPaint && w.painter is LightFramePainter);
+    LightFramePainter painter(WidgetTester tester) => tester.widget<CustomPaint>(mapPaint()).painter! as LightFramePainter;
+    // the desktop right pane: the short note and the badge are both on screen
+    Widget host() => MaterialApp(
+          theme: buildTheme(),
+          home: Builder(
+            builder: (context) => MediaQuery(
+              data: MediaQuery.of(context).copyWith(disableAnimations: true),
+              child: Scaffold(
+                body: Align(
+                  alignment: Alignment.topLeft,
+                  child: SizedBox(width: 740, height: 620, child: LightMap(state: state, active: true, onSelect: (_) {})),
+                ),
+              ),
+            ),
+          ),
+        );
+
+    for (final (id, past) in [('im-1-odysseus-landed', true), ('derosa2012-sr1-shackleton-rim', false)]) {
+      testWidgets('$id: the close-up ${past ? 'reaches' : 'stays inside'} the base map\'s edge; ${past ? 'labelled and drawn '
+          'on the device-shaded relief of its window' : 'no such note, no relief picture'}', (tester) async {
+        tester.view.physicalSize = const Size(1280, 800);
+        tester.view.devicePixelRatio = 1;
+        addTearDown(tester.view.reset);
+        final grid = (await tester.runAsync(state.dem))!;
         await tester.runAsync(() => state.selectSite(id));
-        // the desktop pane: the short note and the badge are both on screen
-        await tester.pumpWidget(host(const Size(740, 620), reduceMotion: true));
+        expect(state.site.id, id);
+        await tester.pumpWidget(host());
         await tester.pump();
         for (var i = 0; i < 400 && find.text('Computing shadows…').evaluate().isNotEmpty; i++) {
           await tester.pump(const Duration(milliseconds: 70)); // debounce
@@ -571,18 +600,22 @@ void main() {
         }
         expect(find.text('Computing shadows…'), findsNothing, reason: '$id: the frame is computed');
         // the relief picture is built on the device (its decode takes real time)
-        for (var i = 0; i < 100 && past && painter().relief == null; i++) {
+        for (var i = 0; i < 100 && past && painter(tester).relief == null; i++) {
           await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 20)));
           await tester.pump();
         }
-        final p = painter(), v = p.view;
+        final p = painter(tester), v = p.view;
         expect(p.closeUp, isTrue, reason: id);
         expect(viewBeyondBaseMap(v, p.halfWidthM), past, reason: id);
         final badges = tester.widgetList<FidelityBadge>(find.byType(FidelityBadge)).map((b) => b.text).toList();
         expect(badges.where((t) => t.contains(lightPastMapNote)), hasLength(past ? 1 : 0), reason: '$id: $badges');
         expect(badges.where((t) => t.contains('plain grey')), isEmpty, reason: 'the old wording is gone');
-        expect(find.textContaining('past the base map\'s edge (about 80°S) the relief is shaded on this device'),
-            past ? findsOneWidget : findsNothing, reason: id);
+        // the short note under the map says it in its first sentence, which it shows whole
+        final short = badges.where((t) => t.startsWith('Approximate: shadows from a 400 m terrain grid')).single;
+        expect(FidelityBadge.summaryOf(short).contains('past about 80°S the relief is shaded on this device'), past,
+            reason: short);
+        expect(FidelityBadge.summaryOf(short), isNot(endsWith('…')), reason: short);
+        expect(find.textContaining(FidelityBadge.summaryOf(short)), findsOneWidget, reason: id);
         // the canvas is square, so the close-up's square fills it exactly
         final size = tester.getSize(mapPaint());
         expect(size.width, size.height, reason: id);
@@ -610,10 +643,9 @@ void main() {
         }
         await tester.pumpWidget(const SizedBox());
         await tester.pump(const Duration(milliseconds: 100));
-      }
-      expect(state.selectedId, 'derosa2012-sr1-shackleton-rim');
-      expect(tester.takeException(), isNull);
-    });
+        expect(tester.takeException(), isNull);
+      });
+    }
   });
 
   group('playback on the real map', () {

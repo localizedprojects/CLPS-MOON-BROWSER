@@ -183,5 +183,26 @@ def build(n_azel: int = 1000, n_frac: int = 40, seed: int = 20261008) -> dict:
     return out
 
 
+def build_coarse_only() -> dict:
+    """Regenerate only ``coarseHorizon`` in spice_truth.json (after a new 400 m DEM).
+
+    Needs no SPICE kernels; every other key keeps its bytes.
+    """
+    path = APP_FIXTURE_DIR / "spice_truth.json"
+    out = json.loads(path.read_text())
+    out["coarseHorizon"] = _coarse_fixture()  # same key, same position
+    write_json(path, out)
+    ch = out["coarseHorizon"]
+    print(f"coarseHorizon: size {ch['size']}, sum {ch['sum']}, {len(ch['sites'])} sites")
+    return ch
+
+
 if __name__ == "__main__":
-    build()
+    import sys
+
+    if sys.argv[1:] == ["coarse"]:
+        build_coarse_only()
+    elif sys.argv[1:]:
+        raise SystemExit("usage: python -m lunarsp.fixtures [coarse]")
+    else:
+        build()

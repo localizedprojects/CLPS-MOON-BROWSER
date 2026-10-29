@@ -344,6 +344,14 @@ void main() {
 
   test('§5 callout words: precise mask first, the drawn terrain only when it differs', () {
     expect(landerPreciseWord('up'), 'in view');
+    // a lunar eclipse: Earth, not terrain, hides the Sun (MP1, 2026-03-03 11:30 UTC)
+    expect(landerSunEclipseWord('behind terrain', eclipse: 1, hides: true), 'hidden by Earth (lunar eclipse)');
+    expect(landerSunEclipseWord('in view', eclipse: 0.62, hides: false), 'in view, 62 % covered by Earth (lunar eclipse)');
+    expect(landerSunEclipseWord('partly hidden', eclipse: 0.3, hides: false),
+        'partly hidden, 30 % covered by Earth (lunar eclipse)');
+    expect(landerSunEclipseWord('in view', eclipse: 0.001, hides: false), 'in view');
+    expect(landerSunEclipseWord('behind terrain', eclipse: 0.5, hides: false), 'behind terrain');
+    expect(landerSunEclipseWord('below horizon', eclipse: 0, hides: false), 'below horizon');
     expect(landerPreciseWord('noDsn'), 'in view');
     expect(landerPreciseWord('partly'), 'partly hidden');
     expect(landerPreciseWord('notCounted'), 'partly hidden');
@@ -360,6 +368,12 @@ void main() {
     expect(painter('behind terrain').calloutLines(behind, true), ['Sun · az 123.4° · el +0.9°', 'behind terrain']);
     expect(painter('below horizon').calloutLines((az: -9.0, el: -2.25, rhoDeg: 0.95, state: SkyState.belowHorizon), false),
         ['Earth · az 351.0° · el -2.3°', 'below horizon']);
+    // an eclipse: the terrain line only when the terrain word itself differs
+    const up = (az: 6.9, el: 3.9, rhoDeg: 0.27, state: SkyState.up);
+    expect(painter('in view, 62 % covered by Earth (lunar eclipse)').calloutLines(up, true),
+        ['Sun · az 6.9° · el +3.9°', 'in view, 62 % covered by Earth (lunar eclipse)']);
+    expect(painter('hidden by Earth (lunar eclipse)').calloutLines(up, true),
+        ['Sun · az 6.9° · el +3.9°', 'hidden by Earth (lunar eclipse)', '400 m terrain here: in view, skyline +1.1°']);
   });
 
   test('elevation scale steps adapt to the zoom (1/2/5/10°)', () {

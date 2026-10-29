@@ -49,6 +49,19 @@ String landerPreciseWord(String code) => switch (code) {
       _ => 'behind terrain',
     };
 
+/// The Sun's callout word during a lunar eclipse (§4.3, as the status line's
+/// verdict): "hidden by Earth (lunar eclipse)" when Earth's disk stops the Sun
+/// counting under the user's rule ([hides]), the share of the whole disk
+/// behind Earth ([eclipse], 0..1) added to an "in view" / "partly hidden"
+/// [word], else [word] unchanged (a terrain word is never replaced by Earth).
+String landerSunEclipseWord(String word, {required double eclipse, required bool hides}) {
+  if (hides) return 'hidden by Earth (lunar eclipse)';
+  if (eclipse >= 0.005 && (word == 'in view' || word == 'partly hidden')) {
+    return '$word, ${(eclipse * 100).round()} % covered by Earth (lunar eclipse)';
+  }
+  return word;
+}
+
 /// The play badge (§6): a separate short FidelityBadge while playing.
 String landerPlayFidelity({required bool web}) =>
     'Approximate: while playing, light from coarser grids (800 m, 1.6 km beyond 64 km); pause for detail.'
@@ -312,7 +325,12 @@ class LanderViewPanelState extends State<LanderViewPanel> with TickerProviderSta
           bodyStateShort(visible: m['visible'] == true, elDeg: n('el'), rhoDeg: n('rho'), frac: n('frac')));
     }
 
-    return (sun: word('sun'), earth: word('earth'));
+    final sm = _now!['sun'] as Map<String, dynamic>;
+    return (
+      sun: landerSunEclipseWord(word('sun'),
+          eclipse: (sm['eclipse'] as num?)?.toDouble() ?? 0, hides: sm['eclipseHides'] == true),
+      earth: word('earth'),
+    );
   }
 
   void _refreshText({bool live = false}) {
@@ -491,7 +509,7 @@ class LanderViewPanelState extends State<LanderViewPanel> with TickerProviderSta
     final near = _nearFrame, far = _far != null && near != null && _far!.request.tMs == near.request.tMs;
     final h = s.observerHeightM;
     final notes = <String>[
-      if (widget.layer != LightLayer.earth && words.sun != 'in view' && words.sun != 'partly hidden')
+      if (widget.layer != LightLayer.earth && !words.sun.startsWith('in view') && !words.sun.startsWith('partly hidden'))
         'No direct sunlight here now. Ground in shadow is drawn dark; Earthshine is not computed.',
       if (near != null && !far)
         'Grey ground: light not computed (beyond 64 km${s.playing ? ', not computed while playing on the web' : ''}).',
@@ -838,7 +856,8 @@ class LanderPainter extends CustomPainter {
     return [
       '${isSun ? 'Sun' : 'Earth'} · az ${((b.az % 360 + 360) % 360).toStringAsFixed(1)}° · el ${sgn(b.el)}',
       word,
-      if (mesh != word && sky != null) '400 m terrain here: $mesh, skyline ${sgn(sky)}',
+      // (an eclipse's share after the comma is not a terrain word)
+      if (mesh != word.split(',').first && sky != null) '400 m terrain here: $mesh, skyline ${sgn(sky)}',
     ];
   }
 
@@ -848,7 +867,7 @@ class LanderPainter extends CustomPainter {
     final a = calloutAnchor(v, b);
     if (a == null) return null;
     final color = isSun ? PH.sun : PH.earth;
-    final lines = calloutLines(b, isSun), up = lines[1] == 'in view' || lines[1] == 'partly hidden';
+    final lines = calloutLines(b, isSun), up = lines[1].startsWith('in view') || lines[1].startsWith('partly hidden');
     final lead = Paint()
       ..color = PH.text.withValues(alpha: 0.7)
       ..strokeWidth = 1;

@@ -18,7 +18,7 @@ void main() {
   });
   tearDownAll(() => state.dispose());
 
-  Future<void> pumpLearn(WidgetTester tester, {double w = 390, double h = 2400, double text = 1}) async {
+  Future<void> pumpLearn(WidgetTester tester, {double w = 390, double h = 6000, double text = 1}) async {
     tester.view.physicalSize = Size(w, h);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
@@ -48,17 +48,18 @@ void main() {
   testWidgets('it says the scope, why Apollo is absent, the groups (CLPS named) and how to add a spot', (tester) async {
     await pumpLearn(tester);
     expect(find.textContaining('every spot you add, lies south of 80°S'), findsOneWidget);
-    expect(find.textContaining('Apollo and the other landing sites near the equator are outside it'), findsOneWidget);
+    expect(find.textContaining('Apollo and other sites near the equator are outside it'), findsOneWidget);
     expect(find.textContaining('NASA\'s CLPS landers, Artemis'), findsOneWidget);
     expect(find.textContaining('Commercial Lunar Payload Services (CLPS)'), findsOneWidget);
     expect(find.textContaining('Odysseus'), findsOneWidget);
     expect(find.textContaining('Athena'), findsOneWidget);
-    expect(find.textContaining('VIPER rover'), findsOneWidget);
+    expect(find.textContaining('NASA\'s VIPER rover'), findsOneWidget);
     expect(find.textContaining('De Rosa et al.'), findsOneWidget);
     expect(find.textContaining('ESA\'s planned Lunar Lander'), findsOneWidget);
     expect(find.textContaining('not official landing points'), findsOneWidget);
     expect(find.textContaining('Add a spot by coordinates…'), findsOneWidget);
-    expect(find.textContaining('the Sun skims the horizon'), findsOneWidget);
+    expect(find.textContaining('the Sun skims the horizon, so hills kilometres away'), findsOneWidget);
+    expect(find.textContaining('lunar day lasts about 29.5 Earth days'), findsOneWidget);
     expect(find.textContaining('no twilight and no refraction'), findsOneWidget);
     expect(find.textContaining('libration'), findsWidgets);
   });
@@ -81,8 +82,8 @@ void main() {
     // an overflow on the way reports through FlutterError and fails the test
     final list = find.byType(Scrollable).first;
     await tester.scrollUntilVisible(find.text('What this tool covers'), 300, scrollable: list, maxScrolls: 100);
-    await tester.scrollUntilVisible(find.textContaining('only bobbing up and down with libration'), 300,
+    await tester.scrollUntilVisible(find.textContaining('bobbing up and down with libration'), 300,
         scrollable: list, maxScrolls: 100);
-    expect(find.textContaining('only bobbing up and down with libration'), findsOneWidget);
+    expect(find.textContaining('bobbing up and down with libration'), findsOneWidget);
   });
 }

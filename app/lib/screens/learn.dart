@@ -134,28 +134,26 @@ class _Intro extends StatelessWidget {
 class _Coverage extends StatelessWidget {
   const _Coverage();
 
-  static const scope = 'Only the Moon\'s south pole: every site here, and every spot you add, lies south of 80°S. '
-      'That is where the app has loaded the NASA LOLA terrain it needs to draw each skyline, and where NASA\'s CLPS '
-      'landers, Artemis and other countries\' polar missions are going. Apollo and the other landing sites near the '
-      'equator are outside it.';
+  static const scope = 'Only the Moon\'s south pole: every site, and every spot you add, lies south of 80°S. That is '
+      'where the app has loaded the NASA LOLA terrain the skylines need, and where NASA\'s CLPS landers, Artemis and '
+      'other countries\' polar missions are going. Apollo and other sites near the equator are outside it.';
 
   /// The catalogue's groups, as the site list names them, in plain words.
   static const groups = <(String, String)>[
-    ('Missions', 'where Intuitive Machines\' landers IM-1 Odysseus (February 2024) and IM-2 Athena (March 2025) came '
-        'down, both flown for NASA\'s Commercial Lunar Payload Services (CLPS), and the planned area for NASA\'s VIPER rover.'),
-    ('Artemis III candidate regions', 'approximate centres of NASA\'s candidate landing regions (October 2024 list), '
-        'each about 15 by 15 km; not official landing points.'),
-    ('High-illumination points', 'the candidate sites of De Rosa et al. (2012), a study for ESA\'s planned Lunar '
-        'Lander that looked for well-lit places.'),
+    ('Missions', 'IM-1 Odysseus (2024) and IM-2 Athena (2025), Intuitive Machines landers flown for NASA\'s Commercial '
+        'Lunar Payload Services (CLPS), and the planned area of NASA\'s VIPER rover.'),
+    ('Artemis III candidate regions', 'approximate centres of NASA\'s October 2024 regions, each about 15 by 15 km; '
+        'not official landing points.'),
+    ('High-illumination points', 'candidate sites for ESA\'s planned Lunar Lander, from De Rosa et al. (2012).'),
   ];
 
-  static const addYourOwn = 'To test any other spot south of 80°S, tap the Explore map or choose "Add a spot by '
-      'coordinates…" there. Your own spots use a coarser terrain map and are marked approximate.';
+  static const addYourOwn = 'To test another spot south of 80°S, tap the Explore map or use "Add a spot by '
+      'coordinates…" there; your own spots are marked approximate.';
 
   static const whyHard = 'Near the pole the Sun skims the horizon, so hills kilometres away cast shadows tens of '
       'kilometres long, and a lunar day lasts about 29.5 Earth days, so a shaded spot can stay dark for days or weeks. '
-      'Unlike on Earth there is no air, so no twilight and no refraction, and Earth hangs low in roughly the same '
-      'direction, only bobbing up and down with libration.';
+      'With no air there is no twilight and no refraction, and Earth stays low in roughly the same direction, only '
+      'bobbing up and down with libration.';
 
   @override
   Widget build(BuildContext context) => Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [

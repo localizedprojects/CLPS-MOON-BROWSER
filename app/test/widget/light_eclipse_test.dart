@@ -136,7 +136,7 @@ void main() {
       String sunLine() => tester
           .widgetList<RichText>(find.byType(RichText, skipOffstage: false))
           .map((r) => r.text.toPlainText())
-          .firstWhere((t) => t.startsWith('Sun'));
+          .firstWhere((t) => t.startsWith('Sun:'));
       String legendNote() => tester.widget<Text>(find.byKey(const ValueKey('light-eclipse-legend'))).data!;
       List<String> badges() => tester.widgetList<FidelityBadge>(find.byType(FidelityBadge)).map((b) => b.text).toList();
 

@@ -118,6 +118,33 @@ void expectSameMesh(LanderMesh a, LanderMesh b) {
   expect(a.cam.eyeM.toString(), b.cam.eyeM.toString());
 }
 
+/// computeCoarseHorizon's 2 m mask (same samples and arithmetic) from the
+/// coarse distances >= [minM] only.
+Float64List coarseFrom(PolarGrid grid, double latDeg, double lonDeg, double minM) {
+  final hSite = grid.sampleLatLon(latDeg, lonDeg), enu = Enu.at(latDeg, lonDeg);
+  final ds = coarseDistances().where((x) => x >= minM).toList();
+  final out = Float64List((360 / coarseAzStepDeg).round());
+  for (var i = 0; i < out.length; i++) {
+    final a = i * coarseAzStepDeg * deg;
+    final dx = math.cos(a) * enu.north.x + math.sin(a) * enu.east.x;
+    final dy = math.cos(a) * enu.north.y + math.sin(a) * enu.east.y;
+    final dz = math.cos(a) * enu.north.z + math.sin(a) * enu.east.z;
+    var best = double.negativeInfinity;
+    for (final d in ds) {
+      final t = d / rM, ct = math.cos(t), st = math.sin(t);
+      final ux = ct * enu.up.x + st * dx, uy = ct * enu.up.y + st * dy, uz = ct * enu.up.z + st * dz;
+      final k = 2.0 * rM / (1.0 - uz);
+      final h = grid.sampleXY(k * uy, k * ux);
+      if (h.isNaN) continue;
+      final r = rM + h;
+      final el = math.atan2(r * ct - (rM + hSite + 2.0), r * st);
+      if (el > best) best = el;
+    }
+    out[i] = best.isFinite ? best * rad : -90.0;
+  }
+  return out;
+}
+
 void main() {
   test('blockMeanRow keeps ShadowGrid z bit-identical (ds 1, 2, 4)', () {
     final rnd = math.Random(11);
@@ -273,7 +300,15 @@ void main() {
     var nearKept = 0, nearAll = 0;
     for (var t = 0; t < m.triangleCount; t++) {
       if (m.part[m.tri[3 * t]] == 0) continue;
-      expect(dmin(m, t), lessThanOrEqualTo(dHor + px));
+      // One cell diagonal, not one cell: the ground's elevation is stationary at
+      // the geometric horizon (d el / d dist = 0 there), so ground x metres
+      // beyond it lies only h·x²/dHor³ below the horizon ray (x = 400 m:
+      // 1.7e-5 rad, 0.001°). The cull's bounds give up about as much: an
+      // occluder counts at its lowest vertex, up to one 400 m fan triangle
+      // from the horizon (1.7e-5 rad), minus the arc bulge (~4e-6 rad per
+      // triangle at 0.087°). They prove hiding from about √2 cells on
+      // (x = 566 m: 3.5e-5 rad); the farthest kept triangle measured 3077 m.
+      expect(dmin(m, t), lessThanOrEqualTo(dHor + math.sqrt2 * px));
       if (dmax(m, t) < dHor - px) nearKept++;
     }
     for (var t = 0; t < all.triangleCount; t++) {
@@ -306,16 +341,39 @@ void main() {
 
     test('skyline matches computeCoarseHorizon on the shipped DEM', () {
       for (final e in spots.entries) {
+        final (lat, lon) = e.value;
         final m = meshes[e.key]!;
-        final ref = computeCoarseHorizon(grid, e.value.$1, e.value.$2, observerHeightsM: const [2.0]).masks[2.0]!.elevDeg;
-        final sky = meshSkyline(m, minDistM: coarseMinM);
-        expect(sky.length, ref.length);
-        final d = [for (var i = 0; i < sky.length; i++) (sky[i] - ref[i]).abs()]..sort();
+        // Geometry is compared on the unculled mesh: culling rightly drops far
+        // triangles hidden by nearer ground (dmin < 600 m), which a minDist-600
+        // skyline leaves out. Culling keeps the whole skyline exactly:
+        final all =
+            buildLanderMesh(grid.heights, grid.size, grid.scaleM, latDeg: lat, lonDeg: lon, observerHeightM: 2, cull: false);
+        expect(meshSkyline(m, minDistM: 0), meshSkyline(all, minDistM: 0), reason: e.key);
+        final hi = computeCoarseHorizon(grid, lat, lon, observerHeightsM: const [2.0]).masks[2.0]!.elevDeg;
+        expect(coarseFrom(grid, lat, lon, coarseMinM), hi, reason: '${e.key}: the test copy of the coarse horizon');
+        // meshSkyline keeps whole triangles with dmin >= 600 m. They hold no
+        // ground nearer than 600 m, and all ground beyond 600 m + one cell (a
+        // part 1 fan triangle is at most one 400 m cell across; part 0 and the
+        // part 1 cells inside 800 m are not in parts 1-2 at minDist 600). So
+        // where the coarse maximum lies in that 600-1000 m band the mesh may
+        // lie anywhere between the coarse horizon from 1000 m (lo) and from
+        // 600 m (hi). Elsewhere lo == hi and Δ is the plain difference.
+        final lo = coarseFrom(grid, lat, lon, coarseMinM + grid.scaleM);
+        final sky = meshSkyline(all, minDistM: coarseMinM);
+        expect(sky.length, hi.length);
+        var plain = 0;
+        final d = <double>[];
+        for (var i = 0; i < sky.length; i++) {
+          if (lo[i] == hi[i]) plain++;
+          d.add(sky[i] > hi[i] ? sky[i] - hi[i] : (sky[i] < lo[i] ? lo[i] - sky[i] : 0.0));
+        }
+        d.sort();
         final mean = d.reduce((a, b) => a + b) / d.length, p95 = d[(0.95 * (d.length - 1)).round()], mx = d.last;
         // ignore: avoid_print
         print('T5 ${e.key}: mean ${mean.toStringAsFixed(3)}°, p95 ${p95.toStringAsFixed(3)}°, '
-            'max ${mx.toStringAsFixed(3)}°, kept ${m.vertexCount} of ${m.gridVerticesBeforeCull} grid vertices, '
-            '${m.triangleCount} triangles');
+            'max ${mx.toStringAsFixed(3)}°, plain at $plain of ${d.length} azimuths, '
+            'kept ${m.vertexCount} of ${m.gridVerticesBeforeCull} grid vertices, ${m.triangleCount} triangles');
+        expect(plain, greaterThan(d.length ~/ 3), reason: '${e.key}: the 600-1000 m band must not carry most azimuths');
         expect(mean, lessThanOrEqualTo(0.05), reason: e.key);
         expect(p95, lessThanOrEqualTo(0.2), reason: e.key);
         expect(mx, lessThanOrEqualTo(0.4), reason: e.key);
@@ -516,7 +574,13 @@ void main() {
       final dem = smoothDem(n, seed);
       final kept = buildLanderMesh(dem, n, px, latDeg: lat, lonDeg: lon, observerHeightM: 2);
       final all = buildLanderMesh(dem, n, px, latDeg: lat, lonDeg: lon, observerHeightM: 2, cull: false);
-      expect(meshSkyline(kept), meshSkyline(all), reason: 'seed $seed');
+      // The whole skyline of the cullable parts (minDist 0) is the invariant. The
+      // default minDist-800 skyline is not: a far triangle hidden by a nearer
+      // part 1 triangle with dmin < 800 m is rightly culled, and that occluder
+      // is not in a minDist-800 skyline (seed 3 loses 0.18° at one azimuth).
+      // The stored far skyline is computed before culling, so it stays exact.
+      expect(meshSkyline(kept, minDistM: 0), meshSkyline(all, minDistM: 0), reason: 'seed $seed');
+      expect(kept.skyline, meshSkyline(all), reason: 'seed $seed');
       expect(kept.triangleCount, lessThan(all.triangleCount));
       if (seed == 0) expect(all.part.contains(2), isTrue);
       // brute force: a vertex above every nearer triangle at its azimuth is visible

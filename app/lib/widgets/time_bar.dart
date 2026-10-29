@@ -10,7 +10,7 @@ import 'package:flutter/semantics.dart' show SemanticsService;
 
 import '../core/metrics.dart' show NextStretch, bothAt;
 import '../core/summary.dart' show date;
-import '../core/wording.dart' show everyStep, fmtDuration, periodDates;
+import '../core/wording.dart' show fmtDuration, periodDates;
 import '../state/app_state.dart';
 import '../theme.dart';
 import 'chart_bridge.dart' show utcLabel;
@@ -49,6 +49,15 @@ import 'feature_guide.dart';
   final snapped = startMs + ((want - startMs) / stepMs).round() * stepMs;
   final t = snapped.clamp(startMs, last);
   return (t, want < startMs || want > last);
+}
+
+/// The sample step in the time picker's one-line title: "10 min", "30 min",
+/// "hour" (the title must fit one line: the picker's input layout has a
+/// fixed height).
+String stepShort(double stepMs) {
+  final min = (stepMs / 60e3).round();
+  if (min == 60) return 'hour';
+  return min % 60 == 0 ? '${min ~/ 60} h' : '$min min';
 }
 
 /// The time bar's link to the next Sun + Earth stretch from the cursor: a good
@@ -143,7 +152,7 @@ class _TimeScrubberState extends State<TimeScrubber> {
     final time = await showTimePicker(
       context: context,
       initialTime: TimeOfDay(hour: cur.hour, minute: cur.minute),
-      helpText: 'Time shown (UTC), to the nearest sample (${everyStep(step)})',
+      helpText: 'UTC time · nearest ${stepShort(step)}',
       // UTC on a 24-hour clock, whatever the device's own setting
       builder: (context, child) =>
           MediaQuery(data: MediaQuery.of(context).copyWith(alwaysUse24HourFormat: true), child: child!),

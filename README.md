@@ -111,6 +111,7 @@ The work is split between offline precomputation and on-device computation:
   - Preset sites use the 80 m DEM, then the 240 m DEM, with rays marched to 600 km (the 240 m grid ends at 75°S, about 457 km from the pole, and nothing beyond it is sampled), at a 0.25° azimuth step, for 2 m and 10 m observers.
   - Custom sites use the 400 m DEM, computed on the device, at a 0.5° step out to 300 km. That DEM is the 80 m DEM averaged to 400 m inside 80°S and the 120 m DEM (`LDEM_75S_120M`) averaged to 400 m beyond it, out to about 456 km from the pole (75.05°S on the axes).
 - **Visibility.** The Sun's and Earth's angular radius is asin(R / r). The visible fraction of each disk is integrated over 16 strips against the jagged horizon (§6).
+- **Lunar eclipses.** When Earth passes in front of the Sun (a lunar eclipse seen from Earth), the part of the Sun behind Earth's disk is removed from each strip in the same integration, so a sunlit site gets no power during totality (§6.5). The shipped 2025–2035 data holds 19 such events, about 2.4 h of total cover per year at the pole.
 - **Power proxy.** 1361 W/m² × (1 au / r)² × the visible fraction of the solar disk: the sunlight on a panel facing the Sun (§7). A vertical panel turned toward the Sun would get cos(elevation) times this: within 0.1 % while the Sun is below 2.5° (most of the time near the pole), about 2 % at the 11° the Sun can reach at 80°S.
 - **DSN check.** At least one of Goldstone, Madrid or Canberra must see the Moon's centre at 10° elevation or more. Earth orientation comes from ITRF93 (§8).
 - **Metrics** (§9):
@@ -296,6 +297,7 @@ The app does **not** model surface composition, water ice, temperature, dust, bo
 - **Visibility rules.**
   - By default the Sun counts as visible when any part of its disk is above the terrain; this is the LOLA convention. The Earth counts as visible when its centre is above the terrain.
   - Both rules can be changed in the mission settings.
+  - The Sun also counts as hidden where Earth covers it (lunar eclipses): any rule needs an uncovered part above the terrain, the centre rule needs the centre outside Earth's disk, and the whole-disk rule fails on any overlap. Earth is modelled as a sharp sphere of its equatorial radius (no atmosphere ring, no flattening), and the 18.6-year averages under About this site leave eclipses out (at most about 0.03 percentage points).
 - **Power.** The power figure is incident irradiance on a panel facing the Sun (no cos(elevation) factor). It is not electrical output: there is no model of panel efficiency, orientation limits, batteries or thermal effects.
 - **Communication.** Earth visibility does not include lunar-surface multipath, antenna masks or link budgets.
 - **The DSN rule** is optional and off by default.

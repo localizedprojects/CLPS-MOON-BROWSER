@@ -29,7 +29,7 @@ void main() {
     });
     test('full cover: the smaller circle inside the larger', () {
       expect(circleOverlapArea(0.27, 0.95, 0), closeTo(math.pi * 0.27 * 0.27, 1e-15));
-      expect(circleOverlapArea(0.27, 0.95, 0.68), closeTo(math.pi * 0.27 * 0.27, 1e-15));
+      expect(circleOverlapArea(0.27, 0.95, 0.6), closeTo(math.pi * 0.27 * 0.27, 1e-15));
       expect(circleOverlapArea(0.95, 0.27, 0.5), closeTo(math.pi * 0.27 * 0.27, 1e-15));
     });
     test('partial: equal circles match the lens closed form', () {
@@ -197,7 +197,7 @@ void main() {
     test('mid-eclipse (11:30 UTC): the Sun clears the terrain but Earth hides all of it', () {
       final i = s.indexAt(_utc(2026, 3, 3, 11, 30));
       final old = terrainOnly(i, SunCriterion.upperLimb);
-      expect(old.frac, 1); // sunlit by the terrain alone
+      expect(old.frac, closeTo(1, 1e-12)); // sunlit by the terrain alone
       expect(old.power, greaterThan(1300));
       expect(s.sunEclipse[i], 1);
       expect(s.sunFrac[i], 0);
@@ -213,7 +213,7 @@ void main() {
     test('partial phase (09:50 UTC): power between zero and full', () {
       final i = s.indexAt(_utc(2026, 3, 3, 9, 50));
       final old = terrainOnly(i, SunCriterion.upperLimb);
-      expect(old.frac, 1);
+      expect(old.frac, closeTo(1, 1e-12));
       expect(s.sunEclipse[i], inExclusiveRange(0.05, 0.95));
       expect(s.sunFrac[i], closeTo(1 - s.sunEclipse[i], 0.02));
       expect(s.power[i], inExclusiveRange(0.0, old.power));

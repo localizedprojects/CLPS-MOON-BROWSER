@@ -56,6 +56,7 @@ On Windows, the venv Python is `.venv\Scripts\python.exe`. Run pipeline commands
 - Local ENU uses the spherical normal. Azimuth is clockwise from north, where north means increasing latitude, i.e. away from the pole. At lat −90°, north is the site's meridian.
 - Sun angular radius = asin(695700 / r). Earth angular radius = asin(6378.1366 / r). The visible fraction uses 16-strip integration against the horizon mask.
 - Sun criteria: `center` | `upperLimb` (any part; the default) | `fullDisk`. The power proxy is 1361 W/m² × (1 au / r)² × visibleFraction.
+- Lunar eclipses (deliberate, documented change of 2026-10-29; `formula.md` §6.5): the Sun's visible fraction also excludes the part of its disk behind Earth's disk (both apparent `LT+S`, planar two-circle overlap), removed per strip inside the 16-strip integration. `center` also needs the Sun's centre outside Earth's disk and `fullDisk` needs no overlap; `SiteSeries.sunEclipse` keeps the covered share. Earth and DSN visibility are unaffected. The pipeline's 18.6-year averages do not include it yet.
 - DSN-in-view: Moon center elevation ≥ 10° at Goldstone, Madrid, or Canberra, with Earth orientation from ITRF93 (`earth_1962_*_combined.bpc`). Do not use IAU_EARTH, which is off by about 0.1°.
 - LOLA polar stereographic projection: lon 0 points up, 90°E points right. For a unit vector u, x = 2R·uy/(1−uz) and y = 2R·ux/(1−uz). This is verified against Shackleton and Mons Mouton.
 

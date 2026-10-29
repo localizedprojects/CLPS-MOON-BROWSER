@@ -7,10 +7,13 @@ import 'package:flutter/semantics.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:polar_horizon/state/app_state.dart';
 import 'package:polar_horizon/theme.dart';
+import 'package:polar_horizon/widgets/chart_bridge.dart' show utcLabel;
 import 'package:polar_horizon/widgets/explain.dart' show explainTimeline;
 import 'package:polar_horizon/widgets/time_bar.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+import 'light_test_fonts.dart';
 
 double _utc(int y, int m, int d, [int h = 0, int min = 0]) => DateTime.utc(y, m, d, h, min).millisecondsSinceEpoch.toDouble();
 
@@ -25,6 +28,13 @@ void main() {
       // a last sample before the start (a degenerate period) never puts the last day first
       final (a, b) = cursorPickerDays(_utc(2027, 3, 10, 12), _utc(2027, 3, 9));
       expect(b, a);
+    });
+
+    test('stepShort: the sample step in the time picker title', () {
+      expect(stepShort(600e3), '10 min');
+      expect(stepShort(1800e3), '30 min');
+      expect(stepShort(3600e3), 'hour');
+      expect(stepShort(7200e3), '2 h');
     });
 
     test('pickedCursorMs: the nearest sample, inside the period', () {
@@ -47,6 +57,8 @@ void main() {
 
     setUpAll(() async {
       SharedPreferences.setMockInitialValues({});
+      // the real fonts, so the pickers' one-line titles are measured as on a device
+      await loadPlexFonts();
       state = AppState();
       await state.init();
       // 10 Mar 2027 12:00 to 5 Apr 2027 (exclusive): 10-min samples
@@ -71,7 +83,7 @@ void main() {
     final button = find.byKey(const ValueKey('time-pick'));
 
     Future<void> enterTime(WidgetTester tester, String h, String m) async {
-      expect(find.text('Time shown (UTC), to the nearest sample (every 10 minutes)'), findsOneWidget);
+      expect(find.text('UTC time · nearest 10 min'), findsOneWidget);
       await tester.tap(find.byTooltip('Switch to text input mode'));
       await tester.pumpAndSettle();
       final fields = find.descendant(of: find.byType(Dialog), matching: find.byType(TextField));
@@ -91,11 +103,11 @@ void main() {
       expect(r.height, greaterThanOrEqualTo(48));
       final handle = tester.ensureSemantics();
       expect(
-          tester.getSemantics(find.bySemanticsLabel(RegExp(r'^Time shown: .*20 Mar 2027.*UTC\. Choose an exact date and time$'))),
+          tester.getSemantics(find.bySemanticsLabel(RegExp(r'^Time shown: 2027-03-20 12:00 UTC\. Choose an exact date and time$'))),
           matchesSemantics(
               isButton: true,
               hasTapAction: true,
-              label: 'Time shown: ${utcLabelFor(state.cursorMs)}. Choose an exact date and time'));
+              label: 'Time shown: ${utcLabel(state.cursorMs)}. Choose an exact date and time'));
       handle.dispose();
     });
 
@@ -183,9 +195,4 @@ void main() {
     expect(explainTimeline.body, contains('Tapping the chart shows it full screen as a still picture'));
     expect(explainTimeline.body, contains('tap the date and time to pick an exact moment (UTC)'));
   });
-}
-
-String utcLabelFor(double ms) {
-  final (day, time) = utcTwoLines(ms);
-  return '$day $time';
 }

@@ -622,6 +622,53 @@ E_i^{0}=\begin{cases}e_\oplus>H_\oplus(a_\oplus) & \texttt{center}\ \text{(defau
 - The defaults are set in `SeriesOptions` (`timeseries.dart:33-38`).
 - If `requireDsn` is set, Earth visibility is also ANDed with the DSN mask (§8, §9.3; `timeseries.dart:156`).
 - The pipeline long-term statistics use $f>0$ (any part) for both bodies (`sites.py:83-84,109-111`; §9.6).
+- During a lunar eclipse (§6.5) $f_\odot$ already excludes the part of the Sun behind Earth, `center` also needs the Sun's centre outside Earth's disk ($d \ge \rho_\oplus$), and `fullDisk` also needs no overlap at all ($\epsilon_\odot = 0$). Earth visibility and the DSN check are unaffected.
+
+### 6.5 Earth in front of the Sun (lunar eclipses)
+
+Source: `eclipse.dart`, `visibility.dart` (`visibleFraction`'s `occulter`, `sunVisible`'s `eclipse` and `centreHidden`), applied at `fillSeries` (`timeseries.dart`). Added 2026-10-29: before this, a sunlit site counted as fully sunlit at full power while Earth hid the Sun (for example the total lunar eclipse of 2026-03-03, about 10:55–12:06 UTC as seen from the pole).
+
+**Geometry.** The Sun and Earth directions are the apparent (LT+S, `MOON_ME`) topocentric ones of §3.2, the radii those of §6.1, and $d$ is their haversine separation (§3.4). The disks overlap only when $d < \rho_\odot + \rho_\oplus \approx 1.22°$, so the sky is treated as a plane there (small-angle geometry; the error is under $10^{-4}$ of the disk area). The share of the Sun's disk behind Earth is the two-circle lens area over the Sun's area:
+
+$$A(r_1,r_2,d)=r_1^2\arccos\frac{d^2+r_1^2-r_2^2}{2dr_1}+r_2^2\arccos\frac{d^2+r_2^2-r_1^2}{2dr_2}-\tfrac12\sqrt{(-d+r_1+r_2)(d+r_1-r_2)(d-r_1+r_2)(d+r_1+r_2)}$$
+
+$$\epsilon_\odot=\frac{A(\rho_\odot,\rho_\oplus,d)}{\pi\rho_\odot^2}\ \ (0\ \text{if}\ d\ge\rho_\odot+\rho_\oplus,\ 1\ \text{if}\ d\le\rho_\oplus-\rho_\odot)$$
+
+$\epsilon_\odot$ ignores the terrain and is kept per sample as `SiteSeries.sunEclipse` (0 at almost every sample), so the interface can say "Earth hides the Sun (lunar eclipse)".
+
+**Combined with the terrain inside the 16-strip integration** (§6.2). Earth's centre is placed on the plane tangent to the sky at the Sun, $(\Delta u,\Delta v)$ = its east-like and up-like offsets scaled to length $d$. Strip $k$ (at $u_k=\xi_k\rho_\odot$) keeps only the part of its above-terrain chord $[\max(e_c-\eta_k\rho,H_k),\ e_c+\eta_k\rho]$ that lies outside Earth's chord $e_c+\Delta v\pm\sqrt{\rho_\oplus^2-(u_k-\Delta u)^2}$. Terrain and Earth therefore never count the same part of the Sun twice, which the product $f_{\rm terrain}(1-\epsilon_\odot)$ would. When the disks do not overlap no occulter is passed, and every sample is bit-for-bit the terrain-only result (tested over the 2026-03-03 window and a full week).
+
+**Accuracy.** Above a flat horizon the 16-strip result follows $1-\epsilon_\odot$ to within 1.7 % of the disk (worst case over separations and position angles; exact at no overlap and at total cover; test bound 2 %, `eclipse_test.dart`). On the 16 presets during the 2026-03-03 eclipse the product rule would have differed from the strip result by at most 0.004 (Shackleton vicinity peak, 09:42 UTC).
+
+**Not modelled.** Earth is a sharp sphere of its equatorial radius: its flattening (polar radius 6356.75 km), the ring of sunlight refracted by its atmosphere (which reddens the eclipsed Moon but carries well under 0.1 % of full sunlight) and the about 2 % wider effective shadow are left out. The visible fraction is an area share with no limb darkening, as in §6.2.
+
+**Eclipses in the shipped ephemeris** (2025–2035, observer 0 m above the sphere at 89.9°S, 1-minute scan; times UTC; "total" = the whole Sun behind Earth, "centre" = the Sun's centre behind Earth; sites up to about 6° from the pole see slightly different depths because Earth's parallax there is up to about 0.26°):
+
+| Peak (min. separation) | Overlap | Peak cover | Total | Centre hidden |
+|---|---|---|---|---|
+| 2025-03-14 06:55 | 04:23–09:28 | 100 % | 166 min | 235 min |
+| 2025-09-07 18:15 | 16:13–20:19 | 100 % | 106 min | 180 min |
+| 2026-03-03 11:30 | 09:27–13:34 | 100 % | 71 min | 171 min |
+| 2026-08-28 04:17 | 01:54–06:41 | 100 % | 155 min | 222 min |
+| 2027-08-17 07:18 | 05:42–08:54 | 45.5 % | 0 | 0 |
+| 2028-01-12 04:10 | 02:20–06:00 | 100 % | 39 min | 148 min |
+| 2028-07-06 18:24 | 17:01–19:47 | 34.3 % | 0 | 0 |
+| 2028-12-31 16:48 | 14:28–19:10 | 100 % | 158 min | 220 min |
+| 2029-06-26 03:26 | 01:12–05:41 | 100 % | 149 min | 209 min |
+| 2029-12-20 22:38 | 20:27–00:49 (+1 d) | 100 % | 65 min | 177 min |
+| 2030-06-15 18:37 | 16:37–20:38 | 100 % | 117 min | 181 min |
+| 2031-06-05 11:47 | 11:09–12:27 | 5.6 % | 0 | 0 |
+| 2031-10-30 07:42 | 06:00–09:24 | 68.5 % | 0 | 96 min |
+| 2032-04-25 15:18 | 13:12–17:24 | 100 % | 82 min | 176 min |
+| 2032-10-18 18:59 | 16:46–21:12 | 100 % | 152 min | 209 min |
+| 2033-04-14 19:17 | 16:45–21:50 | 100 % | 165 min | 235 min |
+| 2033-10-08 10:52 | 08:56–12:49 | 100 % | 100 min | 171 min |
+| 2034-04-03 19:10 | 17:14–21:07 | 80.4 % | 0 | 128 min |
+| 2035-08-19 01:07 | 23:01 (−1 d)–03:14 | 100 % | 57 min | 171 min |
+
+19 events in 11 years. Per year: 6.9 h with any overlap, 2.4 h of total cover, 4.4 h with the centre hidden, and 4.5 h of full sunlight lost ($\int\epsilon_\odot\,dt$). These match the lunar eclipses seen from Earth (a partial or penumbral one on Earth can be total from the south pole when the Moon passes north of the shadow's axis, as on 2026-08-28 and 2028-01-12).
+
+**The 18.6-year averages (§9.6) do not include eclipses**: they are pipeline output, and the SPICE kernels needed to recompute them were not available when this was added. At most the hours above can change them, and only when the site is otherwise sunlit: the any-part "Sunlit" and "Sun and Earth" values drop by at most $2.4/8766 \approx 0.03$ percentage points (below their 0.1 rounding), a centre-rule share by at most $0.05$ points, and the mean power by at most $4.5/8766 \approx 0.05\,\%$ of the full-Sun value.
 
 ---
 
@@ -632,7 +679,7 @@ Source: `visibility.py:61-63`, `visibility.dart:49-52`. $P$ is the irradiance on
 $$P = 1361\ \mathrm{W\,m^{-2}}\times\left(\frac{149\,597\,870.7\ \mathrm{km}}{r_\odot}\right)^{2} f_\odot$$
 
 - $r_\odot$ is the topocentric Sun range in km (`timeseries.dart:152`).
-- $f_\odot$ is the 16-strip visible fraction (§6.2).
+- $f_\odot$ is the 16-strip visible fraction (§6.2), with the part of the Sun behind Earth removed during a lunar eclipse (§6.5), so $P = 0$ at total cover.
 - Test values: $P(1, 1\,\mathrm{au}) = 1361$, $P(0.5, 1\,\mathrm{au}) = 680.5$ and $P(1, 2\,\mathrm{au}) = 340.25$ (`test_visibility.py:170-175`).
 
 Mean power and energy over a period are given in §9.4.
@@ -720,7 +767,8 @@ Source: `timeseries.dart:135-153`. For each $t_i$:
 | $(A_\odot,e_\odot,r_\odot)$, $(A_\oplus,e_\oplus,r_\oplus)$ | `obs.look(eph.sun(t))`, `obs.look(eph.earth(t))`: Lagrange-interpolated (§2.2) apparent Moon-centred vector minus the site vector (§3.2; `geo.dart:77-86`) | deg, deg, km |
 | $\rho_\odot=\arcsin(695700/r_\odot)$, $\rho_\oplus=\arcsin(6378.1366/r_\oplus)$ | §6.1; `visibility.dart:20`; `constants.dart:10,13` | deg |
 | $H_\odot=H(A_\odot)$, $H_\oplus=H(A_\oplus)$ | horizon mask at the disk-centre azimuth (§5.3; `horizon.dart:28-34`) | deg |
-| $f_\odot$, $f_\oplus$ | 16-strip visible fraction (§6.2; `visibility.dart:24-36`) | 0..1 |
+| $f_\odot$, $f_\oplus$ | 16-strip visible fraction (§6.2; `visibility.dart`); $f_\odot$ with Earth's disk removed (§6.5) | 0..1 |
+| $\epsilon_{\odot,i}$ (`sunEclipse`) | share of the Sun's disk behind Earth, terrain ignored (§6.5; `eclipse.dart`) | 0..1 |
 | $P_i = 1361\,(\mathrm{au}/r_\odot)^2\,f_\odot$ | `powerProxy` (§7; `visibility.dart:49-52`) | W m⁻² |
 | $D_i$ | `eph.dsnMask(t)`: DSN bitmask of the nearest hourly sample (§8; `ephemeris.dart:120-123`) | bits |
 
@@ -830,6 +878,8 @@ $(a,e)$ then come from the ENU basis (`geometry.py:48-56`), $\rho = \arcsin(R_b/
 **App long-term values** ($h_{\rm obs}=2$ m = `HORIZON_HEIGHTS_M[0]`, with the 2 m mask; `sites.py:87-88,109-111`; `config.py:129`). Each is rounded to 0.1:
 
 $$\text{longTermSunlitPct}=100\,\overline{[f_\odot>0]},\quad \text{longTermEarthPct}=100\,\overline{[f_\oplus>0]},\quad \text{longTermBothPct}=100\,\overline{[f_\odot>0]\wedge[f_\oplus>0]}$$
+
+These averages leave out lunar eclipses (Earth hiding the Sun, §6.5); including them would lower the Sun shares by at most about 0.03 percentage points.
 
 The Earth term here uses any part of the disk, but the app's default Earth criterion is the disk centre. These values are therefore not directly comparable to the app's default %Earth (the any-part share is the larger one).
 
@@ -1688,3 +1738,4 @@ No files other than this one were changed while writing it.
 13. **Earth status wording with the DSN required (fixed).** `earthStatusText(..., earthRule:, hzDeg:)` names the terrain first and blames the DSN only when Earth would count under the user's Earth rule without it. A partly risen Earth with its centre hidden now reads "... its centre is below the skyline ... (and no DSN station can see the Moon)". `nowAt` also sends `earth.terrainVisible` (the verdict before the DSN check), so the sky plot, the exact-numbers readout and the light-map arrow say "no DSN" instead of "hidden". The Sun status likewise says how much of the disk is up when a stricter Sun rule does not count it.
 14. **Stale code comment (fixed).** The `nowAt` doc comment no longer mentions the removed 360 view.
 15. **Light-map close-up near the map edge (fixed).** The close-up legend now counts its shares in a 64 km disc centred on the site's own pixel (`lightFrameShares`, `LightFrame.pixelOf`), and says what share of that disc lies on the map when less than 98% does (54% for IM-1 Odysseus). `shadow_test.dart` now tests three windows that really are clamped (right edge, top edge, bottom-left corner).
+16. **Lunar eclipses (fixed in the series, 2026-10-29).** The per-sample series (§9.2) now removes the part of the Sun behind Earth (§6.5), so the availability, metrics, power, score, calendar, landing window and CSV follow it. The 18.6-year averages (§9.6) still leave eclipses out (at most about 0.03 points). The single-instant paths that compute the Sun on their own (`nowAt` in `chart_bridge.dart` for the sky plot and status line, and the light map, §12) need the same `SunEclipse` term to agree with the series during an eclipse.

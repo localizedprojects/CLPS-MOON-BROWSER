@@ -6,7 +6,6 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:polar_horizon/core/eclipse.dart';
 import 'package:polar_horizon/core/geo.dart';
 import 'package:polar_horizon/core/shadow.dart' show lightEarth, lightSunAny, lightSunFull;
 import 'package:polar_horizon/core/visibility.dart';

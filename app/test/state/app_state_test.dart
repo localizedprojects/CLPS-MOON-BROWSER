@@ -173,7 +173,8 @@ void main() {
   });
 
   test('openSite never shows listeners Site with the previous site (one URL change)', () async {
-    final target = s.rankedAll[1].id;
+    // any ranked site other than the open one (which one is second depends on the catalogue)
+    final target = s.rankedAll.firstWhere((r) => r.id != s.selectedId).id;
     expect(s.selectedId, isNot(target));
     final seen = <(Dest, String)>[];
     void listener() => seen.add((s.dest, s.selectedId));

@@ -55,7 +55,7 @@ def test_cli_check_reports_up_to_date(capsys):
 
 def test_ids_are_exactly_the_presets_each_once(asset):
     ids = [s["id"] for s in RECORD["sites"]]
-    assert sorted(ids) == sorted(PRESET_IDS) and len(set(ids)) == len(ids) == 16
+    assert sorted(ids) == sorted(PRESET_IDS) and len(set(ids)) == len(ids) == 19
     assert sorted(asset["sites"]) == sorted(PRESET_IDS)
 
 

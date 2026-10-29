@@ -31,8 +31,8 @@ void main() {
   );
 
   group('catalogue', () {
-    test('16 cited presets with 2 m and 10 m masks', () {
-      expect(catalog.sites.length, 16);
+    test('19 cited presets with 2 m and 10 m masks', () {
+      expect(catalog.sites.length, 19);
       for (final s in catalog.sites) {
         expect(s.sources, isNotEmpty, reason: s.id);
         expect(catalog.mask(s.id, 2.0)!.length, 1440);

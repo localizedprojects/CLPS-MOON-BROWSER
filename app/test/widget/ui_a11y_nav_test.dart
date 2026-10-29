@@ -371,7 +371,8 @@ void main() {
       expect(find.text(earthMetricLabel(requireDsn: true)), findsOneWidget);
       expect(find.text(earthOutageLabel(requireDsn: true)), findsOneWidget);
       expect(find.textContaining('DSN station'), findsOneWidget);
-      expect(find.text('Mean power on a panel facing the Sun'), findsOneWidget);
+      expect(find.text('Mean power on a panel facing the Sun (proxy)'), findsOneWidget);
+      expect(find.bySemanticsLabel(RegExp(r'^Approximation: Proxy: .*no\s+cos\(elevation\) term')), findsOneWidget);
       await pumpHost(tester, SingleChildScrollView(child: ExpertMetrics(m: state.metrics!)));
       expect(find.text(earthMetricLabel(requireDsn: false)), findsOneWidget);
       expect(find.text(earthOutageLabel(requireDsn: false)), findsOneWidget);

@@ -137,6 +137,15 @@ class ExpertMetrics extends StatelessWidget {
     this.requireDsn = false,
   });
 
+  /// The power line's label: a proxy, not a power-system model.
+  static const powerLabel = 'Mean power on a panel facing the Sun (proxy)';
+
+  /// What the power proxy assumes.
+  static const powerNote = 'Proxy: sunlight on a panel always turned to face the Sun, not a power-system model. '
+      '1361 W/m² × (1 au / r)² × the visible part of the Sun\'s disk, averaged over your dates. There is no '
+      'cos(elevation) term, so a fixed flat or upright panel gets less; no panel efficiency, temperature or dust '
+      'losses.';
+
   @override
   Widget build(BuildContext context) {
     final sunRule = switch (sunCriterion) {
@@ -201,9 +210,10 @@ class ExpertMetrics extends StatelessWidget {
           Row(children: [
             const Icon(Icons.bolt, size: 16, color: PH.sun),
             const SizedBox(width: 6),
-            const Expanded(child: Text('Mean power on a panel facing the Sun', style: TextStyle(fontSize: 13, color: PH.muted))),
+            const Expanded(child: Text(powerLabel, style: TextStyle(fontSize: 13, color: PH.muted))),
             Text('${m.meanPowerWm2.toStringAsFixed(0)} W/m²', style: numStyle(size: 13.5, weight: FontWeight.w600)),
           ]),
+          const FidelityBadge(text: powerNote),
         ]),
       ),
     );

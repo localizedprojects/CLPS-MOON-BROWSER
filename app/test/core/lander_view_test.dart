@@ -565,6 +565,18 @@ void main() {
       seen.add(b.state);
     }
     expect(seen, containsAll(SkyState.values));
+    // a high peak's skyline dips below 0°: a body under 0° that clears it is up
+    final low = Float64List(720)..fillRange(0, 720, -4);
+    SkyState at(double el) {
+      final enu = obs.enu;
+      final d = (enu.east * math.sin(40 * deg) + enu.north * math.cos(40 * deg)) * math.cos(el * deg) + enu.up * math.sin(el * deg);
+      return skyBody(obs, obs.position + d * 1.5e8, 695700, low).state;
+    }
+
+    expect(at(-3), SkyState.up);
+    expect(at(-3.9), SkyState.partlyBehindTerrain);
+    expect(at(-4.5), SkyState.belowHorizon);
+    expect(at(0.2), SkyState.up);
   });
 
   test('culling is conservative', () {

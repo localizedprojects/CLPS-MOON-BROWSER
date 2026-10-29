@@ -499,7 +499,7 @@ Ties in the dominant weight go to the first class in `LightClass` order, "not co
 - **T7 `skyBody equals Observer.look and true radius`.**
   - For 50 times on a synthetic ephemeris vector set, az/el equal `obs.look` to 1e-12.
   - `discOutline` points lie at angular distance ρ = asin(695700/r) within 1e-9.
-  - State is `belowHorizon` iff el + ρ < 0, and `behindTerrain` iff the top limb is under the skyline with el + ρ ≥ 0.
+  - State is `belowHorizon` iff the top limb is at or under the skyline with el + ρ < 0, and `behindTerrain` iff it is under the skyline with el + ρ ≥ 0 (as `bodyStateShort`: from a high peak the skyline dips below 0°, and a body under 0° that clears it is up).
 - **T8 `culling is conservative`.**
   - On 5 random synthetic DEMs (smooth noise ± 2 km), `meshSkyline(culled, minDistM: 0) == meshSkyline(cull: false, minDistM: 0)` exactly, and the stored far skyline equals the unculled minDist-800 skyline (a minDist-800 skyline of the culled mesh may be lower: far ground hidden by a part 1 triangle with dmin < 800 m is rightly culled).
   - Every triangle containing a vertex visible by brute force (el above the max el of all unculled triangles with smaller `dmax` at that azimuth) is kept.

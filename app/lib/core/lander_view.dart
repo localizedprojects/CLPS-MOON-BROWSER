@@ -958,21 +958,21 @@ enum SkyState { up, partlyBehindTerrain, behindTerrain, belowHorizon }
 
 /// A body seen from [obs] (Observer.look, so the same az/el as the sky plot)
 /// with its true angular radius, judged against [skyline] (the mesh's own):
-/// belowHorizon iff el + rho < 0; behindTerrain iff the top limb is at or
-/// under the skyline; partlyBehindTerrain iff only the lower limb is.
+/// hidden iff the top limb is at or under the skyline, then belowHorizon if
+/// also el + rho < 0, else behindTerrain; partlyBehindTerrain iff only the
+/// lower limb is under it. As `bodyStateShort`, a body under 0° that clears
+/// a lower skyline (a high peak's horizon dips below 0°) is up, not below.
 ({double az, double el, double rhoDeg, SkyState state}) skyBody(Observer obs, V3 fromCentreKm, double radiusKm,
     Float64List skyline,
     {double azStepDeg = 0.5}) {
   final a = obs.look(fromCentreKm);
   final rho = math.asin(radiusKm / a.range) * rad;
   final sky = skylineAt(skyline, a.az, azStepDeg: azStepDeg);
-  final state = a.el + rho < 0
-      ? SkyState.belowHorizon
-      : a.el + rho <= sky
-          ? SkyState.behindTerrain
-          : a.el - rho < sky
-              ? SkyState.partlyBehindTerrain
-              : SkyState.up;
+  final state = a.el + rho <= sky
+      ? (a.el + rho < 0 ? SkyState.belowHorizon : SkyState.behindTerrain)
+      : a.el - rho < sky
+          ? SkyState.partlyBehindTerrain
+          : SkyState.up;
   return (az: a.az, el: a.el, rhoDeg: rho, state: state);
 }
 

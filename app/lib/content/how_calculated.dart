@@ -80,18 +80,24 @@ const calcSections = <CalcSection>[
     title: 'How much of the Sun or Earth shows',
     plain: 'The Sun and Earth are discs, not points, so a jagged ridge can hide part of them. The app slices each '
         'disc into 16 strips and checks each strip against the skyline. You choose what counts as "up": any part of '
-        'the disc (the default for the Sun), its centre (the default for Earth), or the whole disc.',
+        'the disc (the default for the Sun), its centre (the default for Earth), or the whole disc. During a lunar '
+        'eclipse Earth passes in front of the Sun as seen from the Moon: the part of the Sun behind Earth is taken '
+        'out of each strip as well, so a sunlit site gets no sunlight while Earth covers the whole Sun.',
     maths: [
       'disc radius = asin(body radius ÷ distance)   (Sun about 0.27°, Earth about 0.95°)',
-      'visible fraction = sum over 16 strips of the area above the skyline',
+      'visible fraction = sum over 16 strips of the area above the skyline and outside Earth\'s disc',
+      'share of the Sun behind Earth = overlap of the two discs ÷ area of the Sun\'s disc   (flat-sky geometry, fine at under 1.3°)',
     ],
-    accuracy: 'Tested against the exact area of a circle cut by a straight edge.',
+    accuracy: 'Tested against the exact area of a circle cut by a straight edge, and against the exact overlap of '
+        'two circles (within 2% of the disc). The 2025–2035 data holds 19 eclipses, about 2.4 hours a year with the '
+        'whole Sun behind Earth at the pole. The 18.6-year averages under About this site leave eclipses out, '
+        'which changes them by at most about 0.03 percentage points.',
     ref: 'formula.md §6',
   ),
   CalcSection(
     title: 'Solar power',
     plain: 'A rough guide to the sunlight a solar panel facing the Sun would catch: the Sun\'s brightness at the '
-        'Moon\'s distance, times the part of the Sun\'s disc above the skyline.',
+        'Moon\'s distance, times the part of the Sun\'s disc above the skyline and not behind Earth.',
     maths: [
       'power = 1361 W/m² × (1 au ÷ Sun distance)² × visible fraction',
     ],

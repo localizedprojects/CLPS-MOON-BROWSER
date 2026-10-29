@@ -18,7 +18,10 @@ never committed); its full source is stored in each golden file under
   that run was on uncommitted work over `cfa9c85` (`gitDirty: true`) that became `d4b27df`,
   and the recorded SHA-256 of every core file and asset match the app at `d4b27df`. They were
   **regenerated again on 2026-10-29** for the lunar-eclipse model (`eclipse.dart`, see below),
-  on uncommitted work over `83a1b5b` (`gitDirty: true`) with the same probe source,
+  on uncommitted work over `83a1b5b` (`gitDirty: true`) with the same probe source. Later that
+  day the catalogue grew to 19 sites, which changed `sites.json` and `horizons.json`: the probe was
+  rerun at `e700ed7`, every golden value came out identical (the cases use other sites), and only
+  `provenance` (`assetSha256`, `gitHead`, `generatedUtc`) was updated,
 - the SHA-256 of `landing.dart`, `timeseries.dart`, `visibility.dart`, `eclipse.dart` (pinned
   since 2026-10-29), `shadow.dart` and the other core files and of `light_engine.dart`, and of
   the asset files used,

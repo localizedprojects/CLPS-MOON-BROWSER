@@ -12,10 +12,13 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 
 import '../core/catalog.dart';
 import '../core/dem.dart';
+import '../core/map_labels.dart';
 import '../core/relief.dart';
+import '../core/wording.dart';
 import '../theme.dart';
 import 'sheets/sheet_frame.dart';
 import 'feature_guide.dart';
@@ -242,6 +245,103 @@ Path markerPath(MarkerShape shape, Offset p, double r) {
   }
   return path;
 }
+
+/// Markers closer than this on screen (px) overlap: a stack, with a count
+/// badge beside it and a chooser when tapped.
+const mapStackPx = 12.0;
+
+/// A marker's half-size on screen (px).
+double mapMarkerR(bool selected) => selected ? 7.0 : 5.0;
+
+/// How far a marker reaches from its centre on screen (px): its shape, or the
+/// ring of the selected (solid) or hovered (wider, thin) site.
+double _markerReach(bool selected, bool hot) => selected
+    ? mapMarkerR(true) + 5 + 4.5 / 2
+    : hot
+        ? mapMarkerR(false) + 8 + 3.5 / 2
+        : mapMarkerR(false) * 1.3;
+
+/// A site name on the map at zoom [z] (the canvas is scaled by [z]).
+TextStyle _labelStyle(bool selected, double z) => TextStyle(
+    fontFamily: PH.sans,
+    color: PH.text,
+    fontSize: (selected ? 14 : 13) / z,
+    fontWeight: selected ? FontWeight.w600 : null,
+    shadows: const [Shadow(blurRadius: 3, color: Colors.black)]);
+
+/// A stack's count at zoom [z]: numbers are Plex Mono with tabular figures.
+TextStyle _badgeStyle(double z) => numStyle(size: 11 / z, weight: FontWeight.w600);
+
+/// The site markers of a map [side] px wide at zoom [zoom], in screen pixels
+/// of the zoomed map (scene × zoom; panning moves them all alike): each
+/// marker's centre [at], the [stacks] of markers that overlap on screen
+/// ([mapStackPx]), a count [badges] beside each stack of two or more (its box
+/// and count), and the site names placed without overlap ([placeMapLabels]):
+/// every site's with [names], else only the selected and the hovered one's.
+/// The markers stay at their true positions.
+({List<(double, double)> at, List<List<int>> stacks, List<(LabelBox, int)> badges, List<MapLabel> labels})
+    mapMarkerLayout({
+  required double halfWidthM,
+  required List<Site> sites,
+  required double side,
+  required double zoom,
+  required String selected,
+  String? highlight,
+  required bool names,
+  TextScaler scaler = TextScaler.noScaling,
+}) {
+  final z = zoom;
+  final at = [
+    for (final s in sites)
+      (() {
+        final (x, y) = latLonToXY(s.lat, s.lon);
+        return ((x / halfWidthM * 0.5 + 0.5) * side * z, (0.5 - y / halfWidthM * 0.5) * side * z);
+      })()
+  ];
+  final reach = [for (final s in sites) _markerReach(s.id == selected, s.id == highlight)];
+  final stacks = markerStacks(at, mapStackPx);
+  final tp = TextPainter(textDirection: TextDirection.ltr, textScaler: scaler);
+  (double, double) measure(String text, TextStyle style) {
+    tp.text = TextSpan(text: text, style: style);
+    tp.layout();
+    return (tp.width * z, tp.height * z);
+  }
+
+  final badges = <(LabelBox, int)>[];
+  for (final st in stacks) {
+    if (st.length < 2) continue;
+    final box = st.map((i) => LabelBox.around(at[i].$1, at[i].$2, reach[i])).reduce((a, b) => a.union(b));
+    final (w, h) = measure('${st.length}', _badgeStyle(z));
+    final bw = w + 8, bh = h + 2;
+    // up and to the right of the stack, touching its corner
+    badges.add((LabelBox(box.right - 2, box.top - bh + 4, box.right - 2 + bw, box.top + 4), st.length));
+  }
+  final ids = [for (final s in sites) s.id];
+  final sel = ids.indexOf(selected), hot = highlight == null ? -1 : ids.indexOf(highlight);
+  final order = [
+    if (sel >= 0) sel,
+    if (hot >= 0 && hot != sel) hot,
+    if (names)
+      for (var i = 0; i < sites.length; i++)
+        if (i != sel && i != hot) i,
+  ];
+  final labels = placeMapLabels(
+    anchors: at,
+    reach: reach,
+    texts: [for (final s in sites) s.short],
+    measure: (i, text) => measure(text, _labelStyle(i == sel, z)),
+    order: order,
+    stacks: stacks,
+    obstacles: [for (final (b, _) in badges) b],
+  );
+  tp.dispose();
+  return (at: at, stacks: stacks, badges: badges, labels: labels);
+}
+
+/// A site's name for screen readers on the map: its kind, and how many
+/// markers share its spot when they overlap.
+String mapSiteSemanticsLabel(Site s, int stacked) =>
+    '${s.short}. ${siteKindLabel(s)}${stacked > 1 ? '. One of $stacked overlapping markers here' : ''}';
 
 /// The map key's entries: (shape, colour, words).
 final mapLegendEntries = [
@@ -609,26 +709,28 @@ class _MapViewState extends State<MapView> with SingleTickerProviderStateMixin {
   }
 
   /// [screen] is where the finger landed on the map widget, at any zoom.
-  void _onTap(Offset screen) {
+  /// [global] is the same point on the screen, where a chooser opens.
+  void _onTap(Offset screen, [Offset? global]) {
     final size = _side;
     final p = _toScene(screen);
     // beside the map (the full-screen map's margins): nothing there
     final lo = _lo * size, hi = (1 - _lo) * size;
     if (p.dx < lo || p.dy < lo || p.dx > hi || p.dy > hi) return;
     final scale = _scale;
-    String? best;
-    var bestD = 24.0 / scale; // 48 px finger-sized hit target
+    final reach = 24.0 / scale; // 48 px finger-sized hit target
+    final near = <(double, Site)>[];
     for (final s in widget.sites) {
       final (sx, sy) = _toPx(s);
       final d = math.sqrt(math.pow(sx - p.dx, 2) + math.pow(sy - p.dy, 2));
-      if (d < bestD) {
-        bestD = d;
-        best = s.id;
-      }
+      if (d < reach) near.add((d, s));
     }
-    if (best != null) {
+    if (near.isNotEmpty) {
       _setPin(null);
-      widget.onSelect(best);
+      if (near.length == 1) return widget.onSelect(near.single.$2.id);
+      // markers in reach of one finger (stacked, at any zoom): the user picks
+      // one rather than whichever is nearest
+      near.sort((a, b) => a.$1.compareTo(b.$1));
+      _chooseSite([for (final (_, s) in near) s], global ?? _globalOf(screen));
       return;
     }
     final h = widget.layers.halfWidthM;

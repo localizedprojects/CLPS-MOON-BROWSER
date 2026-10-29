@@ -2,8 +2,9 @@
 ///
 /// For every sample: topocentric az/el of Sun and Earth (SPICE-derived
 /// ephemeris + site parallax), the terrain horizon at those azimuths, the
-/// visible disk fractions, the power proxy, the DSN mask and the resulting
-/// availability flags under the chosen criteria.
+/// visible disk fractions (the Sun's with Earth's disk removed during a lunar
+/// eclipse, see `eclipse.dart`), the power proxy, the DSN mask and the
+/// resulting availability flags under the chosen criteria.
 library;
 
 import 'dart:typed_data';
@@ -58,6 +59,11 @@ class SiteSeries {
   final double t0Ms, stepMs;
   final int n;
   final Float64List sunAz, sunEl, sunHz, sunFrac, earthAz, earthEl, earthHz, earthFrac, power;
+
+  /// Share (0..1) of the Sun's whole disk behind Earth (a lunar eclipse seen
+  /// from the Moon), terrain ignored; 0 at almost every sample. [sunFrac] and
+  /// [power] already exclude it.
+  final Float64List sunEclipse;
   final Uint8List dsn, flags;
 
   /// Allocate an all-zero series of [n] samples (also used by tests).
@@ -71,6 +77,7 @@ class SiteSeries {
         earthHz = Float64List(n),
         earthFrac = Float64List(n),
         power = Float64List(n),
+        sunEclipse = Float64List(n),
         dsn = Uint8List(n),
         flags = Uint8List(n);
 
@@ -138,7 +145,9 @@ void fillSeries(SiteSeries s, Ephemeris eph, Observer obs, HorizonMask mask, Ser
     final rs = angularRadiusDeg(sunRadiusKm, sun.range);
     final re = angularRadiusDeg(earthRadiusKm, earth.range);
     final sHz = mask.at(sun.az), eHz = mask.at(earth.az);
-    final fs = visibleFraction(sun.az, sun.el, rs, mask);
+    final ecl = SunEclipse.of(sun, rs, earth, re);
+    final fs = visibleFraction(sun.az, sun.el, rs, mask, occulter: ecl.occulter);
+    final ef = ecl.fraction;
     final fe = visibleFraction(earth.az, earth.el, re, mask);
     final dsn = eph.dsnMask(t);
     s.sunAz[i] = sun.az;
@@ -150,8 +159,9 @@ void fillSeries(SiteSeries s, Ephemeris eph, Observer obs, HorizonMask mask, Ser
     s.earthHz[i] = eHz;
     s.earthFrac[i] = fe;
     s.power[i] = powerProxy(fs, sun.range);
+    s.sunEclipse[i] = ef;
     s.dsn[i] = dsn;
-    final sv = sunVisible(o.sunCriterion, fs, sun.el, sHz);
+    final sv = sunVisible(o.sunCriterion, fs, sun.el, sHz, eclipse: ef, centreHidden: ecl.centreHidden);
     var ev = earthVisible(o.earthCriterion, fe, earth.el, eHz);
     if (o.requireDsn && dsn == 0) ev = false;
     s.flags[i] = (sv ? flagSun : 0) | (ev ? flagEarth : 0) | (sv && ev ? flagBoth : 0);

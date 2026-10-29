@@ -2,13 +2,19 @@
 ///
 /// Mirrors `pipeline/lunarsp/visibility.py`: the disk is cut into
 /// [nStrips] vertical strips across azimuth, each tested against the
-/// horizon at its own azimuth, so jagged skylines are handled.
+/// horizon at its own azimuth, so jagged skylines are handled. An optional
+/// [Occulter] (Earth in front of the Sun during a lunar eclipse) is removed
+/// from each strip's visible chord in the same integration, so terrain and
+/// Earth are never double-counted.
 library;
 
 import 'dart:math' as math;
 
 import 'constants.dart';
+import 'eclipse.dart';
 import 'horizon.dart';
+
+export 'eclipse.dart' show Occulter, SunEclipse;
 
 const int nStrips = 16;
 
@@ -20,8 +26,8 @@ final double _total = _half.reduce((a, b) => a + b);
 double angularRadiusDeg(double radiusKm, double rangeKm) => math.asin(radiusKm / rangeKm) * rad;
 
 /// Fraction (0..1) of a disk centred at ([azC], [elC]) with angular radius
-/// [rhoDeg] that lies above [mask].
-double visibleFraction(double azC, double elC, double rhoDeg, HorizonMask mask) {
+/// [rhoDeg] that lies above [mask] and, when given, outside [occulter].
+double visibleFraction(double azC, double elC, double rhoDeg, HorizonMask mask, {Occulter? occulter}) {
   var cosEl = math.cos(elC * deg);
   if (cosEl < 1e-6) cosEl = 1e-6;
   var vis = 0.0;
@@ -29,10 +35,23 @@ double visibleFraction(double azC, double elC, double rhoDeg, HorizonMask mask) 
     final hz = mask.at(azC + _xi[k] * rhoDeg / cosEl);
     final top = elC + _half[k] * rhoDeg;
     final bot = elC - _half[k] * rhoDeg;
-    final len = top - (bot > hz ? bot : hz);
+    final lo = bot > hz ? bot : hz;
+    var len = top - lo;
+    if (len > 0 && occulter != null) len = _outside(lo, top, _xi[k] * rhoDeg - occulter.du, elC + occulter.dv, occulter.rhoDeg);
     if (len > 0) vis += len / (2 * rhoDeg);
   }
   return vis / _total;
+}
+
+/// Length of [lo, top] outside the chord, at horizontal offset [du] from its
+/// centre, of an occulting disk centred at elevation [cEl] with radius [r].
+double _outside(double lo, double top, double du, double cEl, double r) {
+  final w2 = r * r - du * du;
+  if (w2 <= 0) return top - lo;
+  final w = math.sqrt(w2);
+  final below = (top < cEl - w ? top : cEl - w) - lo;
+  final above = top - (lo > cEl + w ? lo : cEl + w);
+  return (below > 0 ? below : 0.0) + (above > 0 ? above : 0.0);
 }
 
 /// Analytic fraction of a disk above a straight line at signed distance
@@ -72,10 +91,17 @@ enum EarthCriterion {
   anyPart,
 }
 
-bool sunVisible(SunCriterion c, double fraction, double elC, double horizonAtCenter) => switch (c) {
+/// [fraction] is the visible fraction with Earth already removed (see
+/// [visibleFraction]'s occulter). During a lunar eclipse [eclipse] is the
+/// share of the Sun's disk behind Earth and [centreHidden] says whether its
+/// centre is: the centre rule then fails, and the full-disk rule fails on any
+/// overlap. Both default to "no eclipse", so existing callers are unchanged.
+bool sunVisible(SunCriterion c, double fraction, double elC, double horizonAtCenter,
+        {double eclipse = 0, bool centreHidden = false}) =>
+    switch (c) {
       SunCriterion.upperLimb => fraction > 0,
-      SunCriterion.center => elC > horizonAtCenter,
-      SunCriterion.fullDisk => fraction >= 0.999,
+      SunCriterion.center => elC > horizonAtCenter && !centreHidden,
+      SunCriterion.fullDisk => fraction >= 0.999 && eclipse <= 0,
     };
 
 bool earthVisible(EarthCriterion c, double fraction, double elC, double horizonAtCenter) => switch (c) {

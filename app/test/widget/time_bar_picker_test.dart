@@ -40,13 +40,14 @@ void main() {
     test('pickedCursorMs: the nearest sample, inside the period', () {
       final start = _utc(2027, 3, 10, 12), last = _utc(2027, 4, 4, 23, 50);
       (double, bool) pick(int m, int d, int h, int min, {double step = 600e3}) =>
-          pickedCursorMs(DateTime.utc(2027, m, d), h, min, startMs: start, lastMs: last, stepMs: step);
+          pickedCursorMs(DateTime.utc(2027, m, d), h, min, startMs: start, lastMs: last, endMs: _utc(2027, 4, 5), stepMs: step);
       expect(pick(3, 15, 7, 40), (_utc(2027, 3, 15, 7, 40), false));
       expect(pick(3, 15, 7, 44), (_utc(2027, 3, 15, 7, 40), false), reason: 'the nearest 10-min sample');
       expect(pick(3, 15, 7, 46), (_utc(2027, 3, 15, 7, 50), false));
       expect(pick(3, 15, 7, 44, step: 1800e3), (_utc(2027, 3, 15, 7, 30), false), reason: '30-min samples');
       expect(pick(3, 10, 6, 0), (start, true), reason: 'before the period: its start, and it says it moved');
-      expect(pick(4, 4, 23, 59), (last, true), reason: 'after the last sample: the last sample');
+      expect(pick(4, 4, 23, 59), (last, false), reason: 'after the last sample but inside the dates: the last sample, no message');
+      expect(pick(4, 5, 0, 0), (last, true), reason: 'at the exclusive end: outside');
       expect(pick(4, 4, 23, 50), (last, false));
     });
   });

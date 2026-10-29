@@ -174,22 +174,53 @@ class NowStatus extends StatelessWidget {
 
   /// Every statement NowStatus can show, with its glyph (for [reserve]).
   static List<(String, GlyphKind)> statements({required bool requireDsn}) => [
-        for (final (sunUp, sunState) in const [(true, 'up'), (true, 'partly'), (false, 'notCounted'), (false, 'belowHorizon')])
+        // the last: Earth's disk stops the Sun counting (a lunar eclipse)
+        for (final (sunUp, sunState, hides) in const [
+          (true, 'up', false),
+          (true, 'partly', false),
+          (false, 'notCounted', false),
+          (false, 'belowHorizon', false),
+          (false, 'notCounted', true),
+        ])
           for (final (earthUp, earthState) in [(true, 'up'), if (requireDsn) (false, 'noDsn'), (false, 'belowHorizon')])
-            nowStatement(sunUp: sunUp, earthUp: earthUp, sunState: sunState, earthState: earthState, requireDsn: requireDsn),
+            nowStatement(
+                sunUp: sunUp,
+                earthUp: earthUp,
+                sunState: sunState,
+                earthState: earthState,
+                requireDsn: requireDsn,
+                eclipseHides: hides),
       ];
 
   /// The longest countdown lines (for [reserve]): Sun up, down and hidden
-  /// by Earth, with the widest durations and a date with its year.
+  /// by Earth, with the widest durations and a date with its year, and the
+  /// lunar-eclipse wordings (Earth's share of the Sun while it still counts
+  /// or is down, Earth stopping it counting next, and Earth's share while it
+  /// stops the Sun counting).
   static List<String> countdownSamples({required bool requireDsn, required bool power}) {
     const day = 86400e3, far = NextChange(10 * day, 10 * day + 1439 * 60e3), near = NextChange(day, 1439 * 60e3);
-    String line(bool up, double el, bool hides) => countdownLine(
+    const farEcl = NextChange(10 * day, 10 * day + 1439 * 60e3, byEclipse: true, eclipseTotal: false);
+    String line(bool up, double el, bool hides, {double eclipse = 0, NextChange sun = far}) => countdownLine(
         Countdown(
-            sunUp: up, earthUp: up, sunElDeg: el, sunClearDeg: -el, eclipseHides: hides, power: 1366, sun: far, earth: near),
+            sunUp: up,
+            earthUp: up,
+            sunElDeg: el,
+            sunClearDeg: -el,
+            eclipse: eclipse,
+            eclipseHides: hides,
+            power: 1366,
+            sun: sun,
+            earth: near),
         dateOf: (_) => '28 Oct 2027 23:59 UTC',
         requireDsn: requireDsn,
         power: power);
-    return [line(true, 18.8, false), line(false, -18.8, false), line(false, 1, true)];
+    return [
+      line(true, 18.8, false),
+      line(false, -18.8, false),
+      line(false, 1, true, eclipse: 0.99),
+      line(true, -18.8, false, eclipse: 0.99, sun: farEcl),
+      line(false, -18.8, false, eclipse: 0.99),
+    ];
   }
 
   @override

@@ -40,15 +40,18 @@ import 'feature_guide.dart';
 /// The time shown for a picked UTC day and time of day: the nearest sample
 /// of the period's series (every [stepMs] from [startMs], so what the sky
 /// and the timeline show is that very moment), kept inside
-/// [startMs, lastMs]. The second value is true when the time had to move
-/// to the period's start or end (it lies outside the period).
+/// [startMs, lastMs] ([lastMs]: the last sample). The second value is true
+/// when the picked time lies outside the period [startMs, endMs) ([endMs]
+/// exclusive), so the time had to move to the period's start or end; a time
+/// after the last sample but before [endMs] snaps to the last sample without
+/// that message.
 (double, bool) pickedCursorMs(DateTime day, int hour, int minute,
-    {required double startMs, required double lastMs, required double stepMs}) {
+    {required double startMs, required double lastMs, required double endMs, required double stepMs}) {
   final want = DateTime.utc(day.year, day.month, day.day, hour, minute).millisecondsSinceEpoch.toDouble();
   final last = math.max(startMs, lastMs);
   final snapped = startMs + ((want - startMs) / stepMs).round() * stepMs;
   final t = snapped.clamp(startMs, last);
-  return (t, want < startMs || want > last);
+  return (t, want < startMs || want >= endMs);
 }
 
 /// The sample step in the time picker's one-line title: "10 min", "30 min",
@@ -160,7 +163,7 @@ class _TimeScrubberState extends State<TimeScrubber> {
     if (time == null || !mounted) return;
     // the period may have changed while the pickers were open: use the current one
     final (ms, moved) =
-        pickedCursorMs(day, time.hour, time.minute, startMs: s.rangeStartMs, lastMs: s.lastCursorMs, stepMs: s.options.stepMs);
+        pickedCursorMs(day, time.hour, time.minute, startMs: s.rangeStartMs, lastMs: s.lastCursorMs, endMs: s.rangeEndMs, stepMs: s.options.stepMs);
     s.setCursor(ms);
     final shown = 'Time shown: ${utcLabel(s.cursorMs)}';
     if (moved) {

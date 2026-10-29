@@ -93,11 +93,17 @@ class MapLabel {
 /// the rest) beside their markers at [anchors] without overlap. Each label
 /// tries above, below, right and left of its marker, first clear of every
 /// marker and then clear of the other labels only; [obstacles] (the count
-/// badges) are never covered. A name with no free spot is merged into another
-/// label (one of its [stacks] first, else the nearest placed one), which then
-/// reads "Name +n"; the placement is redone with the merged texts until every
-/// label fits. Every site in [order] ends up in exactly one label, as its
-/// [MapLabel.site] or in its [MapLabel.merged].
+/// badges, the zoom controls) are never covered. A name with no free spot is
+/// merged into a stack-mate's label (one of its [stacks]), which then reads
+/// "Name +n", else left unnamed (its marker, its stack's badge and chooser and
+/// its screen-reader node still show it): a far label's "+n" would miscount.
+/// The placement is redone with the merged texts until every label fits.
+/// Every site in [order] is in at most one label, as its [MapLabel.site] or in
+/// its [MapLabel.merged].
+///
+/// With [bounds] (the part of the map in view), a site whose marker is inside
+/// it gets its label inside it too; the first label, which always shows, is
+/// shifted in when no spot fits. A site out of view is placed as without.
 ///
 /// [reach] is how far each marker reaches from its centre (all sites, with or
 /// without a label); [measure] gives a label text's width and height in px.
@@ -109,19 +115,26 @@ List<MapLabel> placeMapLabels({
   required List<int> order,
   List<List<int>> stacks = const [],
   List<LabelBox> obstacles = const [],
+  LabelBox? bounds,
   double gap = 2,
 }) {
+  bool inside(LabelBox b) =>
+      bounds == null ||
+      (b.left >= bounds.left && b.top >= bounds.top && b.right <= bounds.right && b.bottom <= bounds.bottom);
+  // a marker in view: its name stays in view too
+  bool shown(int i) => bounds != null && inside(LabelBox.around(anchors[i].$1, anchors[i].$2, 0));
   final markers = [for (var i = 0; i < anchors.length; i++) LabelBox.around(anchors[i].$1, anchors[i].$2, reach[i])];
   final stackOf = <int, List<int>>{
     for (final s in stacks)
       for (final i in s) i: s
   };
   final into = <int, int>{}; // merged site -> the site whose label shows it
+  final dropped = <int>{}; // sites left unnamed: no spot, no stack-mate to carry them
   while (true) {
     final placed = <MapLabel>[];
     int? failed;
     for (final i in order) {
-      if (into.containsKey(i)) continue;
+      if (into.containsKey(i) || dropped.contains(i)) continue;
       final merged = [
         for (final j in order)
           if (into[j] == i) j
@@ -133,6 +146,7 @@ List<MapLabel> placeMapLabels({
       for (final clearOfMarkers in [true, false]) {
         for (final spot in LabelSpot.values) {
           final b = labelBoxAt(spot, x, y, reach[i], w, h, gap: gap);
+          if (shown(i) && !inside(b)) continue;
           if (placed.any((p) => p.box.overlaps(b)) || obstacles.any(b.overlaps)) continue;
           if (clearOfMarkers && Iterable.generate(markers.length).any((j) => j != i && markers[j].overlaps(b))) continue;
           found = (b, spot);
@@ -140,8 +154,17 @@ List<MapLabel> placeMapLabels({
         }
         if (found != null) break;
       }
-      // the first label always shows (only a badge can be in its way)
-      if (found == null && placed.isEmpty) found = (labelBoxAt(LabelSpot.above, x, y, reach[i], w, h, gap: gap), LabelSpot.above);
+      // the first label always shows (only a badge or the edge can be in its
+      // way): above, shifted into view if it has to be
+      if (found == null && placed.isEmpty) {
+        var b = labelBoxAt(LabelSpot.above, x, y, reach[i], w, h, gap: gap);
+        if (bounds != null && shown(i)) {
+          final dx = b.left < bounds.left ? bounds.left - b.left : (b.right > bounds.right ? bounds.right - b.right : 0.0);
+          final dy = b.top < bounds.top ? bounds.top - b.top : (b.bottom > bounds.bottom ? bounds.bottom - b.bottom : 0.0);
+          b = LabelBox(b.left + dx, b.top + dy, b.right + dx, b.bottom + dy);
+        }
+        found = (b, LabelSpot.above);
+      }
       if (found == null) {
         failed = i;
         break;
@@ -149,25 +172,25 @@ List<MapLabel> placeMapLabels({
       placed.add(MapLabel(i, merged, text, found.$1, found.$2));
     }
     if (failed == null) return placed;
-    // merge it: into a stack-mate's label (a placed one first), else the nearest placed label
+    // merge it into a stack-mate's label (a placed one first); with no mate
+    // left to carry it, it goes unnamed (a far label's "+n" would miscount)
     final i = failed;
     final mates = [
       for (final j in order)
-        if (j != i && !into.containsKey(j) && (stackOf[i]?.contains(j) ?? false)) j
+        if (j != i && !into.containsKey(j) && !dropped.contains(j) && (stackOf[i]?.contains(j) ?? false)) j
     ];
-    final placedIds = {for (final p in placed) p.site};
-    int target;
-    if (mates.isNotEmpty) {
-      target = mates.firstWhere(placedIds.contains, orElse: () => mates.first);
-    } else {
-      final (x, y) = anchors[i];
-      double d(int j) {
-        final dx = anchors[j].$1 - x, dy = anchors[j].$2 - y;
-        return dx * dx + dy * dy;
+    if (mates.isEmpty) {
+      dropped.add(i);
+      for (final k in [...into.keys]) {
+        if (into[k] == i) {
+          into.remove(k);
+          dropped.add(k);
+        }
       }
-
-      target = placed.map((p) => p.site).reduce((a, b) => d(b) < d(a) ? b : a);
+      continue;
     }
+    final placedIds = {for (final p in placed) p.site};
+    final target = mates.firstWhere(placedIds.contains, orElse: () => mates.first);
     into[i] = target;
     for (final k in [...into.keys]) {
       if (into[k] == i) into[k] = target;

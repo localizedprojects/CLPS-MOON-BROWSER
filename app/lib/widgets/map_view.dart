@@ -278,7 +278,9 @@ TextStyle _badgeStyle(double z) => numStyle(size: 11 / z, weight: FontWeight.w60
 /// ([mapStackPx]), a count [badges] beside each stack of two or more (its box
 /// and count), and the site names placed without overlap ([placeMapLabels]):
 /// every site's with [names], else only the selected and the hovered one's.
-/// The markers stay at their true positions.
+/// A name whose marker is inside [view] (the part of the map on screen) stays
+/// inside it, and no name covers [controls] (the zoom buttons over the map);
+/// both are in the same pixels. The markers stay at their true positions.
 ({List<(double, double)> at, List<List<int>> stacks, List<(LabelBox, int)> badges, List<MapLabel> labels})
     mapMarkerLayout({
   required double halfWidthM,
@@ -289,6 +291,8 @@ TextStyle _badgeStyle(double z) => numStyle(size: 11 / z, weight: FontWeight.w60
   String? highlight,
   required bool names,
   TextScaler scaler = TextScaler.noScaling,
+  LabelBox? view,
+  LabelBox? controls,
 }) {
   final z = zoom;
   final at = [
@@ -307,14 +311,34 @@ TextStyle _badgeStyle(double z) => numStyle(size: 11 / z, weight: FontWeight.w60
     return (tp.width * z, tp.height * z);
   }
 
+  final mk = [for (var i = 0; i < sites.length; i++) LabelBox.around(at[i].$1, at[i].$2, reach[i])];
   final badges = <(LabelBox, int)>[];
   for (final st in stacks) {
     if (st.length < 2) continue;
-    final box = st.map((i) => LabelBox.around(at[i].$1, at[i].$2, reach[i])).reduce((a, b) => a.union(b));
+    final box = st.map((i) => mk[i]).reduce((a, b) => a.union(b));
     final (w, h) = measure('${st.length}', _badgeStyle(z));
     final bw = w + 8, bh = h + 2;
-    // up and to the right of the stack, touching its corner
-    badges.add((LabelBox(box.right - 2, box.top - bh + 4, box.right - 2 + bw, box.top + 4), st.length));
+    // beside the stack at a corner (top-right first, then the other corners,
+    // then farther out), never over a marker outside the stack or another badge
+    final others = [
+      for (var i = 0; i < sites.length; i++)
+        if (!st.contains(i)) mk[i],
+      for (final (b, _) in badges) b,
+    ];
+    LabelBox? pick;
+    for (final out in const [0.0, 6.0, 12.0, 18.0]) {
+      for (final (right, up) in const [(true, true), (false, true), (true, false), (false, false)]) {
+        final l = right ? box.right - 2 + out : box.left + 2 - bw - out;
+        final t = up ? box.top + 4 - bh - out : box.bottom - 4 + out;
+        final c = LabelBox(l, t, l + bw, t + bh);
+        if (!others.any(c.overlaps)) {
+          pick = c;
+          break;
+        }
+      }
+      if (pick != null) break;
+    }
+    badges.add((pick ?? LabelBox(box.right - 2, box.top - bh + 4, box.right - 2 + bw, box.top + 4), st.length));
   }
   final ids = [for (final s in sites) s.id];
   final sel = ids.indexOf(selected), hot = highlight == null ? -1 : ids.indexOf(highlight);
@@ -332,7 +356,8 @@ TextStyle _badgeStyle(double z) => numStyle(size: 11 / z, weight: FontWeight.w60
     measure: (i, text) => measure(text, _labelStyle(i == sel, z)),
     order: order,
     stacks: stacks,
-    obstacles: [for (final (b, _) in badges) b],
+    obstacles: [for (final (b, _) in badges) b, ?controls],
+    bounds: view,
   );
   tp.dispose();
   return (at: at, stacks: stacks, badges: badges, labels: labels);
@@ -759,6 +784,21 @@ class _MapViewState extends State<MapView> with SingleTickerProviderStateMixin {
     super.dispose();
   }
 
+  /// The part of the map in view and the zoom buttons' panel over it, in
+  /// pixels of the zoomed map (as [mapMarkerLayout] lays out): names stay
+  /// inside the one and off the other.
+  (LabelBox, LabelBox)? _labelFrame() {
+    if (_side <= 0 || _vp.isEmpty) return null;
+    final t = _shift, z = _scale;
+    final lo = _lo * _side * z, hi = (1 - _lo) * _side * z;
+    final view = Rect.fromLTWH(-t.dx, -t.dy, _vp.width, _vp.height).intersect(Rect.fromLTRB(lo, lo, hi, hi));
+    // the buttons' column, top 6 / right 6 (as built below), 48 px each
+    final controls =
+        Rect.fromLTWH(_vp.width - 54, 6, 48, 48.0 * (3 + (widget.onExpand != null ? 1 : 0))).shift(-t);
+    LabelBox box(Rect r) => LabelBox(r.left, r.top, r.right, r.bottom);
+    return (box(view), box(controls));
+  }
+
   (double, double) _toPx(Site s) {
     final f = mapFractionOf(widget.layers, s.lat, s.lon);
     return (f.dx * _side, f.dy * _side);
@@ -773,12 +813,43 @@ class _MapViewState extends State<MapView> with SingleTickerProviderStateMixin {
     final lo = _lo * size, hi = (1 - _lo) * size;
     if (p.dx < lo || p.dy < lo || p.dx > hi || p.dy > hi) return;
     final scale = _scale;
+    // a stack's count badge sits beside the stack, out of its markers' reach
+    // when a ring widens the stack: a tap on it opens the stack's list
+    final lay = mapMarkerLayout(
+        halfWidthM: widget.layers.halfWidthM, sites: widget.sites, side: size, zoom: scale,
+        selected: widget.selectedId, highlight: widget.highlightId, names: false,
+        scaler: MediaQuery.textScalerOf(context).clamp(maxScaleFactor: PH.maxCanvasTextScale));
+    final zx = p.dx * scale, zy = p.dy * scale; // in the zoomed map's pixels, as the layout's
+    final multi = [for (final st in lay.stacks) if (st.length > 1) st]; // badges[k] is multi[k]'s
+    bool onBadge(int k, double pad) {
+      final b = lay.badges[k].$1;
+      final px = math.max(0.0, pad - b.width / 2), py = math.max(0.0, pad - b.height / 2);
+      return zx >= b.left - px && zx <= b.right + px && zy >= b.top - py && zy <= b.bottom + py;
+    }
+
+    void chooseStack(int k) {
+      _setPin(null);
+      final here = [
+        for (final i in multi[k]) (math.sqrt(math.pow(lay.at[i].$1 - zx, 2) + math.pow(lay.at[i].$2 - zy, 2)), widget.sites[i])
+      ]..sort((a, b) => a.$1.compareTo(b.$1));
+      _chooseSite([for (final (_, s) in here) s], global);
+    }
+
+    for (var k = 0; k < lay.badges.length; k++) {
+      if (onBadge(k, 0)) return chooseStack(k);
+    }
     final reach = 24.0 / scale; // 48 px finger-sized hit target
     final near = <(double, Site)>[];
     for (final s in widget.sites) {
       final (sx, sy) = _toPx(s);
       final d = math.sqrt(math.pow(sx - p.dx, 2) + math.pow(sy - p.dy, 2));
       if (d < reach) near.add((d, s));
+    }
+    // no marker in reach: a badge is a 48 px target too
+    if (near.isEmpty) {
+      for (var k = 0; k < lay.badges.length; k++) {
+        if (onBadge(k, 24)) return chooseStack(k);
+      }
     }
     if (near.isNotEmpty) {
       _setPin(null);
@@ -968,7 +1039,8 @@ class _MapViewState extends State<MapView> with SingleTickerProviderStateMixin {
                             child: CustomPaint(
                               size: Size(size, size),
                               painter: _MapPainter(widget.layers, widget.sites, widget.selectedId, overlay, labels,
-                                  () => _scale, scaler, pin, widget.highlightId, _tc, z, _pick),
+                                  () => _scale, scaler, pin, widget.highlightId, _tc, z, _pick,
+                                  frame: _labelFrame),
                             ),
                           ),
                         ),
@@ -1274,8 +1346,12 @@ class _MapPainter extends CustomPainter {
   /// a screen reader's tap on a site's node does.
   final double semZoom;
   final ValueChanged<String> onPick;
+
+  /// The part of the map in view and the zoom buttons' panel over it, read
+  /// at paint time ([mapMarkerLayout]'s view and controls).
+  final (LabelBox, LabelBox)? Function()? frame;
   _MapPainter(this.l, this.sites, this.selected, this.overlay, this.labels, this.zoom, this.scaler, this.pin, this.highlight,
-      Listenable zoomChanges, this.semZoom, this.onPick)
+      Listenable zoomChanges, this.semZoom, this.onPick, {this.frame})
       // the ring's images arriving repaint the map too
       : super(repaint: l.outer == null ? zoomChanges : Listenable.merge([zoomChanges, l.outer]));
 
@@ -1388,8 +1464,10 @@ class _MapPainter extends CustomPainter {
 
     // markers that overlap on screen get a count beside them; names go where
     // they do not cover each other (merged as "Name +n" where nothing is free)
+    final f = frame?.call();
     final lay = mapMarkerLayout(
-        halfWidthM: h, sites: sites, side: w, zoom: z, selected: selected, highlight: highlight, names: labels, scaler: scaler);
+        halfWidthM: h, sites: sites, side: w, zoom: z, selected: selected, highlight: highlight, names: labels, scaler: scaler,
+        view: f?.$1, controls: f?.$2);
     Rect scene(LabelBox b) => Rect.fromLTRB(b.left / z, b.top / z, b.right / z, b.bottom / z);
     for (final (box, n) in lay.badges) {
       final rr = RRect.fromRectAndRadius(scene(box), Radius.circular(4 / z));

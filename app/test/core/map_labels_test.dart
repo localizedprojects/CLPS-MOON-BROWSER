@@ -7,12 +7,14 @@ void main() {
   /// 7 px per character, 16 px tall.
   (double, double) measure(int _, String text) => (text.length * 7.0, 16.0);
 
-  /// Every site in [order] is shown exactly once (as a label's lead or merged
-  /// into one), and no two labels overlap each other or an obstacle.
-  void expectSound(List<MapLabel> labels, List<int> order, {List<LabelBox> obstacles = const []}) {
+  /// Every site shown is in [order] and shows at most once (as a label's lead
+  /// or merged into one), every site in [order] does with [all], and no two
+  /// labels overlap each other or an obstacle.
+  void expectSound(List<MapLabel> labels, List<int> order, {List<LabelBox> obstacles = const [], bool all = true}) {
     final shown = [for (final l in labels) ...[l.site, ...l.merged]];
-    expect(shown.toSet(), order.toSet());
-    expect(shown, hasLength(order.length));
+    expect(order.toSet().containsAll(shown), isTrue, reason: '$shown not in $order');
+    expect(shown.toSet(), hasLength(shown.length), reason: 'a site in two labels: $shown');
+    if (all) expect(shown.toSet(), order.toSet());
     for (var i = 0; i < labels.length; i++) {
       for (var j = i + 1; j < labels.length; j++) {
         expect(labels[i].box.overlaps(labels[j].box), isFalse, reason: '${labels[i]} / ${labels[j]}');
@@ -127,7 +129,7 @@ void main() {
       expect(labels.length, lessThanOrEqualTo(4));
     });
 
-    test('a lone name with no free spot joins the nearest placed label', () {
+    test('a lone name with no free spot goes unnamed, not into a far label', () {
       // a site boxed in by three neighbours' long labels and an obstacle
       final labels = placeMapLabels(
           anchors: [(100, 100), (100, 60), (100, 140), (300, 100)],
@@ -137,10 +139,60 @@ void main() {
           order: [1, 2, 3, 0],
           obstacles: const [LabelBox(40, 80, 92, 120), LabelBox(108, 80, 160, 120)]);
       expectSound(labels, [0, 1, 2, 3],
+          obstacles: const [LabelBox(40, 80, 92, 120), LabelBox(108, 80, 160, 120)], all: false);
+      // not in a stack with anyone: a "+1" on a neighbour would count it as there
+      expect([for (final l in labels) l.site], unorderedEquals([1, 2, 3]));
+      expect(labels.every((l) => l.merged.isEmpty && !l.text.contains('+')), isTrue);
+    });
+
+    test('a stack-mate still carries a name with no free spot', () {
+      // the same, with the middle site stacked with the one above it
+      final labels = placeMapLabels(
+          anchors: [(100, 100), (100, 60), (100, 140), (300, 100)],
+          reach: [5, 5, 5, 5],
+          texts: ['Middle', 'A very long name above the middle', 'A very long name below the middle', 'Far'],
+          measure: measure,
+          order: [1, 2, 3, 0],
+          stacks: const [
+            [0, 1],
+            [2],
+            [3]
+          ],
           obstacles: const [LabelBox(40, 80, 92, 120), LabelBox(108, 80, 160, 120)]);
-      final host = labels.firstWhere((l) => l.merged.contains(0));
-      expect(host.site, anyOf(1, 2), reason: 'a neighbour 40 px away, not the far site');
-      expect(host.text, endsWith(' +1'));
+      expectSound(labels, [0, 1, 2, 3], obstacles: const [LabelBox(40, 80, 92, 120), LabelBox(108, 80, 160, 120)]);
+      expect(labels.firstWhere((l) => l.merged.contains(0)).site, 1);
+    });
+
+    test('a name stays inside the bounds when its marker is inside', () {
+      // above and below are blocked; right is free but runs past the edge
+      const obstacles = [LabelBox(150, 70, 230, 90), LabelBox(150, 110, 230, 130)];
+      List<MapLabel> at({LabelBox? bounds}) => placeMapLabels(
+          anchors: [(190, 100)], reach: [5], texts: ['Lower'], measure: measure, order: [0],
+          obstacles: obstacles, bounds: bounds);
+      expect(at().single.spot, LabelSpot.right, reason: 'no bounds: right is tried before left');
+      final inView = at(bounds: const LabelBox(0, 0, 200, 200)).single;
+      expect(inView.spot, LabelSpot.left);
+      expect(inView.box.right, lessThanOrEqualTo(200));
+      // a marker out of view is placed as without bounds
+      expect(at(bounds: const LabelBox(0, 0, 150, 200)).single.spot, LabelSpot.right);
+    });
+
+    test('the first label, forced when no spot fits, is shifted into the bounds', () {
+      const bounds = LabelBox(0, 80, 200, 120);
+      final labels = placeMapLabels(
+          anchors: [(5, 100)],
+          reach: [5],
+          texts: ['A long name'],
+          measure: measure,
+          order: [0],
+          obstacles: const [LabelBox(10, 90, 100, 110)],
+          bounds: bounds);
+      final b = labels.single.box;
+      expect(labels.single.site, 0);
+      expect(b.width, 77);
+      expect(b.height, 16);
+      expect(b.left >= bounds.left && b.top >= bounds.top && b.right <= bounds.right && b.bottom <= bounds.bottom, isTrue,
+          reason: '$b');
     });
 
     test('labels keep clear of other markers when they can', () {

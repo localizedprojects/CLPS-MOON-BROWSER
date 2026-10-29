@@ -153,7 +153,8 @@ export function TimelineView() {
 
   if (!m || !fig) return <Waiting what="timeline data" />
   const d = m.data
-  const lines = answerLines(d, tNow, !narrow)
+  // all four lines on phones too: the Sun and Earth countdowns ("Sunlight: YES · until …") are the brief's "time remaining"
+  const lines = answerLines(d, tNow, true)
   const events = comingUp(d, tNow, narrow ? 3 : 5)
   const sh = stripHeight(narrow)
 

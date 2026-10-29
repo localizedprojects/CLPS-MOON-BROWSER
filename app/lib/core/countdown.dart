@@ -192,7 +192,7 @@ const _units = {'°': 'degree', 'd': 'day', 'h': 'hour', 'min': 'minute'};
 /// "3 days 4 hours", "1.2°" is "1.2 degrees", "Oct" is "October",
 /// "W/m²" is "watts per square metre" and " · " a comma.
 String spokenCountdown(String line) => line
-    .replaceAllMapped(RegExp(r'(\d+(?:\.\d+)?) ?(°|d|h|min)(?![A-Za-z])'), (m) {
+    .replaceAllMapped(RegExp(r'(\d+(?:\.\d+)?)[ \u00A0]?(°|d|h|min)(?![A-Za-z])'), (m) {
       final v = m[1]!, u = _units[m[2]]!;
       return '$v $u${v == '1' ? '' : 's'}';
     })

@@ -52,7 +52,7 @@ void main() {
 
     String shown(WidgetTester tester) {
       final t = tester.widget<Text>(find.byKey(const ValueKey('nowCountdown')));
-      return t.textSpan!.toPlainText();
+      return t.textSpan!.toPlainText().replaceAll('\u00A0', ' '); // numSpans keeps a number's parts together
     }
 
     testWidgets('the default line: Sun height, sunset or sunrise with its time, Earthset or Earthrise; numbers in Mono',

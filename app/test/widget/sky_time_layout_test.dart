@@ -264,8 +264,9 @@ void main() {
         final card = find.ancestor(of: chart(label), matching: find.byType(Card)).first;
         expect(find.descendant(of: card, matching: find.byType(NowStatus)), findsOneWidget,
             reason: '${simple ? 'Simple' : 'classic'}: NowStatus is inside the sky chart card');
-        // one statement (one glyph, one line of words), and one live sentence
-        expect(find.descendant(of: now, matching: find.byType(Text)), findsOneWidget);
+        // one statement (one glyph, one line of words, and the countdown line under it), and one live sentence
+        expect(find.descendant(of: now, matching: find.byType(Text)), findsNWidgets(2));
+        expect(find.descendant(of: now, matching: find.byKey(const ValueKey('nowCountdown'))), findsOneWidget);
         final live = labelsInOrder(tester).where((l) => l.startsWith('At the time shown (')).toList();
         expect(live, hasLength(1));
         expect(tester.getSemantics(now).getSemanticsData().flagsCollection.isLiveRegion, isTrue);

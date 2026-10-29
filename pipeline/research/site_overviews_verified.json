@@ -1,6 +1,6 @@
 {
- "reviewed": "2026-10-25",
- "method": "Each overview was drafted by research agents from web searches. An independent fact-check then gave every claim a verdict (confirmed, corrected or unsupported) and recorded the sources it used. The fact-checkers could not open the primary pages themselves (those hosts did not answer), so the checks rest on search-engine result summaries that quote the named pages, plus a few distances computed from the catalogue coordinates; treat them as medium to low confidence. Unsupported claims, including some that the SR1, CR1, SV1 and MP1 checker could not search before its search budget ran out, were left out of the text, and corrected claims use the corrected wording. An editorial pass on 2026-10-25 then removed only clauses that state a number the app computes itself (Rule C: distance from the south pole), kept the rest of each sentence and added no claim; every change is logged in the site's edits list as was, now and why. A second pass on the same day brought a few sentences in line with the site's own confirmed or corrected verdicts: one size per feature across presets, the source of a size where it differs from the IAU Gazetteer diameter, the optional VIPER delivery, and the February 2026 Artemis change in the same words on all eight Artemis regions. It added only words found in those verdicts and is logged in the same edits lists.",
+ "reviewed": "2026-10-29",
+ "method": "Each overview was drafted by research agents from web searches. An independent fact-check then gave every claim a verdict (confirmed, corrected or unsupported) and recorded the sources it used. The fact-checkers could not open the primary pages themselves (those hosts did not answer), so the checks rest on search-engine result summaries that quote the named pages, plus a few distances computed from the catalogue coordinates; treat them as medium to low confidence. Unsupported claims, including some that the SR1, CR1, SV1 and MP1 checker could not search before its search budget ran out, were left out of the text, and corrected claims use the corrected wording. An editorial pass on 2026-10-25 then removed only clauses that state a number the app computes itself (Rule C: distance from the south pole), kept the rest of each sentence and added no claim; every change is logged in the site's edits list as was, now and why. A second pass on the same day brought a few sentences in line with the site's own confirmed or corrected verdicts: one size per feature across presets, the source of a size where it differs from the IAU Gazetteer diameter, the optional VIPER delivery, and the February 2026 Artemis change in the same words on all eight Artemis regions. It added only words found in those verdicts and is logged in the same edits lists. On 2026-10-29 three mission entries were added (im-2-intended-target, change-7-planned-landing, lupex-chandrayaan-5-candidate). Their text uses only the facts, sources and checker's notes of the same entries in site_research_verified.json; those pages were not re-opened for these overviews, and the low confidence of the two international points is stated in their text.",
  "sites": [
   {
    "id": "artemis3-haworth",
@@ -1432,6 +1432,115 @@
      "why": "Rule C: the distance from the south pole is a number the app computes and shows in its facts line, so the clause was removed and the rest kept as written."
     }
    ]
+  },
+  {
+   "id": "im-2-intended-target",
+   "headline": "IM-2 Athena's intended landing point on Mons Mouton, published by LROC",
+   "overview": "This is where Intuitive Machines' IM-2 lander Athena was aiming to land on Mons Mouton: LROC published the intended landing site on 26 February 2025 at 84.78 S, 29.13 E. LROC puts it 175 km from the IM-1 site. Athena touched down about 250 m from this intended site, according to Spaceflight Now, so this preset is a target point, not a landed position; the IM-2 Athena (landed) preset marks where it came to rest. LROC gives the coordinate to 0.01 degrees, which is about 300 m in latitude.",
+   "sources": [
+    "https://lroc.im-ldi.com/images/1401",
+    "https://spaceflightnow.com/2025/03/07/intuitive-machines-im-2-mission-ends-with-lander-on-its-side-on-the-moon/"
+   ],
+   "verdicts": [
+    {
+     "claim": "LROC (IM-2 Landing Region, published 26 Feb 2025) gives the IM-2 intended landing site as 84.78 S, 29.13 E (east longitude), on Mons Mouton, 175 km from the IM-1 site.",
+     "verdict": "confirmed",
+     "finalClaim": "LROC (IM-2 Landing Region, published 26 Feb 2025) gives the IM-2 intended landing site as 84.78 S, 29.13 E (east longitude), on Mons Mouton, 175 km from the IM-1 site.",
+     "source": "Research record pipeline/research/site_research_verified.json, entry im-2-intended-target: https://lroc.im-ldi.com/images/1401 (that record's fact-checker opened the page; not re-opened for this overview); the NASA IM-2 press kit and the DLR image page named in its notes give only 'Mons Mouton'."
+    },
+    {
+     "claim": "Athena touched down about 250 m from its intended landing site.",
+     "verdict": "confirmed",
+     "finalClaim": "Athena touched down about 250 m from its intended landing site.",
+     "source": "Research record pipeline/research/site_research_verified.json, entry im-2-intended-target: https://spaceflightnow.com/2025/03/07/intuitive-machines-im-2-mission-ends-with-lander-on-its-side-on-the-moon/ (that record's fact-checker opened the page; not re-opened for this overview)"
+    },
+    {
+     "claim": "The coordinate is a target point, not a landed position, given to 0.01 degrees (about 300 m in latitude).",
+     "verdict": "confirmed",
+     "finalClaim": "The coordinate is a target point, not a landed position, given to 0.01 degrees (about 300 m in latitude).",
+     "source": "Research record pipeline/research/site_research_verified.json, entry im-2-intended-target (notes): https://lroc.im-ldi.com/images/1401 (that record's fact-checker opened the page; not re-opened for this overview)"
+    }
+   ],
+   "edits": []
+  },
+  {
+   "id": "change-7-planned-landing",
+   "headline": "Unofficial Chang'e-7 landing point near Shackleton's southeast ridge",
+   "overview": "This point is an unofficial, approximate landing site for China's Chang'e-7 mission: a peak near the southeast ridge of Shackleton crater, at 88.8 S, 123.4 E. Wikipedia gives this coordinate, citing only a Weibo post from April 2023; no official coordinate from China's space agency, CNSA, was found. The Planetary Society says no final landing area has been announced publicly and that the rim of Shackleton crater is the preferred candidate, and Gunter's Space Page places the landing near the illuminated rim of Shackleton. In the LOLA terrain map the point lies next to a local high, consistent with a peak, but outside Shackleton's rim rather than on it. Gunter's Space Page lists the launch as delayed to 2027.",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Chang%27e_7",
+    "https://www.planetary.org/space-missions/change-7",
+    "https://space.skyrocket.de/doc_sdat/change-7.htm"
+   ],
+   "verdicts": [
+    {
+     "claim": "Wikipedia gives the landing site as a peak near the southeast ridge of Shackleton crater, 88.8 S, 123.4 E, and its only citation for the coordinate is a Weibo post of 25 April 2023.",
+     "verdict": "confirmed",
+     "finalClaim": "Wikipedia gives the landing site as a peak near the southeast ridge of Shackleton crater, 88.8 S, 123.4 E, and its only citation for the coordinate is a Weibo post of 25 April 2023.",
+     "source": "Research record pipeline/research/site_research_verified.json, entry change-7-planned-landing: https://en.wikipedia.org/wiki/Chang%27e_7 (that record's fact-checker opened the page; not re-opened for this overview)"
+    },
+    {
+     "claim": "No official CNSA coordinate was found; the point is an approximate, unofficial candidate at 0.1 degree precision (low confidence).",
+     "verdict": "confirmed",
+     "finalClaim": "No official CNSA coordinate was found; the point is an approximate, unofficial candidate at 0.1 degree precision (low confidence).",
+     "source": "Research record pipeline/research/site_research_verified.json, entry change-7-planned-landing (notes and confidence: low)"
+    },
+    {
+     "claim": "The Planetary Society: no final landing area publicly announced; the preferred candidate is the rim of Shackleton crater.",
+     "verdict": "confirmed",
+     "finalClaim": "The Planetary Society: no final landing area publicly announced; the preferred candidate is the rim of Shackleton crater.",
+     "source": "Research record pipeline/research/site_research_verified.json, entry change-7-planned-landing: https://www.planetary.org/space-missions/change-7 (that record's fact-checker opened the page; not re-opened for this overview)"
+    },
+    {
+     "claim": "Gunter's Space Page: landing planned near the illuminated rim of Shackleton; launch delayed to 2027.",
+     "verdict": "confirmed",
+     "finalClaim": "Gunter's Space Page: landing planned near the illuminated rim of Shackleton; launch delayed to 2027.",
+     "source": "Research record pipeline/research/site_research_verified.json, entry change-7-planned-landing: https://space.skyrocket.de/doc_sdat/change-7.htm (that record's fact-checker opened the page; not re-opened for this overview)"
+    },
+    {
+     "claim": "In the cached LOLA DEM the point lies next to a local high, consistent with a peak; measured from the IAU Shackleton centre it lies outside the rim rather than on it.",
+     "verdict": "confirmed",
+     "finalClaim": "In the cached LOLA DEM the point lies next to a local high, consistent with a peak; measured from the IAU Shackleton centre it lies outside the rim rather than on it.",
+     "source": "Research record pipeline/research/site_research_verified.json, entry change-7-planned-landing (notes: LOLA DEM check and great-circle distance to the IAU Shackleton centre)"
+    }
+   ],
+   "edits": []
+  },
+  {
+   "id": "lupex-chandrayaan-5-candidate",
+   "headline": "Candidate LUPEX / Chandrayaan-5 site on the Shackleton-de Gerlache ridge",
+   "overview": "This point is a candidate landing site for LUPEX, the ISRO-JAXA mission also called Chandrayaan-5, on an elevated ridge connecting the craters Shackleton and de Gerlache. The coordinate, 89.45 S, 137.15 W (given as 222.85 E), comes from a 2025 newsletter by Jatan Mehta reporting a 2024 IAC talk by Veeramuthuvel of ISRO, who said the landing site could be there; it is secondhand and hedged, not a confirmed target. A 2024 LPSC abstract by Dagar and colleagues at ISRO studies boulders at the proposed LUPEX landing site on the same ridge, using an OHRC image centred about 5 km away. In the LOLA terrain map the point sits at a local high, consistent with a ridge crest. LUPEX is not a NASA CLPS mission; its launch is planned for around 2028 or later on an H3 rocket.",
+   "sources": [
+    "https://jatan.space/indian-space-issue-25/",
+    "https://www.hou.usra.edu/meetings/lpsc2024/pdf/1898.pdf"
+   ],
+   "verdicts": [
+    {
+     "claim": "Jatan Mehta's newsletter (Indian Space Progress issue 25, 4 Apr 2025), citing P. Veeramuthuvel's IAC 2024 talk: Chandrayaan-5's landing site could be 89.45 S, 222.85 E (= 137.15 W), on an elevated ridge connecting Shackleton and de Gerlache craters. The number is secondhand and hedged, so it is a candidate, not a confirmed target.",
+     "verdict": "confirmed",
+     "finalClaim": "Jatan Mehta's newsletter (Indian Space Progress issue 25, 4 Apr 2025), citing P. Veeramuthuvel's IAC 2024 talk: Chandrayaan-5's landing site could be 89.45 S, 222.85 E (= 137.15 W), on an elevated ridge connecting Shackleton and de Gerlache craters. The number is secondhand and hedged, so it is a candidate, not a confirmed target.",
+     "source": "Research record pipeline/research/site_research_verified.json, entry lupex-chandrayaan-5-candidate: https://jatan.space/indian-space-issue-25/ (that record's fact-checker opened the page; not re-opened for this overview)"
+    },
+    {
+     "claim": "Dagar et al. (2024), LPSC #1898, from ISRO SAC, study boulders at the proposed LUPEX landing site on the Shackleton-de Gerlache ridge with an OHRC image centred at 89.2836 S, 140.556 W, about 5 km from this point.",
+     "verdict": "confirmed",
+     "finalClaim": "Dagar et al. (2024), LPSC #1898, from ISRO SAC, study boulders at the proposed LUPEX landing site on the Shackleton-de Gerlache ridge with an OHRC image centred at 89.2836 S, 140.556 W, about 5 km from this point.",
+     "source": "Research record pipeline/research/site_research_verified.json, entry lupex-chandrayaan-5-candidate: https://www.hou.usra.edu/meetings/lpsc2024/pdf/1898.pdf (that record's fact-checker opened the page; not re-opened for this overview)"
+    },
+    {
+     "claim": "In the cached LOLA DEM the point is essentially at a local high, consistent with a ridge crest.",
+     "verdict": "confirmed",
+     "finalClaim": "In the cached LOLA DEM the point is essentially at a local high, consistent with a ridge crest.",
+     "source": "Research record pipeline/research/site_research_verified.json, entry lupex-chandrayaan-5-candidate (notes: LOLA DEM check)"
+    },
+    {
+     "claim": "LUPEX (Chandrayaan-5, ISRO-JAXA) is not a CLPS mission; launch is planned around 2028 or later on H3.",
+     "verdict": "confirmed",
+     "finalClaim": "LUPEX (Chandrayaan-5, ISRO-JAXA) is not a CLPS mission; launch is planned around 2028 or later on H3.",
+     "source": "Research record pipeline/research/site_research_verified.json, entry lupex-chandrayaan-5-candidate (notes)"
+    }
+   ],
+   "edits": []
   }
  ]
 }

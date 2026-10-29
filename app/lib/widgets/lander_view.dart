@@ -606,7 +606,6 @@ class LanderViewPanelState extends State<LanderViewPanel> with TickerProviderSta
                   height: LanderPainter.compassH,
                   child: Semantics(
                     label: landerCompassLabel,
-                    onTap: () => press(faceSun),
                     child: Tooltip(
                       message: landerCompassLabel,
                       excludeFromSemantics: true,
@@ -663,9 +662,10 @@ class LanderViewPanelState extends State<LanderViewPanel> with TickerProviderSta
   }
 }
 
-/// Draws sky, Sun and Earth discs, the terrain far to near (base pass + one
-/// pass per pattern, §4.4), the reference horizon, callouts, compass strip,
-/// centre probe and the focus ring.
+/// Draws the sky (flat background, Sun and Earth discs), the terrain far to
+/// near (base pass + one pass per pattern, §4.4), the reference horizon and
+/// the DEM ends, the elevation scale, callouts, the compass strip, the centre
+/// probe and the focus ring (§5).
 class LanderPainter extends CustomPainter {
   final LanderCameraController cam;
   final LanderMesh? mesh;
@@ -673,6 +673,10 @@ class LanderPainter extends CustomPainter {
   final Int32List? colors;
   final List<(LightPattern, Int32List)> patterns;
   final SkyBody? sun, earth;
+
+  /// The precise-mask words of the Sun and Earth ([landerPreciseWord]);
+  /// null: the words of the drawn terrain.
+  final String? sunWord, earthWord;
   final Float64List? maskDeg;
   final double maskStepDeg;
   final String maskLabel;
@@ -682,9 +686,12 @@ class LanderPainter extends CustomPainter {
 
   LanderPainter(
       {required this.cam, required this.mesh, required this.proj, required this.colors, this.patterns = const [],
-      this.sun, this.earth, this.maskDeg, this.maskStepDeg = 0.5, this.maskLabel = '', this.probe, this.status,
-      this.focused = false, this.textScaler = TextScaler.noScaling})
+      this.sun, this.earth, this.sunWord, this.earthWord, this.maskDeg, this.maskStepDeg = 0.5, this.maskLabel = '',
+      this.probe, this.status, this.focused = false, this.textScaler = TextScaler.noScaling})
       : super(repaint: cam);
+
+  /// Height of the compass strip at the top (a 48 dp tap target).
+  static const compassH = 48.0;
 
   static final _tiles = <LightPattern, ui.Image>{};
 
@@ -725,6 +732,56 @@ class LanderPainter extends CustomPainter {
     return p.front ? Offset(p.x, p.y) : null;
   }
 
+  /// The disc centre, the glyph 24 dp above it and the disc radius in px,
+  /// or null when the body is off the view (below the compass strip).
+  static ({Offset disc, Offset glyph, double rPx})? calloutAnchor(LanderView v, SkyBody b) {
+    final p = at(v, b.az, b.el);
+    if (p == null || p.dx < 0 || p.dx > v.w || p.dy < compassH || p.dy > v.h) return null;
+    final rPx = b.rhoDeg / v.hfovDeg * v.w;
+    return (disc: p, glyph: Offset(p.dx, math.max(compassH + 12, p.dy - math.max(24.0, rPx + 14))), rPx: rPx);
+  }
+
+  /// The callouts' 48 dp tap targets (glyph and disc): true = the Sun.
+  static List<(Rect, bool)> calloutTargets(LanderView v, SkyBody? sun, SkyBody? earth) => [
+        for (final (b, isSun) in [(sun, true), (earth, false)])
+          if (b != null)
+            if (calloutAnchor(v, b) case final a?)
+              (
+                Rect.fromCenter(center: a.glyph, width: 48, height: 48)
+                    .expandToInclude(Rect.fromCenter(center: a.disc, width: 48, height: 48)),
+                isSun
+              ),
+      ];
+
+  /// Edge chevrons of bodies whose azimuth is out of view (§5), in the
+  /// compass strip: rect (the tap target), body, left edge, text.
+  static List<(Rect, bool, bool, String)> chevrons(LanderView v, SkyBody? sun, SkyBody? earth) {
+    final out = <(Rect, bool, bool, String)>[];
+    var left = 0, right = 0;
+    for (final (b, isSun) in [(sun, true), (earth, false)]) {
+      if (b == null) continue;
+      final p = at(v, b.az, v.pitchDeg);
+      if (p != null && p.dx >= 0 && p.dx <= v.w) continue;
+      final isLeft = turnDelta(v.yawDeg, b.az) < 0, row = isLeft ? left++ : right++;
+      const w = 104.0, h = compassH / 2;
+      final r = Rect.fromLTWH(isLeft ? 0 : v.w - w, row * h, w, h);
+      out.add((r, isSun, isLeft, '${isSun ? 'SUN' : 'EARTH'} ${(b.az.round() % 360).toString().padLeft(3, '0')}°'));
+    }
+    // one body on an edge: its target is the strip's full 48 dp height
+    return [
+      for (final c in out)
+        out.where((o) => o.$3 == c.$3).length == 1 ? (Rect.fromLTWH(c.$1.left, 0, c.$1.width, compassH), c.$2, c.$3, c.$4) : c
+    ];
+  }
+
+  /// The body of the edge chevron at [pos] (true = the Sun), or null.
+  static bool? chevronAt(LanderView v, SkyBody? sun, SkyBody? earth, Offset pos) {
+    for (final c in chevrons(v, sun, earth)) {
+      if (c.$1.contains(pos)) return c.$2;
+    }
+    return null;
+  }
+
   void _pass(Canvas canvas, Int32List perVertex, Paint paint) {
     var v0 = 0, i0 = 0;
     for (final b in proj.batches) {
@@ -741,40 +798,100 @@ class LanderPainter extends CustomPainter {
     }
   }
 
+  /// A body's disc: a 64-gon at its true angular radius, in its meaning
+  /// colour, with a 1 px outline (a visual aid: it is only a few px wide).
   void _disc(Canvas canvas, LanderView v, SkyBody b, Color color) {
-    final pts = discOutline(b.az, b.el, b.rhoDeg, sides: 48);
     final path = Path();
-    for (final (i, q) in pts.indexed) {
+    for (final (i, q) in discOutline(b.az, b.el, b.rhoDeg).indexed) {
       final p = projectView(v, q.e, q.n, q.u);
       if (!p.front) return;
       i == 0 ? path.moveTo(p.x, p.y) : path.lineTo(p.x, p.y);
     }
-    canvas.drawPath(path..close(), Paint()..color = color);
+    path.close();
+    canvas.drawPath(path, Paint()..color = color);
+    canvas.drawPath(
+        path,
+        Paint()
+          ..color = PH.text
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 1);
   }
 
-  /// Glyph and words at a body (drawn over the terrain): Sun = ring with rays, Earth = ring with a bar.
-  void _callout(Canvas canvas, LanderView v, SkyBody b, bool isSun, Size size) {
-    final p = at(v, b.az, b.el);
-    if (p == null || !(Offset.zero & size).inflate(-2).contains(p)) return;
-    final color = isSun ? PH.sun : PH.earth, r = math.max(8.0, b.rhoDeg / v.hfovDeg * size.width + 4);
-    final ring = Paint()
-      ..color = color
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.5;
-    canvas.drawCircle(p, r, ring);
-    if (isSun) {
-      for (var k = 0; k < 8; k++) {
-        final d = Offset(math.cos(k * math.pi / 4), math.sin(k * math.pi / 4));
-        canvas.drawLine(p + d * (r + 2), p + d * (r + 6), ring);
-      }
-    } else {
-      canvas.drawLine(p + Offset(-r, 0), p + Offset(r, 0), ring);
+  static void _dashedLine(Canvas canvas, Offset a, Offset b, Paint paint, {double on = 4, double off = 3}) {
+    final d = b - a, len = d.distance;
+    if (len < 1e-6) return;
+    final u = d / len;
+    for (var t = 0.0; t < len; t += on + off) {
+      canvas.drawLine(a + u * t, a + u * math.min(len, t + on), paint);
     }
-    final t = _text('${isSun ? 'Sun' : 'Earth'} · ${landerSkyWord(b.state)}', size: 11, color: color);
-    final x = (p.dx + r + 8).clamp(4.0, math.max(4.0, size.width - t.width - 4)).toDouble(),
-        y = (p.dy - t.height / 2).clamp(52.0, math.max(52.0, size.height - t.height - 4)).toDouble();
-    canvas.drawRect(Rect.fromLTWH(x - 3, y - 1, t.width + 6, t.height + 2), Paint()..color = PH.bg.withValues(alpha: 0.75));
-    t.paint(canvas, Offset(x, y));
+  }
+
+  /// The callout lines of a body (§5): position, the precise word, and the
+  /// drawn terrain's verdict when it differs.
+  List<String> calloutLines(SkyBody b, bool isSun) {
+    final word = (isSun ? sunWord : earthWord) ?? landerSkyWord(b.state), mesh = landerSkyWord(b.state);
+    String sgn(double x) => '${x >= 0 ? '+' : '-'}${x.abs().toStringAsFixed(1)}°';
+    final sky = this.mesh == null ? null : skylineAt(this.mesh!.skyline, b.az);
+    return [
+      '${isSun ? 'Sun' : 'Earth'} · az ${((b.az % 360 + 360) % 360).toStringAsFixed(1)}° · el ${sgn(b.el)}',
+      word,
+      if (mesh != word && sky != null) '400 m terrain here: $mesh, skyline ${sgn(sky)}',
+    ];
+  }
+
+  /// Glyph, leader and words at a body, drawn over the terrain; returns the
+  /// label's box so the next callout keeps clear of it.
+  Rect? _callout(Canvas canvas, LanderView v, SkyBody b, bool isSun, Rect? avoid) {
+    final a = calloutAnchor(v, b);
+    if (a == null) return null;
+    final color = isSun ? PH.sun : PH.earth;
+    final lines = calloutLines(b, isSun), up = lines[1] == 'in view' || lines[1] == 'partly hidden';
+    final lead = Paint()
+      ..color = PH.text.withValues(alpha: 0.7)
+      ..strokeWidth = 1;
+    if (a.disc.dy - a.rPx - 2 > a.glyph.dy + 10) {
+      canvas.drawLine(Offset(a.disc.dx, a.disc.dy - a.rPx - 2), a.glyph + const Offset(0, 10), lead);
+    }
+    if (up) {
+      canvas.save();
+      canvas.translate(a.glyph.dx - 9, a.glyph.dy - 9);
+      GlyphPainter(isSun ? GlyphKind.sun : GlyphKind.earth).paint(canvas, const Size.square(18));
+      canvas.restore();
+    } else {
+      // hollow and dashed: the body is hidden (behind terrain or below the horizon)
+      final ring = Paint()
+        ..color = color
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.5;
+      for (var k = 0; k < 12; k += 2) {
+        canvas.drawArc(Rect.fromCircle(center: a.glyph, radius: 6), k * math.pi / 6, math.pi / 6, false, ring);
+      }
+      if (isSun) {
+        for (var k = 0; k < 8; k++) {
+          final d = Offset(math.cos(k * math.pi / 4), math.sin(k * math.pi / 4));
+          canvas.drawLine(a.glyph + d * 8, a.glyph + d * 10.5, ring);
+        }
+      } else {
+        _dashedLine(canvas, a.glyph - const Offset(8, 0), a.glyph + const Offset(8, 0), ring, on: 3, off: 2);
+      }
+    }
+    final ts = [for (final (i, l) in lines.indexed) _text(l, size: 11, color: i == 0 ? color : PH.text, mono: i == 0)];
+    final tw = ts.map((t) => t.width).reduce(math.max), th = ts.fold(0.0, (s, t) => s + t.height);
+    var x = a.glyph.dx + 14;
+    if (x + tw + 4 > v.w) x = math.max(2.0, a.glyph.dx - 14 - tw);
+    double clampY(double y) => y.clamp(compassH + 2, math.max(compassH + 2, v.h - th - 4)).toDouble();
+    var box = Rect.fromLTWH(x - 3, clampY(a.glyph.dy - 8) - 1, tw + 6, th + 2);
+    if (avoid != null && box.overlaps(avoid)) {
+      final below = Rect.fromLTWH(box.left, avoid.bottom + 4, box.width, box.height);
+      box = below.bottom <= v.h ? below : Rect.fromLTWH(box.left, clampY(avoid.top - 4 - box.height), box.width, box.height);
+    }
+    canvas.drawRect(box, Paint()..color = PH.bg.withValues(alpha: 0.8));
+    var y = box.top + 1;
+    for (final t in ts) {
+      t.paint(canvas, Offset(box.left + 3, y));
+      y += t.height;
+    }
+    return box;
   }
 
   @override
@@ -782,8 +899,9 @@ class LanderPainter extends CustomPainter {
     final v = cam.view(size), full = Offset.zero & size;
     canvas.save();
     canvas.clipRect(full);
-    // airless sky: black, no stars drawn
-    canvas.drawRect(full, Paint()..color = const Color(0xFF000000));
+    // airless sky: the flat panel background; no stars, no glow, no atmosphere
+    canvas.drawRect(full, Paint()..color = PH.bg);
+    // Sun, then Earth on top (an eclipse covers the Sun by itself); the terrain then hides both
     if (sun != null) _disc(canvas, v, sun!, PH.sun);
     if (earth != null) _disc(canvas, v, earth!, PH.earth);
     final m = mesh, c = colors;
@@ -801,7 +919,8 @@ class LanderPainter extends CustomPainter {
         canvas.restore();
       }
     }
-    // 0° elevation (a straight line: great circles stay straight in this projection)
+    final span = v.hfovDeg * 0.5 * math.max(1.0, v.w / v.h) + 10;
+    // 0° elevation, a visual aid (a straight line: great circles stay straight in this projection)
     final h0 = at(v, cam.yaw - 1, 0), h1 = at(v, cam.yaw + 1, 0);
     if (h0 != null && h1 != null && (h1.dx - h0.dx).abs() > 1e-6) {
       final k = (h1.dy - h0.dy) / (h1.dx - h0.dx);
@@ -810,16 +929,49 @@ class LanderPainter extends CustomPainter {
           Paint()
             ..color = PH.muted.withValues(alpha: 0.5)
             ..strokeWidth = 1);
-      final t = _text('0°', size: 10, color: PH.muted, mono: true);
-      t.paint(canvas, Offset(4, y0 - t.height - 1));
+      final t = _text('0° (level)', size: 10, color: PH.muted, mono: true);
+      final ty = y0 + k * 44 - t.height - 1;
+      if (ty > compassH && ty < size.height - t.height) t.paint(canvas, Offset(44, ty));
     }
-    // reference horizon (dashed): the site's precise mask, never the mesh
+    // DEM ends (§3.9): dotted on the drawn skyline where the LOLA map stops
+    if (m != null) {
+      final warn = Paint()
+        ..color = PH.warn
+        ..strokeWidth = 2;
+      for (final e in m.demEnds) {
+        var a1 = e.az1;
+        while (a1 < e.az0) {
+          a1 += 360;
+        }
+        Offset? prev, mid;
+        var i = 0;
+        for (var a = e.az0; a <= a1 + 1e-9; a += 0.5, i++) {
+          if (turnDelta(cam.yaw, a).abs() > span) {
+            prev = null;
+            continue;
+          }
+          final p = at(v, a, skylineAt(m.skyline, a));
+          if (prev != null && p != null && i.isEven) canvas.drawLine(prev, p, warn);
+          if (p != null && p.dx >= 0 && p.dx <= size.width) mid ??= p;
+          prev = p;
+        }
+        if (mid != null) {
+          final t = _text('terrain data ends at ${(e.distM / 1000).round()} km', size: 10, color: PH.warn);
+          final x = mid.dx.clamp(2.0, math.max(2.0, size.width - t.width - 2)).toDouble();
+          final y = (mid.dy - t.height - 4).clamp(compassH + 2, math.max(compassH + 2, size.height - t.height)).toDouble();
+          canvas.drawRect(Rect.fromLTWH(x - 2, y, t.width + 4, t.height), Paint()..color = PH.bg.withValues(alpha: 0.7));
+          t.paint(canvas, Offset(x, y));
+        }
+      }
+    }
+    // the reference horizon: the site's precise mask (or the spot's coarse
+    // one), dashed, never the mesh
     final mk = maskDeg;
+    var bottom = size.height - 6;
     if (mk != null && mk.isNotEmpty) {
       final dash = Paint()
-        ..color = PH.ice
+        ..color = PH.text.withValues(alpha: 0.7)
         ..strokeWidth = 1.2;
-      final span = v.hfovDeg * 0.5 * math.max(1.0, v.w / v.h) + 10;
       Offset? prev;
       var on = 0;
       for (var a = cam.yaw - span; a <= cam.yaw + span; a += 0.5) {
@@ -828,11 +980,16 @@ class LanderPainter extends CustomPainter {
         if (prev != null && p != null && on++ % 2 == 0) canvas.drawLine(prev, p, dash);
         prev = p;
       }
-      final t = _text('- - $maskLabel', size: 10, color: PH.ice);
-      t.paint(canvas, Offset(size.width - t.width - 6, size.height - t.height - 6));
+      final t = _text(maskLabel, size: 10, color: PH.text);
+      final box = Rect.fromLTWH(size.width - t.width - 34, bottom - t.height - 2, t.width + 30, t.height + 4);
+      canvas.drawRect(box, Paint()..color = PH.bg.withValues(alpha: 0.8));
+      _dashedLine(canvas, Offset(box.left + 4, box.center.dy), Offset(box.left + 22, box.center.dy), dash);
+      t.paint(canvas, Offset(box.left + 26, box.top + 2));
+      bottom = box.top - 2;
     }
-    if (sun != null) _callout(canvas, v, sun!, true, size);
-    if (earth != null) _callout(canvas, v, earth!, false, size);
+    _elevationScale(canvas, v, size);
+    final sunBox = sun == null ? null : _callout(canvas, v, sun!, true, null);
+    if (earth != null) _callout(canvas, v, earth!, false, sunBox);
     _compass(canvas, v, size);
     // centre crosshair and probe
     final cx = size.width / 2, cy = size.height / 2, cross = Paint()
@@ -845,7 +1002,7 @@ class LanderPainter extends CustomPainter {
     final msg = status ?? probe;
     if (msg != null) {
       final t = _text(msg, size: 11, mono: status == null);
-      final r = Rect.fromLTWH(6, size.height - t.height - 10 - (mk != null ? 16 : 0), math.min(t.width, size.width - 12) + 8, t.height + 4);
+      final r = Rect.fromLTWH(6, bottom - t.height - 4, math.min(t.width, size.width - 12) + 8, t.height + 4);
       canvas.drawRect(r, Paint()..color = PH.bg.withValues(alpha: 0.8));
       canvas.save();
       canvas.clipRect(r);
@@ -863,44 +1020,79 @@ class LanderPainter extends CustomPainter {
     canvas.restore();
   }
 
-  /// The 48 px compass strip at the top: ticks, N/E/S/W, degrees, and Sun / Earth glyphs at their azimuths.
+  /// The elevation step of the scale for [hfovDeg] over [w] px: 1, 2, 5 or
+  /// 10°, the first at least 28 px apart.
+  static int elevationStep(double hfovDeg, double w) =>
+      const [1, 2, 5, 10].firstWhere((k) => k * w / hfovDeg >= 28, orElse: () => 10);
+
+  /// Ticks on the left edge where the centre column has el = k° (§5).
+  void _elevationScale(Canvas canvas, LanderView v, Size size) {
+    final step = elevationStep(v.hfovDeg, size.width);
+    final tick = Paint()
+      ..color = PH.muted
+      ..strokeWidth = 1;
+    for (var k = -90; k <= 90; k += step) {
+      final p = at(v, cam.yaw, k.toDouble());
+      if (p == null || p.dy < compassH + 6 || p.dy > size.height - 6) continue;
+      canvas.drawLine(Offset(0, p.dy), Offset(k == 0 ? 10 : 6, p.dy), tick);
+      if (k == 0) continue;
+      final t = _text('${k > 0 ? '+' : '-'}${k.abs()}°', size: 10, color: PH.muted, mono: true);
+      canvas.drawRect(Rect.fromLTWH(8, p.dy - t.height / 2, t.width + 4, t.height), Paint()..color = PH.bg.withValues(alpha: 0.6));
+      t.paint(canvas, Offset(10, p.dy - t.height / 2));
+    }
+  }
+
+  /// The 48 px compass strip at the top: ticks every 5°, labels every 30°
+  /// (`030`), N/E/S/W larger, Sun and Earth glyphs at their azimuths and
+  /// edge chevrons for bodies out of view.
   void _compass(Canvas canvas, LanderView v, Size size) {
-    canvas.drawRect(Rect.fromLTWH(0, 0, size.width, 48), Paint()..color = PH.bg.withValues(alpha: 0.72));
+    canvas.drawRect(Rect.fromLTWH(0, 0, size.width, compassH), Paint()..color = PH.bg.withValues(alpha: 0.78));
     final tick = Paint()
       ..color = PH.muted
       ..strokeWidth = 1;
     double? xOf(double az) {
-      final d = turnDelta(cam.yaw, az);
-      if (d.abs() >= 89) return null;
+      if (turnDelta(cam.yaw, az).abs() >= 89) return null;
       final p = at(v, az, cam.pitch);
       return p == null || p.dx < 0 || p.dx > size.width ? null : p.dx;
     }
 
-    final stepDeg = v.hfovDeg > 45 ? 10 : 5;
-    for (var a = 0; a < 360; a += stepDeg) {
+    for (var a = 0; a < 360; a += 5) {
       final x = xOf(a.toDouble());
       if (x == null) continue;
       final major = a % 30 == 0;
-      canvas.drawLine(Offset(x, 48), Offset(x, major ? 38 : 43), tick);
+      canvas.drawLine(Offset(x, compassH), Offset(x, major ? 37 : 43), tick);
       if (major) {
         final word = const {0: 'N', 90: 'E', 180: 'S', 270: 'W'}[a];
-        final t = word != null ? _text(word, size: 13, color: PH.text) : _text('$a°', size: 10, color: PH.muted, mono: true);
-        t.paint(canvas, Offset(x - t.width / 2, 22 - t.height / 2));
+        final t = word != null
+            ? _text(word, size: 14, color: PH.text)
+            : _text(a.toString().padLeft(3, '0'), size: 10, color: PH.muted, mono: true);
+        t.paint(canvas, Offset(x - t.width / 2, 27 - t.height / 2));
       }
     }
     for (final (b, isSun) in [(sun, true), (earth, false)]) {
       if (b == null) continue;
       final x = xOf(b.az);
       if (x == null) continue;
-      final g = Paint()
-        ..color = isSun ? PH.sun : PH.earth
+      canvas.save();
+      canvas.translate(x - 6, 2);
+      GlyphPainter(isSun ? GlyphKind.sun : GlyphKind.earth).paint(canvas, const Size.square(12));
+      canvas.restore();
+    }
+    for (final (r, isSun, left, text) in chevrons(v, sun, earth)) {
+      final color = isSun ? PH.sun : PH.earth, t = _text(text, size: 10, color: color, mono: true);
+      final row = Rect.fromLTWH(r.left, r.top, r.width, math.min(r.height, compassH / 2));
+      canvas.drawRect(row, Paint()..color = PH.bg);
+      final cy = row.center.dy, chev = Paint()
+        ..color = color
         ..style = PaintingStyle.stroke
-        ..strokeWidth = 1.5;
-      canvas.drawCircle(Offset(x, 6), 4, g);
-      if (!isSun) canvas.drawLine(Offset(x - 4, 6), Offset(x + 4, 6), g);
+        ..strokeWidth = 2;
+      final tip = left ? row.left + 4 : row.right - 4, back = left ? tip + 6 : tip - 6;
+      canvas.drawPath(Path()..moveTo(back, cy - 6)..lineTo(tip, cy)..lineTo(back, cy + 6), chev);
+      t.paint(canvas, Offset(left ? back + 6 : back - 6 - t.width, cy - t.height / 2));
     }
     final cx = size.width / 2;
-    canvas.drawPath(Path()..moveTo(cx - 5, 48)..lineTo(cx + 5, 48)..lineTo(cx, 42)..close(), Paint()..color = PH.text);
+    canvas.drawPath(
+        Path()..moveTo(cx - 5, compassH)..lineTo(cx + 5, compassH)..lineTo(cx, compassH - 6)..close(), Paint()..color = PH.text);
   }
 
   @override
@@ -910,7 +1102,10 @@ class LanderPainter extends CustomPainter {
       !identical(old.patterns, patterns) ||
       old.sun != sun ||
       old.earth != earth ||
+      old.sunWord != sunWord ||
+      old.earthWord != earthWord ||
       !identical(old.maskDeg, maskDeg) ||
+      old.maskLabel != maskLabel ||
       old.probe != probe ||
       old.status != status ||
       old.focused != focused ||

@@ -21,7 +21,7 @@ For the app as a whole, see the main [README](../README.md). For every formula w
 
 The pipeline is the "kitchen" of Lunar Horizon. It runs once, on a developer's computer, and never on the phone or in the browser.
 First it downloads raw NASA data: SPICE kernels and LOLA rasters. A **SPICE kernel** is a data file from NASA's NAIF team that tells software where the planets are, how the Moon is turned, and how clocks relate (leap seconds). A **DEM** (digital elevation model) is a map whose pixels hold terrain heights; LOLA is the laser altimeter on NASA's Lunar Reconnaissance Orbiter that measured them.
-From these the pipeline computes small files that the app ships in `app/assets/data/` (about 9.6 MB in total): hourly Sun and Earth positions for 2025-2035, Deep Space Network (DSN) contact bits, the 16 preset sites with their horizon masks, map images, a coarse 400 m terrain file (80 m-derived to 80°S, 120 m-derived beyond, to about 75°S), and an accuracy report.
+From these the pipeline computes small files that the app ships in `app/assets/data/` (about 10.5 MB in total): hourly Sun and Earth positions for 2025-2035, Deep Space Network (DSN) contact bits, the 19 preset sites with their horizon masks, map images, a coarse 400 m terrain file (80 m-derived to 80°S, 120 m-derived beyond, to about 75°S), and an accuracy report.
 A **horizon mask** is the outline of the surrounding terrain seen from one spot: for each compass direction, how many degrees above level the skyline is.
 The app then does the rest on the device: it combines these files to work out, for any date and site, when the Sun and Earth are above the skyline.
 The pipeline also writes an "answer key" (`app/test/fixtures/spice_truth.json`) that the Dart tests check the app's maths against.
@@ -34,7 +34,7 @@ flowchart LR
     D["LOLA DEMs 80 m + 120 m + 240 m<br/>PDS Geosciences"]
     V["LOLA AVGVISIB maps<br/>Sun + Earth"]
     H["JPL Horizons answers<br/>pipeline/validation/horizons_cache"]
-    C["site_catalog.json<br/>(16 preset sites)"]
+    C["site_catalog.json<br/>(19 preset sites)"]
   end
   subgraph Stages["Pipeline stages (python -m ...)"]
     F["lunarsp.fetch"]
@@ -99,7 +99,7 @@ Two kernels (`moon_fk` and `earth_bpc`) have dates in their names. NAIF replaces
 The production set (all six kernels and five rasters) adds up to about 570 MB; with DE442 it is about 603 MB. That matches the "about 570 MB (605 MB with DE442)" quoted in the README.
 
 **Other inputs that are already in the repository:**
-- `pipeline/lunarsp/site_catalog.json`: the 16 preset sites with their sources (made by `pipeline/research/make_catalog.py`).
+- `pipeline/lunarsp/site_catalog.json`: the 19 preset sites with their sources (made by `pipeline/research/make_catalog.py`).
 - `pipeline/validation/horizons_cache/`: 48 saved answers from JPL Horizons (1,057,726 B, about 1.1 MB). See "How accurate is it".
 
 ## Stages
@@ -143,9 +143,9 @@ Sizes were measured on the committed files on 2026-10-11. "Encoding" comes from 
 | `app/assets/data/ephem/<year>.bin` (11 files, 2025-2035) | `ephemeris.py` | Little-endian float32, 6 numbers per hour (Sun x, y, z and Earth x, y, z in km from the Moon's centre, `MOON_ME` frame, `LT+S`) | 210,240 B (365-day year) or 210,816 B (2028, 2032) | `app/lib/core/ephemeris.dart` (file names come from the manifest) |
 | `app/assets/data/dsn/<year>.bin` (11 files, 2025-2035) | `ephemeris.py` | One byte per hour; bit 0 Goldstone, bit 1 Madrid, bit 2 Canberra = Moon centre at least 10° up | 8,760 B or 8,784 B | `app/lib/core/ephemeris.dart` (via `dsnFile` in the manifest) |
 | `app/assets/data/ephem/manifest.json` | `ephemeris.py` | JSON, indent 1: layout, kernels used, per-year file names, counts and checksums, `generatedUtc` | 3,607 B | `app/lib/core/ephemeris.dart` |
-| `app/assets/data/sites.json` | `sites.py` | JSON, indent 1: the 16 sites with metadata, terrain height, slope, horizon summary and long-term %, plus groups and provenance | 31,333 B | `app/lib/core/catalog.dart`, `app/lib/state/app_state.dart`; tests `dem_horizon_test.dart`, `series_metrics_test.dart`, `series_sliced_test.dart`, `shadow_test.dart`, `light_engine_test.dart` |
-| `app/assets/data/horizons.json` | `sites.py` | Compact JSON: horizon masks at 2 m and 10 m, 0.25° step, whole hundredths of a degree (centidegrees) | 242,114 B | `app/lib/core/catalog.dart`, `app/lib/core/horizon.dart`, `app/lib/state/app_state.dart`; same tests as `sites.json` |
-| `app/assets/data/validation.json` | `validate.py`, plus the `avgvis` block from `sites.py` and the `render_skyline` block from `render_post.py` | JSON, indent 1 | 16,243 B | `app/lib/screens/validation_page.dart` loads it. `app/lib/content/how_calculated.dart` quotes its numbers as text (it does not load the file) |
+| `app/assets/data/sites.json` | `sites.py` | JSON, indent 1: the 19 sites with metadata, terrain height, slope, horizon summary and long-term %, plus groups and provenance | 38,392 B | `app/lib/core/catalog.dart`, `app/lib/state/app_state.dart`; tests `dem_horizon_test.dart`, `series_metrics_test.dart`, `series_sliced_test.dart`, `shadow_test.dart`, `light_engine_test.dart` |
+| `app/assets/data/horizons.json` | `sites.py` | Compact JSON: horizon masks at 2 m and 10 m, 0.25° step, whole hundredths of a degree (centidegrees) | 288,113 B | `app/lib/core/catalog.dart`, `app/lib/core/horizon.dart`, `app/lib/state/app_state.dart`; same tests as `sites.json` |
+| `app/assets/data/validation.json` | `validate.py`, plus the `avgvis` block from `sites.py` and the `render_skyline` block from `render_post.py` | JSON, indent 1 | 17,460 B | `app/lib/screens/validation_page.dart` loads it. `app/lib/content/how_calculated.dart` quotes its numbers as text (it does not load the file) |
 | `app/assets/data/map/hillshade.webp` | `basemap.py` | WebP greyscale shaded relief, 320 m per pixel, quality 82 | 471,622 B | `app/lib/state/app_state.dart`, `widgets/map_view.dart`, `light_map.dart`, `light_snapshot.dart`, `terrain_thumb.dart` |
 | `app/assets/data/map/sunvis.webp` | `basemap.py` | WebP RGBA tinted overlay of LOLA average Sun visibility, 480 m per pixel, quality 85 | 866,024 B | `app/lib/state/app_state.dart` (loaded by its key in `map.json`), `widgets/map_view.dart` |
 | `app/assets/data/map/earthvis.webp` | `basemap.py` | WebP RGBA overlay of LOLA average Earth visibility, 480 m per pixel, quality 85 | 693,836 B | `app/lib/state/app_state.dart` (loaded by its key in `map.json`), `widgets/map_view.dart` |
@@ -154,11 +154,11 @@ Sizes were measured on the committed files on 2026-10-11. "Encoding" comes from 
 | `app/assets/data/map/sunvis_outer.webp`, `earthvis_outer.webp`, `psr_outer.webp` | `basemap.py` | WebP RGBA overlays out to 75°S: 950 × 950 px at 960 m (±456 km), 8 × 8 block means of the central 7600 px of the 120 m AVGVISIB maps, the inner layers' colour and alpha mapping; alpha 0 wholly inside ±300 km; quality 85 / 85 / 90 | 285,360 B; 191,952 B; 37,616 B | the app's Explore map past 80°S (loaded lazily) |
 | `app/assets/data/map/dem_400m.bin.gz` | `basemap.py` | 2280 × 2280 int16 heights at 400 m per pixel (±456 km, to about 75.05°S on the axes): the inner 1520 × 1520 block (80-90°S) is the 5 × 5 block mean of LDEM_80S_80M, unchanged since before the ring was added; the ring beyond it is the exact-overlap area mean of LDEM_75S_120M. "planar-split" (each value stored as its difference from a prediction, low bytes then high bytes) and gzip | 4,694,460 B | `app/lib/state/app_state.dart` (file name from the `dem` block of `map.json`), decoded by `decodeDem` in `app/lib/state/dem_load.dart` with `PolarGrid.decodePlanarSplit` in `app/lib/core/dem.dart`; tests `dem_horizon_test.dart`, `shadow_test.dart`, `light_engine_test.dart` |
 | `app/assets/data/map/map.json` | `basemap.py` | JSON, indent 1: map extent of the image layers (`halfWidthM`, 304 km), each layer's file, pixel size and source; the DEM's own size and extent (`dem.halfWidthM`, 456 km), encoding, inner block, ring method and measured seam statistics; `outer`: the outer layers' extent (`halfWidthM` 456 km, `blankHalfWidthM` 300 km), files, pixel sizes and sources | 3,587 B | `app/lib/state/app_state.dart`; tests `dem_horizon_test.dart`, `shadow_test.dart`, `light_engine_test.dart` |
-| `app/assets/data/curated_sites.json` | `curated.py` | JSON, indent 1, sorted keys, no time stamp: per preset a headline, a lede (whole leading sentences, at most 230 characters), the overview and its sources (`titled: false` when only the host name is known), plus the IAU feature centres with their diameters | 33,873 B | `app/lib/core/curated.dart`, loaded by `app/lib/state/app_state.dart` |
+| `app/assets/data/curated_sites.json` | `curated.py` | JSON, indent 1, sorted keys, no time stamp: per preset a headline, a lede (whole leading sentences, at most 230 characters), the overview and its sources (`titled: false` when only the host name is known), plus the IAU feature centres with their diameters | 38,256 B | `app/lib/core/curated.dart`, loaded by `app/lib/state/app_state.dart` |
 | `app/test/fixtures/spice_truth.json` | `fixtures.py` | Compact JSON: 1000 SPICE az/el cases, 64 visible-fraction cases (40 random + 24 fixed cases across the 0/360° seam), coarse horizons at 3 sites on the 400 m DEM, and 30-day hourly series at 2 sites | 933,217 B | `app/test/core/spice_truth_test.dart`, `dem_horizon_test.dart`, `series_metrics_test.dart` (also checked by `pipeline/tests/test_visibility.py`) |
 | `app/assets/data/renders/` (70 files: 16 sites × `best.webp` + `night.webp`, `manifest.json`, and `overview/` with 36 `frame_XX.webp` + `overview.json`) | `render_post.py`, `render_overview_post.py` | WebP images and JSON | 2,269,943 B in total (site images 9,622-30,384 B each; frames 28,162-61,358 B) | **Not bundled and not read.** `app/pubspec.yaml` lists only `assets/data/`, `ephem/`, `dsn/` and `map/`, and Flutter does not include sub-folders that are not listed, so `renders/` is left out of the app |
 
-The bundled files (everything except `renders/`) add up to 9,574,858 bytes, the "about 9.6 MB" in the README.
+The bundled files (everything except `renders/`) add up to 10,454,047 bytes (about 10.5 MB).
 
 ## How accurate is it
 
@@ -177,14 +177,14 @@ Unless stated otherwise, the numbers below are read from `app/assets/data/valida
 **6. The horizon code on a smooth sphere (`horizon_dip`).** On a featureless 1737.4 km sphere, the computed horizon matches the exact formula arccos(R / (R + h)) to 5.39e-6′ (h = 2 m), 3.76e-6′ (10 m), 2.67e-6′ (1000 m) and 1.85e-5′ (5000 m).
 
 **7. Sunlight against the LOLA team's maps (`avgvis`, written by the `sites` step).** For each preset site, the pipeline counts how often any part of the Sun (or Earth) is above its horizon, hourly over 18.6 years from 2009-01-01, for an observer on the surface. It compares that with the LOLA AVGVISIB maps, which the LOLA team made independently.
-- 11 region-type sites: Sun differs by 1.78 percentage points on average (4.62 at most), Earth by 2.02 (14.86 at most); 21 of 22 values fall inside LOLA's own 3 × 3-pixel range (±0.5 points).
+- 14 region-type sites: Sun differs by 1.98 percentage points on average (5.17 at most), Earth by 1.78 (14.86 at most); 27 of 28 values fall inside LOLA's own 3 × 3-pixel range (±0.5 points).
 - 5 exact ridge and peak points: Sun 7.33 on average (20.3 at most), Earth 2.84 (7.17 at most); 9 of 10 inside the range. These points sit on terrain smaller than one map pixel, which is why the app offers 2 m and 10 m heights and labels its fidelity.
 
-**8. Blender skyline (`render_skyline`, written by `render_post.py`, stamped 2026-10-09T15:57:43Z).** A ray-traced skyline from Blender agrees with the 2 m horizon masks at 16 sites × 4096 columns (0.0878° per pixel): mean of site means 0.0392°, worst 95th percentile 0.090°, worst maximum 0.1749°.
+**8. Blender skyline (`render_skyline`, written by `render_post.py`, stamped 2026-10-09T15:57:43Z).** A ray-traced skyline from Blender agrees with the 2 m horizon masks at the original 16 sites × 4096 columns (0.0878° per pixel; the three sites added on 2026-10-29 have no renders): mean of site means 0.0392°, worst 95th percentile 0.090°, worst maximum 0.1749°.
 
 **9. The Dart answer key (`app/test/fixtures/spice_truth.json`).** `app/test/core/spice_truth_test.dart` requires the app's Dart code to reproduce the 1000 SPICE sky positions to within 0.01′ in direction and 1e-6 in relative distance, and the 64 visible-fraction cases to within 1e-9. The pipeline test `pipeline/tests/test_visibility.py` checks the same file from the Python side.
 
-**10. Light and shadow map (these numbers are not in `validation.json`).** The test "shadow map vs ray-marched horizons at 16 sites x 60 moments" in `app/test/core/shadow_test.dart` makes 960 checks (16 preset sites × 60 random moments, seed 7, in the 360 days from 2026-10-09). Each compares "sunlit or not" at the site's map pixel with the result from that site's 2 m horizon mask. The figures are recorded in [formula.md](../formula.md) §12.9 (and §13.11) and in the main [README](../README.md):
+**10. Light and shadow map (these numbers are not in `validation.json`).** The test "shadow map vs ray-marched horizons at 16 sites x 60 moments" in `app/test/core/shadow_test.dart` makes 960 checks (the original 16 preset sites × 60 random moments; the three sites added on 2026-10-29 are left out so the figures stay comparable; seed 7, in the 360 days from 2026-10-09). Each compares "sunlit or not" at the site's map pixel with the result from that site's 2 m horizon mask. The figures are recorded in [formula.md](../formula.md) §12.9 (and §13.11) and in the main [README](../README.md):
 
 | Map grid | Agreement with 400 m on-device horizons | Agreement with 80 m preset horizons |
 |---|---|---|
@@ -316,7 +316,7 @@ The test counts below are what `python -m pytest --collect-only` collects at thi
 - **Run it:** `python -m lunarsp.build ephem` (about 30 s).
 
 ##### `pipeline/lunarsp/site_catalog.json`
-- **What it does:** The hand-curated list of 16 preset landing sites, each with its source. There are three groups: 8 Artemis III candidate regions (approximate region centres, not official landing points), 5 high-sunlight points from De Rosa et al. 2012, and 3 mission sites. Each site records its kind (9 approximate region centres, 5 exact points, 2 landed positions), a confidence level, latitude and longitude, citations and notes. The file also records when and how the research was done.
+- **What it does:** The hand-curated list of 19 preset landing sites, each with its source. There are three groups: 8 Artemis III candidate regions (approximate region centres, not official landing points), 5 ESA Lunar Lander candidate sites (high-sunlight points from De Rosa et al. 2012), and 6 mission sites (NASA CLPS and international). Each site records its kind (12 approximate region centres or candidate points, 5 exact points, 2 landed positions), a confidence level, latitude and longitude, citations and notes. The file also records when and how the research was done.
 - **Reads:** nothing (it is data).
 - **Writes:** nothing.
 - **Used by:** `sites.py`, which copies its metadata into `app/assets/data/sites.json`. `pipeline/tests/test_data_provenance.py` checks that the shipped notes match it and are not written in the first person.
@@ -328,7 +328,7 @@ The test counts below are what `python -m pytest --collect-only` collects at thi
 - **Writes:**
   - `app/assets/data/sites.json`: site metadata plus terrain height, slope, highest and mean horizon, and the long-term percentages.
   - `app/assets/data/horizons.json`: the masks, every 0.25°, stored as whole hundredths of a degree.
-  - the `avgvis` section of `app/assets/data/validation.json`. At this commit: for the 11 region-type sites the Sun figure differs from LOLA's map by 1.78 percentage points on average (4.62 at most), and 21 of 22 values fall inside LOLA's own 3×3-pixel range. The 5 exact ridge and peak points differ more (Sun 7.33 points on average, 20.3 at most), because the 80 m map cannot resolve their fine terrain.
+  - the `avgvis` section of `app/assets/data/validation.json`. At this commit: for the 14 region-type sites the Sun figure differs from LOLA's map by 1.98 percentage points on average (5.17 at most), and 27 of 28 values fall inside LOLA's own 3×3-pixel range. The 5 exact ridge and peak points differ more (Sun 7.33 points on average, 20.3 at most), because the 80 m map cannot resolve their fine terrain.
 - **Used by:** `build.py` (step `sites`). In the app, `app/lib/state/app_state.dart` loads both files, `app/lib/core/catalog.dart` parses them and `app/lib/core/horizon.dart` decodes the masks. In Python, `fixtures.py` and `render_prep.py` read both files, and `render_overview_prep.py` reads `sites.json`. `pipeline/tests/test_data_provenance.py` (12 tests, offline) checks the `avgvis` summary text is computed from the rows.
 - **Run it:** `python -m lunarsp.build sites` (about 4.5-5 minutes).
 
@@ -382,7 +382,7 @@ The test counts below are what `python -m pytest --collect-only` collects at thi
 - **Run it:** `python -m lunarsp.build fixtures` (about 5 s). After a new `dem_400m.bin.gz`, `python -m lunarsp.fixtures coarse` rewrites only the coarse horizons (`coarseHorizon`) and needs no SPICE kernels; every other key keeps its bytes.
 
 ##### `pipeline/lunarsp/curated.py`
-- **What it does:** Builds the text of the app's *At a glance* card for the 16 preset sites from the committed research record. It checks that the ids match `sites.json`, that each headline is one short sentence, that no text states a computed number (Rule C: `%`, hours or days of sunlight, a distance in km or degrees from the pole, a slope in degrees), that no claim marked unsupported survives, that every source is https, unique and cited by a checked verdict, and that every logged edit adds no new word of four or more letters and no new number. Each lede is the overview's leading whole sentences, at most 230 characters. Source titles come from `sites.json`, then the research file, else the host name; titles are never invented. Features are the IAU Gazetteer centres, with the diameter when the Gazetteer states one.
+- **What it does:** Builds the text of the app's *At a glance* card for the 19 preset sites from the committed research record. It checks that the ids match `sites.json`, that each headline is one short sentence, that no text states a computed number (Rule C: `%`, hours or days of sunlight, a distance in km or degrees from the pole, a slope in degrees), that no claim marked unsupported survives, that every source is https, unique and cited by a checked verdict, and that every logged edit adds no new word of four or more letters and no new number. Each lede is the overview's leading whole sentences, at most 230 characters. Source titles come from `sites.json`, then the research file, else the host name; titles are never invented. Features are the IAU Gazetteer centres, with the diameter when the Gazetteer states one.
 - **Reads:** `pipeline/research/site_overviews_verified.json`, `pipeline/research/site_research_verified.json`, `app/assets/data/sites.json`.
 - **Writes:** `app/assets/data/curated_sites.json` through `outio.write_json` (no time stamp, so a rebuild is byte-identical).
 - **Used by:** you; it is not part of `build all`. In the app, `app/lib/core/curated.dart` parses the file and `app/lib/core/site_glance.dart` uses it.
@@ -631,14 +631,14 @@ These two scripts run inside Blender 5.1 (its own bundled Python, with `bpy` and
 - **Run it:** not run; it is data.
 
 ##### `pipeline/research/site_overviews_verified.json`
-- **What it is:** The fact-checked descriptions behind the app's *At a glance* card (reviewed 2026-10-25): for each of the 16 preset sites a headline, an overview, its source URLs, the claim-by-claim verdicts (`confirmed`, `corrected` or `unsupported`, each with its source) and the editorial `edits` (`was`, `now`, `why`) that removed computed numbers such as distances from the pole. It is the only hand-edited input of `curated.py`; a second reader should review each logged edit.
+- **What it is:** The fact-checked descriptions behind the app's *At a glance* card (reviewed 2026-10-25; three mission entries added 2026-10-29 from the research file's own sources and notes): for each of the 19 preset sites a headline, an overview, its source URLs, the claim-by-claim verdicts (`confirmed`, `corrected` or `unsupported`, each with its source) and the editorial `edits` (`was`, `now`, `why`) that removed computed numbers such as distances from the pole. It is the only hand-edited input of `curated.py`; a second reader should review each logged edit.
 - **Reads:** nothing; it is data.
 - **Writes:** nothing.
 - **Used by:** `lunarsp/curated.py` and `tests/test_curated.py`.
 - **Run it:** not run; it is data. Rerun `python -m lunarsp.curated` after editing it.
 
 ##### `pipeline/research/make_catalog.py`
-- **What it does:** Picks the 16 preset sites from the research file and writes the catalogue the pipeline uses. They come in three groups: 8 Artemis III candidate-region centres (approximate centres, not official landing points; Slater Plain is left out because no centre coordinates were published), 5 high-illumination points from De Rosa et al. 2012, and 3 mission sites (IM-1 and IM-2 as landed, and the VIPER mission area). Coordinates are copied exactly, with each site's name, short label, coordinate kind, confidence, sources and notes.
+- **What it does:** Picks the 19 preset sites from the research file and writes the catalogue the pipeline uses. They come in three groups: 8 Artemis III candidate-region centres (approximate centres, not official landing points; Slater Plain is left out because no centre coordinates were published), 5 ESA Lunar Lander candidate sites (high-illumination points from De Rosa et al. 2012), and 6 mission sites: NASA CLPS (IM-1 and IM-2 as landed, IM-2's intended target), the VIPER mission area, and two international candidates (China's Chang'e-7 and ISRO-JAXA's LUPEX / Chandrayaan-5, low confidence). Notes listed in `catalog_notes_neutral.json` replace the research wording with the same text in the third person; `pipeline/tests/test_catalog_build.py` checks that the script reproduces the committed catalogue. Coordinates are copied exactly, with each site's name, short label, coordinate kind, confidence, sources and notes.
 - **Reads:** `pipeline/research/site_research_verified.json`.
 - **Writes:** `pipeline/lunarsp/site_catalog.json`. It uses `Path.write_text`, not the pipeline's `outio.write_json`, so on Windows it writes CRLF line endings (the repository's `.gitattributes` turns them back into LF when the file is committed).
 - **Used by:** run by hand. Its output is read by `lunarsp/sites.py`, which builds the app's `sites.json` and `horizons.json`. No test runs it.

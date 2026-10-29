@@ -357,7 +357,7 @@ void main() {
         );
 
     Finder mapPaint() => find.byWidgetPredicate((w) => w is CustomPaint && w.painter is LightFramePainter);
-    Finder viewSwitch() => find.byType(SegmentedButton<bool>);
+    Finder viewSwitch() => find.byType(SegmentedButton<LightViewKind>);
     Finder layerSwitch() => find.byType(SegmentedButton<LightLayer>);
 
     testWidgets('reduced motion: a still hourglass instead of a spinning indicator', (tester) async {
@@ -749,7 +749,7 @@ void main() {
       }
       // the whole region on a phone-width slot: MP1 is in the map's top half, but the map's lower edge can
       // sit under the pinned time bar, so the note stays at the top where it is seen (QA 1110 F2)
-      await tester.tap(find.descendant(of: find.byType(SegmentedButton<bool>), matching: find.textContaining('egion')).first);
+      await tester.tap(find.descendant(of: find.byType(SegmentedButton<LightViewKind>), matching: find.textContaining('egion')).first);
       var regionChip = false;
       for (var i = 0; i < 400 && !regionChip; i++) {
         await tester.pump(const Duration(milliseconds: 100));

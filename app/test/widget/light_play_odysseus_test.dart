@@ -87,7 +87,7 @@ void main() {
       // the whole region chosen while playing (a full-detail region frame
       // first would keep the test's single worker busy for long)
       if (region) {
-        await tester.tap(find.descendant(of: find.byType(SegmentedButton<bool>), matching: find.textContaining('egion')).first);
+        await tester.tap(find.descendant(of: find.byType(SegmentedButton<LightViewKind>), matching: find.textContaining('egion')).first);
         await tester.pump();
       }
       // up to the first playback frame

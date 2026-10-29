@@ -5,6 +5,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:polar_horizon/core/countdown.dart';
+import 'package:polar_horizon/core/wording.dart' show eclipseHidesText;
 import 'package:polar_horizon/state/app_state.dart';
 import 'package:polar_horizon/theme.dart';
 import 'package:polar_horizon/widgets/chart_bridge.dart' show nowAt;
@@ -23,6 +24,14 @@ void main() {
     expect(c.eclipseHides, isTrue);
     expect(c.eclipse, 1.0);
     expect(c.power, 0.0);
+  });
+
+  test('a partial eclipse that stops the Sun counting gives Earth\'s share, not "hides", in the chip and the verdict', () {
+    final sun = {..._body(frac: 0.6, visible: false), 'eclipse': 0.4, 'eclipseHides': true};
+    final l = nowStatusLines({'sun': sun, 'earth': _body(rho: 0.95)}, requireDsn: false, dsnInView: true);
+    expect(l.sun, 'Earth covers 40% of the Sun (lunar eclipse), so it is not counted as sunlit under your Sun rule');
+    expect(l.both, 'Earth in view now, but the lunar eclipse stops the Sun counting for power');
+    expect(l.both, isNot(contains('too low')));
   });
 
   test('minuteOf floors to the whole minute', () {
@@ -126,7 +135,7 @@ void main() {
       expect(sun['frac'], 0.0);
       expect(sun['power'], 0.0);
       expect(sun['visible'], isFalse);
-      if (sun['eclipseHides'] == true) expect(sun['say'], 'Earth hides the Sun (lunar eclipse)');
+      if (sun['eclipseHides'] == true) expect(sun['say'], eclipseHidesText(sun['eclipse'] as double));
     });
   });
 }

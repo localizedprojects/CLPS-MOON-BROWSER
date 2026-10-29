@@ -107,6 +107,32 @@ void main() {
       expect(c.eclipseHides, isTrue);
       expect(countdownLine(c, dateOf: date), startsWith('Earth hides the Sun (lunar eclipse) · ends in 50 min (D17) · '));
     });
+
+    test('a partial eclipse that stops the Sun counting gives Earth\'s share, never "hides"', () {
+      final s = series(40, (i) => i < 10 || i >= 17, (i) => true);
+      for (var i = 10; i < 17; i++) {
+        s.sunEclipse[i] = 0.3;
+      }
+      final c = countdownAt(s, t0 + 12 * step);
+      expect(c.eclipseHides, isTrue);
+      expect(
+          countdownLine(c, dateOf: date),
+          startsWith('Earth covers 30% of the Sun (lunar eclipse), so it is not counted as sunlit under your Sun rule'
+              ' · counted again in 50 min (D17) · '));
+    });
+
+    test('an eclipse change is total only when Earth covers the whole Sun on its dark side', () {
+      for (final (share, total) in [(1.0, true), (0.3, false)]) {
+        final s = series(40, (i) => i < 10 || i >= 17, (i) => true);
+        for (var i = 10; i < 17; i++) {
+          s.sunEclipse[i] = share;
+        }
+        final into = nextChange(s, flagSun, t0), outOf = nextChange(s, flagSun, t0 + 12 * step);
+        expect((into.byEclipse, into.eclipseTotal, outOf.byEclipse, outOf.eclipseTotal), (true, total, true, total));
+        final line = countdownLine(countdownAt(s, t0), dateOf: date);
+        expect(line, contains(total ? ' · Earth hides the Sun in 1 h 40 min (D10) · ' : ' · the lunar eclipse stops the Sun counting in 1 h 40 min (D10) · '));
+      }
+    });
   });
 
   group('countdownLine', () {

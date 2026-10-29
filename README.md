@@ -123,7 +123,7 @@ The work is split between offline precomputation and on-device computation:
   - Score = (1 − b) × [a × Power + (1 − a) × Comms] + b × Both.
   - Power = 60 % sunlit + 40 % night survival. Comms = 60 % Earth visible + 40 % outage tolerance.
   - Night survival and outage tolerance fall linearly to 0 at a 30-day gap.
-  - Compare and Learn show this formula with the weights in use. Compare's winner card and Learn's *How the score works* show the worked "Why N?" arithmetic (`scoreWhy` in `ranking.dart`), which evaluates to within 0.6 points of the score. The scorecard CSV adds the Power and Comms parts.
+  - Compare and Learn show this formula with the weights in use. Compare's winner card and Learn's *How the score works* show the worked "Why N?" arithmetic (`scoreWhy` in `ranking.dart`), which evaluates to within 0.6 points of the score. The scorecard CSV adds the Power and Comms parts, the power proxy (mean W/m² and energy kWh/m² on a Sun-facing panel; not used by the score) and, per row, the site's lat/lon, observer height, Sun and Earth rules and horizon source.
 - **Light and shadow map.** A heightfield shadow sweep along rotated rows (a lagged running maximum) over the 400 m or 800 m DEM grid (§12):
   - It is run for the Sun's upper limb, the Sun's lower limb and the Earth's centre.
   - It adds a Lambert slope term for shading.

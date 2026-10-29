@@ -514,10 +514,11 @@ class LightMap extends StatefulWidget {
   /// Side padding of a text-only segment with the full labels.
   static const segmentPad = 10.0;
 
-  /// Side padding of a short-label segment: 8 dp, so the three view and
-  /// three layer segments still share one row on a 393 dp phone (a 360 dp
-  /// one gives each switch its own row).
-  static const shortSegmentPad = 8.0;
+  /// Side padding of a short-label segment: 6 dp, so the three view and
+  /// three layer segments still share one 48 dp row on a 393 dp phone (a
+  /// 360 dp one gives each switch its own row). Every segment stays at least
+  /// [segmentMin] wide.
+  static const shortSegmentPad = 6.0;
 
   /// The smallest segment: a full 48 dp tap target.
   static const segmentMin = 48.0;
@@ -848,7 +849,7 @@ class _LightMapState extends State<LightMap> {
           fit.short ? Semantics(label: '$text: $meaning', excludeSemantics: true, child: Text(text)) : Text(text);
       // segments are text buttons at least 64 dp wide; a horizontal density
       // of -4 makes that 48 dp (still a full tap target, and 48 dp tall), so
-      // the short labels share one row on a 360 dp phone
+      // the short labels share one row on a 393 dp phone
       final style = compact
           ? ButtonStyle(
               padding: WidgetStatePropertyAll(
@@ -1249,7 +1250,6 @@ class _LightMapState extends State<LightMap> {
                   final side = fullWidth
                       ? c2.maxWidth
                       : math.min(c2.maxWidth, withNote >= usable ? withNote : math.max(c2.maxHeight, pinFloor));
-                  debugPrint('DBGLM c=$c c2=$c2 side=$side full=$fullWidth usable=$usable');
                   return SingleChildScrollView(
                     child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, mainAxisSize: MainAxisSize.min, children: [
                       Center(child: mapBox(side, bottomMayHide: fullWidth)),

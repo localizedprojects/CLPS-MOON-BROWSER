@@ -863,6 +863,32 @@ class LanderPainter extends CustomPainter {
 
   /// Glyph, leader and words at a body, drawn over the terrain; returns the
   /// label's box so the next callout keeps clear of it.
+  /// Where a callout's text box of [box] size goes (§5: labels clear of each
+  /// other): right of the glyph, else left of it, else centred under the disc,
+  /// else centred above the glyph; the first inside the view (under the
+  /// compass strip) that keeps clear of the body's own disc and of [avoid]
+  /// (the other callout). [top] is the side placements' top.
+  static Rect calloutBox(LanderView v, ({Offset disc, Offset glyph, double rPx}) a, Size box, Rect? avoid, double top) {
+    final disc = Rect.fromCircle(center: a.disc, radius: a.rPx + 3);
+    final cx = (a.glyph.dx - box.width / 2).clamp(0.0, math.max(0.0, v.w - box.width)).toDouble();
+    final cands = [
+      Rect.fromLTWH(a.glyph.dx + 11, top, box.width, box.height),
+      Rect.fromLTWH(a.glyph.dx - 11 - box.width, top, box.width, box.height),
+      Rect.fromLTWH(cx, a.disc.dy + a.rPx + 6, box.width, box.height),
+      Rect.fromLTWH(cx, a.glyph.dy - 14 - box.height, box.width, box.height),
+    ];
+    bool inside(Rect r) => r.left >= 0 && r.right <= v.w && r.top >= compassH + 1 && r.bottom <= v.h;
+    bool clear(Rect r) => !r.overlaps(disc) && (avoid == null || !r.overlaps(avoid));
+    for (final r in cands) {
+      if (inside(r) && clear(r)) return r;
+    }
+    for (final r in cands) {
+      if (inside(r) && !r.overlaps(disc)) return r;
+    }
+    // nothing fits (a tiny view): left-aligned at the side position
+    return Rect.fromLTWH(math.max(0.0, math.min(cands.first.left, v.w - box.width)), top, box.width, box.height);
+  }
+
   Rect? _callout(Canvas canvas, LanderView v, SkyBody b, bool isSun, Rect? avoid) {
     final a = calloutAnchor(v, b);
     if (a == null) return null;
@@ -899,14 +925,8 @@ class LanderPainter extends CustomPainter {
     }
     final ts = [for (final (i, l) in lines.indexed) _text(l, size: 11, color: i == 0 ? color : PH.text, mono: i == 0)];
     final tw = ts.map((t) => t.width).reduce(math.max), th = ts.fold(0.0, (s, t) => s + t.height);
-    var x = a.glyph.dx + 14;
-    if (x + tw + 4 > v.w) x = math.max(2.0, a.glyph.dx - 14 - tw);
     double clampY(double y) => y.clamp(compassH + 2, math.max(compassH + 2, v.h - th - 4)).toDouble();
-    var box = Rect.fromLTWH(x - 3, clampY(a.glyph.dy - 8) - 1, tw + 6, th + 2);
-    if (avoid != null && box.overlaps(avoid)) {
-      final below = Rect.fromLTWH(box.left, avoid.bottom + 4, box.width, box.height);
-      box = below.bottom <= v.h ? below : Rect.fromLTWH(box.left, clampY(avoid.top - 4 - box.height), box.width, box.height);
-    }
+    final box = calloutBox(v, a, Size(tw + 6, th + 2), avoid, clampY(a.glyph.dy - 8) - 1);
     canvas.drawRect(box, Paint()..color = PH.bg.withValues(alpha: 0.8));
     var y = box.top + 1;
     for (final t in ts) {

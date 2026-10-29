@@ -376,6 +376,24 @@ void main() {
         ['Sun · az 6.9° · el +3.9°', 'hidden by Earth (lunar eclipse)', '400 m terrain here: in view, skyline +1.1°']);
   });
 
+  test('§5 callout text boxes keep clear of their own disc and of the other callout', () {
+    const v = LanderView(yawDeg: 0, pitchDeg: 0, hfovDeg: 60, w: 360, h: 300);
+    ({Offset disc, Offset glyph, double rPx}) a(double x) => (disc: Offset(x, 130), glyph: Offset(x, 100), rPx: 2.0);
+    // room on the right: right of the glyph
+    expect(LanderPainter.calloutBox(v, a(100), const Size(120, 40), null, 92), const Rect.fromLTWH(111, 92, 120, 40));
+    // near the right edge: left of it
+    expect(LanderPainter.calloutBox(v, a(320), const Size(120, 40), null, 92), const Rect.fromLTWH(189, 92, 120, 40));
+    // too wide for either side: centred under the disc, never over it
+    final wide = LanderPainter.calloutBox(v, a(180), const Size(250, 50), null, 92);
+    expect(wide, const Rect.fromLTWH(55, 138, 250, 50));
+    expect(wide.overlaps(Rect.fromCircle(center: a(180).disc, radius: 2)), isFalse);
+    // the other callout's box is avoided
+    final other = LanderPainter.calloutBox(v, a(100), const Size(120, 40), const Rect.fromLTWH(105, 80, 150, 30), 92);
+    expect(other.overlaps(const Rect.fromLTWH(105, 80, 150, 30)), isFalse);
+    expect(other.overlaps(Rect.fromCircle(center: a(100).disc, radius: 2)), isFalse);
+    expect(other.top, greaterThanOrEqualTo(LanderPainter.compassH));
+  });
+
   test('elevation scale steps adapt to the zoom (1/2/5/10°)', () {
     expect(LanderPainter.elevationStep(10, 360), 1);
     expect(LanderPainter.elevationStep(45, 360), 5);

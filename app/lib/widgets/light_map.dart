@@ -1003,14 +1003,19 @@ class _LightMapState extends State<LightMap> {
       const aboveScaleBar = 44.0;
       final badgeW = fine ? 60.0 : 0.0;
       // while playing the band is the same on every frame (the playback note,
-      // "Computing" or neither), so the labels it keeps out never jump in and out
-      final playH = noteBand(playLines, badgeW, noteScaler);
+      // "Computing" or neither), so the labels it keeps out never jump in and
+      // out; only a lunar eclipse adds its lines (to the playback note, or as
+      // a note of its own on a paused, finished map)
+      final eclLines = eclipse?.lines ?? const <String>[];
+      final playH = noteBand([...playLines, ...eclLines], badgeW, noteScaler);
       final busyH = noteBand(const [busyText], 22 + badgeW, MediaQuery.textScalerOf(context));
       final noteH = s.playing
           ? math.max(playH, busyH)
           : stale
               ? busyH
-              : 0.0;
+              : eclLines.isEmpty
+                  ? 0.0
+                  : noteBand(eclLines, badgeW, noteScaler);
       final (_, sy) = latLonToXY(s.site.lat, s.site.lon);
       final siteY = (view.y0 - sy) * side / view.ext;
       final reach = 0.24 * side + 30;
@@ -1023,6 +1028,35 @@ class _LightMapState extends State<LightMap> {
           ? null
           : (noteTop ? Rect.fromLTWH(0, 0, side, noteH) : Rect.fromLTRB(0, side - aboveScaleBar - (noteH - 8), side, side));
 
+      // a note in the chosen corner: single lines, cut with "…" if they must be
+      Widget cornerNote(Key key, List<String> lines) => Positioned(
+            left: 8,
+            top: noteTop ? 8 : null,
+            bottom: noteTop ? null : aboveScaleBar,
+            right: noteRight,
+            child: IgnorePointer(
+              child: Align(
+                alignment: noteTop ? Alignment.topLeft : Alignment.bottomLeft,
+                child: DecoratedBox(
+                  key: key,
+                  decoration: BoxDecoration(color: const Color(0xE6060B16), borderRadius: BorderRadius.circular(PH.radiusInner)),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    // the map's label already says it to screen readers
+                    child: ExcludeSemantics(
+                      child: MediaQuery(
+                        data: MediaQuery.of(context).copyWith(textScaler: noteScaler),
+                        child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
+                          for (final line in lines)
+                            Text(line, maxLines: 1, overflow: TextOverflow.ellipsis, style: PHText.small),
+                        ]),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          );
       final busy = Positioned(
         left: 8,
         top: noteTop ? 8 : null,
@@ -1086,36 +1120,11 @@ class _LightMapState extends State<LightMap> {
           ),
           )),
           if (playFrame)
-            Positioned(
-              left: 8,
-              top: noteTop ? 8 : null,
-              bottom: noteTop ? null : aboveScaleBar,
-              right: noteRight,
-              child: IgnorePointer(
-                child: Align(
-                  alignment: noteTop ? Alignment.topLeft : Alignment.bottomLeft,
-                  child: DecoratedBox(
-                    key: const ValueKey('light-coarse'),
-                    decoration: BoxDecoration(color: const Color(0xE6060B16), borderRadius: BorderRadius.circular(PH.radiusInner)),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                      // the map's label already says it to screen readers
-                      child: ExcludeSemantics(
-                        child: MediaQuery(
-                          data: MediaQuery.of(context).copyWith(textScaler: noteScaler),
-                          child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
-                            for (final line in playLines)
-                              Text(line, maxLines: 1, overflow: TextOverflow.ellipsis, style: PHText.small),
-                          ]),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            )
+            cornerNote(const ValueKey('light-coarse'), [...playLines, ...eclLines])
           else if (stale)
-            busy,
+            busy
+          else if (eclLines.isNotEmpty)
+            cornerNote(const ValueKey('light-eclipse'), eclLines),
         ]),
       ));
     }
@@ -1371,7 +1380,11 @@ class _Legend extends StatelessWidget {
 
   /// The shares come from a coarse playback frame: shown as "≈ N%".
   final bool approx;
-  const _Legend({required this.layer, required this.shares, required this.scope, this.onMap, this.approx = false});
+
+  /// A lunar eclipse at the frame's moment ([lightEclipseNote]'s sentence).
+  final String? eclipse;
+  const _Legend(
+      {required this.layer, required this.shares, required this.scope, this.onMap, this.approx = false, this.eclipse});
 
   @override
   Widget build(BuildContext context) {
@@ -1396,6 +1409,11 @@ class _Legend extends StatelessWidget {
     };
     final part = onMap;
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      if (eclipse != null)
+        Padding(
+          padding: const EdgeInsets.only(bottom: 4),
+          child: Text('$eclipse.', key: const ValueKey('light-eclipse-legend'), style: PHText.small),
+        ),
       Text('Share of the area $scope', style: PHText.small.copyWith(color: PH.muted)),
       if (part != null)
         Padding(

@@ -13,6 +13,7 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 import '../core/catalog.dart';
+import '../core/eclipse.dart' show SunEclipse;
 import '../core/ephemeris.dart';
 import '../core/geo.dart';
 import '../core/horizon.dart';
@@ -123,6 +124,22 @@ class _LightSnapshotState extends State<LightSnapshot> {
     _pump();
   }
 
+  // each computed frame as drawn and the eclipse of a drawn frame (as the light map)
+  final _asDrawn = Expando<LightFrame>();
+  final _eclipseOf = Expando<SunEclipse>();
+
+  /// [raw] as drawn: during a total lunar eclipse without direct sunlight
+  /// ([lightFrameEclipsed]); the same object for the same frame.
+  LightFrame _drawn(LightFrame raw) {
+    final done = _asDrawn[raw];
+    if (done != null) return done;
+    final site = widget.site, q = raw.request;
+    final ecl = lightFrameEclipse(raw, terrainHeightM: site.lat == q.lat && site.lon == q.lon ? site.terrainHeightM : 0);
+    final f = lightFrameEclipsed(raw, ecl);
+    _eclipseOf[f] = ecl;
+    return _asDrawn[raw] = f;
+  }
+
   /// Latest request wins (the same scheme as the light map).
   Future<void> _pump() async {
     if (_busy) return;
@@ -135,7 +152,7 @@ class _LightSnapshotState extends State<LightSnapshot> {
         _queued = null;
         final f = await engine.compute(q);
         if (!mounted) return;
-        _images.update(engine: engine, frame: f);
+        _images.update(engine: engine, frame: _drawn(f));
       }
       _failed = false;
     } catch (e) {
@@ -188,6 +205,8 @@ class _LightSnapshotState extends State<LightSnapshot> {
     }
     final img = _images.shown;
     final fresh = q != null && img != null && img.frame.request.key == q.key;
+    // a lunar eclipse at the picture's moment (lightEclipseNote)
+    final eclipse = fresh ? lightEclipseNote(_eclipseOf[img.frame]) : null;
     // the close-up's square (the frame's, or the one the engine will compute):
     // past the base map's edge its ground is shaded on the device (ReliefKeeper)
     final view = layers == null
@@ -210,12 +229,7 @@ class _LightSnapshotState extends State<LightSnapshot> {
       if (now != null) {
         final sun = now['sun'] as Map<String, dynamic>, earth = now['earth'] as Map<String, dynamic>;
         double n(Map<String, dynamic> b, String k) => (b[k] as num).toDouble();
-        final sunText = sunStatusText(
-            visible: sun['visible'] == true,
-            elDeg: n(sun, 'el'),
-            rhoDeg: n(sun, 'rho'),
-            frac: n(sun, 'frac'),
-            sunRule: o.sunCriterion);
+        final sunText = lightSunStatus(sun, o.sunCriterion);
         final earthText = earthStatusText(
             visible: earth['visible'] == true,
             elDeg: n(earth, 'el'),
@@ -230,6 +244,7 @@ class _LightSnapshotState extends State<LightSnapshot> {
       } else if (!cover!.inPeriod) {
         semantic.write(' $outsideDatesText');
       }
+      if (eclipse != null) semantic.write(' ${eclipse.sentence}.');
     }
 
     final image = AspectRatio(
@@ -261,8 +276,16 @@ class _LightSnapshotState extends State<LightSnapshot> {
                   exact: s.expert,
                 ),
               ),
-              if (!cover!.inPeriod)
-                Positioned(left: 10, top: 10, right: 60, child: Align(alignment: Alignment.topLeft, child: _Note(outsideDatesText))),
+              if (!cover!.inPeriod || eclipse != null)
+                Positioned(
+                    left: 10,
+                    top: 10,
+                    right: 60,
+                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
+                      if (!cover.inPeriod) const _Note(outsideDatesText),
+                      if (!cover.inPeriod && eclipse != null) const SizedBox(height: 6),
+                      if (eclipse != null) _Note(eclipse.lines.join('\n'), key: const ValueKey('snapshot-eclipse')),
+                    ])),
             ]);
           } else {
             child = _Skeleton(
@@ -292,7 +315,7 @@ class _LightSnapshotState extends State<LightSnapshot> {
           ),
         ),
       if (showFidelity && computed)
-        FidelityBadge(text: lightSnapshotFidelityFor(pastMap)),
+        FidelityBadge(text: '${lightSnapshotFidelityFor(pastMap)}${eclipse != null ? ' $lightEclipseFidelity' : ''}'),
     ]);
   }
 
@@ -327,7 +350,7 @@ class _Skeleton extends StatelessWidget {
 /// A short note laid over the image.
 class _Note extends StatelessWidget {
   final String text;
-  const _Note(this.text);
+  const _Note(this.text, {super.key});
   @override
   Widget build(BuildContext context) => DecoratedBox(
         decoration: BoxDecoration(color: const Color(0xD9060B16), borderRadius: BorderRadius.circular(8)),

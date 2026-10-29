@@ -141,10 +141,13 @@ class _Coverage extends StatelessWidget {
   /// The catalogue's groups, as the site list names them, in plain words.
   static const groups = <(String, String)>[
     ('Missions', 'IM-1 Odysseus (2024) and IM-2 Athena (2025), Intuitive Machines landers flown for NASA\'s Commercial '
-        'Lunar Payload Services (CLPS), and the planned area of NASA\'s VIPER rover.'),
+        'Lunar Payload Services (CLPS), with IM-2\'s intended target; the planned area of NASA\'s VIPER rover; and two '
+        'international candidates, China\'s Chang\'e-7 and ISRO-JAXA\'s LUPEX / Chandrayaan-5, which are unofficial, '
+        'low-confidence points, not announced landing coordinates.'),
     ('Artemis III candidate regions', 'approximate centres of NASA\'s October 2024 regions, each about 15 by 15 km; '
         'not official landing points.'),
-    ('High-illumination points', 'candidate sites for ESA\'s planned Lunar Lander, from De Rosa et al. (2012).'),
+    ('ESA Lunar Lander candidate sites', 'from De Rosa et al. (2012), chosen there for long sunlight; candidate sites '
+        'for ESA\'s planned Lunar Lander.'),
   ];
 
   static const addYourOwn = 'To test another spot south of 80°S, tap the Explore map or use "Add a spot by '

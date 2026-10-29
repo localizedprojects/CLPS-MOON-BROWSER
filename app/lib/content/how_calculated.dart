@@ -63,7 +63,7 @@ const calcSections = <CalcSection>[
     title: 'The mountains on the skyline',
     plain: 'Walking outward from the spot in every direction, the app reads NASA LOLA laser-altimeter heights and '
         'keeps the steepest angle up to the terrain, including the Moon\'s curvature. That traces the real skyline. '
-        'The 16 preset sites use the 80 m elevation map, then the 240 m map beyond its edge, out to 600 km. Your own '
+        'The preset sites use the 80 m elevation map, then the 240 m map beyond its edge, out to 600 km. Your own '
         'spots are computed on your device from the 400 m map out to 300 km (made from the 80 m map inside 80°S and '
         'LOLA\'s 120 m map beyond it, to about 75°S).',
     maths: [
@@ -146,7 +146,7 @@ const calcSections = <CalcSection>[
       'a "good day" = Sun and Earth up together for at least half of that UTC day',
     ],
     accuracy: 'Over 18.6 years, our share of sunlit time agrees with the LOLA science team\'s own illumination maps '
-        'to 1.8 percentage points on average for the landing regions.',
+        'to about 2 percentage points on average for the landing regions.',
     ref: 'formula.md §9, §11.5, §13.9',
   ),
   CalcSection(

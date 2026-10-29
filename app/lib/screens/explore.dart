@@ -34,7 +34,7 @@ const exploreHeadline = "Where would you land at the Moon's south pole?";
 String exploreSubline(int n) => '$n real candidate spots, checked against the mountains around them. '
     'Sun means solar power; Earth in view means you can radio home.';
 
-/// The list header: "All 16 sites, best first" once every site is ranked.
+/// The list header: "All 19 sites, best first" once every site is ranked.
 String listHeaderText({required bool rankingDone, required int progress, required int total, required int count, required bool filtered}) {
   if (!rankingDone) return 'Ranked so far: $progress of $total sites (the order may still change)';
   return filtered ? '$count sites, best first' : 'All $count sites, best first';

@@ -885,7 +885,7 @@ The Earth term here uses any part of the disk, but the app's default Earth crite
 
 **Measured gap between the two Earth rules** (2026-10-11, review script `exp_earth_rule.py`, not in the repository). On the same 163 048-epoch grid (`_crosscheck_vectors`), for each preset site at 2 m with its shipped 2 m mask (`horizons.json`, 0.01° steps), %Earth was computed both ways: any part, $100\,\overline{[f_\oplus>0]}$ (§6.2), and centre, $100\,\overline{[e_\oplus>H(A_\oplus)]}$ (§5.3). Any part minus centre is 4.5–7.5 percentage points for 14 of the 16 sites, 12.1 points at IM-2 Athena (93.2 % vs 81.1 %) and 0 at IM-1 Odysseus (100 % both ways); the mean is 5.3 points. Examples: Haworth 40.2 % vs 35.3 %, Malapert Massif 82.8 % vs 75.3 %, Shackleton rim (SR1) 51.8 % vs 47.3 %. The any-part values reproduce the shipped `longTermEarthPct` to ≤ 0.1 (Haworth ships 40.3 %; the shipped masks are rounded to 0.01°). Under the app's default centre rule a site therefore sees Earth about 5 points less of the time than the 18.6-year bar says.
 
-**Where they are shown.** About this site (Site › Overview) shows the three values as bars under "18.6-year average (2 m above ground, any part of the Sun or Earth)", labelled "Sunlit", "Earth in view (any part)" and "Sun and Earth" for catalogue sites, and "Long-term averages are only precomputed for the 16 catalogue sites" for a custom spot (`about_site.dart:17,20,60-74`). The same card prints the mask summary as "The highest skyline is <`horizonMaxDeg`, 1 dp>° up, on terrain <`horizonMaxDistanceKm`, 0 dp> km away" (`about_site.dart:36-39`).
+**Where they are shown.** About this site (Site › Overview) shows the three values as bars under "18.6-year average (2 m above ground, any part of the Sun or Earth)", labelled "Sunlit", "Earth in view (any part)" and "Sun and Earth" for catalogue sites, and "Long-term averages are only precomputed for the preset catalogue sites" for a custom spot (`about_site.dart:17,20,60-74`). The same card prints the mask summary as "The highest skyline is <`horizonMaxDeg`, 1 dp>° up, on terrain <`horizonMaxDistanceKm`, 0 dp> km away" (`about_site.dart:36-39`).
 
 **Surface comparison values** for the AVGVISIB cross-check ($h_{\rm obs}=0$ = `CROSSCHECK_HEIGHT_M`, with the 0 m mask; `sites.py:30,80-84`):
 
@@ -1278,7 +1278,7 @@ $$j = \mathrm{round}(\Delta c\,a_{\rm col} + \Delta r\,a_{\rm row} + W/2 - 0.5),
 Edge behaviour in the code:
 - The rotated buffer is initialised to 1 (`shadow.dart:222`), and only valid samples are overwritten (`shadow.dart:273`). A map pixel whose nearest rotated sample is off the DEM therefore reads 1, i.e. it is treated as unblocked.
 - `LightField.at` uses the nearest pixel, with clamping (`shadow.dart:330-333`). `pixelOf` uses §4.2 (`shadow.dart:59-62`).
-- **Close-up placement.** `windowAround(row, col, m)` sets $r_0=\mathrm{clamp}\big(\mathrm{round}(\text{row}-m/2+0.5),\,0,\,n-m\big)$, and likewise $c_0$ (`shadow.dart:65-69`). The window is centred on the site's pixel except within $m/2$ px of the grid edge (64 km for the close-up), where it is pushed back inside the grid. Derived from `sites.json`: of the 16 preset sites only IM-1 Odysseus (80.13°S, 1.44°E) is affected. Its site pixel is at row 9.7, so the window starts at row 0 instead of −150, and the site sits about 4 km below the frame's top edge, 60 km from the frame centre. The frame's top-left corner in map metres is $x_0=(c_0-n/2)\,p$, $y_0=(n/2-r_0)\,p$ (`light_engine.dart:116-121`).
+- **Close-up placement.** `windowAround(row, col, m)` sets $r_0=\mathrm{clamp}\big(\mathrm{round}(\text{row}-m/2+0.5),\,0,\,n-m\big)$, and likewise $c_0$ (`shadow.dart:65-69`). The window is centred on the site's pixel except within $m/2$ px of the grid edge (64 km for the close-up), where it is pushed back inside the grid. Derived from `sites.json`: of the 19 preset sites only IM-1 Odysseus (80.13°S, 1.44°E) is affected. Its site pixel is at row 9.7, so the window starts at row 0 instead of −150, and the site sits about 4 km below the frame's top edge, 60 km from the frame centre. The frame's top-left corner in map metres is $x_0=(c_0-n/2)\,p$, $y_0=(n/2-r_0)\,p$ (`light_engine.dart:116-121`).
 
 ### 12.5 Normals and Lambert term
 
@@ -1338,7 +1338,7 @@ $$\hat N_{\rm map}=(\sin\lambda,\ \cos\lambda),\qquad \hat E_{\rm map}=(\cos\lam
 - The grid is 800 m for the region view and 400 m for the site close-up. The near field is excluded below $L\cdot p$.
 - The observer height is the app's chosen height (see the start of §12); the agreement figures below are for 2 m.
 
-**Measured** (`shadow_test.dart:261-342`; test prints from `flutter test` runs on 2026-10-10). The map's `sunAny` at each preset site's pixel is compared with the site-horizon rule $f>0$ of §6.2, using the 2 m masks. There are 16 sites × 60 random moments in the 360 d from 2026-10-09 (seed 7), so 960 checks per grid.
+**Measured** (`shadow_test.dart:261-342`; test prints from `flutter test` runs on 2026-10-10). The map's `sunAny` at each preset site's pixel is compared with the site-horizon rule $f>0$ of §6.2, using the 2 m masks. There are 16 sites × 60 random moments in the 360 d from 2026-10-09 (seed 7), so 960 checks per grid. The test keeps those 16 sites (the three mission sites added on 2026-10-29 are left out, so the figures stay comparable).
 
 | Map grid | vs 400 m on-device horizons | vs 80 m preset horizons | Test bounds |
 |---|---|---|---|
@@ -1512,7 +1512,7 @@ Results (`validation.json` → `avgvis`; surface observer, 18.6 yr hourly, near-
 
 | Group | n | Values within LOLA 3×3 ±0.5 pp | Sun mean / max $\lvert\Delta\rvert$ (pp) | Earth mean / max $\lvert\Delta\rvert$ (pp) |
 |---|---|---|---|---|
-| Regions (`kind` ≠ `exact-point`) | 11 | 21/22 | 1.78 / 4.62 | 2.02 / 14.86 |
+| Regions (`kind` ≠ `exact-point`) | 14 | 27/28 | 1.98 / 5.17 | 1.78 / 14.86 |
 | Ridge/peak points (`exact-point`) | 5 | 9/10 | 7.33 / 20.3 | 2.84 / 7.17 |
 
 ### 13.10 Error budget summary (directions)
@@ -1596,7 +1596,7 @@ Tests: `export_csv_test.dart:18-37`.
 
 ## 15. Blender render geometry
 
-The renders are precomputed by the pipeline, and are kept brief here. `app/assets/data/renders/` holds a "best" and a "night" panorama for each of the 16 preset sites (no custom sites) and a 36-frame region overview.
+The renders are precomputed by the pipeline, and are kept brief here. `app/assets/data/renders/` holds a "best" and a "night" panorama for each of the 16 preset sites in the catalogue before 2026-10-29 (none for the three mission sites added that day, nor for custom sites) and a 36-frame region overview.
 - The app no longer displays them. The turntable and the panorama were removed, and the computed Light & shadow map (§12) replaced them (`light_map.dart:1-6`). Nothing in `app/lib` reads `renders/`, and `app/pubspec.yaml` does not list `assets/data/renders/` as an asset folder (it lists `assets/data/` and three named subfolders), so the render files are not bundled with the app.
 - The pipeline outputs remain in the repo: `app/assets/data/renders/` (with `manifest.json`) and the `render_skyline` block of `validation.json` (§15.3), whose numbers the validation page still lists (`validation_page.dart:47,111-116`).
 
@@ -1710,7 +1710,7 @@ From then on, every number goes through the same Dart code as a preset site, inc
 | Light and shadow map | The region view does not depend on the site. The close-up is a 128 km window around the site on the 400 m DEM (pushed inside the grid near its edge). Both use the chosen observer height (2 or 10 m). Arrows: `nowAt` azimuth + `mapDirection`, with the site's own mask and observer height | §12 |
 
 **Not available for custom sites:**
-- **18.6-year long-term averages** (`longTermSunlitPct`, `longTermEarthPct`, `longTermBothPct`; §9.6). These are pipeline-only, preset sites only. They are parsed (`catalog.dart:72-74`) and shown in About this site for catalogue sites; a custom spot shows "Long-term averages are only precomputed for the 16 catalogue sites" (`about_site.dart:20,60-62`).
+- **18.6-year long-term averages** (`longTermSunlitPct`, `longTermEarthPct`, `longTermBothPct`; §9.6). These are pipeline-only, preset sites only. They are parsed (`catalog.dart:72-74`) and shown in About this site for catalogue sites; a custom spot shows "Long-term averages are only precomputed for the preset catalogue sites" (`about_site.dart:20,60-62`).
 - **LOLA AVGVISIB cross-check** (§13.9): preset sites only.
 - **Blender renders** (§15): pipeline-only, preset sites only, not shown in the app.
 - **Local slope** (§5.4): pipeline-only. Custom sites keep the default `slopeDeg = NaN` (`catalog.dart:44`), and `slopeText` prints "slope not computed for custom spots" (`wording.dart:220-224`; used at `site/site_screen.dart:142`, `about_site.dart:57` and `expert_numbers.dart:229`).

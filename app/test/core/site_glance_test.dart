@@ -265,7 +265,7 @@ Longest night over your dates: 3 d 8 h, from 1 Jan 2027 00:00 UTC. (approx.)
 HOW IT COMPARES
 5th of 17 sites, including your spot, for Balanced over your dates. (approx.)
 Against P09 (16 km away): Sun and Earth together 23% here, 19% there, over your dates. (approx.)
-Long-term averages are only precomputed for the 16 catalogue sites.
+Long-term averages are only precomputed for the preset catalogue sites.
 Where it is
 79 km from the south pole (-87.40°, 30.00°E).
 The nearest catalogue site is P09, 16 km to the west.
@@ -340,7 +340,7 @@ void main() {
     });
 
     test('longTermCustomNote lives in wording.dart', () {
-      expect(longTermCustomNote, 'Long-term averages are only precomputed for the 16 catalogue sites');
+      expect(longTermCustomNote, 'Long-term averages are only precomputed for the preset catalogue sites');
     });
   });
 

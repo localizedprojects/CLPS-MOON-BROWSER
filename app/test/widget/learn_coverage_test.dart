@@ -66,7 +66,7 @@ void main() {
 
   testWidgets('the section\'s group names match the catalogue\'s groups', (tester) async {
     final names = [for (final g in state.catalog!.groups) g.name];
-    for (final n in ['Missions', 'Artemis III candidate regions', 'High-illumination points']) {
+    for (final n in ['Missions', 'Artemis III candidate regions', 'ESA Lunar Lander candidate sites']) {
       expect(names.any((g) => g.startsWith(n)), isTrue, reason: n);
     }
     final missions = [for (final s in state.catalog!.sites) if (s.group == 'missions') s.short];

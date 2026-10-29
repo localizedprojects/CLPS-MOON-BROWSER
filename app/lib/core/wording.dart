@@ -218,7 +218,7 @@ String sampleStepText(double stepMs) {
 
 /// Shown instead of the long-term averages for a custom spot (AboutSite and
 /// the At a glance card; re-exported by widgets/about_site.dart).
-const String longTermCustomNote = 'Long-term averages are only precomputed for the 16 catalogue sites';
+const String longTermCustomNote = 'Long-term averages are only precomputed for the preset catalogue sites';
 
 /// "4.5° slope" (LOLA, preset sites only).
 String slopeText(Site s) {

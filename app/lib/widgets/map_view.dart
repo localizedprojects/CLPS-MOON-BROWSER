@@ -400,6 +400,62 @@ class _LegendMarker extends CustomPainter {
   bool shouldRepaint(covariant _LegendMarker old) => old.shape != shape || old.colour != colour;
 }
 
+/// A row of the map's chooser for stacked markers: the site's marker shape
+/// (in its group colour), its short name and its kind.
+class SiteChoiceRow extends StatelessWidget {
+  final Site site;
+  final bool selected;
+  const SiteChoiceRow({super.key, required this.site, this.selected = false});
+
+  @override
+  Widget build(BuildContext context) {
+    final glyph = MediaQuery.textScalerOf(context).clamp(maxScaleFactor: PH.maxCanvasTextScale).scale(16);
+    return Semantics(
+      label: '${site.short}, ${siteKindLabel(site)}',
+      selected: selected,
+      excludeSemantics: true,
+      child: Row(children: [
+        CustomPaint(size: Size.square(glyph), painter: _LegendMarker(markerShapeOf(site), markerColorOf(site))),
+        const SizedBox(width: 12),
+        Flexible(
+          child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(site.short, style: PHText.body.copyWith(fontWeight: selected ? FontWeight.w600 : null, height: 1.25)),
+            Text(siteKindLabel(site), style: PHText.small.copyWith(color: PH.muted, height: 1.25)),
+          ]),
+        ),
+        // the site already open: a tick, not a colour
+        if (selected) ...[const SizedBox(width: 8), const Icon(Icons.check, size: 18, color: PH.text)],
+      ]),
+    );
+  }
+}
+
+/// The chooser's title ("3 sites here"): read as a heading, not a choice.
+class _ChooserHeader extends PopupMenuEntry<String> {
+  final String text;
+  const _ChooserHeader(this.text);
+
+  @override
+  double get height => 36;
+
+  @override
+  bool represents(String? value) => false;
+
+  @override
+  State<_ChooserHeader> createState() => _ChooserHeaderState();
+}
+
+class _ChooserHeaderState extends State<_ChooserHeader> {
+  @override
+  Widget build(BuildContext context) => Semantics(
+        header: true,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+          child: Text(widget.text, style: PHText.small.copyWith(color: PH.muted, fontWeight: FontWeight.w600)),
+        ),
+      );
+}
+
 /// "−89.123°, 45.678°E" for a custom pin.
 String latLonLabel(double lat, double lon) => '${lat.toStringAsFixed(3)}°, ${lon.toStringAsFixed(3)}°E';
 
@@ -710,7 +766,7 @@ class _MapViewState extends State<MapView> with SingleTickerProviderStateMixin {
 
   /// [screen] is where the finger landed on the map widget, at any zoom.
   /// [global] is the same point on the screen, where a chooser opens.
-  void _onTap(Offset screen, [Offset? global]) {
+  void _onTap(Offset screen, Offset global) {
     final size = _side;
     final p = _toScene(screen);
     // beside the map (the full-screen map's margins): nothing there
@@ -730,7 +786,7 @@ class _MapViewState extends State<MapView> with SingleTickerProviderStateMixin {
       // markers in reach of one finger (stacked, at any zoom): the user picks
       // one rather than whichever is nearest
       near.sort((a, b) => a.$1.compareTo(b.$1));
-      _chooseSite([for (final (_, s) in near) s], global ?? _globalOf(screen));
+      _chooseSite([for (final (_, s) in near) s], global);
       return;
     }
     final h = widget.layers.halfWidthM;
@@ -750,6 +806,38 @@ class _MapViewState extends State<MapView> with SingleTickerProviderStateMixin {
       final c = _confirmKey.currentContext;
       if (c != null && c.mounted) Scrollable.ensureVisible(c, alignmentPolicy: ScrollPositionAlignmentPolicy.keepVisibleAtEnd);
     });
+  }
+
+  /// A site picked on the map (a marker, the chooser or a screen reader).
+  void _pick(String id) {
+    _setPin(null);
+    widget.onSelect(id);
+  }
+
+  /// The sites in reach of a tap ([here], nearest first) in a menu at
+  /// [global]: choosing one selects it as a marker tap does; dismissing it
+  /// selects nothing.
+  Future<void> _chooseSite(List<Site> here, Offset global) async {
+    final overlay = Overlay.of(context).context.findRenderObject() as RenderBox;
+    final at = overlay.globalToLocal(global);
+    final id = await showMenu<String>(
+      context: context,
+      position: RelativeRect.fromRect(at & Size.zero, Offset.zero & overlay.size),
+      semanticLabel: '${here.length} sites here. Choose one',
+      constraints: const BoxConstraints(minWidth: 220, maxWidth: 320),
+      items: [
+        _ChooserHeader('${here.length} sites here'),
+        for (final s in here)
+          PopupMenuItem<String>(
+            key: ValueKey('map-choose-${s.id}'),
+            value: s.id,
+            height: 56,
+            child: SiteChoiceRow(site: s, selected: s.id == widget.selectedId),
+          ),
+      ],
+    );
+    if (id == null || !mounted) return;
+    _pick(id);
   }
 
   void _confirmPin() {
@@ -822,6 +910,7 @@ class _MapViewState extends State<MapView> with SingleTickerProviderStateMixin {
             );
         return Semantics(
           label: 'South pole map. Tap a site marker to open it, or tap or hold terrain to check a spot of your own. '
+              'Where markers overlap, a number beside them counts the sites there, and a tap lists them to choose from. '
               'Pinch or use the zoom buttons to place a spot precisely.'
               '${widget.layers.outer != null ? ' Zoom out or drag to see the terrain out to 75°S; spots go south of 80°S.' : ''}',
           hint: 'Keyboard and screen-reader users: choose a site from the site cards, '
@@ -864,12 +953,12 @@ class _MapViewState extends State<MapView> with SingleTickerProviderStateMixin {
                           ),
                           TapGestureRecognizer: GestureRecognizerFactoryWithHandlers<TapGestureRecognizer>(
                             TapGestureRecognizer.new,
-                            (r) => r.onTapUp = (d) => _onTap(d.localPosition),
+                            (r) => r.onTapUp = (d) => _onTap(d.localPosition, d.globalPosition),
                           ),
                           // "hold anywhere": a long press drops a pin too
                           LongPressGestureRecognizer: GestureRecognizerFactoryWithHandlers<LongPressGestureRecognizer>(
                             LongPressGestureRecognizer.new,
-                            (r) => r.onLongPressStart = (d) => _onTap(d.localPosition),
+                            (r) => r.onLongPressStart = (d) => _onTap(d.localPosition, d.globalPosition),
                           ),
                         },
                         child: Transform(
@@ -879,7 +968,7 @@ class _MapViewState extends State<MapView> with SingleTickerProviderStateMixin {
                             child: CustomPaint(
                               size: Size(size, size),
                               painter: _MapPainter(widget.layers, widget.sites, widget.selectedId, overlay, labels,
-                                  () => _scale, scaler, pin, widget.highlightId, _tc),
+                                  () => _scale, scaler, pin, widget.highlightId, _tc, z, _pick),
                             ),
                           ),
                         ),
@@ -1180,8 +1269,13 @@ class _MapPainter extends CustomPainter {
   final TextScaler scaler;
   final (double, double)? pin;
   final String? highlight;
+
+  /// The zoom when built (the screen-reader nodes are sized for it), and what
+  /// a screen reader's tap on a site's node does.
+  final double semZoom;
+  final ValueChanged<String> onPick;
   _MapPainter(this.l, this.sites, this.selected, this.overlay, this.labels, this.zoom, this.scaler, this.pin, this.highlight,
-      Listenable zoomChanges)
+      Listenable zoomChanges, this.semZoom, this.onPick)
       // the ring's images arriving repaint the map too
       : super(repaint: l.outer == null ? zoomChanges : Listenable.merge([zoomChanges, l.outer]));
 
@@ -1264,13 +1358,13 @@ class _MapPainter extends CustomPainter {
       text(s, px(lat, lon), color: PH.text, bold: lat == g.edge);
     }
 
-    // sites (selected drawn last)
+    // sites (selected drawn last), always at their true positions
     final ordered = [...sites.where((s) => s.id != selected), ...sites.where((s) => s.id == selected)];
     for (final s in ordered) {
       final p = px(s.lat, s.lon);
       final sel = s.id == selected;
       final color = markerColorOf(s);
-      final r = (sel ? 7.0 : 5.0) / z;
+      final r = mapMarkerR(sel) / z;
       final fill = Paint()..color = color;
       final edge = Paint()
         ..color = Colors.black
@@ -1290,7 +1384,29 @@ class _MapPainter extends CustomPainter {
             ..strokeWidth = width / z);
         }
       }
-      if (sel || hot || labels) text(s.short, p + Offset(0, -(r + 10 / z)), size: sel ? 14 : 13, bold: sel);
+    }
+
+    // markers that overlap on screen get a count beside them; names go where
+    // they do not cover each other (merged as "Name +n" where nothing is free)
+    final lay = mapMarkerLayout(
+        halfWidthM: h, sites: sites, side: w, zoom: z, selected: selected, highlight: highlight, names: labels, scaler: scaler);
+    Rect scene(LabelBox b) => Rect.fromLTRB(b.left / z, b.top / z, b.right / z, b.bottom / z);
+    for (final (box, n) in lay.badges) {
+      final rr = RRect.fromRectAndRadius(scene(box), Radius.circular(4 / z));
+      canvas.drawRRect(rr, Paint()..color = PH.panel.withValues(alpha: 0.94));
+      canvas.drawRRect(rr, Paint()
+        ..color = PH.text
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1 / z);
+      tp.text = TextSpan(text: '$n', style: _badgeStyle(z));
+      tp.layout();
+      tp.paint(canvas, rr.center - Offset(tp.width / 2, tp.height / 2));
+    }
+    final selIdx = sites.indexWhere((s) => s.id == selected);
+    for (final lab in lay.labels) {
+      tp.text = TextSpan(text: lab.text, style: _labelStyle(lab.site == selIdx, z));
+      tp.layout();
+      tp.paint(canvas, scene(lab.box).topLeft);
     }
 
     // an unconfirmed pin: a hollow ring with a cross (shape, not colour)
@@ -1308,6 +1424,37 @@ class _MapPainter extends CustomPainter {
       }
     }
   }
+
+  /// One node per site marker (overlapping ones too), each a button that
+  /// selects its site: a screen reader finds every site on the map.
+  @override
+  SemanticsBuilderCallback get semanticsBuilder => (size) {
+        final z = semZoom;
+        final lay = mapMarkerLayout(
+            halfWidthM: l.halfWidthM, sites: sites, side: size.width, zoom: z, selected: selected, names: false);
+        final stacked = {
+          for (final st in lay.stacks)
+            for (final i in st) i: st.length
+        };
+        return [
+          for (var i = 0; i < sites.length; i++)
+            CustomPainterSemantics(
+              key: ValueKey('map-site-${sites[i].id}'),
+              rect: Rect.fromCircle(center: Offset(lay.at[i].$1 / z, lay.at[i].$2 / z), radius: 24 / z),
+              properties: SemanticsProperties(
+                label: mapSiteSemanticsLabel(sites[i], stacked[i] ?? 1),
+                button: true,
+                selected: sites[i].id == selected,
+                textDirection: TextDirection.ltr,
+                onTap: () => onPick(sites[i].id),
+              ),
+            ),
+        ];
+      };
+
+  @override
+  bool shouldRebuildSemantics(covariant _MapPainter old) =>
+      old.l != l || old.sites != sites || old.selected != selected || old.semZoom != semZoom;
 
   @override
   bool shouldRepaint(covariant _MapPainter old) =>

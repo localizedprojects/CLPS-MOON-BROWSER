@@ -50,6 +50,18 @@ void main() {
       expect(pick(4, 5, 0, 0), (last, true), reason: 'at the exclusive end: outside');
       expect(pick(4, 4, 23, 50), (last, false));
     });
+
+    test('pickedCursorMs: the default period\'s last day is inside the dates to its last minute', () {
+      // a year from today's UTC midnight (end exclusive), 30-min samples: the
+      // picker's and the period's last day is 28 Oct 2027
+      final start = _utc(2026, 10, 29), end = _utc(2027, 10, 29), step = 1800e3, last = end - step;
+      (double, bool) pick(int h, int min) =>
+          pickedCursorMs(DateTime.utc(2027, 10, 28), h, min, startMs: start, lastMs: last, endMs: end, stepMs: step);
+      expect(pick(23, 30), (last, false));
+      expect(pick(23, 31), (last, false));
+      expect(pick(23, 45), (_utc(2027, 10, 28, 23, 30), false));
+      expect(pick(23, 59), (last, false));
+    });
   });
 
   group('the picker', () {

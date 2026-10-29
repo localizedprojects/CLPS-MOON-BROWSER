@@ -227,12 +227,28 @@ Visible share of the Sun and Earth disks above a terrain horizon, the power prox
 - `angular_radius_deg(radius_km: 'ArrayLike', range_km: 'ArrayLike') -> 'FloatOrArray'`: Angular radius (deg) of a sphere of ``radius_km`` seen from ``range_km``: ``asin(r/range) * RAD``.
 - `sun_angular_radius_deg(range_km: 'ArrayLike') -> 'FloatOrArray'`: Sun angular radius (deg): ``asin(695700 km / range)``.
 - `earth_angular_radius_deg(range_km: 'ArrayLike') -> 'FloatOrArray'`: Earth angular radius (deg): ``asin(6378.1366 km / range)``.
-- `visible_fraction(az_deg: 'ArrayLike', el_deg: 'ArrayLike', rho_deg: 'ArrayLike', mask: 'HorizonMask') -> 'FloatOrArray'`: Share (0..1) of a disk centred at (``az_deg``, ``el_deg``) with angular radius ``rho_deg`` that lies above ``mask`` (16-strip integration, Dart order of operations).
+- `visible_fraction(az_deg: 'ArrayLike', el_deg: 'ArrayLike', rho_deg: 'ArrayLike', mask: 'HorizonMask', *, occulter: "'Occulter | None'" = None) -> 'FloatOrArray'`: Share (0..1) of a disk centred at (``az_deg``, ``el_deg``) with angular radius ``rho_deg`` that lies above ``mask`` and, when given, outside ``occulter`` (16-strip integration, Dart order of operations).
 - `segment_fraction(s: 'ArrayLike') -> 'FloatOrArray'`: Analytic share of a unit disk above a straight line at signed distance ``s`` (radii) below the centre (``s > 0``: centre above the line); ``s`` is clamped to [-1, 1].
 - `power_wm2(visible_frac: 'ArrayLike', sun_range_km: 'ArrayLike') -> 'FloatOrArray'`: Power proxy (W/m^2): ``1361 x (1 au / r)^2 x visible share`` (Dart: ``r = AU / range; S*r*r*f``).
-- `sun_visible(criterion: "'SunCriterion | str'", frac: 'ArrayLike', el_deg: 'ArrayLike', horizon_at_center_deg: 'ArrayLike') -> 'BoolOrArray'`: Is the Sun "visible" under ``criterion`` (a :class:`SunCriterion` or its name)?
+- `sun_visible(criterion: "'SunCriterion | str'", frac: 'ArrayLike', el_deg: 'ArrayLike', horizon_at_center_deg: 'ArrayLike', *, eclipse: 'ArrayLike' = 0.0, centre_hidden: 'ArrayLike' = False) -> 'BoolOrArray'`: Is the Sun "visible" under ``criterion`` (a :class:`SunCriterion` or its name)?
 - `earth_visible(criterion: "'EarthCriterion | str'", frac: 'ArrayLike', el_deg: 'ArrayLike', horizon_at_center_deg: 'ArrayLike') -> 'BoolOrArray'`: Is the Earth "visible" under ``criterion`` (an :class:`EarthCriterion` or its name)?
 - `FULL_DISK_MIN_FRACTION` = `0.999`
+- `Occulter`: re-exported from `lunarhorizon.eclipse` (the `occulter=` argument of `visible_fraction`).
+
+## `lunarhorizon.eclipse`
+
+Earth hiding the Sun as seen from the Moon (a lunar eclipse on Earth); port of ``app/lib/core/eclipse.dart``.
+
+- `circle_overlap_area(r1: 'Any', r2: 'Any', d: 'Any') -> 'Any'`: Area of the overlap of two circles of radii ``r1`` and ``r2`` whose centres are ``d`` apart (planar geometry, any consistent unit). Dart ``circleOverlapArea``.
+- `eclipse_fraction(rho_sun_deg: 'Any', rho_earth_deg: 'Any', sep_deg: 'Any') -> 'Any'`: Fraction (0..1) of the Sun's disk (radius ``rho_sun_deg``) covered by Earth's disk (radius ``rho_earth_deg``) whose centre is ``sep_deg`` away. Dart ``eclipseFraction``.
+- **class `Occulter(du: 'Any', dv: 'Any', rho_deg: 'Any') -> None`**: A disk in front of the disk integrated by :func:`lunarhorizon.visibility.visible_fraction`.
+- **class `SunEclipse(sep_deg: 'Any', rho_sun_deg: 'Any', rho_earth_deg: 'Any', du: 'Any', dv: 'Any') -> None`**: Earth against the Sun's disk, for one observer (Dart ``SunEclipse``).
+  - classmethod `of(cls, sun_az_deg: 'Any', sun_el_deg: 'Any', rho_sun_deg: 'Any', earth_az_deg: 'Any', earth_el_deg: 'Any', rho_earth_deg: 'Any') -> "'SunEclipse'"`: From the topocentric Sun and Earth directions (degrees) and disk radii (degrees).
+  - property `overlaps`: Any part of the Sun's disk behind Earth (bool or bool array).
+  - property `centre_hidden`: The Sun's centre behind Earth (``sep < rho_earth``; bool or bool array).
+  - property `fraction`: Fraction (0..1) of the Sun's whole disk behind Earth, terrain ignored.
+  - property `occulter`: Earth's disk relative to the Sun's centre, for ``visible_fraction``.
+- `sun_eclipse_at(observer, sun_from_center_km: 'Any', earth_from_center_km: 'Any') -> 'SunEclipse'`: :class:`SunEclipse` for an :class:`lunarhorizon.sky.Observer` from the Moon-centred Sun and Earth vectors (MOON_ME, km; shape (3,) or (N, 3)). Dart ``sunEclipseAt``.
 
 ## `lunarhorizon.sites`
 
@@ -258,7 +274,7 @@ Per-site Sun/Earth visibility time series (port of ``app/lib/core/timeseries.dar
 - **class `SeriesOptions(step_ms: 'float' = 3600000.0, sun_criterion: 'Any' = 'upper_limb', earth_criterion: 'Any' = 'center', require_dsn: 'bool' = False) -> None`**: How a series is sampled and how "available" is decided (timeseries.dart ``SeriesOptions``).
   - `copy_with(self, **changes: 'Any') -> "'SeriesOptions'"`: A copy with some fields replaced (Dart ``copyWith``).
   - staticmethod `auto_step_ms(range_ms: 'float') -> 'float'`: See :func:`auto_step_ms`.
-- **class `Series(t0_ms: 'float', step_ms: 'float', n: 'int', sun_az: 'np.ndarray' = None, sun_el: 'np.ndarray' = None, sun_hz: 'np.ndarray' = None, sun_frac: 'np.ndarray' = None, earth_az: 'np.ndarray' = None, earth_el: 'np.ndarray' = None, earth_hz: 'np.ndarray' = None, earth_frac: 'np.ndarray' = None, power: 'np.ndarray' = None, sun_range_km: 'np.ndarray' = None, earth_range_km: 'np.ndarray' = None, dsn: 'np.ndarray' = None, flags: 'np.ndarray' = None) -> None`**: A site's time series (Dart ``SiteSeries``); every array has length ``n``.
+- **class `Series(t0_ms: 'float', step_ms: 'float', n: 'int', sun_az: 'np.ndarray' = None, sun_el: 'np.ndarray' = None, sun_hz: 'np.ndarray' = None, sun_frac: 'np.ndarray' = None, earth_az: 'np.ndarray' = None, earth_el: 'np.ndarray' = None, earth_hz: 'np.ndarray' = None, earth_frac: 'np.ndarray' = None, power: 'np.ndarray' = None, sun_range_km: 'np.ndarray' = None, earth_range_km: 'np.ndarray' = None, dsn: 'np.ndarray' = None, flags: 'np.ndarray' = None, sun_eclipse: 'np.ndarray' = None) -> None`**: A site's time series (Dart ``SiteSeries``); every array has length ``n``.
   - classmethod `alloc(cls, t0_ms: 'float', step_ms: 'float', n: 'int') -> "'Series'"`: An all-zero series of ``n`` samples (Dart ``SiteSeries.alloc``; handy for tests).
   - classmethod `from_flags(cls, flags, *, t0_ms: 'float' = 0.0, step_ms: 'float' = 3600000.0, **arrays: 'Any') -> "'Series'"`: A series with the given ``flags`` (and optionally other arrays by name), zeros elsewhere.
   - property `times_ms`: Sample times, Unix ms (``t0 + i * step``, float64).

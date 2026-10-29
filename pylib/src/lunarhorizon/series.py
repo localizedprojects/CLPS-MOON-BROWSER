@@ -4,8 +4,10 @@ For every sample ``t_i = t0 + i * step`` (Unix ms, UTC) the series holds the
 topocentric azimuth/elevation of the Sun and the Earth (degrees, azimuth
 clockwise from north with north = away from the pole), the terrain horizon at
 those azimuths (degrees), the visible share of each disc (0..1, 16-strip
-integration), the power proxy (W/m^2), the DSN bitmask (bit 0 Goldstone, 1
-Madrid, 2 Canberra) and the availability flags:
+integration; the Sun's with Earth's disk removed during a lunar eclipse, see
+``eclipse.py``), the share of the Sun's disk behind Earth, the power proxy
+(W/m^2), the DSN bitmask (bit 0 Goldstone, 1 Madrid, 2 Canberra) and the
+availability flags:
 
 * ``FLAG_SUN`` (1): the Sun counts as up under the Sun criterion (power),
 * ``FLAG_EARTH`` (2): the Earth counts as up under the Earth criterion, and with
@@ -177,7 +179,7 @@ def series_length(t0_ms: float, t1_ms: float, step_ms: float) -> int:
 # ----------------------------------------------------------------- series
 
 _FLOAT_FIELDS = ("sun_az", "sun_el", "sun_hz", "sun_frac", "earth_az", "earth_el", "earth_hz", "earth_frac",
-                 "power", "sun_range_km", "earth_range_km")
+                 "power", "sun_range_km", "earth_range_km", "sun_eclipse")
 _U8_FIELDS = ("dsn", "flags")
 
 
@@ -188,6 +190,9 @@ class Series:
     Angles in degrees (azimuth clockwise from north, north = increasing latitude),
     shares 0..1, ``power`` in W/m^2, ranges in km (``sun_range_km`` and
     ``earth_range_km`` are extras, not in the Dart class). ``dsn`` and ``flags`` are uint8.
+    ``sun_eclipse`` (Dart ``sunEclipse``): share (0..1) of the Sun's whole disk behind Earth
+    (a lunar eclipse seen from the Moon), terrain ignored; 0 at almost every sample.
+    ``sun_frac`` and ``power`` already exclude it.
     """
 
     t0_ms: float
@@ -206,6 +211,7 @@ class Series:
     earth_range_km: np.ndarray = field(default=None, repr=False)  # type: ignore[assignment]
     dsn: np.ndarray = field(default=None, repr=False)  # type: ignore[assignment]
     flags: np.ndarray = field(default=None, repr=False)  # type: ignore[assignment]
+    sun_eclipse: np.ndarray = field(default=None, repr=False)  # type: ignore[assignment]
 
     def __post_init__(self) -> None:
         self.t0_ms = float(self.t0_ms)
@@ -334,6 +340,7 @@ def _fill(s: Series, eph, observer, mask, o: SeriesOptions, a: int, b: int) -> N
     """Compute samples ``[a, b)`` of ``s`` in place (Dart ``fillSeries``, vectorised)."""
     from . import visibility as vis  # P-terrain module (section 2.3)
     from .constants import EARTH_RADIUS_KM, SUN_RADIUS_KM
+    from .eclipse import Occulter, SunEclipse
 
     i = np.arange(a, b, dtype=np.float64)
     t = s.t0_ms + i * o.step_ms  # Dart: t0Ms + i * o.stepMs
@@ -344,6 +351,17 @@ def _fill(s: Series, eph, observer, mask, o: SeriesOptions, a: int, b: int) -> N
     s_hz = np.asarray(mask.at(sun_az), dtype=np.float64)
     e_hz = np.asarray(mask.at(earth_az), dtype=np.float64)
     fs = np.asarray(vis.visible_fraction(sun_az, sun_el, rs, mask), dtype=np.float64)
+    # Lunar eclipse (Dart: SunEclipse.of per sample; the occulter only where the disks
+    # overlap, so every other sample is exactly the value above).
+    ecl = SunEclipse.of(sun_az, sun_el, rs, earth_az, earth_el, re)
+    ov = np.atleast_1d(np.asarray(ecl.overlaps, dtype=bool))
+    ef = np.zeros(fs.shape)
+    if ov.any():
+        j = np.flatnonzero(ov)
+        du, dv = np.atleast_1d(ecl.du)[j], np.atleast_1d(ecl.dv)[j]
+        fs[j] = vis.visible_fraction(sun_az[j], sun_el[j], rs[j], mask, occulter=Occulter(du, dv, re[j]))
+        ef[j] = np.atleast_1d(ecl.fraction)[j]
+    centre_hidden = np.atleast_1d(np.asarray(ecl.centre_hidden, dtype=bool))
     fe = np.asarray(vis.visible_fraction(earth_az, earth_el, re, mask), dtype=np.float64)
     dsn = np.asarray(eph.dsn_mask(t)).astype(np.uint8)
     s.sun_az[a:b] = sun_az
@@ -355,10 +373,12 @@ def _fill(s: Series, eph, observer, mask, o: SeriesOptions, a: int, b: int) -> N
     s.earth_hz[a:b] = e_hz
     s.earth_frac[a:b] = fe
     s.power[a:b] = vis.power_wm2(fs, sun_rng)
+    s.sun_eclipse[a:b] = ef
     s.sun_range_km[a:b] = sun_rng
     s.earth_range_km[a:b] = earth_rng
     s.dsn[a:b] = dsn
-    sv = np.asarray(vis.sun_visible(o.sun_criterion, fs, sun_el, s_hz), dtype=bool)
+    sv = np.asarray(vis.sun_visible(o.sun_criterion, fs, sun_el, s_hz, eclipse=ef, centre_hidden=centre_hidden),
+                    dtype=bool)
     ev = np.asarray(vis.earth_visible(o.earth_criterion, fe, earth_el, e_hz), dtype=bool)
     if o.require_dsn:
         ev = ev & (dsn != 0)

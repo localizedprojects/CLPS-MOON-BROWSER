@@ -12,6 +12,7 @@ import '../../core/wording.dart';
 import '../../state/app_state.dart';
 import '../../theme.dart';
 import '../glyphs.dart';
+import '../site_glance_card.dart' show numSpans;
 import '../stat_bar.dart';
 import 'sheet_frame.dart';
 
@@ -36,6 +37,13 @@ List<Site> filterSites(List<Site> sites, String query, {Map<String, String> grou
       if (words.every(('${s.name} ${s.short} ${siteKindLabel(s)} ${groupNames[s.group] ?? ''}').toLowerCase().contains)) s,
   ];
 }
+
+/// What the picker says when a search finds nothing: the usual advice, then
+/// what the catalogue covers (the south pole, south of 80°S), since Apollo and
+/// other equatorial sites are not in it, and that any polar spot can be added.
+String noSiteMatchText(String query) => 'No site matches "$query". Try a shorter word, or clear the search. '
+    'This tool covers the Moon\'s south pole (south of 80°S); Apollo and other sites near the equator are outside it. '
+    'You can add your own spot by coordinates on the Explore map.';
 
 /// What the multi-select footer says for [n] chosen sites.
 String pickerCountText(int n, {required int min, required int max}) {
@@ -148,7 +156,7 @@ class _SitePickerSheetState extends State<SitePickerSheet> {
           textInputAction: TextInputAction.search,
           decoration: InputDecoration(
             labelText: 'Search sites',
-            hintText: 'Name or kind, e.g. Shackleton or Artemis',
+            hintText: 'Name or kind, e.g. Shackleton, Artemis or IM-1',
             prefixIcon: const Icon(Icons.search),
             suffixIcon: _query.isEmpty
                 ? null
@@ -198,12 +206,10 @@ class _SitePickerSheetState extends State<SitePickerSheet> {
                       padding: const EdgeInsets.all(24),
                       child: Semantics(
                         liveRegion: true,
-                        child: Text(
-                          cat == null
-                              ? 'The site list is still loading.'
-                              : 'No site matches "$_query". Try a shorter word, or clear the search.',
-                          style: PHText.body.copyWith(color: PH.muted),
-                        ),
+                        child: Text.rich(numSpans(
+                          cat == null ? 'The site list is still loading.' : noSiteMatchText(_query),
+                          PHText.body.copyWith(color: PH.muted),
+                        )),
                       ),
                     ),
                   for (final r in rows) Padding(padding: const EdgeInsets.symmetric(horizontal: 12), child: r),

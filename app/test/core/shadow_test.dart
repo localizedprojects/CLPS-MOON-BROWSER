@@ -274,6 +274,11 @@ void main() {
     });
 
     test('shadow map vs ray-marched horizons at 16 sites x 60 moments', () {
+      // The figures recorded in formula.md §12.9 and the READMEs are for the original 16 presets; the
+      // three mission points added to the catalogue on 2026-10-29 are left out so they stay comparable.
+      const addedLater = {'im-2-intended-target', 'change-7-planned-landing', 'lupex-chandrayaan-5-candidate'};
+      final presets = [for (final s in catalog.sites) if (!addedLater.contains(s.id)) s];
+      expect(presets, hasLength(16));
       final g = ShadowGrid.fromDem(dem, downsample: 1, refSizePx: inner); // 400 m, same DEM as custom sites
       final sw = Stopwatch()..start();
       var agreeCoarse = 0, agreeFine = 0, total = 0, frames = 0;
@@ -281,7 +286,7 @@ void main() {
       final t0 = DateTime.utc(2026, 10, 9).millisecondsSinceEpoch.toDouble();
       final g800 = ShadowGrid.fromDem(dem, downsample: 2, refSizePx: inner); // the region view's grid
       var agree800Coarse = 0, agree800Fine = 0, ms800 = 0;
-      final coarse = {for (final s in catalog.sites) s.id: computeCoarseHorizon(dem, s.lat, s.lon, observerHeightsM: const [2.0])};
+      final coarse = {for (final s in presets) s.id: computeCoarseHorizon(dem, s.lat, s.lon, observerHeightsM: const [2.0])};
       for (var k = 0; k < 60; k++) {
         final t = t0 + rnd.nextDouble() * 360 * 86400e3;
         final field = computeLightField(g, eph.sun(t), eph.earth(t));
@@ -289,7 +294,7 @@ void main() {
         final sw800 = Stopwatch()..start(); // excluded from the 400 m timing
         final field800 = computeLightField(g800, eph.sun(t), eph.earth(t));
         ms800 += sw800.elapsedMilliseconds;
-        for (final s in catalog.sites) {
+        for (final s in presets) {
           final (row, col) = g.pixelOf(s.lat, s.lon);
           final mapLit = field.at(field.sunAny, row, col) == 1;
           final obs = Observer(s.lat, s.lon, s.terrainHeightM + 2);

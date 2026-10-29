@@ -5,6 +5,44 @@ All notable changes to `lunar-horizon` (import `lunarhorizon`). Versions follow
 
 ## Unreleased (2026-10-28)
 
+### Lunar eclipses (2026-10-29)
+
+Follows the app's lunar-eclipse model (`app/lib/core/eclipse.dart`): seen from the Moon,
+Earth can hide part or all of the Sun, which the series used to ignore.
+
+- **New module `lunarhorizon.eclipse`**: `circle_overlap_area`, `eclipse_fraction`,
+  `Occulter`, `SunEclipse` (`of`, `sep_deg`, `overlaps`, `centre_hidden`, `fraction`,
+  `occulter`) and `sun_eclipse_at`, vectorised over samples. The separation is the haversine
+  angle between the apparent (LT+S) topocentric Sun and Earth; the radii are the usual
+  `asin(695700 / r)` and `asin(6378.1366 / r)`; the sky is treated as flat at that size
+  (below about 1.3 deg); Earth is a sharp-edged sphere (no atmosphere, no flattening).
+- **`visibility.visible_fraction(..., occulter=None)`**: Earth's disk is removed from each of
+  the 16 strips' above-terrain chord in the same integration as the horizon (not a product
+  of two shares); a zero-radius occulter is exactly no occulter.
+  **`visibility.sun_visible(..., eclipse=0.0, centre_hidden=False)`**: `center` also needs the
+  Sun's centre not behind Earth; `full_disk` also needs no overlap; `upper_limb` is unchanged
+  (its share already has Earth removed). Existing calls are unchanged.
+- **Series**: `compute_series` applies the occulter at the samples where the disks overlap
+  (every other sample is bit-for-bit as before), so `sun_frac`, `power`, the Sun flags and
+  everything built on them (metrics, landing plans) follow. New field
+  `Series.sun_eclipse` (Dart `SiteSeries.sunEclipse`): share (0..1) of the Sun's whole disk
+  behind Earth, terrain ignored. Earth visibility and DSN are untouched. `Series.to_csv`
+  keeps the app's export columns (no eclipse column, as the app).
+- **CLI**: `lunarhorizon sky` gains `sun.eclipse_frac` in `--json` and a line "Earth hides
+  N % of the Sun's disk" in the text output when it is above 0.
+- **Goldens regenerated** (`tests/data/golden_plan.json`, `golden_shadow.json`) from the app
+  with the eclipse model; `eclipse.dart` is now pinned in `provenance.sha256`. Only golden
+  case 2 (Malapert Peak, 2027) moved: the 2027-08-17 penumbral eclipse lowers its power sum,
+  mean power and energy slightly and the minimum Sun share / power of the 14-day landing
+  window spanning it; no flag changed (docs/parity.md has the numbers). Case 3 spans the
+  2026-08-28 partial eclipse with the Sun behind terrain, so nothing moved.
+- **Tests**: `tests/test_eclipse.py` ports `app/test/core/eclipse_test.dart` (geometry,
+  strip integration within 2 % of the exact overlap, the Sun rules, the 2026-03-03 total
+  eclipse at Malapert Peak); the synthetic series tests now expect the total eclipse their
+  crossing Sun and Earth paths produce at the middle sample.
+
+### 400 m DEM to about 75 S (2026-10-28)
+
 Follows the app's 400 m DEM extension to about 75 S (IM-1 Odysseus, landed at 80.13 S, sat
 on the close-up map's top edge because the on-device terrain ended at 80 S).
 

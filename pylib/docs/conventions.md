@@ -40,6 +40,7 @@ which gives every formula with the source line that implements it.
 | Angular radii | Sun asin(695 700 km / r), Earth asin(6378.1366 km / r) | 6.1 |
 | Visible share | 16-strip integration of the disc against the mask | 6.2 |
 | Sun "up" | `upper_limb` (any part visible, share > 0; default) / `center` (centre above the skyline) / `full_disk` (share >= 0.999) | 6.4 |
+| Lunar eclipse (Earth in front of the Sun) | Earth's disk (haversine separation of the apparent Sun and Earth, flat sky below about 1.3 deg, sharp-edged Earth without atmosphere) is removed from the Sun's strips in the same integration as the terrain; `center` also needs the Sun's centre outside Earth's disk, `full_disk` no overlap; `Series.sun_eclipse` = share of the Sun behind Earth, terrain ignored | 6.5 |
 | Earth "up" | `center` (default) / `any_part` | 6.4 |
 | Power proxy | 1361 W/m^2 x (1 au / r)^2 x visible share; a panel always facing the Sun, no cos(el), no panel model | 7 |
 | DSN | Moon centre elevation >= 10 deg at Goldstone (DSS-14), Madrid (DSS-63) or Canberra (DSS-43), Earth orientation ITRF93 (`earth_1962_*_combined.bpc`), never IAU_EARTH (about 0.1 deg off). Bits: 0 Goldstone, 1 Madrid, 2 Canberra | 8 |

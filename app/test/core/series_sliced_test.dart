@@ -29,6 +29,7 @@ void _expectIdentical(SiteSeries a, SiteSeries b) {
     'earthHz': (a.earthHz, b.earthHz),
     'earthFrac': (a.earthFrac, b.earthFrac),
     'power': (a.power, b.power),
+    'sunEclipse': (a.sunEclipse, b.sunEclipse),
   };
   for (final MapEntry(key: name, value: (x, y)) in pairs.entries) {
     final bx = x.buffer.asUint8List(x.offsetInBytes, x.lengthInBytes), by = y.buffer.asUint8List(y.offsetInBytes, y.lengthInBytes);

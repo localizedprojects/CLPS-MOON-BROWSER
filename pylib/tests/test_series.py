@@ -156,7 +156,12 @@ def test_compute_series_criteria_on_flat_horizon():
     assert s.n == n
     rho = np.degrees(np.arcsin(695_700.0 / s.sun_range_km))
     want = segment_fraction(s.sun_el / rho)
-    assert np.abs(s.sun_frac - want).max() < 5e-3  # 16-strip midpoint rule vs the closed form
+    # The synthetic Earth path crosses the Sun's at the middle sample (both at az 180, el 0):
+    # a total lunar eclipse there (eclipse.py), so the closed form holds everywhere else.
+    ecl = np.flatnonzero(s.sun_eclipse)
+    assert ecl.tolist() == [n // 2] and s.sun_eclipse[n // 2] == 1 and s.sun_frac[n // 2] == 0
+    clear = s.sun_eclipse == 0
+    assert np.abs(s.sun_frac - want)[clear].max() < 5e-3  # 16-strip midpoint rule vs the closed form
     np.testing.assert_array_equal(s.sun_hz, 0.0)
     sun_up = (s.flags & FLAG_SUN) != 0
     np.testing.assert_array_equal(sun_up, s.sun_frac > 0)
@@ -179,8 +184,10 @@ def test_compute_series_criteria_on_flat_horizon():
 
 
 def test_compute_series_equals_scalar_loop():
-    """The vectorised fill equals a literal per-sample port of fillSeries (bit for bit)."""
+    """The vectorised fill equals a literal per-sample port of fillSeries (bit for bit),
+    including the lunar-eclipse occulter at the middle sample (Earth over the Sun)."""
     from lunarhorizon import visibility as vis
+    from lunarhorizon.eclipse import SunEclipse
 
     obs, mask, eph, n = _setup(37)
     o = SeriesOptions(step_ms=HOUR)
@@ -190,10 +197,16 @@ def test_compute_series_equals_scalar_loop():
         sun = obs.look(eph.sun(t)[0])
         earth = obs.look(eph.earth(t)[0])
         rs = math.asin(695_700.0 / sun.range_km) * (180.0 / 3.141592653589793)
-        fs = vis.visible_fraction(sun.az_deg, sun.el_deg, rs, mask)
+        re = math.asin(6378.1366 / earth.range_km) * (180.0 / 3.141592653589793)
+        ecl = SunEclipse.of(sun.az_deg, sun.el_deg, rs, earth.az_deg, earth.el_deg, re)
+        fs = vis.visible_fraction(sun.az_deg, sun.el_deg, rs, mask, occulter=ecl.occulter)
+        assert ecl.overlaps == (i == n // 2)
         assert s.sun_az[i] == sun.az_deg and s.sun_el[i] == sun.el_deg
         assert s.earth_az[i] == earth.az_deg and s.earth_el[i] == earth.el_deg
         assert abs(s.sun_frac[i] - fs) <= 1e-15
+        assert s.sun_eclipse[i] == ecl.fraction
+        assert bool(s.flags[i] & FLAG_SUN) == vis.sun_visible("upper_limb", fs, sun.el_deg, mask.at(sun.az_deg),
+                                                              eclipse=ecl.fraction, centre_hidden=ecl.centre_hidden)
         assert s.sun_hz[i] == mask.at(sun.az_deg)
 
 
@@ -209,7 +222,7 @@ def test_spans_and_chunks():
     finally:
         ser._CHUNK = old
     b = compute_series(eph, obs, mask, 0.0, n * HOUR, SeriesOptions(step_ms=HOUR))
-    for name in ("sun_az", "sun_frac", "earth_el", "power", "flags", "dsn"):
+    for name in ("sun_az", "sun_frac", "earth_el", "power", "flags", "dsn", "sun_eclipse"):
         np.testing.assert_array_equal(getattr(a, name), getattr(b, name))
 
 

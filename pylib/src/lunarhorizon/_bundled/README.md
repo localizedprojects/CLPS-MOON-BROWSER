@@ -50,7 +50,7 @@ Regenerate this table after re-copying (`tests/test_bundled_matches_app.py` chec
 | `ephem/2034.bin` | 210,240 | `e0b59fa91f2a219ce7f2c2ebd5e59ab426e367948c47426b0f7359c0ed671242` |
 | `ephem/2035.bin` | 210,240 | `a7a610dc921ba697d93ba0a541cf15e44dacf15aeeb2ab95f50cf1ceb32846f0` |
 | `ephem/manifest.json` | 3,607 | `6c23d0469929881e2f7abb5e5061e21459665b59fc2413fa9886fa04a48adcd7` |
-| `horizons.json` | 242,114 | `5478042dfd95f3cbfd0c462b421a57c8ed7ec6281b135ada8c3979e0704a4de0` |
+| `horizons.json` | 288,113 | `874bb481773da50ce8a133303ec52eb7ec68ceeccc711e534926964cc1cf2b4c` |
 | `map/dem_400m.bin.gz` | 4,694,460 | `71d285a32a4c1410ffed5c4d8bc62ea8ed04625f443d6f72997fa5d8b0208dbf` |
 | `map/map.json` | 3,587 | `dec5ebbe43c177e604047169009b966510bf849323e3b702a7abcdceceb3cc79` |
-| `sites.json` | 31,333 | `aa84c2a4835bb3f01e87f2a52bdb3801eed77f2e46262b6d044094287a6b288b` |
+| `sites.json` | 38,392 | `8eb01e69661a9b20b051d1f8acdf9b7dfc7b6b76a23b124f2f386f97a64f46b2` |

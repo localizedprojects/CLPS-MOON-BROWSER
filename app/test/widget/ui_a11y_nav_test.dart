@@ -347,7 +347,10 @@ void main() {
       expect(tester.takeException(), isNull);
       expect(find.byType(Slider), findsOneWidget);
       expect(find.byIcon(Icons.skip_next), findsOneWidget);
-      expect(find.byType(TextButton), findsNothing);
+      // the one text button is "Time shown" (an exact date and time, fix 4); the next window is the icon
+      expect(find.byType(TextButton), findsOneWidget);
+      expect(find.descendant(of: find.byType(TextButton), matching: find.byKey(const ValueKey('scrubber-time'))),
+          findsOneWidget);
     });
   });
 
@@ -368,7 +371,9 @@ void main() {
       expect(find.text(earthMetricLabel(requireDsn: true)), findsOneWidget);
       expect(find.text(earthOutageLabel(requireDsn: true)), findsOneWidget);
       expect(find.textContaining('DSN station'), findsOneWidget);
-      expect(find.text('Mean power on a panel facing the Sun'), findsOneWidget);
+      expect(find.text('Mean power on a panel facing the Sun (proxy)'), findsOneWidget);
+      expect(find.textContaining('Proxy: sunlight on a panel always turned to face the Sun'), findsOneWidget);
+      expect(ExpertMetrics.powerNote, contains('no cos(elevation) term'));
       await pumpHost(tester, SingleChildScrollView(child: ExpertMetrics(m: state.metrics!)));
       expect(find.text(earthMetricLabel(requireDsn: false)), findsOneWidget);
       expect(find.text(earthOutageLabel(requireDsn: false)), findsOneWidget);

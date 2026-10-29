@@ -99,6 +99,8 @@ metres above the 1737.4 km sphere; the default observer is 2 m above the terrain
 Azimuth is clockwise from north, where north is away from the pole. The Sun counts as up
 when any part of its disc clears the skyline (`sun="upper_limb"`); the Earth when its
 centre does. Power is 1361 W/m^2 x (1 au / r)^2 x visible share (a panel facing the Sun).
+During a lunar eclipse the part of the Sun behind Earth is not counted (`Series.sun_eclipse`
+holds that share).
 DSN contact means the Moon is at least 10 deg up at Goldstone, Madrid or Canberra. Full
 list and accuracy: [docs/conventions.md](docs/conventions.md).
 

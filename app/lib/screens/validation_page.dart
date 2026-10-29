@@ -135,7 +135,8 @@ class ValidationPage extends StatelessWidget {
                 _Bullet('Times are UTC; no leap seconds after 2016 are assumed. Data span 2025-01-01 00:00 to 2035-12-31 23:00 UTC (the last hourly sample), interpolated between hours; a period ending on 31 Dec 2035 stops at that last sample.'),
                 _Bullet('Moon = 1737.4 km sphere + LOLA heights. Observer 2 m (lander) or 10 m (mast) above the terrain. Azimuth from local north (away from the pole), clockwise.'),
                 _Bullet('Default rules: the Sun is up when any part of its disk is above the terrain (LOLA convention); Earth is in view when Earth\'s centre is above it. The rules, the DSN check, the period and the lander or mast height are all set in Mission settings (the pill at the top of the app).'),
-                _Bullet('Power proxy = 1361 W/m² × (1 au/r)² × visible fraction of the Sun\'s disk, for a panel facing the Sun.'),
+                _Bullet('Power proxy = 1361 W/m² × (1 au/r)² × visible fraction of the Sun\'s disk (above the terrain and not behind Earth), for a panel facing the Sun.'),
+                _Bullet('Lunar eclipses: when Earth passes in front of the Sun (19 times in 2025–2035, about 2.4 hours a year with the whole Sun hidden at the pole), the part of the Sun behind Earth\'s disk does not count as visible; it is removed strip by strip with the terrain. Earth is a sharp sphere (no atmosphere ring). The 18.6-year averages leave eclipses out, at most about 0.03 percentage points.'),
                 _Bullet('Optional DSN check: Moon centre ≥ 10° above the horizon at Goldstone, Madrid or Canberra (ITRF93 Earth orientation). It is stored hourly and not interpolated: each 10- or 30-minute step uses the nearest stored hour, so station rise and set times are accurate to about ±30 minutes.'),
               ]),
               _section('Limitations', null, const [

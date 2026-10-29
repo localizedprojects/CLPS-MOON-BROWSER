@@ -8,7 +8,10 @@ Visible share (formula.md section 6): the disk of angular radius ``rho`` centred
 ``cos(el)`` floored at 1e-6) and sees the horizon there, so jagged skylines are handled.
 The visible length of each strip above the horizon is summed and normalised by the sum
 of the strip heights. For a straight horizon this converges to the circular-segment
-formula :func:`segment_fraction`.
+formula :func:`segment_fraction`. An optional :class:`~lunarhorizon.eclipse.Occulter`
+(Earth in front of the Sun during a lunar eclipse, see ``eclipse.py``) is removed from each
+strip's visible chord in the same integration, so terrain and Earth are never
+double-counted.
 
 Power proxy: ``1361 W/m^2 x (1 au / r)^2 x visible share``, irradiance on a panel facing
 the Sun (no cos(el) factor, no panel model).
@@ -17,7 +20,8 @@ Rules (``visibility.dart``):
 
 * Sun: ``upper_limb`` (default; any part of the disk above the horizon, as the LOLA
   average-visibility maps), ``center`` (centre above the horizon), ``full_disk``
-  (share >= 0.999).
+  (share >= 0.999). During a lunar eclipse the share already has Earth removed, ``center``
+  also needs the centre not behind Earth and ``full_disk`` needs no overlap at all.
 * Earth: ``center`` (default; antenna pointing) or ``any_part``.
 
 All functions are vectorised over samples and follow the Dart order of operations, so
@@ -34,6 +38,7 @@ import numpy as np
 from numpy.typing import ArrayLike
 
 from .constants import AU_KM, DEG, EARTH_RADIUS_KM, RAD, SOLAR_CONSTANT_WM2, SUN_RADIUS_KM
+from .eclipse import Occulter
 from .horizon import HorizonMask
 
 FloatOrArray = Union[float, np.ndarray]
@@ -44,7 +49,7 @@ BoolOrArray = Union[bool, np.ndarray]
 __all__ = [
     "N_STRIPS", "SunCriterion", "EarthCriterion", "angular_radius_deg", "sun_angular_radius_deg",
     "earth_angular_radius_deg", "visible_fraction", "segment_fraction", "power_wm2", "sun_visible",
-    "earth_visible", "FULL_DISK_MIN_FRACTION",
+    "earth_visible", "FULL_DISK_MIN_FRACTION", "Occulter",
 ]
 
 #: Number of vertical strips across a disk.
@@ -120,9 +125,16 @@ def earth_angular_radius_deg(range_km: ArrayLike) -> FloatOrArray:
     return angular_radius_deg(EARTH_RADIUS_KM, range_km)
 
 
-def visible_fraction(az_deg: ArrayLike, el_deg: ArrayLike, rho_deg: ArrayLike, mask: HorizonMask) -> FloatOrArray:
+def visible_fraction(az_deg: ArrayLike, el_deg: ArrayLike, rho_deg: ArrayLike, mask: HorizonMask, *,
+                     occulter: "Occulter | None" = None) -> FloatOrArray:
     """Share (0..1) of a disk centred at (``az_deg``, ``el_deg``) with angular radius
-    ``rho_deg`` that lies above ``mask`` (16-strip integration, Dart order of operations).
+    ``rho_deg`` that lies above ``mask`` and, when given, outside ``occulter`` (16-strip
+    integration, Dart order of operations).
+
+    ``occulter`` (Dart ``occulter:``): a disk in front of this one (Earth before the Sun,
+    from :attr:`lunarhorizon.eclipse.SunEclipse.occulter`); the part of each strip's
+    above-terrain chord inside its chord is not counted. A sample whose occulter radius is
+    0 gives exactly the value without one.
 
     Inputs broadcast against each other (arrays of samples); scalar in, float out.
     """
@@ -133,6 +145,9 @@ def visible_fraction(az_deg: ArrayLike, el_deg: ArrayLike, rho_deg: ArrayLike, m
     cos_el = np.cos(el * DEG)
     cos_el = np.where(cos_el < 1e-6, 1e-6, cos_el)
     two_rho = 2 * rho
+    if occulter is not None:
+        o_du, o_dv, o_r = (np.asarray(x, dtype=np.float64) for x in (occulter.du, occulter.dv, occulter.rho_deg))
+        c_el = el + o_dv  # Dart: elC + occulter.dv
     vis = np.zeros(az.shape)
     for k in range(N_STRIPS):
         hz = np.asarray(mask.at(az + _XI[k] * rho / cos_el))
@@ -141,8 +156,23 @@ def visible_fraction(az_deg: ArrayLike, el_deg: ArrayLike, rho_deg: ArrayLike, m
         with np.errstate(invalid="ignore"):
             lo = np.where(bot > hz, bot, hz)
             ln = top - lo
+            if occulter is not None:
+                ln = np.where(ln > 0, _outside(lo, top, _XI[k] * rho - o_du, c_el, o_r, ln), ln)
             vis = np.where(ln > 0, vis + ln / two_rho, vis)
     return _out(vis / _TOTAL)
+
+
+def _outside(lo, top, du, c_el, r, ln):
+    """Length of [``lo``, ``top``] outside the chord, at horizontal offset ``du`` from its
+    centre, of an occulting disk centred at elevation ``c_el`` with radius ``r`` (Dart
+    ``_outside``); ``ln`` (= ``top - lo``) where the chord is empty (``r^2 - du^2 <= 0``)."""
+    w2 = r * r - du * du
+    empty = w2 <= 0
+    w = np.sqrt(np.where(empty, 0.0, w2))
+    lo_w, hi_w = c_el - w, c_el + w
+    below = np.where(top < lo_w, top, lo_w) - lo
+    above = top - np.where(lo > hi_w, lo, hi_w)
+    return np.where(empty, ln, np.where(below > 0, below, 0.0) + np.where(above > 0, above, 0.0))
 
 
 def segment_fraction(s: ArrayLike) -> FloatOrArray:
@@ -162,19 +192,26 @@ def power_wm2(visible_frac: ArrayLike, sun_range_km: ArrayLike) -> FloatOrArray:
 
 
 def sun_visible(criterion: "SunCriterion | str", frac: ArrayLike, el_deg: ArrayLike,
-                horizon_at_center_deg: ArrayLike) -> BoolOrArray:
+                horizon_at_center_deg: ArrayLike, *, eclipse: ArrayLike = 0.0,
+                centre_hidden: ArrayLike = False) -> BoolOrArray:
     """Is the Sun "visible" under ``criterion`` (a :class:`SunCriterion` or its name)?
 
-    ``upper_limb``: ``frac > 0``; ``center``: ``el > horizon at the centre azimuth``;
-    ``full_disk``: ``frac >= 0.999``. Vectorised; returns bool (array).
+    ``upper_limb``: ``frac > 0``; ``center``: ``el > horizon at the centre azimuth`` and not
+    ``centre_hidden``; ``full_disk``: ``frac >= 0.999`` and ``eclipse <= 0``.
+
+    ``frac`` is the visible share with Earth already removed (``visible_fraction``'s
+    ``occulter``). During a lunar eclipse ``eclipse`` is the share of the Sun's disk behind
+    Earth (:attr:`lunarhorizon.eclipse.SunEclipse.fraction`) and ``centre_hidden`` whether
+    its centre is; both default to "no eclipse", so existing callers are unchanged.
+    Vectorised; returns bool (array).
     """
     c = SunCriterion.parse(criterion)
     if c is SunCriterion.UPPER_LIMB:
         v = np.asarray(frac) > 0
     elif c is SunCriterion.CENTER:
-        v = np.asarray(el_deg) > np.asarray(horizon_at_center_deg)
+        v = (np.asarray(el_deg) > np.asarray(horizon_at_center_deg)) & ~np.asarray(centre_hidden, dtype=bool)
     else:
-        v = np.asarray(frac) >= FULL_DISK_MIN_FRACTION
+        v = (np.asarray(frac) >= FULL_DISK_MIN_FRACTION) & (np.asarray(eclipse) <= 0)
     return bool(v) if v.ndim == 0 else v
 
 

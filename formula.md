@@ -622,6 +622,53 @@ E_i^{0}=\begin{cases}e_\oplus>H_\oplus(a_\oplus) & \texttt{center}\ \text{(defau
 - The defaults are set in `SeriesOptions` (`timeseries.dart:33-38`).
 - If `requireDsn` is set, Earth visibility is also ANDed with the DSN mask (§8, §9.3; `timeseries.dart:156`).
 - The pipeline long-term statistics use $f>0$ (any part) for both bodies (`sites.py:83-84,109-111`; §9.6).
+- During a lunar eclipse (§6.5) $f_\odot$ already excludes the part of the Sun behind Earth, `center` also needs the Sun's centre outside Earth's disk ($d \ge \rho_\oplus$), and `fullDisk` also needs no overlap at all ($\epsilon_\odot = 0$). Earth visibility and the DSN check are unaffected.
+
+### 6.5 Earth in front of the Sun (lunar eclipses)
+
+Source: `eclipse.dart`, `visibility.dart` (`visibleFraction`'s `occulter`, `sunVisible`'s `eclipse` and `centreHidden`), applied at `fillSeries` (`timeseries.dart`). Added 2026-10-29: before this, a sunlit site counted as fully sunlit at full power while Earth hid the Sun (for example the total lunar eclipse of 2026-03-03, about 10:55–12:06 UTC as seen from the pole).
+
+**Geometry.** The Sun and Earth directions are the apparent (LT+S, `MOON_ME`) topocentric ones of §3.2, the radii those of §6.1, and $d$ is their haversine separation (§3.4). The disks overlap only when $d < \rho_\odot + \rho_\oplus \approx 1.22°$, so the sky is treated as a plane there (small-angle geometry; the error is under $10^{-4}$ of the disk area). The share of the Sun's disk behind Earth is the two-circle lens area over the Sun's area:
+
+$$A(r_1,r_2,d)=r_1^2\arccos\frac{d^2+r_1^2-r_2^2}{2dr_1}+r_2^2\arccos\frac{d^2+r_2^2-r_1^2}{2dr_2}-\tfrac12\sqrt{(-d+r_1+r_2)(d+r_1-r_2)(d-r_1+r_2)(d+r_1+r_2)}$$
+
+$$\epsilon_\odot=\frac{A(\rho_\odot,\rho_\oplus,d)}{\pi\rho_\odot^2}\ \ (0\ \text{if}\ d\ge\rho_\odot+\rho_\oplus,\ 1\ \text{if}\ d\le\rho_\oplus-\rho_\odot)$$
+
+$\epsilon_\odot$ ignores the terrain and is kept per sample as `SiteSeries.sunEclipse` (0 at almost every sample), so the interface can say "Earth hides the Sun (lunar eclipse)".
+
+**Combined with the terrain inside the 16-strip integration** (§6.2). Earth's centre is placed on the plane tangent to the sky at the Sun, $(\Delta u,\Delta v)$ = its east-like and up-like offsets scaled to length $d$. Strip $k$ (at $u_k=\xi_k\rho_\odot$) keeps only the part of its above-terrain chord $[\max(e_c-\eta_k\rho,H_k),\ e_c+\eta_k\rho]$ that lies outside Earth's chord $e_c+\Delta v\pm\sqrt{\rho_\oplus^2-(u_k-\Delta u)^2}$. Terrain and Earth therefore never count the same part of the Sun twice, which the product $f_{\rm terrain}(1-\epsilon_\odot)$ would. When the disks do not overlap no occulter is passed, and every sample is bit-for-bit the terrain-only result (tested over the 2026-03-03 window and a full week).
+
+**Accuracy.** Above a flat horizon the 16-strip result follows $1-\epsilon_\odot$ to within 1.7 % of the disk (worst case over separations and position angles; exact at no overlap and at total cover; test bound 2 %, `eclipse_test.dart`). On the 16 presets during the 2026-03-03 eclipse the product rule would have differed from the strip result by at most 0.004 (Shackleton vicinity peak, 09:42 UTC).
+
+**Not modelled.** Earth is a sharp sphere of its equatorial radius: its flattening (polar radius 6356.75 km), the ring of sunlight refracted by its atmosphere (which reddens the eclipsed Moon but carries well under 0.1 % of full sunlight) and the about 2 % wider effective shadow are left out. The visible fraction is an area share with no limb darkening, as in §6.2.
+
+**Eclipses in the shipped ephemeris** (2025–2035, observer 0 m above the sphere at 89.9°S, 1-minute scan; times UTC; "total" = the whole Sun behind Earth, "centre" = the Sun's centre behind Earth; sites up to about 6° from the pole see slightly different depths: Earth's direction there differs from the reference observer's by at most about 0.03° (a baseline of about 180 km at about 384,000 km), which changes the peak cover by about 1 % for the partial events; the 0.26° parallax relative to the Moon's centre is the same for all of them and is already in the table):
+
+| Peak (min. separation) | Overlap | Peak cover | Total | Centre hidden |
+|---|---|---|---|---|
+| 2025-03-14 06:55 | 04:23–09:28 | 100 % | 166 min | 235 min |
+| 2025-09-07 18:15 | 16:13–20:19 | 100 % | 106 min | 180 min |
+| 2026-03-03 11:30 | 09:27–13:34 | 100 % | 71 min | 171 min |
+| 2026-08-28 04:17 | 01:54–06:41 | 100 % | 155 min | 222 min |
+| 2027-08-17 07:18 | 05:42–08:54 | 45.5 % | 0 | 0 |
+| 2028-01-12 04:10 | 02:20–06:00 | 100 % | 39 min | 148 min |
+| 2028-07-06 18:24 | 17:01–19:47 | 34.3 % | 0 | 0 |
+| 2028-12-31 16:48 | 14:28–19:10 | 100 % | 158 min | 220 min |
+| 2029-06-26 03:26 | 01:12–05:41 | 100 % | 149 min | 209 min |
+| 2029-12-20 22:38 | 20:27–00:49 (+1 d) | 100 % | 65 min | 177 min |
+| 2030-06-15 18:37 | 16:37–20:38 | 100 % | 117 min | 181 min |
+| 2031-06-05 11:47 | 11:09–12:27 | 5.6 % | 0 | 0 |
+| 2031-10-30 07:42 | 06:00–09:24 | 68.5 % | 0 | 96 min |
+| 2032-04-25 15:18 | 13:12–17:24 | 100 % | 82 min | 176 min |
+| 2032-10-18 18:59 | 16:46–21:12 | 100 % | 152 min | 209 min |
+| 2033-04-14 19:17 | 16:45–21:50 | 100 % | 165 min | 235 min |
+| 2033-10-08 10:52 | 08:56–12:49 | 100 % | 100 min | 171 min |
+| 2034-04-03 19:10 | 17:14–21:07 | 80.4 % | 0 | 128 min |
+| 2035-08-19 01:07 | 23:01 (−1 d)–03:14 | 100 % | 57 min | 171 min |
+
+19 events in 11 years. Per year: 6.9 h with any overlap, 2.4 h of total cover, 4.4 h with the centre hidden, and 4.5 h of full sunlight lost ($\int\epsilon_\odot\,dt$). These match the lunar eclipses seen from Earth (a partial or penumbral one on Earth can be total from the south pole when the Moon passes north of the shadow's axis, as on 2026-08-28 and 2028-01-12).
+
+**The 18.6-year averages (§9.6) do not include eclipses**: they are pipeline output, and the SPICE kernels needed to recompute them were not available when this was added. At most the hours above can change them, and only when the site is otherwise sunlit: the any-part "Sunlit" and "Sun and Earth" values drop by at most $2.4/8766 \approx 0.03$ percentage points (below their 0.1 rounding), a centre-rule share by at most $0.05$ points, and the mean power by at most $4.5/8766 \approx 0.05\,\%$ of the full-Sun value.
 
 ---
 
@@ -632,7 +679,7 @@ Source: `visibility.py:61-63`, `visibility.dart:49-52`. $P$ is the irradiance on
 $$P = 1361\ \mathrm{W\,m^{-2}}\times\left(\frac{149\,597\,870.7\ \mathrm{km}}{r_\odot}\right)^{2} f_\odot$$
 
 - $r_\odot$ is the topocentric Sun range in km (`timeseries.dart:152`).
-- $f_\odot$ is the 16-strip visible fraction (§6.2).
+- $f_\odot$ is the 16-strip visible fraction (§6.2), with the part of the Sun behind Earth removed during a lunar eclipse (§6.5), so $P = 0$ at total cover.
 - Test values: $P(1, 1\,\mathrm{au}) = 1361$, $P(0.5, 1\,\mathrm{au}) = 680.5$ and $P(1, 2\,\mathrm{au}) = 340.25$ (`test_visibility.py:170-175`).
 
 Mean power and energy over a period are given in §9.4.
@@ -720,7 +767,8 @@ Source: `timeseries.dart:135-153`. For each $t_i$:
 | $(A_\odot,e_\odot,r_\odot)$, $(A_\oplus,e_\oplus,r_\oplus)$ | `obs.look(eph.sun(t))`, `obs.look(eph.earth(t))`: Lagrange-interpolated (§2.2) apparent Moon-centred vector minus the site vector (§3.2; `geo.dart:77-86`) | deg, deg, km |
 | $\rho_\odot=\arcsin(695700/r_\odot)$, $\rho_\oplus=\arcsin(6378.1366/r_\oplus)$ | §6.1; `visibility.dart:20`; `constants.dart:10,13` | deg |
 | $H_\odot=H(A_\odot)$, $H_\oplus=H(A_\oplus)$ | horizon mask at the disk-centre azimuth (§5.3; `horizon.dart:28-34`) | deg |
-| $f_\odot$, $f_\oplus$ | 16-strip visible fraction (§6.2; `visibility.dart:24-36`) | 0..1 |
+| $f_\odot$, $f_\oplus$ | 16-strip visible fraction (§6.2; `visibility.dart`); $f_\odot$ with Earth's disk removed (§6.5) | 0..1 |
+| $\epsilon_{\odot,i}$ (`sunEclipse`) | share of the Sun's disk behind Earth, terrain ignored (§6.5; `eclipse.dart`) | 0..1 |
 | $P_i = 1361\,(\mathrm{au}/r_\odot)^2\,f_\odot$ | `powerProxy` (§7; `visibility.dart:49-52`) | W m⁻² |
 | $D_i$ | `eph.dsnMask(t)`: DSN bitmask of the nearest hourly sample (§8; `ephemeris.dart:120-123`) | bits |
 
@@ -831,11 +879,13 @@ $(a,e)$ then come from the ENU basis (`geometry.py:48-56`), $\rho = \arcsin(R_b/
 
 $$\text{longTermSunlitPct}=100\,\overline{[f_\odot>0]},\quad \text{longTermEarthPct}=100\,\overline{[f_\oplus>0]},\quad \text{longTermBothPct}=100\,\overline{[f_\odot>0]\wedge[f_\oplus>0]}$$
 
+These averages leave out lunar eclipses (Earth hiding the Sun, §6.5); including them would lower the Sun shares by at most about 0.03 percentage points.
+
 The Earth term here uses any part of the disk, but the app's default Earth criterion is the disk centre. These values are therefore not directly comparable to the app's default %Earth (the any-part share is the larger one).
 
 **Measured gap between the two Earth rules** (2026-10-11, review script `exp_earth_rule.py`, not in the repository). On the same 163 048-epoch grid (`_crosscheck_vectors`), for each preset site at 2 m with its shipped 2 m mask (`horizons.json`, 0.01° steps), %Earth was computed both ways: any part, $100\,\overline{[f_\oplus>0]}$ (§6.2), and centre, $100\,\overline{[e_\oplus>H(A_\oplus)]}$ (§5.3). Any part minus centre is 4.5–7.5 percentage points for 14 of the 16 sites, 12.1 points at IM-2 Athena (93.2 % vs 81.1 %) and 0 at IM-1 Odysseus (100 % both ways); the mean is 5.3 points. Examples: Haworth 40.2 % vs 35.3 %, Malapert Massif 82.8 % vs 75.3 %, Shackleton rim (SR1) 51.8 % vs 47.3 %. The any-part values reproduce the shipped `longTermEarthPct` to ≤ 0.1 (Haworth ships 40.3 %; the shipped masks are rounded to 0.01°). Under the app's default centre rule a site therefore sees Earth about 5 points less of the time than the 18.6-year bar says.
 
-**Where they are shown.** About this site (Site › Overview) shows the three values as bars under "18.6-year average (2 m above ground, any part of the Sun or Earth)", labelled "Sunlit", "Earth in view (any part)" and "Sun and Earth" for catalogue sites, and "Long-term averages are only precomputed for the 16 catalogue sites" for a custom spot (`about_site.dart:17,20,60-74`). The same card prints the mask summary as "The highest skyline is <`horizonMaxDeg`, 1 dp>° up, on terrain <`horizonMaxDistanceKm`, 0 dp> km away" (`about_site.dart:36-39`).
+**Where they are shown.** About this site (Site › Overview) shows the three values as bars under "18.6-year average (2 m above ground, any part of the Sun or Earth)", labelled "Sunlit", "Earth in view (any part)" and "Sun and Earth" for catalogue sites, and "Long-term averages are only precomputed for the preset catalogue sites" for a custom spot (`about_site.dart:17,20,60-74`). The same card prints the mask summary as "The highest skyline is <`horizonMaxDeg`, 1 dp>° up, on terrain <`horizonMaxDistanceKm`, 0 dp> km away" (`about_site.dart:36-39`).
 
 **Surface comparison values** for the AVGVISIB cross-check ($h_{\rm obs}=0$ = `CROSSCHECK_HEIGHT_M`, with the 0 m mask; `sites.py:30,80-84`):
 
@@ -1228,7 +1278,7 @@ $$j = \mathrm{round}(\Delta c\,a_{\rm col} + \Delta r\,a_{\rm row} + W/2 - 0.5),
 Edge behaviour in the code:
 - The rotated buffer is initialised to 1 (`shadow.dart:222`), and only valid samples are overwritten (`shadow.dart:273`). A map pixel whose nearest rotated sample is off the DEM therefore reads 1, i.e. it is treated as unblocked.
 - `LightField.at` uses the nearest pixel, with clamping (`shadow.dart:330-333`). `pixelOf` uses §4.2 (`shadow.dart:59-62`).
-- **Close-up placement.** `windowAround(row, col, m)` sets $r_0=\mathrm{clamp}\big(\mathrm{round}(\text{row}-m/2+0.5),\,0,\,n-m\big)$, and likewise $c_0$ (`shadow.dart:65-69`). The window is centred on the site's pixel except within $m/2$ px of the grid edge (64 km for the close-up), where it is pushed back inside the grid. Derived from `sites.json`: of the 16 preset sites only IM-1 Odysseus (80.13°S, 1.44°E) is affected. Its site pixel is at row 9.7, so the window starts at row 0 instead of −150, and the site sits about 4 km below the frame's top edge, 60 km from the frame centre. The frame's top-left corner in map metres is $x_0=(c_0-n/2)\,p$, $y_0=(n/2-r_0)\,p$ (`light_engine.dart:116-121`).
+- **Close-up placement.** `windowAround(row, col, m)` sets $r_0=\mathrm{clamp}\big(\mathrm{round}(\text{row}-m/2+0.5),\,0,\,n-m\big)$, and likewise $c_0$ (`shadow.dart:65-69`). The window is centred on the site's pixel except within $m/2$ px of the grid edge (64 km for the close-up), where it is pushed back inside the grid. Derived from `sites.json`: of the 19 preset sites only IM-1 Odysseus (80.13°S, 1.44°E) is affected. Its site pixel is at row 9.7, so the window starts at row 0 instead of −150, and the site sits about 4 km below the frame's top edge, 60 km from the frame centre. The frame's top-left corner in map metres is $x_0=(c_0-n/2)\,p$, $y_0=(n/2-r_0)\,p$ (`light_engine.dart:116-121`).
 
 ### 12.5 Normals and Lambert term
 
@@ -1288,7 +1338,7 @@ $$\hat N_{\rm map}=(\sin\lambda,\ \cos\lambda),\qquad \hat E_{\rm map}=(\cos\lam
 - The grid is 800 m for the region view and 400 m for the site close-up. The near field is excluded below $L\cdot p$.
 - The observer height is the app's chosen height (see the start of §12); the agreement figures below are for 2 m.
 
-**Measured** (`shadow_test.dart:261-342`; test prints from `flutter test` runs on 2026-10-10). The map's `sunAny` at each preset site's pixel is compared with the site-horizon rule $f>0$ of §6.2, using the 2 m masks. There are 16 sites × 60 random moments in the 360 d from 2026-10-09 (seed 7), so 960 checks per grid.
+**Measured** (`shadow_test.dart:261-342`; test prints from `flutter test` runs on 2026-10-10). The map's `sunAny` at each preset site's pixel is compared with the site-horizon rule $f>0$ of §6.2, using the 2 m masks. There are 16 sites × 60 random moments in the 360 d from 2026-10-09 (seed 7), so 960 checks per grid. The test keeps those 16 sites (the three mission sites added on 2026-10-29 are left out, so the figures stay comparable).
 
 | Map grid | vs 400 m on-device horizons | vs 80 m preset horizons | Test bounds |
 |---|---|---|---|
@@ -1462,7 +1512,7 @@ Results (`validation.json` → `avgvis`; surface observer, 18.6 yr hourly, near-
 
 | Group | n | Values within LOLA 3×3 ±0.5 pp | Sun mean / max $\lvert\Delta\rvert$ (pp) | Earth mean / max $\lvert\Delta\rvert$ (pp) |
 |---|---|---|---|---|
-| Regions (`kind` ≠ `exact-point`) | 11 | 21/22 | 1.78 / 4.62 | 2.02 / 14.86 |
+| Regions (`kind` ≠ `exact-point`) | 14 | 27/28 | 1.98 / 5.17 | 1.78 / 14.86 |
 | Ridge/peak points (`exact-point`) | 5 | 9/10 | 7.33 / 20.3 | 2.84 / 7.17 |
 
 ### 13.10 Error budget summary (directions)
@@ -1546,7 +1596,7 @@ Tests: `export_csv_test.dart:18-37`.
 
 ## 15. Blender render geometry
 
-The renders are precomputed by the pipeline, and are kept brief here. `app/assets/data/renders/` holds a "best" and a "night" panorama for each of the 16 preset sites (no custom sites) and a 36-frame region overview.
+The renders are precomputed by the pipeline, and are kept brief here. `app/assets/data/renders/` holds a "best" and a "night" panorama for each of the 16 preset sites in the catalogue before 2026-10-29 (none for the three mission sites added that day, nor for custom sites) and a 36-frame region overview.
 - The app no longer displays them. The turntable and the panorama were removed, and the computed Light & shadow map (§12) replaced them (`light_map.dart:1-6`). Nothing in `app/lib` reads `renders/`, and `app/pubspec.yaml` does not list `assets/data/renders/` as an asset folder (it lists `assets/data/` and three named subfolders), so the render files are not bundled with the app.
 - The pipeline outputs remain in the repo: `app/assets/data/renders/` (with `manifest.json`) and the `render_skyline` block of `validation.json` (§15.3), whose numbers the validation page still lists (`validation_page.dart:47,111-116`).
 
@@ -1660,7 +1710,7 @@ From then on, every number goes through the same Dart code as a preset site, inc
 | Light and shadow map | The region view does not depend on the site. The close-up is a 128 km window around the site on the 400 m DEM (pushed inside the grid near its edge). Both use the chosen observer height (2 or 10 m). Arrows: `nowAt` azimuth + `mapDirection`, with the site's own mask and observer height | §12 |
 
 **Not available for custom sites:**
-- **18.6-year long-term averages** (`longTermSunlitPct`, `longTermEarthPct`, `longTermBothPct`; §9.6). These are pipeline-only, preset sites only. They are parsed (`catalog.dart:72-74`) and shown in About this site for catalogue sites; a custom spot shows "Long-term averages are only precomputed for the 16 catalogue sites" (`about_site.dart:20,60-62`).
+- **18.6-year long-term averages** (`longTermSunlitPct`, `longTermEarthPct`, `longTermBothPct`; §9.6). These are pipeline-only, preset sites only. They are parsed (`catalog.dart:72-74`) and shown in About this site for catalogue sites; a custom spot shows "Long-term averages are only precomputed for the preset catalogue sites" (`about_site.dart:20,60-62`).
 - **LOLA AVGVISIB cross-check** (§13.9): preset sites only.
 - **Blender renders** (§15): pipeline-only, preset sites only, not shown in the app.
 - **Local slope** (§5.4): pipeline-only. Custom sites keep the default `slopeDeg = NaN` (`catalog.dart:44`), and `slopeText` prints "slope not computed for custom spots" (`wording.dart:220-224`; used at `site/site_screen.dart:142`, `about_site.dart:57` and `expert_numbers.dart:229`).
@@ -1688,3 +1738,4 @@ No files other than this one were changed while writing it.
 13. **Earth status wording with the DSN required (fixed).** `earthStatusText(..., earthRule:, hzDeg:)` names the terrain first and blames the DSN only when Earth would count under the user's Earth rule without it. A partly risen Earth with its centre hidden now reads "... its centre is below the skyline ... (and no DSN station can see the Moon)". `nowAt` also sends `earth.terrainVisible` (the verdict before the DSN check), so the sky plot, the exact-numbers readout and the light-map arrow say "no DSN" instead of "hidden". The Sun status likewise says how much of the disk is up when a stricter Sun rule does not count it.
 14. **Stale code comment (fixed).** The `nowAt` doc comment no longer mentions the removed 360 view.
 15. **Light-map close-up near the map edge (fixed).** The close-up legend now counts its shares in a 64 km disc centred on the site's own pixel (`lightFrameShares`, `LightFrame.pixelOf`), and says what share of that disc lies on the map when less than 98% does (54% for IM-1 Odysseus). `shadow_test.dart` now tests three windows that really are clamped (right edge, top edge, bottom-left corner).
+16. **Lunar eclipses (fixed in the series, 2026-10-29).** The per-sample series (§9.2) now removes the part of the Sun behind Earth (§6.5), so the availability, metrics, power, score, calendar, landing window and CSV follow it. The single-instant paths that compute the Sun on their own now include it too: `nowAt` in `chart_bridge.dart` (the sky plot and status line) removes Earth's disk from the Sun with the same `SunEclipse` term and says whether Earth, not the terrain, stops the Sun counting (`eclipse`, `eclipseHides`), and the light map (§12, `light_map.dart`) takes all direct sunlight off the picture at total cover and the full-Sun class during a partial eclipse (no ground sees the whole disk), using the site's eclipse for the whole frame (labelled). Still not included: eclipses in the pipeline's 18.6-year averages (§9.6; at most about 0.03 percentage points), and the dim red light Earth's atmosphere bends onto the Moon (Earth is modelled as a sharp-edged disk).

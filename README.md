@@ -28,7 +28,7 @@ Release web build, Next 12 months, 2 m lander, default rules: the MP1 landing wi
 
 | Explore | Malapert peak (MP1): best landing window and Sky & time |
 |---|---|
-| ![Explore: the 16 sites ranked, with the top pick and the terrain map](docs/screenshots/explore-desktop.webp) | ![Site: the best 14-day landing window for MP1 next to the Sky & time view](docs/screenshots/site-landing-sky-desktop.webp) |
+| ![Explore: the preset sites ranked, with the top pick and the terrain map](docs/screenshots/explore-desktop.webp) | ![Site: the best 14-day landing window for MP1 next to the Sky & time view](docs/screenshots/site-landing-sky-desktop.webp) |
 
 | Compare | Phone: landing window | Phone: Sky & time |
 |---|---|---|
@@ -40,7 +40,7 @@ Release web build, Next 12 months, 2 m lander, default rules: the MP1 landing wi
 
 It opens with a short animation (the Sun skimming along the south-pole horizon, as it does there), which always plays through. On a first launch the app then asks **what matters most** for your mission (balanced, solar power, or Earth contact); your answer ranks the sites (a loading scene shows the real progress; its bar never runs ahead of the work), and the app remembers it. Later launches play only the opening animation and fade straight into Explore, ranked for the last goal chosen (on that page or with the goal chips on Explore). It has four destinations, in a bottom bar: **Explore**, **Site**, **Compare** and **Learn**. The first time you open each of them (and each Site tab), a short guide lights its main controls one at a time, with a line on what each does; Learn's *Show the guides again* replays them. A context pill at the top shows the chosen period and observer height (and "custom rules" when the Sun, Earth or DSN rules differ from the defaults), and opens Mission settings.
 
-- **Explore: find the best site for your dates.** All 16 preset sites (and any custom spots) are ranked for the chosen period, which defaults to the next 12 months.
+- **Explore: find the best site for your dates.** All 19 preset sites (and any custom spots) are ranked for the chosen period, which defaults to the next 12 months.
   - The answer comes first: a top-pick card names the best spot, how much of the time the Sun and Earth are both up, and its longest stretch with both. Below it is a computed light snapshot of that site at the start of that stretch.
   - "What matters most?" chips re-rank the sites by goal: *Balanced* (the default), *Power first* or *Earth contact first*.
   - The map opens on the region inside 80°S. Zoom out (or drag past the edge) to see on to about 75°S: coarser shaded relief there, with the sunlight, Earth and permanent-shadow layers continuing across 80°S. Custom spots still go inside the 80°S circle.
@@ -69,15 +69,15 @@ It opens with a short animation (the Sun skimming along the south-pole horizon, 
 
 The project rules require a screen-reader label on every interactive control and tap targets of at least 48 dp. Placing a custom site also works from the keyboard. By design, colour is never the only way something is shown: shapes, patterns and direct labels carry the same meaning (for example the Sun, Earth and "both" glyphs in `app/lib/widgets/glyphs.dart`).
 
-### The 16 preset sites
+### The 19 preset sites
 
 All coordinates come with citations in `app/assets/data/sites.json`.
 
 | Group | Sites | Source of coordinates |
 |---|---|---|
 | Artemis III candidate regions (8) | Haworth, Malapert Massif, Mons Mouton Plateau, Mons Mouton, Nobile Rim 1, Nobile Rim 2, de Gerlache Rim 2, Peak near Cabeus B | Approximate centres of the roughly 15 × 15 km regions, from LROC mosaic extents and Henriksen et al. (2023). These are **not** official landing points. Slater Plain is omitted because no published centre was found. |
-| High-illumination points (5) | SR1, CR1, SV1, MP1, GR1 | Points given in De Rosa et al. (2012), Table 2: the centres of its regions of interest |
-| Missions (3) | IM-1 Odysseus (landed), IM-2 Athena (landed), VIPER mission-area centre | LROC landed positions and published mission-area centres |
+| ESA Lunar Lander candidate sites (De Rosa et al. 2012) (5) | SR1, CR1, SV1, MP1, GR1 | Points given in De Rosa et al. (2012), Table 2: the centres of its regions of interest, chosen there for long sunlight |
+| Missions: NASA CLPS and international (6) | IM-1 Odysseus (landed), IM-2 Athena (landed), IM-2 Athena (intended target), VIPER mission-area centre, Chang'e-7 (planned), LUPEX / Chandrayaan-5 (candidate) | LROC landed positions and published mission-area centres. The Chang'e-7 and LUPEX points are unofficial, secondhand candidates (low confidence), not announced landing coordinates. |
 
 ---
 
@@ -100,7 +100,7 @@ flowchart TD
 The work is split between offline precomputation and on-device computation:
 
 - **Offline:** the Python pipeline does the heavy, data-hungry work once. It needs about 570 MB of downloads (about 605 MB with the optional DE442 kernel).
-- **On the device:** the app ships compact results (Sun and Earth vectors, DSN masks, horizon masks, map images and a 400 m DEM reaching about 75°S; about 9.6 MB) and computes the time series, metrics, scores, custom-site horizons and the light and shadow map itself. This lets any custom location work without a server.
+- **On the device:** the app ships compact results (Sun and Earth vectors, DSN masks, horizon masks, map images and a 400 m DEM reaching about 75°S; about 10.5 MB) and computes the time series, metrics, scores, custom-site horizons and the light and shadow map itself. This lets any custom location work without a server.
 - **Charts:** these are render-only. Flutter sends them chart-ready JSON (`window.phRender`) and they post events back. The message schema is in `charts/src/bridge.ts` and `app/lib/widgets/chart_bridge.dart`.
 
 **Key methods.** The full maths, with `file:line` references, is in [formula.md](formula.md).
@@ -111,6 +111,7 @@ The work is split between offline precomputation and on-device computation:
   - Preset sites use the 80 m DEM, then the 240 m DEM, with rays marched to 600 km (the 240 m grid ends at 75°S, about 457 km from the pole, and nothing beyond it is sampled), at a 0.25° azimuth step, for 2 m and 10 m observers.
   - Custom sites use the 400 m DEM, computed on the device, at a 0.5° step out to 300 km. That DEM is the 80 m DEM averaged to 400 m inside 80°S and the 120 m DEM (`LDEM_75S_120M`) averaged to 400 m beyond it, out to about 456 km from the pole (75.05°S on the axes).
 - **Visibility.** The Sun's and Earth's angular radius is asin(R / r). The visible fraction of each disk is integrated over 16 strips against the jagged horizon (§6).
+- **Lunar eclipses.** When Earth passes in front of the Sun (a lunar eclipse seen from Earth), the part of the Sun behind Earth's disk is removed from each strip in the same integration, so a sunlit site gets no power during totality (§6.5). The shipped 2025–2035 data holds 19 such events, about 2.4 h of total cover per year at the pole.
 - **Power proxy.** 1361 W/m² × (1 au / r)² × the visible fraction of the solar disk: the sunlight on a panel facing the Sun (§7). A vertical panel turned toward the Sun would get cos(elevation) times this: within 0.1 % while the Sun is below 2.5° (most of the time near the pole), about 2 % at the 11° the Sun can reach at 80°S.
 - **DSN check.** At least one of Goldstone, Madrid or Canberra must see the Moon's centre at 10° elevation or more. Earth orientation comes from ITRF93 (§8).
 - **Metrics** (§9):
@@ -122,7 +123,7 @@ The work is split between offline precomputation and on-device computation:
   - Score = (1 − b) × [a × Power + (1 − a) × Comms] + b × Both.
   - Power = 60 % sunlit + 40 % night survival. Comms = 60 % Earth visible + 40 % outage tolerance.
   - Night survival and outage tolerance fall linearly to 0 at a 30-day gap.
-  - Compare and Learn show this formula with the weights in use. Compare's winner card and Learn's *How the score works* show the worked "Why N?" arithmetic (`scoreWhy` in `ranking.dart`), which evaluates to within 0.6 points of the score. The scorecard CSV adds the Power and Comms parts.
+  - Compare and Learn show this formula with the weights in use. Compare's winner card and Learn's *How the score works* show the worked "Why N?" arithmetic (`scoreWhy` in `ranking.dart`), which evaluates to within 0.6 points of the score. The scorecard CSV adds the Power and Comms parts, the power proxy (mean W/m² and energy kWh/m² on a Sun-facing panel; not used by the score) and, per row, the site's lat/lon, observer height, Sun and Earth rules and horizon source.
 - **Light and shadow map.** A heightfield shadow sweep along rotated rows (a lagged running maximum) over the 400 m or 800 m DEM grid (§12):
   - It is run for the Sun's upper limb, the Sun's lower limb and the Earth's centre.
   - It adds a Lambert slope term for shading.
@@ -131,7 +132,7 @@ The work is split between offline precomputation and on-device computation:
 
 ### Data pipeline
 
-The Python pipeline in `pipeline/` turns NASA's SPICE kernels and LOLA terrain maps into the compact files in `app/assets/data/`: hourly Sun and Earth positions and DSN contact bits for 2025-2035, the 16 preset sites with their horizon masks, the map layers and 400 m DEM, and the accuracy report. A small kernel-free step (`python -m lunarsp.curated`) turns the fact-checked site descriptions in `pipeline/research/site_overviews_verified.json` into `app/assets/data/curated_sites.json` for *At a glance*. It also writes the SPICE answer key that the Dart tests check against (`app/test/fixtures/spice_truth.json`). The app ships this output, committed to the repository, so nobody needs to run the pipeline or download its data to use or build the app. [pipeline/README.md](pipeline/README.md) explains each input, step, output and Python file in plain language.
+The Python pipeline in `pipeline/` turns NASA's SPICE kernels and LOLA terrain maps into the compact files in `app/assets/data/`: hourly Sun and Earth positions and DSN contact bits for 2025-2035, the 19 preset sites with their horizon masks, the map layers and 400 m DEM, and the accuracy report. A small kernel-free step (`python -m lunarsp.curated`) turns the fact-checked site descriptions in `pipeline/research/site_overviews_verified.json` into `app/assets/data/curated_sites.json` for *At a glance*. It also writes the SPICE answer key that the Dart tests check against (`app/test/fixtures/spice_truth.json`). The app ships this output, committed to the repository, so nobody needs to run the pipeline or download its data to use or build the app. [pipeline/README.md](pipeline/README.md) explains each input, step, output and Python file in plain language.
 
 ---
 
@@ -172,12 +173,12 @@ The two wrong-frame rows show the Horizons check is sensitive: using either wron
 
 | Group | Sites | Values inside LOLA's own 3×3-pixel range (±0.5 pp) | Sun: mean / max \|Δ\| | Earth: mean / max \|Δ\| |
 |---|---|---|---|---|
-| Regions and landed positions | 11 | 21/22 | 1.78 / 4.62 pp | 2.02 / 14.86 pp |
+| Regions and landed positions | 14 | 27/28 | 1.98 / 5.17 pp | 1.78 / 14.86 pp |
 | Ridge and peak points (De Rosa et al. 2012) | 5 | 9/10 | 7.33 / 20.3 pp | 2.84 / 7.17 pp |
 
 The differences reflect DEM resolution, the averaging period, and pixel vs point sampling. Exact ridge and peak points depend on terrain smaller than one DEM pixel. This is why the app offers 2 m and 10 m observer heights and labels DEM fidelity.
 
-**Light and shadow map vs per-site horizons.** These numbers are not in `validation.json`. They are printed by the test "shadow map vs ray-marched horizons at 16 sites x 60 moments" in `app/test/core/shadow_test.dart` and recorded in formula.md §12.9. The test makes 960 checks: 16 preset sites × 60 random moments (seed 7) in the 360 days from 2026-10-09. Each check compares "sunlit or not" (any part of the Sun) at the site's map pixel with the disk-fraction result from that site's 2 m horizon mask.
+**Light and shadow map vs per-site horizons.** These numbers are not in `validation.json`. They are printed by the test "shadow map vs ray-marched horizons at 16 sites x 60 moments" in `app/test/core/shadow_test.dart` and recorded in formula.md §12.9. The test makes 960 checks: 16 preset sites (the catalogue before the three mission sites added on 2026-10-29) × 60 random moments (seed 7) in the 360 days from 2026-10-09. Each check compares "sunlit or not" (any part of the Sun) at the site's map pixel with the disk-fraction result from that site's 2 m horizon mask.
 
 | Map grid | Agreement with 400 m on-device horizons | Agreement with 80 m preset horizons |
 |---|---|---|
@@ -296,6 +297,7 @@ The app does **not** model surface composition, water ice, temperature, dust, bo
 - **Visibility rules.**
   - By default the Sun counts as visible when any part of its disk is above the terrain; this is the LOLA convention. The Earth counts as visible when its centre is above the terrain.
   - Both rules can be changed in the mission settings.
+  - The Sun also counts as hidden where Earth covers it (lunar eclipses): any rule needs an uncovered part above the terrain, the centre rule needs the centre outside Earth's disk, and the whole-disk rule fails on any overlap. Earth is modelled as a sharp sphere of its equatorial radius (no atmosphere ring, no flattening), and the 18.6-year averages under About this site leave eclipses out (at most about 0.03 percentage points).
 - **Power.** The power figure is incident irradiance on a panel facing the Sun (no cos(elevation) factor). It is not electrical output: there is no model of panel efficiency, orientation limits, batteries or thermal effects.
 - **Communication.** Earth visibility does not include lunar-surface multipath, antenna masks or link budgets.
 - **The DSN rule** is optional and off by default.
@@ -512,10 +514,10 @@ CLAUDE.md                   conventions for contributors and coding agents
 
 | Suite | Location | Command | Count |
 |---|---|---|---|
-| Flutter: Dart core, state, widgets | `app/test/` | `flutter test` | 1,054 pass, 4 skipped, with `flutter analyze` clean (28 October 2026) |
-| Chart bundle | `charts/src/*.test.ts` | `npm test` | 163 (19 October 2026) |
-| Python pipeline | `pipeline/tests/` | `python -m pytest` | 632: 452 pass, 180 skipped without the SPICE kernels in the cache (28 October 2026) |
-| Python library | `pylib/tests/` | `python -m pytest` (from `pylib/`) | 497: 476 pass, 21 skipped without the SPICE kernels in the cache (28 October 2026) |
+| Flutter: Dart core, state, widgets | `app/test/` | `flutter test` | 1,154 pass, 4 skipped, with `flutter analyze` clean (29 October 2026) |
+| Chart bundle | `charts/src/*.test.ts` | `npm test` | 164 (29 October 2026) |
+| Python pipeline | `pipeline/tests/` | `python -m pytest` | 635: 633 pass, 2 skipped (DE442 not downloaded), with the SPICE kernels and LOLA DEMs in the cache (29 October 2026; about 180 tests skip without them) |
+| Python library | `pylib/tests/` | `python -m pytest` (from `pylib/`) | 520 pass, with the SPICE kernels in the cache (29 October 2026; some skip without them) |
 
 Each count is from a full run at the commit given. They change as work continues.
 

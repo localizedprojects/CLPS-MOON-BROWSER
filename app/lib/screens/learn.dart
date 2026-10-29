@@ -1,5 +1,6 @@
-/// Learn: the "Explain as I go" switch, three "Start here" cards, what each
-/// view shows, the glossary, "Can I trust these numbers?" (validation and
+/// Learn: the "Explain as I go" switch, what the tool covers (the south pole
+/// only, its site groups, and why the pole is hard), three "Start here"
+/// cards, what each view shows, the glossary, "Can I trust these numbers?" (validation and
 /// "How it's calculated"), how the score works, keyboard shortcuts and credits.
 /// Phones get one column; from 840 dp two columns, at most 1040 wide.
 library;
@@ -13,6 +14,7 @@ import '../state/app_state.dart';
 import '../theme.dart';
 import '../widgets/explain.dart';
 import '../widgets/site_card.dart' show FocusRingInkWell;
+import '../widgets/site_glance_card.dart' show numSpans;
 import 'how_calculated.dart';
 import 'validation_page.dart';
 import '../widgets/feature_guide.dart';
@@ -37,6 +39,7 @@ class LearnScreen extends StatelessWidget {
         padding: EdgeInsets.fromLTRB(16 + side, 16, 16 + side, 32),
         children: [
           const _Intro(),
+          const _Coverage(),
           if (wide)
             const Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: left)),
@@ -122,6 +125,64 @@ class _Intro extends StatelessWidget {
       ),
     ]);
   }
+}
+
+/// What the catalogue covers and why: the south pole only (every site and
+/// custom spot lies south of 80°S, inside the loaded LOLA terrain), what each
+/// site group is, and why the pole is hard. Checked against sites.json and
+/// curated_sites.json; Apollo and equatorial sites are out of scope.
+class _Coverage extends StatelessWidget {
+  const _Coverage();
+
+  static const scope = 'Only the Moon\'s south pole: every site, and every spot you add, lies south of 80°S. That is '
+      'where the app has loaded the NASA LOLA terrain the skylines need, and where NASA\'s CLPS landers, Artemis and '
+      'other countries\' polar missions are going. Apollo and other sites near the equator are outside it.';
+
+  /// The catalogue's groups, as the site list names them, in plain words.
+  static const groups = <(String, String)>[
+    ('Missions', 'IM-1 Odysseus (2024) and IM-2 Athena (2025), Intuitive Machines landers flown for NASA\'s Commercial '
+        'Lunar Payload Services (CLPS), with IM-2\'s intended target; the planned area of NASA\'s VIPER rover; and two '
+        'international candidates, China\'s Chang\'e-7 and ISRO-JAXA\'s LUPEX / Chandrayaan-5, which are unofficial, '
+        'low-confidence points, not announced landing coordinates.'),
+    ('Artemis III candidate regions', 'approximate centres of NASA\'s October 2024 regions, each about 15 by 15 km; '
+        'not official landing points.'),
+    ('ESA Lunar Lander candidate sites', 'from De Rosa et al. (2012), chosen there for long sunlight; candidate sites '
+        'for ESA\'s planned Lunar Lander.'),
+  ];
+
+  static const addYourOwn = 'To test another spot south of 80°S, tap the Explore map or use "Add a spot by '
+      'coordinates…" there; your own spots are marked approximate.';
+
+  static const whyHard = 'Near the pole the Sun skims the horizon, so hills kilometres away cast shadows tens of '
+      'kilometres long, and a lunar day lasts about 29.5 Earth days, so a shaded spot can stay dark for days or weeks. '
+      'With no air there is no twilight and no refraction, and Earth stays low in roughly the same direction, only '
+      'bobbing up and down with libration.';
+
+  @override
+  Widget build(BuildContext context) => Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        _heading('What this tool covers'),
+        _card(
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text.rich(numSpans(scope, PHText.body)),
+            const SizedBox(height: 8),
+            for (final (name, what) in groups)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 4),
+                child: Text.rich(TextSpan(children: [
+                  TextSpan(text: '$name: ', style: PHText.body.copyWith(fontWeight: FontWeight.w600)),
+                  numSpans(what, PHText.body.copyWith(color: PH.muted)),
+                ])),
+              ),
+            const SizedBox(height: 8),
+            Text.rich(numSpans(addYourOwn, PHText.body)),
+            const SizedBox(height: 16),
+            // its own node, so it stays a header inside the card's merged text
+            Semantics(container: true, header: true, child: const Text('Why the pole is hard', style: PHText.subtitle)),
+            const SizedBox(height: 4),
+            Text.rich(numSpans(whyHard, PHText.body)),
+          ]),
+        ),
+      ]);
 }
 
 /// Three ways in, each one tap to the screen that answers it.

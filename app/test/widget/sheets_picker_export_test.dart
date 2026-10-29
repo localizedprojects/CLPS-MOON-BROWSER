@@ -112,6 +112,22 @@ void main() {
     expect(results, [null]);
   });
 
+  test('noSiteMatchText: the query, the usual advice, the south-pole scope and the way to add a spot', () {
+    final t = noSiteMatchText('Apollo 11');
+    expect(t, startsWith('No site matches "Apollo 11". Try a shorter word, or clear the search. '));
+    expect(t, contains('south of 80°S'));
+    expect(t, contains('Apollo and other sites near the equator are outside it'));
+    expect(t, endsWith('You can add your own spot by coordinates on the Explore map.'));
+  });
+
+  testWidgets('the search hint names a mission too', (tester) async {
+    await openPicker(tester, multi: false);
+    expect(find.text('Name or kind, e.g. Shackleton, Artemis or IM-1'), findsOneWidget);
+    await tester.enterText(find.byType(TextField), 'IM-1');
+    await tester.pumpAndSettle();
+    expect(find.byType(ListTile), findsOneWidget, reason: 'the hint\'s example finds the IM-1 lander');
+  });
+
   testWidgets('search narrows the list and says when nothing matches', (tester) async {
     await openPicker(tester, multi: false);
     final first = state.catalog!.sites.first;
@@ -119,6 +135,10 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byType(ListTile), findsNothing);
     expect(find.textContaining('No site matches'), findsOneWidget);
+    // fix 2: the empty result says what the catalogue covers and why Apollo is absent
+    expect(find.text(noSiteMatchText('zzzz')), findsOneWidget);
+    expect(find.textContaining('Apollo and other sites near the equator are outside it'), findsOneWidget);
+    expect(find.textContaining('add your own spot by coordinates'), findsOneWidget);
     await tester.enterText(find.byType(TextField), first.short.split(' ').first);
     await tester.pumpAndSettle();
     expect(find.widgetWithText(ListTile, first.short), findsOneWidget);

@@ -211,6 +211,22 @@ class CompareNumbers extends StatelessWidget {
 
   String _pct(double p) => exact ? '${p.toStringAsFixed(1)}%' : StatBar.pctText(p);
 
+  /// A whole number, or one decimal with exact numbers on.
+  String _num(double v) => exact ? v.toStringAsFixed(1) : '${v.round()}';
+
+  /// Header of the mean-power column (the Sun-facing-panel proxy).
+  static const powerColumn = 'Mean power (W/m², Sun-facing panel, proxy)';
+
+  /// Header of the energy column: the proxy summed over the period.
+  static const energyColumn = 'Energy over the period (kWh/m², proxy)';
+
+  /// The note under the table: what the power columns assume, and that the
+  /// score does not use them (its Power part is Sunlit % and night length).
+  static const powerNote = 'Power is a proxy (a panel always facing the Sun); the score uses Sunlit % and night length, '
+      'not power. Mean power = 1361 W/m² × (1 au / r)² × the visible part of the Sun\'s disk, averaged over the '
+      'period; energy adds it up over the period. No cos(elevation) term and no panel efficiency, temperature or '
+      'dust losses.';
+
   static String _best(SiteMetrics m) {
     final b = m.longestBoth;
     return b == null || b.hours <= 0 ? 'none' : '${spellText(b)} from ${date(b.startMs)}';
@@ -237,6 +253,8 @@ class CompareNumbers extends StatelessWidget {
           const DataColumn(label: Text('Sunlit'), numeric: true),
           const DataColumn(label: Text('Longest sunlit stretch'), numeric: true),
           const DataColumn(label: Text('Longest night'), numeric: true),
+          const DataColumn(label: Text(powerColumn), numeric: true),
+          const DataColumn(label: Text(energyColumn), numeric: true),
           DataColumn(label: Text(earthMetricLabel(requireDsn: dsn)), numeric: true),
           DataColumn(label: Text(earthOutageLabel(requireDsn: dsn)), numeric: true),
           DataColumn(label: Text(bothShareLabel(requireDsn: dsn)), numeric: true),
@@ -253,6 +271,8 @@ class CompareNumbers extends StatelessWidget {
                 DataCell(Text(_pct(r.metrics.pctSunlit))),
                 DataCell(Text(spellText(r.metrics.longestSun))),
                 DataCell(Text(spellText(r.metrics.longestDark))),
+                DataCell(Text(_num(r.metrics.meanPowerWm2))),
+                DataCell(Text(_num(r.metrics.energyKWhM2))),
                 DataCell(Text(_pct(r.metrics.pctEarth))),
                 DataCell(Text(spellText(r.metrics.longestEarthOutage))),
                 DataCell(Text(_pct(r.metrics.pctBoth))),
@@ -322,6 +342,10 @@ class CompareNumbers extends StatelessWidget {
         subtitle: Text('Table, plain-language summaries and downloads', style: PHText.small.copyWith(color: PH.muted)),
         children: [
           table,
+          const Padding(
+            padding: EdgeInsets.fromLTRB(4, 0, 4, 8),
+            child: FidelityBadge(text: powerNote),
+          ),
           if (onOpenSite != null)
             Padding(
               padding: const EdgeInsets.fromLTRB(4, 0, 4, 8),

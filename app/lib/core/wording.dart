@@ -83,6 +83,18 @@ String sunStatusText({
   return elDeg + rhoDeg < 0 ? 'Sun below the horizon' : 'Sun hidden behind terrain';
 }
 
+/// Earth's share of the Sun's disk as a whole percentage: a partial eclipse
+/// ([fraction] between 0 and 1) reads 1..99%, never 0% or 100%.
+int eclipseSharePct(double fraction) => fraction >= 1 ? 100 : (100 * fraction).round().clamp(1, 99);
+
+/// The Sun's status when Earth's disk, not the terrain, stops it counting
+/// under the user's Sun rule (a lunar eclipse; [eclipse]: Earth's share of
+/// the Sun's disk, 0..1): only a total cover "hides" the Sun; a partial one
+/// gives Earth's share ([eclipseSharePct]), so a sliver never reads as hidden.
+String eclipseHidesText(double eclipse) => eclipse >= 1
+    ? 'Earth hides the Sun (lunar eclipse)'
+    : 'Earth covers ${eclipseSharePct(eclipse)}% of the Sun (lunar eclipse), so it is not counted as sunlit under your Sun rule';
+
 /// Earth status at one moment.
 ///
 /// [visible] is the final verdict: [earthRule] against the skyline and, with
@@ -218,7 +230,7 @@ String sampleStepText(double stepMs) {
 
 /// Shown instead of the long-term averages for a custom spot (AboutSite and
 /// the At a glance card; re-exported by widgets/about_site.dart).
-const String longTermCustomNote = 'Long-term averages are only precomputed for the 16 catalogue sites';
+const String longTermCustomNote = 'Long-term averages are only precomputed for the preset catalogue sites';
 
 /// "4.5° slope" (LOLA, preset sites only).
 String slopeText(Site s) {

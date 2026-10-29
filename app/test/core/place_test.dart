@@ -188,10 +188,15 @@ void main() {
       expect(nearestSite(-89, 0, const []), isNull);
     });
 
-    test('shipped catalogue: SR1 nearest to CR1', () {
+    test('shipped catalogue: the LUPEX candidate is nearest to CR1, then SR1', () {
+      // the LUPEX / Chandrayaan-5 candidate (added 2026-10-29) lies on the same connecting ridge
       final r = nearestSite(cr1.lat, cr1.lon, catalog.sites, exceptId: cr1.id)!;
-      expect(r.site.id, sr1.id);
-      expect(kmText(r.km), '10 km');
+      expect(r.site.id, 'lupex-chandrayaan-5-candidate');
+      expect(r.km, lessThan(1));
+      final others = [for (final s in catalog.sites) if (s.id != 'lupex-chandrayaan-5-candidate') s];
+      final r2 = nearestSite(cr1.lat, cr1.lon, others, exceptId: cr1.id)!;
+      expect(r2.site.id, sr1.id);
+      expect(kmText(r2.km), '10 km');
     });
   });
 
@@ -243,8 +248,8 @@ void main() {
       expect(skylinePeak(HorizonMask(1, Float64List(0))).elevDeg.isNaN, isTrue);
     });
 
-    test('shipped 2 m masks agree with sites.json for all 16 presets', () {
-      expect(catalog.sites, hasLength(16));
+    test('shipped 2 m masks agree with sites.json for all 19 presets', () {
+      expect(catalog.sites, hasLength(19));
       for (final s in catalog.sites) {
         final mask = catalog.mask(s.id, 2.0)!;
         final peak = skylinePeak(mask);

@@ -7,7 +7,7 @@ import type { Box } from './sky'
 import type { BodyNow, SkyData } from './bridge'
 import { skyGeom, skyOverlaySvg } from './skyOverlay'
 import {
-  captionLine, captionText, exactLine, headerTime, highestHillsText, keyLine, markerLabel, pctShowing, stateOf,
+  captionLine, captionText, eclipsePct, exactLine, headerTime, highestHillsText, keyLine, markerLabel, pctShowing, stateOf,
 } from './skyCaption'
 import sky from './devdata/sky.json'
 import skyH from './devdata/sky_haworth.json'
@@ -128,6 +128,22 @@ describe('sky simple view (charts spec 2.2)', () => {
       .toBe('Sun: behind the hills · toward W · 0.8° too low')
     expect(captionText(captionLine('Sun', body({ az: 90, visible: false, frac: 0.51, state: 'notCounted' }))))
       .toBe('Sun: 51% showing, not counted · toward E')
+  })
+  it('a lunar eclipse: Earth, not the hills, stops the Sun counting', () => {
+    // total cover: Dart's state word is 'behindHills' (no disc showing), but the hills are below the Sun
+    const total = body({ az: 90, visible: false, frac: 0, el: 3.9, hz: 1.9, clear: 2, state: 'behindHills', eclipse: 1, eclipseHides: true })
+    expect(captionText(captionLine('Sun', total))).toBe('Sun: Earth hides it (lunar eclipse) · toward E · 2.0° above the hills')
+    expect(captionText(captionLine('Sun', total))).not.toMatch(/behind the hills/)
+    expect(markerLabel('Sun', total)).toBe('Sun · behind Earth')
+    // a partial cover the Sun rule does not count: Earth's share, never "hides"
+    const part = body({ az: 90, visible: false, frac: 0.6, el: 3.9, hz: 1.9, clear: 2, state: 'notCounted', eclipse: 0.4, eclipseHides: true })
+    expect(captionText(captionLine('Sun', part))).toBe('Sun: Earth covers 40% of it (lunar eclipse), not counted · toward E · 2.0° above the hills')
+    expect(markerLabel('Sun', part)).toBe('Sun · 40% behind Earth')
+    expect(eclipsePct(0.002)).toBe(1)
+    expect(eclipsePct(0.996)).toBe(99)
+    // an eclipse the terrain decides (eclipseHides false): the hills' words stand
+    const hills = body({ az: 270, visible: false, frac: 0, el: 0.4, hz: 1.2, clear: -0.8, state: 'behindHills', eclipse: 1, eclipseHides: false })
+    expect(captionText(captionLine('Sun', hills))).toBe('Sun: behind the hills · toward W · 0.8° too low')
   })
   it('a counted body with clear < 0 reads "partly up", never a negative clearance', () => {
     const b = body({ az: 0, visible: true, frac: 0.6, el: 0.1, hz: 0.3, clear: -0.2, state: 'up' })

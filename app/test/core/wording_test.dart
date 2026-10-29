@@ -97,6 +97,15 @@ void main() {
   });
 
   group('sun status', () {
+    test('a lunar eclipse: only a total cover "hides" the Sun; a partial one gives Earth\'s share (1..99%)', () {
+      expect(eclipseHidesText(1), 'Earth hides the Sun (lunar eclipse)');
+      const tail = '% of the Sun (lunar eclipse), so it is not counted as sunlit under your Sun rule';
+      expect(eclipseHidesText(0.002), 'Earth covers 1$tail');
+      expect(eclipseHidesText(0.48), 'Earth covers 48$tail');
+      expect(eclipseHidesText(0.998), 'Earth covers 99$tail');
+      expect([eclipseSharePct(0.001), eclipseSharePct(0.404), eclipseSharePct(0.996), eclipseSharePct(1)], [1, 40, 99, 100]);
+    });
+
     test('visible', () {
       expect(sunStatusText(visible: true, elDeg: 1.2, rhoDeg: 0.27, frac: 1), 'in full sunlight');
       expect(sunStatusText(visible: true, elDeg: 1.2, rhoDeg: 0.27, frac: 0.9995), 'in full sunlight');

@@ -169,7 +169,13 @@ export function earthLine(d: TimelineData, t: number): AnswerLine {
   return { key: 'earth', on: false, label, state: 'NO', rest: nx ? `next ${date(c, nx[0])}, ${fmtIn(nx[0] - t)} · lasts ${runDur(nx, c.range, c.o)}` : 'none left in your chosen dates' }
 }
 
-/** The answer lines: 2 on phones (the now state is in Flutter's NowStatus), 4 on desktop. */
+/**
+ * The answer lines: Sun + Earth, dark, Sunlight and Earth with [desktop], else
+ * the first two. TimelineView asks for all four on phones too (the Sun and
+ * Earth countdowns are the brief's "time remaining"); they sit in normal flow
+ * above the plot in a one-column grid and wrap, so a 360 px view grows (and
+ * scrolls) rather than overlapping the plot or overflowing sideways.
+ */
 export function answerLines(d: TimelineData, t: number, desktop: boolean): AnswerLine[] {
   const two = [bothLine(d, t), darkLine(d, t)]
   return desktop ? [...two, sunLine(d, t), earthLine(d, t)] : two

@@ -255,7 +255,8 @@ String earthOutageLabel({required bool requireDsn});  // 'Longest time without E
 List<String> siteSummary(String name, SiteMetrics m, {bool dsn = false});
 String comparisonVerdict(List<Ranked> r, ScoreWeights w, {bool dsn = false});
 String weightingText(ScoreWeights w); // 'power 50% / comms 50% for 75% of the score, Sun + Earth together for 25%'
-String scorecardCsv(List<Ranked> ranked, String period, String formula, {bool requireDsn = false});
+String scorecardCsv(List<Ranked> ranked, String period, String formula,
+    {bool requireDsn = false, Map<String, Site> sites = const {}, double? observerHeightM, SeriesOptions? options});
 ```
 Used by Explore rows, ExpertMetrics tiles, the Compare table, the timeline's Earth lane, the
 compare payload's `earthLabel`, and the scorecard CSV. The compare payload sends

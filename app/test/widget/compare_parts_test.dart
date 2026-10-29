@@ -18,15 +18,17 @@ import 'package:polar_horizon/widgets/winner_card.dart';
 
 const _day = 86400e3;
 
-SiteMetrics metrics(double sun, double earth, double both, {double darkH = 200, double outageH = 100}) => SiteMetrics(
+SiteMetrics metrics(double sun, double earth, double both,
+        {double darkH = 200, double outageH = 100, double power = 0, double energy = 0}) =>
+    SiteMetrics(
       n: 8760,
       stepHours: 1,
       pctSunlit: sun,
       pctEarth: earth,
       pctBoth: both,
       pctDsn: 100,
-      meanPowerWm2: 0,
-      energyKWhM2: 0,
+      meanPowerWm2: power,
+      energyKWhM2: energy,
       longestSun: const Interval(0, 100 * 3600e3),
       longestDark: Interval(0, darkH * 3600e3),
       longestEarth: const Interval(0, 50 * 3600e3),
@@ -453,6 +455,37 @@ void main() {
       expect(find.text('Longest stretch of sunlight and Earth contact'), findsOneWidget);
       expect(find.text('Sun and Earth'), findsNothing);
       expect(find.text('Longest Sun and Earth stretch'), findsNothing);
+    });
+
+    testWidgets('All numbers shows the power proxy and energy in Plex Mono, with a note that the score does not use them',
+        (tester) async {
+      final r = rank({
+        'a': ('Alpha rim', metrics(82.4, 61.3, 47.2, power: 812.34, energy: 7116.1)),
+        'b': ('Bravo massif', metrics(70.1, 75.8, 40.6, power: 640.06, energy: 5606.9)),
+      }, const ScoreWeights());
+      final before = [for (final x in r) x.score.total];
+      await pump(tester, CompareNumbers(ranked: r, initiallyExpanded: true), size: const Size(360, 800));
+      expect(tester.takeException(), isNull, reason: 'the table scrolls sideways on a 360 px phone');
+      expect(find.text(CompareNumbers.powerColumn), findsOneWidget);
+      expect(find.text('Mean power (W/m², Sun-facing panel, proxy)'), findsOneWidget);
+      expect(find.text(CompareNumbers.energyColumn), findsOneWidget);
+      for (final v in ['812', '640', '7116', '5607']) {
+        expect(find.text(v), findsOneWidget, reason: v);
+      }
+      final style = tester.widget<RichText>(find.descendant(of: find.text('812'), matching: find.byType(RichText))).text.style!;
+      expect(style.fontFamily, PH.mono);
+      expect(style.fontFeatures, contains(const FontFeature.tabularFigures()));
+      // the note: what the proxy assumes, and that the score uses Sunlit %
+      expect(find.textContaining('the score uses Sunlit % and night length, not power', findRichText: true), findsOneWidget);
+      expect(find.bySemanticsLabel(RegExp(r'^Approximation: Power is a proxy.*No cos\(elevation\) term')), findsOneWidget);
+      // the score (and so the rank order) is unchanged by power
+      expect([for (final x in r) x.score.total], before);
+      expect(r.first.score.total, score(metrics(82.4, 61.3, 47.2), const ScoreWeights()).total);
+
+      await pump(tester, CompareNumbers(ranked: r, exact: true, initiallyExpanded: true), size: const Size(360, 800));
+      for (final v in ['812.3', '640.1', '7116.1', '5606.9']) {
+        expect(find.text(v), findsOneWidget, reason: v);
+      }
     });
   });
 }

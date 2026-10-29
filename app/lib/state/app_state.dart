@@ -1355,7 +1355,8 @@ class AppState extends ChangeNotifier {
 
   /// Analyse [start, end) (clamped to the data, see
   /// [EphemerisManifest.clampPeriod]: a period ending on 31 Dec 2035 ends at
-  /// the last hourly sample, 23:00 UTC).
+  /// the last hourly sample, 23:00 UTC). The time shown stays put when it is
+  /// still inside the new period ([cursorForPeriod]).
   Future<void> setRange(DateTime start, DateTime end) async {
     final m = manifest!;
     final (t0, t1) = m.clampPeriod(start.millisecondsSinceEpoch.toDouble(), end.millisecondsSinceEpoch.toDouble());
@@ -1376,8 +1377,17 @@ class AppState extends ChangeNotifier {
       eph = e;
       rangeStartMs = t0;
       rangeEndMs = t1;
-      cursorMs = t0;
+      cursorMs = cursorForPeriod(cursorMs, t0, t1);
     });
+  }
+
+  /// The cursor for a new period [t0, t1): it stays where it is when that
+  /// moment is still inside the period (up to the last sample, one step of
+  /// [SeriesOptions.autoStepMs] before the end); otherwise it goes to the
+  /// nearer end, never back to the start by default (fix 4, 2026-10-29).
+  static double cursorForPeriod(double cursorMs, double t0, double t1) {
+    final last = t1 - SeriesOptions.autoStepMs(t1 - t0);
+    return cursorMs.clamp(t0, last < t0 ? t0 : last);
   }
 
   Future<void> setSunCriterion(SunCriterion c) => _update(() => options = options.copyWith(sunCriterion: c));
@@ -1725,9 +1735,10 @@ class AppState extends ChangeNotifier {
   }
 
   /// Load the ephemeris for [t0, t1) (already clamped) and apply the period
-  /// (as [setRange] does); returns once the period has changed, without
-  /// waiting for the series or the ranking that follow. False when a newer
-  /// period request took over or the load failed ([error] says why).
+  /// (as [setRange] does, keeping the cursor by [cursorForPeriod]); returns
+  /// once the period has changed, without waiting for the series or the
+  /// ranking that follow. False when a newer period request took over or the
+  /// load failed ([error] says why).
   Future<bool> _applyRange(double t0, double t1) async {
     final gen = ++_rangeGen;
     final Ephemeris e;
@@ -1744,7 +1755,7 @@ class AppState extends ChangeNotifier {
       eph = e;
       rangeStartMs = t0;
       rangeEndMs = t1;
-      cursorMs = t0;
+      cursorMs = cursorForPeriod(cursorMs, t0, t1);
     }));
     return true;
   }

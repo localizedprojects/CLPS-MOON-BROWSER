@@ -33,6 +33,12 @@ export function pctShowing(frac: number): number {
   return Math.min(99, Math.max(1, Math.round(frac * 100)))
 }
 
+/** Earth's share of the Sun's disk, whole percent (Dart `eclipseSharePct`): a partial cover reads 1..99, never 0 or 100. */
+export function eclipsePct(fraction: number): number {
+  if (fraction >= 1) return 100
+  return Math.min(99, Math.max(1, Math.round(fraction * 100)))
+}
+
 /** Degrees with a real minus sign ("−0.19°"). */
 export function deg(v: number, dp = 1): string {
   const s = Math.abs(v).toFixed(dp)
@@ -62,6 +68,14 @@ export function captionLine(name: BodyName, b: BodyNow): CaptionLine {
   const dir = compass16(b.az)
   const pct = pctShowing(b.frac)
   const line = (word: string, rest: string[]): CaptionLine => ({ name, counted: b.visible, head: `${name}: ${word}`, rest })
+  // a lunar eclipse: Earth's disk, not the hills, stops the Sun counting (Dart `nowAt`'s eclipseHides / eclipse)
+  if (name === 'Sun' && b.eclipseHides) {
+    const e = b.eclipse ?? 1
+    const hills = c >= 0 ? `${deg(c)} above the hills` : `${deg(-c)} below the hills`
+    return e >= 1
+      ? line('Earth hides it (lunar eclipse)', [`toward ${dir}`, hills])
+      : line(`Earth covers ${eclipsePct(e)}% of it (lunar eclipse), not counted`, [`toward ${dir}`, hills])
+  }
   if (b.visible && (st === 'partly' || c < 0)) return line('partly up', [`toward ${dir}`, `${Math.min(pct, 99)}% showing`])
   switch (st) {
     case 'up': return line('up', [`look ${dir}`, `${deg(Math.abs(c))} above the hills`])
@@ -79,6 +93,10 @@ export const captionText = (l: CaptionLine) => [l.head, ...l.rest].join(' · ')
 export function markerLabel(name: BodyName, b: BodyNow): string {
   const st = stateOf(b)
   const pct = pctShowing(b.frac)
+  if (name === 'Sun' && b.eclipseHides) {
+    const e = b.eclipse ?? 1
+    return e >= 1 ? `${name} · behind Earth` : `${name} · ${eclipsePct(e)}% behind Earth`
+  }
   if (b.visible && (st === 'partly' || clearOf(b) < 0)) return `${name} · ${Math.min(pct, 99)}% up`
   switch (st) {
     case 'up': return `${name} · up`

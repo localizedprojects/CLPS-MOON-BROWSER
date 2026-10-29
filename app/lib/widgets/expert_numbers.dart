@@ -42,6 +42,14 @@ String readoutEarthState({required bool visible, required double frac, bool terr
   return frac > 0 ? '${_pct(frac)} up, not counted' : 'hidden';
 }
 
+/// The live power line's label (the power proxy at the time shown).
+const powerNowLabel = 'Power on a Sun-facing panel (proxy)';
+
+/// What the live power proxy assumes (its FidelityBadge).
+const powerNowNote = 'Proxy: sunlight on a panel always turned to face the Sun, at the time shown: 1361 W/m² × '
+    '(1 au / r)² × the visible part of the Sun\'s disk (terrain and Earth removed). No cos(elevation) term, so a fixed '
+    'flat or upright panel gets less; no panel efficiency, temperature or dust losses.';
+
 /// Exact Sun/Earth state at the cursor.
 class ExpertReadout extends StatelessWidget {
   final AppState state;
@@ -113,6 +121,17 @@ class ExpertReadout extends StatelessWidget {
           ),
           const SizedBox(height: 4),
           Text('DSN in view: ${names.isEmpty ? 'none' : names.join(' · ')}', style: const TextStyle(fontSize: 13, color: PH.muted)),
+          if (sun['power'] is num) ...[
+            const SizedBox(height: 4),
+            Text.rich(TextSpan(style: const TextStyle(fontSize: 13), children: [
+              const TextSpan(text: '$powerNowLabel: '),
+              TextSpan(text: '${(sun['power'] as num).round()} W/m²', style: numStyle(size: 13)),
+              if ((sun['eclipse'] as num? ?? 0) > 0)
+                TextSpan(text: ' · Earth covers ${((sun['eclipse'] as num) * 100).round().clamp(1, 100)}% of the Sun (lunar eclipse)'),
+            ])),
+            const SizedBox(height: 4),
+            const FidelityBadge(text: powerNowNote),
+          ],
         ]),
       ),
     );
@@ -136,6 +155,15 @@ class ExpertMetrics extends StatelessWidget {
     this.earthCriterion = EarthCriterion.center,
     this.requireDsn = false,
   });
+
+  /// The power line's label: a proxy, not a power-system model.
+  static const powerLabel = 'Mean power on a panel facing the Sun (proxy)';
+
+  /// What the power proxy assumes.
+  static const powerNote = 'Proxy: sunlight on a panel always turned to face the Sun, not a power-system model. '
+      '1361 W/m² × (1 au / r)² × the visible part of the Sun\'s disk, averaged over your dates. There is no '
+      'cos(elevation) term, so a fixed flat or upright panel gets less; no panel efficiency, temperature or dust '
+      'losses.';
 
   @override
   Widget build(BuildContext context) {
@@ -201,9 +229,10 @@ class ExpertMetrics extends StatelessWidget {
           Row(children: [
             const Icon(Icons.bolt, size: 16, color: PH.sun),
             const SizedBox(width: 6),
-            const Expanded(child: Text('Mean power on a panel facing the Sun', style: TextStyle(fontSize: 13, color: PH.muted))),
+            const Expanded(child: Text(powerLabel, style: TextStyle(fontSize: 13, color: PH.muted))),
             Text('${m.meanPowerWm2.toStringAsFixed(0)} W/m²', style: numStyle(size: 13.5, weight: FontWeight.w600)),
           ]),
+          const FidelityBadge(text: powerNote),
         ]),
       ),
     );

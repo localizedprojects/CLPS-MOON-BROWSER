@@ -392,7 +392,7 @@ class ChartHub {
             'polar_horizon_comparison_${_start(s)}.csv',
             // the period's last day (the range end is exclusive), as the app shows it
             utf8.encode(scorecardCsv(rankedFor(s), '${date(s.rangeStartMs)} - ${date(s.rangeEndMs - 1)}', formulaText(s.weights),
-                requireDsn: s.options.requireDsn)),
+                sites: {for (final x in s.allSites) x.id: x}, observerHeightM: s.observerHeightM, options: s.options)),
             'text/csv'),
       ]);
 }

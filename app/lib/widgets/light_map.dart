@@ -24,6 +24,8 @@ import 'package:flutter/material.dart';
 
 import '../core/catalog.dart';
 import '../core/dem.dart';
+import '../core/eclipse.dart';
+import '../core/geo.dart' show Observer;
 import '../core/relief.dart';
 import '../core/shadow.dart';
 import '../core/visibility.dart' show EarthCriterion, SunCriterion, earthVisible;
@@ -37,6 +39,7 @@ import 'time_bar.dart' show utcTwoLines;
 import 'feature_guide.dart';
 
 export '../state/light_engine.dart' show LightClass, LightLayer, classify, lightOverlayPixels, lightPixel;
+export '../core/wording.dart' show eclipseSharePct;
 
 Future<ui.Image> _decode(Uint8List rgba, int w) {
   final c = Completer<ui.Image>();
@@ -64,6 +67,74 @@ const lightPastMapNote = 'This close-up reaches past the base map\'s edge (about
     '400 m grid with the same artificial light as the map (a little smoother than the map\'s 320 m relief), and map '
     'distances run up to about 1% longer than true ones, so shadows cast from there are a little less exact.';
 
+/// Earth against the Sun at [f]'s moment, seen from the frame's site: its
+/// request's latitude and longitude at [terrainHeightM] + the request's
+/// observer height (as `AppState.observer`), so the share is the one `nowAt`
+/// gives the status line at that moment.
+SunEclipse lightFrameEclipse(LightFrame f, {double terrainHeightM = 0}) {
+  final q = f.request;
+  return sunEclipseAt(Observer(q.lat, q.lon, terrainHeightM + q.observerHeightM), q.sun, q.earth);
+}
+
+/// [f] as drawn during a lunar eclipse ([ecl], from [lightFrameEclipse]):
+/// while Earth hides the whole Sun no ground gets direct sunlight, so every
+/// pixel loses its Sun bits (the Sun and Both layers draw it as in shadow and
+/// the legend's Sun shares are 0); while Earth covers part of it the terrain
+/// shadows stay, but no ground sees the whole disk (the fullDisk rule needs
+/// no overlap, formula.md §6.5), so every pixel loses its full-Sun bit and
+/// sunlit ground is drawn as seeing part of the Sun (the note gives Earth's
+/// share); without an eclipse [f] itself. A copy of the flags only: no shadow
+/// is recomputed. One eclipse for the whole frame, the site's
+/// ([lightEclipseFidelity]).
+LightFrame lightFrameEclipsed(LightFrame f, SunEclipse ecl) {
+  if (ecl.fraction <= 0) return f;
+  final flags = Uint8List.fromList(f.flags);
+  final keep = (ecl.fraction >= 1 ? ~(lightSunAny | lightSunFull) : ~lightSunFull) & 0xFF;
+  for (var i = 0; i < flags.length; i++) {
+    flags[i] &= keep;
+  }
+  return LightFrame(f.request, f.size, f.pxM, f.x0M, f.y0M, flags, f.shade, f.computeMs);
+}
+
+/// The light map's note on a lunar eclipse at a frame's moment: null without
+/// one; for a total one, that no ground gets direct sunlight; for a partial
+/// one, Earth's share of the Sun ([SunEclipse.fraction], [eclipseSharePct]).
+/// [lines] go on the map, [sentence] in the legend and the accessible name.
+({List<String> lines, String sentence})? lightEclipseNote(SunEclipse? ecl) {
+  final f = ecl?.fraction ?? 0;
+  if (f <= 0) return null;
+  if (f >= 1) {
+    return (
+      lines: const ['Earth hides the Sun (lunar eclipse)', 'No direct sunlight on the map'],
+      sentence: 'Earth hides the Sun (lunar eclipse): no direct sunlight on the map',
+    );
+  }
+  final t = 'Earth covers ${eclipseSharePct(f)}% of the Sun (lunar eclipse)';
+  return (lines: [t], sentence: t);
+}
+
+/// The eclipse's approximation, added to the badges while one is shown. The
+/// figures: across the region (sites up to about 600 km apart) Earth, 384 000
+/// km away, shifts by up to 600 / 384 000 rad = 0.09° against the Sun, which
+/// it crosses at about 0.5° an hour; a close-up spans 64 km (0.01°).
+const lightEclipseFidelity = 'During a lunar eclipse, Earth\'s cover of the Sun is worked out at the site and used '
+    'for the whole picture: across the region Earth\'s place against the Sun shifts by up to about 0.1° (0.01° '
+    'across a close-up), so there the start and end of totality can be off by up to about 10 minutes (1 minute in '
+    'a close-up). Earth is a sharp-edged disk: the dim red light its atmosphere bends onto the Moon is not shown.';
+
+/// The Sun's status line on the light map and the snapshot, from a `nowAt`
+/// body: when Earth's disk, not the terrain, is why the Sun does not count
+/// ('eclipseHides'), it says so (as the Now status does); during the rest of
+/// a lunar eclipse it adds Earth's share of the Sun ('eclipse').
+String lightSunStatus(Map<String, dynamic> sun, SunCriterion rule) {
+  double n(String k) => (sun[k] as num).toDouble();
+  final e = (sun['eclipse'] as num?)?.toDouble() ?? 0;
+  if (sun['eclipseHides'] == true) return eclipseHidesText(e);
+  final text = sunStatusText(visible: sun['visible'] == true, elDeg: n('el'), rhoDeg: n('rho'), frac: n('frac'), sunRule: rule);
+  if (e <= 0) return text;
+  return '$text; ${e >= 1 ? 'Earth hides the whole Sun' : 'Earth covers ${eclipseSharePct(e)}% of the Sun'} (lunar eclipse)';
+}
+
 /// The close-up view the light engine will compute around ([lat], [lon]) on
 /// a terrain grid of half-width [demHalfWidthM] (map.json dem; about 75°S):
 /// ShadowGrid.windowAround on the 800 m grid while [playing], 400 m
@@ -86,6 +157,7 @@ LightView closeUpTargetView(double lat, double lon, double demHalfWidthM, {requi
 /// "hidden". [b] is a body of `nowAt` (frac, el, hz, visible).
 String lightArrowNote(Map<String, dynamic> b, {EarthCriterion? earthRule, bool requireDsn = false}) {
   if (b['visible'] == true) return '';
+  if (b['eclipseHides'] == true) return ' · behind Earth'; // a lunar eclipse (nowAt)
   double n(String k) => (b[k] as num).toDouble();
   final frac = n('frac');
   if (earthRule != null && requireDsn && earthVisible(earthRule, frac, n('el'), n('hz'))) return ' · no DSN';
@@ -553,6 +625,24 @@ class _LightMapState extends State<LightMap> {
   LightFrame? _sharesFrame;
   LightShares? _shares;
 
+  // each computed frame as drawn (a total lunar eclipse takes its sunlight
+  // away, a partial one its full sunlight: lightFrameEclipsed) and the
+  // eclipse of a drawn frame
+  final _asDrawn = Expando<LightFrame>();
+  final _eclipseOf = Expando<SunEclipse>();
+
+  /// [raw] as drawn, the same object for the same frame (the image keeper
+  /// compares frames by identity), its eclipse kept in [_eclipseOf].
+  LightFrame _drawn(LightFrame raw) {
+    final done = _asDrawn[raw];
+    if (done != null) return done;
+    final site = widget.state.site, q = raw.request;
+    final ecl = lightFrameEclipse(raw, terrainHeightM: site.lat == q.lat && site.lon == q.lon ? site.terrainHeightM : 0);
+    final f = lightFrameEclipsed(raw, ecl);
+    _eclipseOf[f] = ecl;
+    return _asDrawn[raw] = f;
+  }
+
   @override
   void initState() {
     super.initState();
@@ -660,7 +750,7 @@ class _LightMapState extends State<LightMap> {
         _queued = null;
         final f = await engine.compute(q);
         if (!mounted) return;
-        _images.update(engine: engine, frame: f);
+        _images.update(engine: engine, frame: _drawn(f));
       }
       if (last != null) _prefetch(engine, last);
       _error = null;
@@ -737,6 +827,9 @@ class _LightMapState extends State<LightMap> {
     final sites = _sites != null && listEquals(_sites, all) ? _sites! : (_sites = all);
     final dsnUp = s.eph!.dsnMask(tMap) != 0;
     final shares = shownFrame == null ? null : _sharesOf(shownFrame);
+    // a lunar eclipse at the shown frame's moment (its picture's, so while a
+    // newer frame computes it may trail the status line by a step)
+    final eclipse = lightEclipseNote(shownFrame == null ? null : _eclipseOf[shownFrame]);
     final failed = _error != null || _images.error != null;
     final stale = _busy || (!failed && (_images.pending || shownFrame == null || shownFrame.request.key != _sentKey));
     final fine = shownFrame?.request.closeUp ?? closeUp;
@@ -820,7 +913,8 @@ class _LightMapState extends State<LightMap> {
     ]);
     }
 
-    final legend = _Legend(layer: img?.layer ?? layer, shares: shares, scope: scope, onMap: onMap, approx: coarseShown);
+    final legend = _Legend(
+        layer: img?.layer ?? layer, shares: shares, scope: scope, onMap: onMap, approx: coarseShown, eclipse: eclipse?.sentence);
     final status = _StatusLine(
         site: s.site,
         now: now,
@@ -845,6 +939,7 @@ class _LightMapState extends State<LightMap> {
           'by an artificial light from the upper left with heights exaggerated 2x: it is not a photo and not the '
           'real lighting, and inside shadows it is drawn faintly for orientation only.'
           '${pastMap ? ' $lightPastMapNote' : ''}'
+          '${eclipse != null ? ' $lightEclipseFidelity' : ''}'
           '${coarseShown ? ' While playing, the map uses a coarser ${shownFrame!.pxM.round()} m grid so it can keep up, and the '
               'legend\'s shares are from that grid; the agreement figures above are for the paused map. Pause for full detail.' : ''}',
     );
@@ -863,6 +958,7 @@ class _LightMapState extends State<LightMap> {
       final semantic = '${s.site.short}, ${utcLabel(tMap)}. '
           '${shares == null ? 'Computing.' : '${coarseShown ? 'About ' : ''}${(100 * shares.sun).round()}% of the area $scope is sunlit, '
               '${(100 * shares.earth).round()}% can see Earth.'} '
+          '${eclipse != null ? '${eclipse.sentence}. ' : ''}'
           '${_StatusLine.sentence(s.site, now, o.requireDsn, dsnUp, o.sunCriterion, o.earthCriterion)}'
           // the corner notes, for screen readers too
           '${playFrame ? ' $playNote.' : stale ? ' Computing shadows.' : ''}';
@@ -904,14 +1000,19 @@ class _LightMapState extends State<LightMap> {
       const aboveScaleBar = 44.0;
       final badgeW = fine ? 60.0 : 0.0;
       // while playing the band is the same on every frame (the playback note,
-      // "Computing" or neither), so the labels it keeps out never jump in and out
-      final playH = noteBand(playLines, badgeW, noteScaler);
+      // "Computing" or neither), so the labels it keeps out never jump in and
+      // out; only a lunar eclipse adds its lines (to the playback note, or as
+      // a note of its own on a paused, finished map)
+      final eclLines = eclipse?.lines ?? const <String>[];
+      final playH = noteBand([...playLines, ...eclLines], badgeW, noteScaler);
       final busyH = noteBand(const [busyText], 22 + badgeW, MediaQuery.textScalerOf(context));
       final noteH = s.playing
           ? math.max(playH, busyH)
           : stale
               ? busyH
-              : 0.0;
+              : eclLines.isEmpty
+                  ? 0.0
+                  : noteBand(eclLines, badgeW, noteScaler);
       final (_, sy) = latLonToXY(s.site.lat, s.site.lon);
       final siteY = (view.y0 - sy) * side / view.ext;
       final reach = 0.24 * side + 30;
@@ -924,6 +1025,35 @@ class _LightMapState extends State<LightMap> {
           ? null
           : (noteTop ? Rect.fromLTWH(0, 0, side, noteH) : Rect.fromLTRB(0, side - aboveScaleBar - (noteH - 8), side, side));
 
+      // a note in the chosen corner: single lines, cut with "…" if they must be
+      Widget cornerNote(Key key, List<String> lines) => Positioned(
+            left: 8,
+            top: noteTop ? 8 : null,
+            bottom: noteTop ? null : aboveScaleBar,
+            right: noteRight,
+            child: IgnorePointer(
+              child: Align(
+                alignment: noteTop ? Alignment.topLeft : Alignment.bottomLeft,
+                child: DecoratedBox(
+                  key: key,
+                  decoration: BoxDecoration(color: const Color(0xE6060B16), borderRadius: BorderRadius.circular(PH.radiusInner)),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    // the map's label already says it to screen readers
+                    child: ExcludeSemantics(
+                      child: MediaQuery(
+                        data: MediaQuery.of(context).copyWith(textScaler: noteScaler),
+                        child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
+                          for (final line in lines)
+                            Text(line, maxLines: 1, overflow: TextOverflow.ellipsis, style: PHText.small),
+                        ]),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          );
       final busy = Positioned(
         left: 8,
         top: noteTop ? 8 : null,
@@ -987,36 +1117,11 @@ class _LightMapState extends State<LightMap> {
           ),
           )),
           if (playFrame)
-            Positioned(
-              left: 8,
-              top: noteTop ? 8 : null,
-              bottom: noteTop ? null : aboveScaleBar,
-              right: noteRight,
-              child: IgnorePointer(
-                child: Align(
-                  alignment: noteTop ? Alignment.topLeft : Alignment.bottomLeft,
-                  child: DecoratedBox(
-                    key: const ValueKey('light-coarse'),
-                    decoration: BoxDecoration(color: const Color(0xE6060B16), borderRadius: BorderRadius.circular(PH.radiusInner)),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                      // the map's label already says it to screen readers
-                      child: ExcludeSemantics(
-                        child: MediaQuery(
-                          data: MediaQuery.of(context).copyWith(textScaler: noteScaler),
-                          child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
-                            for (final line in playLines)
-                              Text(line, maxLines: 1, overflow: TextOverflow.ellipsis, style: PHText.small),
-                          ]),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            )
+            cornerNote(const ValueKey('light-coarse'), [...playLines, ...eclLines])
           else if (stale)
-            busy,
+            busy
+          else if (eclLines.isNotEmpty)
+            cornerNote(const ValueKey('light-eclipse'), eclLines),
         ]),
       ));
     }
@@ -1206,8 +1311,7 @@ class _StatusLine extends StatelessWidget {
 
   static double _n(Map<String, dynamic> b, String k) => (b[k] as num).toDouble();
 
-  static String sunText(Map<String, dynamic> sun, SunCriterion rule) => sunStatusText(
-      visible: sun['visible'] == true, elDeg: _n(sun, 'el'), rhoDeg: _n(sun, 'rho'), frac: _n(sun, 'frac'), sunRule: rule);
+  static String sunText(Map<String, dynamic> sun, SunCriterion rule) => lightSunStatus(sun, rule);
 
   static String earthText(Map<String, dynamic> e, bool requireDsn, bool dsnInView, EarthCriterion rule) => earthStatusText(
       visible: e['visible'] == true,
@@ -1273,7 +1377,11 @@ class _Legend extends StatelessWidget {
 
   /// The shares come from a coarse playback frame: shown as "≈ N%".
   final bool approx;
-  const _Legend({required this.layer, required this.shares, required this.scope, this.onMap, this.approx = false});
+
+  /// A lunar eclipse at the frame's moment ([lightEclipseNote]'s sentence).
+  final String? eclipse;
+  const _Legend(
+      {required this.layer, required this.shares, required this.scope, this.onMap, this.approx = false, this.eclipse});
 
   @override
   Widget build(BuildContext context) {
@@ -1282,7 +1390,7 @@ class _Legend extends StatelessWidget {
     final items = switch (layer) {
       LightLayer.sun => [
           (LightClass.fullSun, 'Full sunlight', pct((s) => s.sunFull)),
-          (LightClass.partSun, 'Sun partly over a ridge', pct((s) => s.sun - s.sunFull)),
+          (LightClass.partSun, eclipse != null ? 'Part of the Sun (ridge or Earth)' : 'Sun partly over a ridge', pct((s) => s.sun - s.sunFull)),
           (LightClass.shadow, 'In shadow', pct((s) => 1 - s.sun)),
         ],
       LightLayer.earth => [
@@ -1298,6 +1406,11 @@ class _Legend extends StatelessWidget {
     };
     final part = onMap;
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      if (eclipse != null)
+        Padding(
+          padding: const EdgeInsets.only(bottom: 4),
+          child: Text('$eclipse.', key: const ValueKey('light-eclipse-legend'), style: PHText.small),
+        ),
       Text('Share of the area $scope', style: PHText.small.copyWith(color: PH.muted)),
       if (part != null)
         Padding(

@@ -30,7 +30,7 @@ ShadowGrid LightField compute_light_field light_map
 analyze_site SiteReport
 """.split()
 
-SUBMODULES = ["constants", "time", "data", "spice", "sky", "ephemeris", "dsn", "projection", "terrain", "horizon",
+SUBMODULES = ["constants", "time", "data", "spice", "sky", "ephemeris", "dsn", "projection", "terrain", "horizon", "eclipse",
               "visibility", "sites", "series", "metrics", "daily", "score", "landing", "shadow", "report", "cli"]
 
 

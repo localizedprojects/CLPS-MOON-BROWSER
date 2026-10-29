@@ -136,7 +136,9 @@ const explainTimeline = ExplainCard(
   title: 'Timeline: when you have power, contact with Earth, or both',
   body: 'Solid lines show how high the Sun and Earth are; dotted lines show the terrain skyline in their direction. When a solid '
       'line is above its dotted line, that body is visible. The bars underneath summarise it: amber = sunlight (power), '
-      'blue = Earth in view (communications), hatched teal = both at once, the best time to operate. Tap to jump there.',
+      'blue = Earth in view (communications), hatched teal = both at once, the best time to operate. Tapping the chart '
+      'shows it full screen as a still picture. To move the time shown, use the time bar: drag the slider, step a day, '
+      'or tap the date and time to pick an exact moment (UTC).',
   terms: ['Upper limb', 'DTE', 'Power proxy'],
 );
 

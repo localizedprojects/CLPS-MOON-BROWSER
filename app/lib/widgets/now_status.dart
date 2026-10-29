@@ -6,6 +6,7 @@ library;
 
 import 'package:flutter/material.dart';
 
+import '../core/countdown.dart';
 import '../core/visibility.dart' show EarthCriterion, SunCriterion, earthVisible;
 import '../core/wording.dart';
 export '../core/wording.dart' show pctShowing;
@@ -13,6 +14,7 @@ import '../state/app_state.dart';
 import '../theme.dart';
 import 'chart_bridge.dart' show nowAt;
 import 'glyphs.dart';
+import 'site_glance_card.dart' show numSpans;
 
 /// One body's state text (read out after the statement) from its shared state word ([bodyStateShort], the
 /// `state` field of `nowAt`): "Sun up", "Earth below the horizon",
@@ -80,7 +82,9 @@ String shownTimeLabel(double ms, {double? refMs}) {
   // the user's Earth rule, as nowAt works it out
   final bool terrainEarth = earth['terrainVisible'] as bool? ??
       earthVisible(earthRule, n(earth, 'frac'), n(earth, 'el'), n(earth, 'hz'));
-  final sunText = bodyChipText('Sun', stateOf(sun), n(sun, 'frac'));
+  // Earth's disk, not the terrain, hides the Sun (nowAt's 'eclipseHides')
+  final sunText =
+      sun['eclipseHides'] == true ? 'Earth hides the Sun (lunar eclipse)' : bodyChipText('Sun', stateOf(sun), n(sun, 'frac'));
   final earthText = bodyChipText('Earth', stateOf(earth, terrainVisible: terrainEarth), n(earth, 'frac'));
   final (both, glyph) = nowStatement(
       sunUp: sunUp, earthUp: earthUp, sunState: stateOf(sun), earthState: stateOf(earth, terrainVisible: terrainEarth),
@@ -125,6 +129,26 @@ String shownTimeLabel(double ms, {double? refMs}) {
 String nowStatusLabel(({String sun, String earth, String both, GlyphKind bothGlyph}) lines, String timeLabel) =>
     'At the time shown ($timeLabel): ${lines.both}. ${lines.sun}. ${lines.earth}.';
 
+/// The [CountdownNow] of a `nowAt` state (the exact Sun numbers and states).
+CountdownNow countdownNowOf(Map<String, dynamic> now) {
+  final sun = now['sun'] as Map<String, dynamic>, earth = now['earth'] as Map<String, dynamic>;
+  double n(String k) => (sun[k] as num?)?.toDouble() ?? 0;
+  return CountdownNow(
+    sunUp: sun['visible'] == true,
+    earthUp: earth['visible'] == true,
+    sunElDeg: n('el'),
+    sunHzDeg: n('hz'),
+    eclipse: n('eclipse'),
+    eclipseHides: sun['eclipseHides'] == true,
+    power: (sun['power'] as num?)?.toDouble(),
+  );
+}
+
+/// The time shown, floored to the whole minute: the countdown line is worked
+/// out at this time, so its words (and the live region) change at most once
+/// a minute while the cursor moves, as the time label does.
+double minuteOf(double ms) => (ms / 60000).floorToDouble() * 60000;
+
 /// The one statement for the time shown: power + contact together, as a
 /// glyph and words. The Sun and Earth details are read out in its label.
 class NowStatus extends StatelessWidget {
@@ -147,6 +171,19 @@ class NowStatus extends StatelessWidget {
             nowStatement(sunUp: sunUp, earthUp: earthUp, sunState: sunState, earthState: earthState, requireDsn: requireDsn),
       ];
 
+  /// The longest countdown lines (for [reserve]): Sun up, down and hidden
+  /// by Earth, with the widest durations and a date with its year.
+  static List<String> countdownSamples({required bool requireDsn, required bool power}) {
+    const day = 86400e3, far = NextChange(10 * day, 10 * day + 1439 * 60e3), near = NextChange(day, 1439 * 60e3);
+    String line(bool up, double el, bool hides) => countdownLine(
+        Countdown(
+            sunUp: up, earthUp: up, sunElDeg: el, sunClearDeg: -el, eclipseHides: hides, power: 1366, sun: far, earth: near),
+        dateOf: (_) => '28 Oct 2027 23:59 UTC',
+        requireDsn: requireDsn,
+        power: power);
+    return [line(true, 18.8, false), line(false, -18.8, false), line(false, 1, true)];
+  }
+
   @override
   Widget build(BuildContext context) {
     final s = state, eph = s.eph;
@@ -156,26 +193,50 @@ class NowStatus extends StatelessWidget {
     final lines = nowStatusLines(now,
         requireDsn: o.requireDsn, dsnInView: eph.dsnMask(s.cursorMs) != 0, sunRule: o.sunCriterion, earthRule: o.earthCriterion);
     // the glyph beside the first line of its words, which may wrap
-    Widget line(GlyphKind g, String text) => Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+    Widget line(GlyphKind g, String text, {Key? key}) => Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Padding(padding: const EdgeInsets.only(top: 2, right: 8), child: MeaningGlyph(g, size: 18, semantic: false)),
-          Expanded(child: Text(text, style: PHText.body.copyWith(fontWeight: FontWeight.w600))),
+          Expanded(child: Text(text, key: key, style: PHText.body.copyWith(fontWeight: FontWeight.w600))),
         ]);
-    Widget body = line(lines.bothGlyph, lines.both);
+    Widget hidden(Widget w) => ExcludeSemantics(
+        child: Visibility(visible: false, maintainSize: true, maintainAnimation: true, maintainState: true, child: w));
+    Widget body = line(lines.bothGlyph, lines.both, key: const ValueKey('nowStatement'));
     if (reserve) {
       // every wording, unseen, holds the height of the tallest wrap; the real one on top
       body = Stack(children: [
-        for (final (text, g) in statements(requireDsn: o.requireDsn))
-          ExcludeSemantics(
-              child: Visibility(
-                  visible: false, maintainSize: true, maintainAnimation: true, maintainState: true, child: line(g, text))),
+        for (final (text, g) in statements(requireDsn: o.requireDsn)) hidden(line(g, text)),
         body,
       ]);
+    }
+    // time left before sunset / Earthset and the Sun's height, at the whole
+    // minute shown (the series' flags follow the rules, the DSN and eclipses)
+    final series = s.series;
+    String? cd;
+    if (series != null && !s.loading) {
+      final tMin = minuteOf(s.cursorMs);
+      final nowMin = tMin == s.cursorMs ? now : nowAt(eph, s.observer, s.mask, tMin, o);
+      cd = countdownLine(countdownAt(series, tMin, now: countdownNowOf(nowMin)),
+          dateOf: (ms) => shownTimeLabel(ms, refMs: s.rangeStartMs), requireDsn: o.requireDsn, power: s.expert);
+    }
+    if (cd != null) {
+      final style = PHText.body.copyWith(color: PH.muted);
+      Widget cdLine(String text) => Padding(
+          padding: const EdgeInsets.only(left: 26, top: 2),
+          child: Text.rich(numSpans(text, style), key: text == cd ? const ValueKey('nowCountdown') : null));
+      Widget c = cdLine(cd);
+      if (reserve) {
+        c = Stack(children: [
+          for (final t in countdownSamples(requireDsn: o.requireDsn, power: s.expert)) hidden(cdLine(t)),
+          c,
+        ]);
+      }
+      body = Column(crossAxisAlignment: CrossAxisAlignment.stretch, mainAxisSize: MainAxisSize.min, children: [body, c]);
     }
     // one live region with the whole sentence, read once per change
     return Semantics(
       liveRegion: true,
       container: true,
-      label: nowStatusLabel(lines, shownTimeLabel(s.cursorMs, refMs: s.rangeStartMs)),
+      label: nowStatusLabel(lines, shownTimeLabel(s.cursorMs, refMs: s.rangeStartMs)) +
+          (cd == null ? '' : ' ${spokenCountdown(cd)}.'),
       excludeSemantics: true,
       child: Padding(padding: dense ? const EdgeInsets.fromLTRB(8, 4, 8, 4) : const EdgeInsets.fromLTRB(8, 6, 8, 8), child: body),
     );

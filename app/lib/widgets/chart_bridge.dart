@@ -15,7 +15,6 @@ import 'package:intl/intl.dart';
 
 import '../core/catalog.dart';
 import '../core/decimate.dart';
-import '../core/eclipse.dart' show SunEclipse;
 import '../core/ephemeris.dart';
 import '../core/geo.dart';
 import '../core/horizon.dart';
@@ -433,7 +432,7 @@ Map<String, dynamic> nowAt(Ephemeris eph, Observer obs, HorizonMask mask, double
   // Earth, not the terrain, is why the Sun does not count: the terrain alone would let it
   final eclipseHides = ecl.overlaps && !sv && sunVisible(o.sunCriterion, visibleFraction(s.az, s.el, rs, mask), s.el, hs);
   return {
-    'sun': {
+    'sun': <String, dynamic>{
       ...bodyNow(s, rs, fs, hs, sv,
           say: eclipseHides
               ? 'Earth hides the Sun (lunar eclipse)'

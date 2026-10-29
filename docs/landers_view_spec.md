@@ -476,10 +476,10 @@ LightClass? landerClassAt(LanderMesh m, int tri, LightFrame? near, Int32List? ne
   - `meshSkyline` at the ridge azimuth equals `atan2((R+H)cos t − (R+2), (R+H) sin t)` within 0.01°.
   - Each vertex's `lookAt` el and dist are exact to 1e-9° / 1e-6 m.
   - With H = 0 the 150 km dip equals the formula.
-- **T4 `flat sphere: everything beyond the geometric horizon is culled`.** Flat h = 0: no kept part 1/2 triangle has `dmin > √(2R·2 m) + 1 cell` (about 2.6 km + 400 m). Every triangle nearer than 2.6 km − 1 cell is kept.
+- **T4 `flat sphere: everything beyond the geometric horizon is culled`.** Flat h = 0: no kept part 1/2 triangle has `dmin > √(2R·2 m) + √2 cells` (about 2.6 km + 566 m; the ground's elevation is stationary at the horizon, so the cull's vertex and bulge bounds prove hiding only about one cell diagonal beyond it). Every triangle nearer than 2.6 km − 1 cell is kept.
 - **T5 `skyline matches computeCoarseHorizon on the shipped DEM`.**
   - Sites: SR1 (`derosa2012-sr1-shackleton-rim`), Haworth (`artemis3-haworth`), Mons Mouton (`artemis3-mons-mouton`), and the custom spot (−80.05°, 1.44°E).
-  - Compare at 2 m, minDist 600, 0.5° steps. Required: mean |Δ| ≤ 0.05°, p95 ≤ 0.2°, max ≤ 0.4° (A's prototype: max 0.20°).
+  - Compare the unculled mesh at 2 m, minDist 600, 0.5° steps (the culled mesh's minDist-0 skyline must equal the unculled one). A minDist-600 skyline holds no ground nearer than 600 m and all ground beyond 600 m + 1 cell, so Δ is the distance from the mesh skyline to the interval [coarse horizon from 1000 m, coarse horizon from 600 m] (the plain difference wherever the two coincide; they must coincide at more than a third of the azimuths). Required: mean Δ ≤ 0.05°, p95 ≤ 0.2°, max ≤ 0.4° (A's prototype: max 0.20°).
   - Print the per-site figures for formula.md.
 - **T6 `projectView orientation`.**
   - Yaw 0: az 90 → x > w/2 and az 270 → x < w/2.
@@ -494,7 +494,7 @@ LightClass? landerClassAt(LanderMesh m, int tri, LightFrame? near, Int32List? ne
   - `discOutline` points lie at angular distance ρ = asin(695700/r) within 1e-9.
   - State is `belowHorizon` iff el + ρ < 0, and `behindTerrain` iff the top limb is under the skyline with el + ρ ≥ 0.
 - **T8 `culling is conservative`.**
-  - On 5 random synthetic DEMs (smooth noise ± 2 km), `meshSkyline(culled) == meshSkyline(cull: false)` exactly.
+  - On 5 random synthetic DEMs (smooth noise ± 2 km), `meshSkyline(culled, minDistM: 0) == meshSkyline(cull: false, minDistM: 0)` exactly, and the stored far skyline equals the unculled minDist-800 skyline (a minDist-800 skyline of the culled mesh may be lower: far ground hidden by a part 1 triangle with dmin < 800 m is rightly culled).
   - Every triangle containing a vertex visible by brute force (el above the max el of all unculled triangles with smaller `dmax` at that azimuth) is kept.
 - **T9 `painter order vs ray-cast id buffer`.** On a 200×100 view of a synthetic scene, the last triangle in draw order covering each pixel centre (in projected 2-D) equals the nearest ray hit (brute-force ray/triangle) for ≥ 99.5 % of pixels.
 - **T10 `near field: lattice, alpha and budget`.**

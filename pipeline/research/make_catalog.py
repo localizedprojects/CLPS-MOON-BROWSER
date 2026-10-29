@@ -3,7 +3,10 @@
     python research/make_catalog.py      (from pipeline/)
 
 Writes ``lunarsp/site_catalog.json``. Every preset keeps its sources and the
-fact-checker's notes; coordinates are copied verbatim (no edits).
+fact-checker's notes; coordinates are copied verbatim (no edits). Notes listed in
+``catalog_notes_neutral.json`` replace the research wording with the same text in the third
+person (the shipped notes are never first person; ``tests/test_data_provenance.py``).
+``tests/test_catalog_build.py`` checks that this script reproduces the committed catalogue.
 """
 
 from __future__ import annotations
@@ -13,6 +16,7 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 RESEARCH = HERE / "site_research_verified.json"
+NEUTRAL_NOTES = HERE / "catalog_notes_neutral.json"
 OUT = HERE.parent / "lunarsp" / "site_catalog.json"
 
 GROUPS = [
@@ -20,10 +24,14 @@ GROUPS = [
      "note": "NASA's nine candidate regions (28 Oct 2024). Each is a ~15 x 15 km area; the preset is the approximate "
              "region centre from LROC/Henriksen et al. 2023 mosaic extents, NOT an official landing point. "
              "Slater Plain is omitted: no published centre coordinates were found."},
-    {"id": "illumination", "name": "High-illumination points (literature)",
-     "note": "Exact points from De Rosa et al. 2012 (Planet. Space Sci.), selected for long sunlight in that study."},
-    {"id": "missions", "name": "Missions",
-     "note": "Actual landed positions (LROC) and published mission-area centres."},
+    {"id": "illumination", "name": "ESA Lunar Lander candidate sites (De Rosa et al. 2012)",
+     "note": "Exact points from De Rosa et al. 2012 (Planet. Space Sci.), 'Characterisation of potential landing "
+             "sites for ESA's Lunar Lander project', selected for long sunlight in that study."},
+    {"id": "missions", "name": "Missions (NASA CLPS and international)",
+     "note": "NASA Commercial Lunar Payload Services (CLPS) landers: IM-1 and IM-2 landed positions (LROC) and "
+             "IM-2's intended target; NASA's VIPER rover area (a published mission-area centre); and international "
+             "missions: China's Chang'e-7 and ISRO-JAXA's LUPEX / Chandrayaan-5. The two international points are "
+             "unofficial, secondhand candidates (low confidence), not announced landing coordinates."},
 ]
 
 PICKS = [
@@ -44,11 +52,16 @@ PICKS = [
     ("im-2-athena-landed", "missions", "IM-2 Athena (landed)"),
     ("viper-mission-area-center", "missions", "VIPER mission area"),
     ("im-1-odysseus-landed", "missions", "IM-1 Odysseus (landed)"),
+    ("im-2-intended-target", "missions", "IM-2 Athena (intended target)"),
+    ("change-7-planned-landing", "missions", "Chang'e-7 (planned)"),
+    ("lupex-chandrayaan-5-candidate", "missions", "LUPEX / Chandrayaan-5 (candidate)"),
 ]
 
 
-def main() -> None:
+def build() -> dict:
+    """The catalogue as written to ``OUT``."""
     research = json.loads(RESEARCH.read_text(encoding="utf-8"))
+    neutral = json.loads(NEUTRAL_NOTES.read_text(encoding="utf-8"))["notes"]
     by_id = {}
     for fam in research["families"]:
         for s in fam["sites"]:
@@ -66,11 +79,15 @@ def main() -> None:
             "lat": s["lat_deg"],
             "lon": s["lon_deg_east"],
             "sources": [{"title": x["title"], "url": x["url"], "says": x["what_it_says"]} for x in s["sources"]],
-            "notes": s["notes"],
+            "notes": neutral.get(rid, s["notes"]),
         })
-    OUT.write_text(json.dumps({"retrieved": research["retrievedUtc"], "method": research["method"],
-                               "groups": GROUPS, "sites": sites}, indent=1, ensure_ascii=False), encoding="utf-8")
-    print(f"wrote {len(sites)} presets -> {OUT}")
+    return {"retrieved": research["retrievedUtc"], "method": research["method"], "groups": GROUPS, "sites": sites}
+
+
+def main() -> None:
+    catalog = build()
+    OUT.write_text(json.dumps(catalog, indent=1, ensure_ascii=False), encoding="utf-8")
+    print(f"wrote {len(catalog['sites'])} presets -> {OUT}")
 
 
 if __name__ == "__main__":

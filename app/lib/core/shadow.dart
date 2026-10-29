@@ -69,16 +69,40 @@ class ShadowGrid {
   }
 
   /// Pixel (row, col) of a lat/lon on this grid.
-  (double, double) pixelOf(double latDeg, double lonDeg) {
-    final (x, y) = latLonToXY(latDeg, lonDeg);
-    return (size / 2 - 0.5 - y / pxM, x / pxM + size / 2 - 0.5);
-  }
+  (double, double) pixelOf(double latDeg, double lonDeg) => gridPixelOf(size, pxM, latDeg, lonDeg);
 
   /// Square window of [side] pixels centred on (row, col), kept inside the grid.
-  GridWindow windowAround(double row, double col, int side) {
-    final s = side.clamp(1, size);
-    int place(double centre) => (centre - s / 2 + 0.5).round().clamp(0, size - s);
-    return GridWindow(place(row), place(col), s);
+  GridWindow windowAround(double row, double col, int side) => gridWindowAround(size, row, col, side);
+}
+
+/// Pixel (row, col) of a lat/lon on a pole-centred grid of [gridSize] px of
+/// [pxM] map metres ([ShadowGrid.pixelOf]; shared with the lander's view).
+(double, double) gridPixelOf(int gridSize, double pxM, double latDeg, double lonDeg) {
+  final (x, y) = latLonToXY(latDeg, lonDeg);
+  return (gridSize / 2 - 0.5 - y / pxM, x / pxM + gridSize / 2 - 0.5);
+}
+
+/// Square window of [side] pixels centred on (row, col), kept inside a grid
+/// of [gridSize] px ([ShadowGrid.windowAround]).
+GridWindow gridWindowAround(int gridSize, double row, double col, int side) {
+  final s = side.clamp(1, gridSize);
+  int place(double centre) => (centre - s / 2 + 0.5).round().clamp(0, gridSize - s);
+  return GridWindow(place(row), place(col), s);
+}
+
+/// Block means of DEM row-block [r] (grid row r of a downsample-[ds] grid),
+/// grid columns [c0]..[c1]-1, into [out] from [outOffset]: the arithmetic of
+/// [ShadowGridBuilder.step] (double sum in i, j order, then / (ds * ds)), so
+/// every caller gets bit-identical heights.
+void blockMeanRow(Int16List heights, int demSize, int ds, int r, int c0, int c1, Float64List out, int outOffset) {
+  for (var c = c0; c < c1; c++) {
+    var sum = 0.0;
+    for (var i = 0; i < ds; i++) {
+      for (var j = 0; j < ds; j++) {
+        sum += heights[(r * ds + i) * demSize + c * ds + j];
+      }
+    }
+    out[outOffset + c - c0] = sum / (ds * ds);
   }
 }
 
@@ -92,6 +116,7 @@ class ShadowGridBuilder {
   final int n;
   final double px;
   final Float32List _z;
+  Float64List? _row;
   int _r = 0;
 
   /// See [ShadowGrid.sweepRefSize] (in DEM pixels; null: the whole DEM).
@@ -104,18 +129,14 @@ class ShadowGridBuilder {
 
   /// Builds up to [rows] more rows; true once every row is done.
   bool step(int rows) {
-    final n = this.n, px = this.px, z = _z, heights = this.heights, demSize = this.demSize, downsample = this.downsample;
+    final n = this.n, px = this.px, z = _z;
     final half = n / 2;
     final rEnd = math.min(n, _r + rows);
+    final row = _row ??= Float64List(n);
     for (var r = _r; r < rEnd; r++) {
+      blockMeanRow(heights, demSize, downsample, r, 0, n, row, 0);
       for (var c = 0; c < n; c++) {
-        var sum = 0.0;
-        for (var i = 0; i < downsample; i++) {
-          for (var j = 0; j < downsample; j++) {
-            sum += heights[(r * downsample + i) * demSize + c * downsample + j];
-          }
-        }
-        final h = sum / (downsample * downsample);
+        final h = row[c];
         final x = (c + 0.5 - half) * px, y = (half - 0.5 - r) * px;
         final colat = 2 * math.atan(math.sqrt(x * x + y * y) / (2 * rM));
         z[r * n + c] = (rM + h) * math.cos(colat) - rM;

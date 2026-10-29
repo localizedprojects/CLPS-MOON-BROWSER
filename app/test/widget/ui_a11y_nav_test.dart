@@ -347,7 +347,10 @@ void main() {
       expect(tester.takeException(), isNull);
       expect(find.byType(Slider), findsOneWidget);
       expect(find.byIcon(Icons.skip_next), findsOneWidget);
-      expect(find.byType(TextButton), findsNothing);
+      // the one text button is "Time shown" (an exact date and time, fix 4); the next window is the icon
+      expect(find.byType(TextButton), findsOneWidget);
+      expect(find.descendant(of: find.byType(TextButton), matching: find.byKey(const ValueKey('scrubber-time'))),
+          findsOneWidget);
     });
   });
 

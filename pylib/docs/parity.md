@@ -16,9 +16,12 @@ never committed); its full source is stored in each golden file under
 - `gitHead`: the app commit the probe ran on. The goldens were first made from a development
   commit of 2026-10-12 and **regenerated on 2026-10-28** for the 2280 px DEM (to about 75 S);
   that run was on uncommitted work over `cfa9c85` (`gitDirty: true`) that became `d4b27df`,
-  and the recorded SHA-256 of every core file and asset match the app at `d4b27df`,
-- the SHA-256 of `landing.dart`, `timeseries.dart`, `shadow.dart` and the other core files
-  and of `light_engine.dart`, and of the asset files used,
+  and the recorded SHA-256 of every core file and asset match the app at `d4b27df`. They were
+  **regenerated again on 2026-10-29** for the lunar-eclipse model (`eclipse.dart`, see below),
+  on uncommitted work over `83a1b5b` (`gitDirty: true`) with the same probe source,
+- the SHA-256 of `landing.dart`, `timeseries.dart`, `visibility.dart`, `eclipse.dart` (pinned
+  since 2026-10-29), `shadow.dart` and the other core files and of `light_engine.dart`, and of
+  the asset files used,
 - the Flutter version (3.44.6).
 
 The ephemeris was loaded over the whole bundled coverage (start 2025-01-01), which is what
@@ -47,6 +50,28 @@ of cases 1-4 under each goal; `longestGapPerWindow` and `slidingMin` on a fixed 
 pseudo-random input (inputs stored); the custom site's coarse masks (2 m and 10 m, 720
 values each) and terrain height.
 
+#### Lunar eclipses in the cases
+
+Since 2026-10-29 the app (and this library, `eclipse.py`) removes Earth's disk from the Sun's
+during a lunar eclipse (Earth hides the Sun seen from the Moon): inside the 16-strip
+integration with the terrain, plus the `center` / `full_disk` rules (formula.md). Two cases
+span one:
+
+- **Case 2** (Malapert Peak, 10 m) spans the 2027-08-17 penumbral eclipse: 6 samples,
+  06:00-08:30 UTC, with Earth covering up to 44.3 % of the Sun while the terrain alone left it
+  all visible. No flag changed (upper limb: part of the disk still shows), so the flag and DSN
+  SHA-256 and the flag sums are as before. What moved: `sumPower` 19 215 195.967 ->
+  19 212 939.808; `meanPowerWm2` 1096.7578 -> 1096.6290; `energyKWhM2` 9607.598 -> 9606.470;
+  stored sample 113 (2027-08-17 08:30 UTC) `sunFrac` 1.0000 -> 0.8743, `power` 1320.60 ->
+  1154.61; and in the suggested window of the 14-day plan, of the 7-day `nextFullFit` and of
+  the 14-day not-before plan, under each of the three goals, `minSunFraction` 1.0000 -> 0.5568
+  and `minPowerWm2` 1320.10 -> 735.36. Window times, statuses, scores and ranks are unchanged.
+- **Case 3** (Haworth) spans the 2026-08-28 partial eclipse: 10 samples, 02:00-06:30 UTC,
+  up to total cover, but the Sun is behind Haworth's terrain throughout, so no number moved.
+
+Cases 1, 4 and 5 have no sample where the disks overlap. The shadow golden does not depend on
+the eclipse model (the light map is terrain only) and is unchanged apart from its provenance.
+
 ### Cases (golden_shadow.json)
 
 Region grid (the 80-90 S block of the 400 m DEM averaged by 2, 760 px, `region_window`) at 2027-01-15T00:00Z and 2027-07-01T12:00Z;
@@ -58,7 +83,8 @@ size, z at 8 fixed pixels and the sum of z, for both grids.
 ## Tolerances and measured differences
 
 Measured on 2026-10-12 with numpy 2.5.4, Python 3.14, Windows 11; every parity test passed again
-against the regenerated goldens on 2026-10-28 (numpy 2.5.4, Python 3.13, Linux).
+against the regenerated goldens on 2026-10-28 and on 2026-10-29 (numpy 2.5.4, Python 3.13,
+Linux; the eclipse samples of case 2 included).
 
 | What | Tolerance (DESIGN.md 4.4) | Measured |
 |---|---|---|
@@ -100,6 +126,7 @@ or the DEMs and skip without them).
 | `test_plan_parity.py` (P-plan) | every golden plan case through the lower-level modules |
 | `test_shadow_parity.py` (P-shadow) | the shadow golden |
 | `test_bundled_matches_app.py` | the bundled files are byte-identical to `app/assets/data` |
+| `test_eclipse.py` | the port of `app/test/core/eclipse_test.dart`: overlap geometry, the occulter in the 16-strip integration, the Sun rules, and the 2026-03-03 total eclipse at Malapert Peak (bit-for-bit unchanged outside it) |
 
 ## Regenerating the goldens
 

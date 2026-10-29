@@ -2002,6 +2002,6 @@ String landerFidelityText(String heightText, {required bool custom, bool eclipse
     'because the light engine does not use it. The 400 m terrain smooths small hills and rims, so the drawn skyline '
     'can differ from the '
     '${custom ? 'coarse horizon computed on this device (dashed)' : 'site\'s sharper horizon (dashed, from the 80 m / 240 m DEM)'} '
-    'by about a degree; the status words use the precise horizon.'
+    'by about a degree. The words on the view ("Sun · in view") follow the drawn 400 m terrain; the status line uses the precise horizon.'
     '${eclipse ? ' $lightEclipseFidelity' : ''}'
     '${coarse ? ' While playing, the light uses a coarser grid; pause for full detail.' : ''}';

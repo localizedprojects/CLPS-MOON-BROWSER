@@ -13,6 +13,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
+import 'package:flutter/semantics.dart';
 import 'package:flutter/services.dart';
 
 import '../core/dem.dart';
@@ -129,8 +130,9 @@ class LanderViewPanelState extends State<LanderViewPanel> with TickerProviderSta
   double get _tMs => widget.near?.request.tMs ?? _s.cursorMs;
 
   @override
-  void didUpdateWidget(LanderViewPanel old) {
-    super.didUpdateWidget(old);
+  void didUpdateWidget(LanderViewPanel oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final old = oldWidget;
     if (!identical(old.near, widget.near) || old.layer != widget.layer) {
       _recolor();
       _syncFar();
@@ -652,7 +654,8 @@ class LanderPainter extends CustomPainter {
       canvas.drawLine(p + Offset(-r, 0), p + Offset(r, 0), ring);
     }
     final t = _text('${isSun ? 'Sun' : 'Earth'} · ${landerSkyWord(b.state)}', size: 11, color: color);
-    final x = (p.dx + r + 8).clamp(4.0, math.max(4.0, size.width - t.width - 4)), y = (p.dy - t.height / 2).clamp(52.0, size.height - t.height - 4);
+    final x = (p.dx + r + 8).clamp(4.0, math.max(4.0, size.width - t.width - 4)).toDouble(),
+        y = (p.dy - t.height / 2).clamp(52.0, math.max(52.0, size.height - t.height - 4)).toDouble();
     canvas.drawRect(Rect.fromLTWH(x - 3, y - 1, t.width + 6, t.height + 2), Paint()..color = PH.bg.withValues(alpha: 0.75));
     t.paint(canvas, Offset(x, y));
   }

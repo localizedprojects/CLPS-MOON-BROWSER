@@ -1192,6 +1192,10 @@ class AppState extends ChangeNotifier {
   @visibleForTesting
   set lightEngineForTest(LightEngine e) => _light = Future.value(e);
 
+  /// Tests: a synthetic DEM in place of the shipped 400 m one (the lander's view builds its mesh from [dem]).
+  @visibleForTesting
+  set demForTest(PolarGrid g) => _demJob = Future.value(g);
+
   /// Shadow engine behind the light & shadow map (started on first use; a
   /// failed start, e.g. the DEM fetch going offline, is tried again on the
   /// next call instead of failing for good, async-7).

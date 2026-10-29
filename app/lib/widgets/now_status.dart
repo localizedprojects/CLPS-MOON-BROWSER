@@ -217,9 +217,7 @@ class NowStatus extends StatelessWidget {
     return [
       line(true, 18.8, false),
       line(false, -18.8, false),
-      line(false, 1, true, eclipse: 0.99),
-      line(true, -18.8, false, eclipse: 0.99, sun: farEcl),
-      line(false, -18.8, false, eclipse: 0.99),
+      line(false, 1, true, eclipse: 1),
     ];
   }
 

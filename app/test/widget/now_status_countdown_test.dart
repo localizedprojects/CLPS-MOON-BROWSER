@@ -11,6 +11,8 @@ import 'package:polar_horizon/theme.dart';
 import 'package:polar_horizon/widgets/chart_bridge.dart' show nowAt;
 import 'package:polar_horizon/widgets/now_status.dart';
 
+import 'light_test_fonts.dart';
+
 Map<String, dynamic> _body({double el = 3, double hz = 0, double rho = 0.27, double frac = 1, bool visible = true}) =>
     {'az': 10.0, 'el': el, 'hz': hz, 'rho': rho, 'frac': frac, 'visible': visible};
 
@@ -136,6 +138,48 @@ void main() {
       expect(sun['power'], 0.0);
       expect(sun['visible'], isFalse);
       if (sun['eclipseHides'] == true) expect(sun['say'], eclipseHidesText(sun['eclipse'] as double));
+    });
+
+    // last in the group: it changes the site and the dates
+    testWidgets('the reserved height holds through a lunar eclipse (its wordings are in the samples)', (tester) async {
+      await tester.runAsync(() async {
+        await loadPlexFonts();
+        await state.selectSite('artemis3-haworth');
+        await state.setRange(DateTime.utc(2027, 7, 1), DateTime.utc(2027, 10, 1));
+      });
+      tester.view.physicalSize = const Size(334, 900);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      await tester.pumpWidget(MaterialApp(
+          theme: buildTheme(),
+          home: Scaffold(
+              body: ListenableBuilder(
+                  listenable: state,
+                  builder: (_, _) =>
+                      SingleChildScrollView(child: NowStatus(key: const ValueKey('ns'), state: state, dense: true, reserve: true))))));
+      Future<double> heightAt(DateTime t) async {
+        state.setCursor(t.millisecondsSinceEpoch.toDouble());
+        await tester.pump();
+        return tester.getSize(find.byKey(const ValueKey('ns'))).height;
+      }
+
+      final base = await heightAt(DateTime.utc(2027, 8, 16, 12));
+      var eclipsed = 0;
+      for (var m = 0; m < 8 * 60; m += 5) {
+        final t = DateTime.utc(2027, 8, 17, 3).add(Duration(minutes: m));
+        final ecl = (nowAt(state.eph!, state.observer, state.mask, t.millisecondsSinceEpoch.toDouble(), state.options)['sun']
+            as Map<String, dynamic>)['eclipse'] as double;
+        if (ecl > 0) eclipsed++;
+        if (ecl > 0 && m % 30 == 0) {
+          final h = await heightAt(t);
+          final txt = tester.widget<Text>(find.byKey(const ValueKey('nowCountdown'))).textSpan!.toPlainText();
+          // ignore: avoid_print
+          print('DBG $t $ecl h=$h base=$base ${txt.length} $txt');
+        }
+        expect(await heightAt(t), base, reason: '$t (eclipse $ecl)');
+      }
+      expect(eclipsed, greaterThan(0), reason: 'the 2027-08-17 eclipse is seen from the site');
+      expect(tester.takeException(), isNull);
     });
   });
 }

@@ -78,9 +78,15 @@ V3 mapPointM(double xM, double yM, double hM) {
 }
 
 /// Fractional (row, col) of map (x, y) on [p]'s grid, and the cell's
-/// top-left corner (clamped like PolarGrid.sampleXY); null outside.
-(int, int, double, double)? _cellOf(TerrainPatch p, double xM, double yM) {
-  final col = xM / p.pxM + p.gridSize / 2 - 0.5, row = p.gridSize / 2 - 0.5 - yM / p.pxM;
+/// top-left corner (clamped like PolarGrid.sampleXY); null outside, or with
+/// [clamp] the nearest point of the patch (only for a near-field lattice
+/// point past the DEM's edge, a site within 800 m of it).
+(int, int, double, double)? _cellOf(TerrainPatch p, double xM, double yM, {bool clamp = false}) {
+  var col = xM / p.pxM + p.gridSize / 2 - 0.5, row = p.gridSize / 2 - 0.5 - yM / p.pxM;
+  if (clamp) {
+    row = row.clamp(p.r0.toDouble(), (p.r0 + p.side - 1).toDouble());
+    col = col.clamp(p.c0.toDouble(), (p.c0 + p.side - 1).toDouble());
+  }
   if (row < p.r0 || col < p.c0 || row > p.r0 + p.side - 1 || col > p.c0 + p.side - 1) return null;
   var r0 = row.floor(), c0 = col.floor();
   if (r0 > p.r0 + p.side - 2) r0 = p.r0 + p.side - 2;
@@ -117,8 +123,8 @@ double patchBilinearAt(TerrainPatch p, double xM, double yM) {
 }
 
 /// The fan corners (grid row/col of TL) and weights at map (x, y); null outside.
-(int, int, (double, double, double, double))? _fanAt(TerrainPatch p, double xM, double yM) {
-  final c = _cellOf(p, xM, yM);
+(int, int, (double, double, double, double))? _fanAt(TerrainPatch p, double xM, double yM, {bool clamp = false}) {
+  final c = _cellOf(p, xM, yM, clamp: clamp);
   if (c == null) return null;
   final (r0, c0, fr, fc) = c;
   return (r0, c0, fanWeights(fc, fr));
@@ -489,7 +495,7 @@ class LanderMeshWork {
     final (sx, sy) = latLonToXY(latDeg, lonDeg);
     final en = cam.enu;
     void put(int id, double x, double y) {
-      final (r, c, (a, b, d, e)) = _fanAt(near, x, y)!;
+      final (r, c, (a, b, d, e)) = _fanAt(near, x, y, clamp: true)!;
       final ws = [a, b, d, e], ks = [r * demSize + c, r * demSize + c + 1, (r + 1) * demSize + c, (r + 1) * demSize + c + 1];
       var hh = 0.0;
       final hs = [near.at(r, c), near.at(r, c + 1), near.at(r + 1, c), near.at(r + 1, c + 1)];
@@ -1019,17 +1025,21 @@ List<({double e, double n, double u})> discOutline(double azDeg, double elDeg, d
   return bestT < 0 ? null : (tri: bestT, distM: best, az: azDeg, el: elDeg);
 }
 
-String _deg(double v, {bool sign = false}) {
-  final s = v.abs().toStringAsFixed(1);
-  return sign ? '${v < 0 && s != '0.0' ? '-' : '+'}$s°' : '$s°';
-}
-
-/// The view's Semantics description (screen readers).
+/// The view's Semantics description (screen readers), in words: whole
+/// degrees of azimuth, elevations to 0.1° as "up"/"down". [facing] names the
+/// direction ("the Sun", "north"); each body's [state] is the app's status
+/// wording (e.g. "in view", "behind terrain", "below the horizon"); [centre]
+/// is what the centre probe found, e.g. "23 kilometres away: sunlit" (null:
+/// no sentence).
 String describeLanderView({required String facing, required double yawDeg,
     required ({double az, double el, String state}) sun, required ({double az, double el, String state}) earth,
     String? centre}) {
-  String body(String name, ({double az, double el, String state}) b) =>
-      '$name at azimuth ${_deg(b.az)}, elevation ${_deg(b.el, sign: true)}: ${b.state}.';
-  return "Lander's view facing $facing (${_deg(yawDeg)}). ${body('Sun', sun)} ${body('Earth', earth)}"
-      '${centre == null ? '' : ' Centre: $centre.'}';
+  int az(double a) => a.round() % 360;
+  String body(String name, ({double az, double el, String state}) b) {
+    final e = b.el.abs().toStringAsFixed(1);
+    return '$name $e degrees ${b.el < 0 && e != '0.0' ? 'down' : 'up'}, azimuth ${az(b.az)} degrees, ${b.state}.';
+  }
+
+  return "Lander's view, facing $facing, azimuth ${az(yawDeg)} degrees. ${body('Sun', sun)} ${body('Earth', earth)}"
+      '${centre == null ? '' : ' Ground at the centre, $centre.'}';
 }

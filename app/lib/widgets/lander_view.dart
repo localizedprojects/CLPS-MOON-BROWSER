@@ -22,18 +22,50 @@ import '../state/app_state.dart';
 import '../state/lander_light.dart';
 import '../state/light_engine.dart';
 import '../theme.dart';
+import '../core/wording.dart' show bodyStateShort;
+import 'chart_bridge.dart' show nowAt, utcLabel;
+import 'glyphs.dart';
 import 'light_map.dart' show lightFrameEclipse, lightFrameEclipsed, lightRequestFor;
 import 'no_page_swipe.dart';
 
 typedef SkyBody = ({double az, double el, double rhoDeg, SkyState state});
 
-/// The status word of a body against the drawn 400 m terrain.
+/// The status word of a body against the drawn 400 m terrain (the mesh's
+/// own skyline), in the callouts' four words (§5).
 String landerSkyWord(SkyState s) => switch (s) {
       SkyState.up => 'in view',
-      SkyState.partlyBehindTerrain => 'partly behind terrain',
+      SkyState.partlyBehindTerrain => 'partly hidden',
       SkyState.behindTerrain => 'behind terrain',
-      SkyState.belowHorizon => 'below the horizon',
+      SkyState.belowHorizon => 'below horizon',
     };
+
+/// The callouts' word for a [bodyStateShort] code of the precise horizon
+/// mask (the status line's verdict): "in view", "partly hidden", "behind
+/// terrain" or "below horizon". Earth up but out of DSN reach is in view.
+String landerPreciseWord(String code) => switch (code) {
+      'up' || 'noDsn' => 'in view',
+      'partly' || 'notCounted' => 'partly hidden',
+      'belowHorizon' => 'below horizon',
+      _ => 'behind terrain',
+    };
+
+/// The play badge (§6): a separate short FidelityBadge while playing.
+String landerPlayFidelity({required bool web}) =>
+    'Approximate: while playing, light from coarser grids (800 m, 1.6 km beyond 64 km); pause for detail.'
+    '${web ? ' Light beyond 64 km waits until you pause.' : ''}';
+
+/// The caption under the view (§6).
+String landerCaption({required String height, required String site, required String utc}) =>
+    'From the lander: $height above the ground at $site, $utc. Terrain and light come from the same 400 m LOLA '
+    'grid and the same computed frame as the map; the Sun and Earth are at their exact positions.';
+
+/// The reference line's label (§5): the precise mask for presets, the
+/// on-device coarse horizon for custom spots.
+String landerMaskLabel({required bool custom}) =>
+    custom ? 'Coarse horizon (400 m, this device)' : 'Horizon mask (LOLA 80 m/240 m)';
+
+/// The compass strip's tooltip and accessible name (§5).
+const landerCompassLabel = 'Compass: N is away from the pole';
 
 String landerClassWord(LightClass? k) => switch (k) {
       null => 'light not computed',
@@ -83,9 +115,13 @@ class LanderViewPanel extends StatefulWidget {
   final LightLayer layer;
   final double width, maxHeight;
   final Future<PolarGrid> Function()? demForTest;
+
+  /// Receives the built mesh (the light map's FidelityBadge reads its eye
+  /// height and DEM ends, §6 (g) and (h)).
+  final ValueNotifier<LanderMesh?>? meshOut;
   const LanderViewPanel(
       {super.key, required this.state, required this.near, required this.layer, required this.width,
-      this.maxHeight = double.infinity, this.demForTest});
+      this.maxHeight = double.infinity, this.demForTest, this.meshOut});
 
   static const buttonsWidth = 7 * 48.0;
 
@@ -199,6 +235,7 @@ class LanderViewPanelState extends State<LanderViewPanel> with TickerProviderSta
       _mesh = m;
       _recolor();
     });
+    widget.meshOut?.value = m;
     _syncFar();
   }
 
@@ -257,6 +294,27 @@ class LanderViewPanelState extends State<LanderViewPanel> with TickerProviderSta
     return sun ? skyBody(_s.observer, eph.sun(t), 695700, sky) : skyBody(_s.observer, eph.earth(t), 6378.1366, sky);
   }
 
+  Object? _nowKey;
+  Map<String, dynamic>? _now;
+
+  /// The precise-mask words of the Sun and Earth at the shown moment (the
+  /// status line's [nowAt] verdict, §5 callout line 2).
+  ({String sun, String earth}) get _precise {
+    final s = _s, key = (s.eph, s.site, s.observerHeightM, s.mask, _tMs, s.options);
+    if (key != _nowKey || _now == null) {
+      _now = nowAt(s.eph!, s.observer, s.mask, _tMs, s.options);
+      _nowKey = key;
+    }
+    String word(String b) {
+      final m = _now![b] as Map<String, dynamic>;
+      double n(String k) => (m[k] as num).toDouble();
+      return landerPreciseWord(m['state'] as String? ??
+          bodyStateShort(visible: m['visible'] == true, elDeg: n('el'), rhoDeg: n('rho'), frac: n('frac')));
+    }
+
+    return (sun: word('sun'), earth: word('earth'));
+  }
+
   void _refreshText({bool live = false}) {
     if (_s.eph == null) return;
     final sun = _body(true), earth = _body(false), m = _mesh;
@@ -281,8 +339,8 @@ class LanderViewPanelState extends State<LanderViewPanel> with TickerProviderSta
     final text = describeLanderView(
         facing: facing,
         yawDeg: cam.yaw,
-        sun: (az: sun.az, el: sun.el, state: landerSkyWord(sun.state)),
-        earth: (az: earth.az, el: earth.el, state: landerSkyWord(earth.state)),
+        sun: (az: sun.az, el: sun.el, state: _precise.sun),
+        earth: (az: earth.az, el: earth.el, state: _precise.earth),
         centre: centre);
     if (!mounted) return;
     setState(() {
@@ -361,14 +419,14 @@ class LanderViewPanelState extends State<LanderViewPanel> with TickerProviderSta
   }
 
   void turnBy(double d) => animateTo(yaw: cam.yaw + d);
-  void faceSun() {
+  void faceSun({bool live = true}) {
     final b = _body(true);
-    animateTo(yaw: b.az, pitch: b.el.clamp(-landerPitchMax, landerPitchMax).toDouble());
+    animateTo(yaw: b.az, pitch: b.el.clamp(-landerPitchMax, landerPitchMax).toDouble(), live: live);
   }
 
-  void faceEarth() {
+  void faceEarth({bool live = true}) {
     final b = _body(false);
-    animateTo(yaw: b.az, pitch: b.el.clamp(-landerPitchMax, landerPitchMax).toDouble());
+    animateTo(yaw: b.az, pitch: b.el.clamp(-landerPitchMax, landerPitchMax).toDouble(), live: live);
   }
 
   void level() => animateTo(pitch: 0);
@@ -429,9 +487,27 @@ class LanderViewPanelState extends State<LanderViewPanel> with TickerProviderSta
     final w = widget.width, rows = w >= LanderViewPanel.buttonsWidth ? 1 : 2;
     final scaler = MediaQuery.textScalerOf(context);
     final wide = w >= 600 && scaler.scale(14) <= 18;
-    final viewH = math.max(120.0, math.min(math.max(0.62 * w, 220.0), widget.maxHeight - 8 - 48.0 * rows - 48));
-    final sun = _body(true), earth = _body(false);
+    final sun = _body(true), earth = _body(false), words = _precise;
     final near = _nearFrame, far = _far != null && near != null && _far!.request.tMs == near.request.tMs;
+    final h = s.observerHeightM;
+    final notes = <String>[
+      if (widget.layer != LightLayer.earth && words.sun != 'in view' && words.sun != 'partly hidden')
+        'No direct sunlight here now. Ground in shadow is drawn dark; Earthshine is not computed.',
+      if (near != null && !far)
+        'Grey ground: light not computed (beyond 64 km${s.playing ? ', not computed while playing on the web' : ''}).',
+      landerCaption(
+          height: '${h.toStringAsFixed(h == h.roundToDouble() ? 0 : 1)} m', site: s.site.short, utc: utcLabel(_tMs)),
+    ];
+    // the notes' measured height, so the panel fits [widget.maxHeight]
+    var notesH = 0.0;
+    for (final n in notes) {
+      final tp = TextPainter(
+          text: TextSpan(text: n, style: PHText.small), textDirection: TextDirection.ltr, textScaler: scaler, maxLines: 4)
+        ..layout(maxWidth: w);
+      notesH += tp.height;
+      tp.dispose();
+    }
+    final viewH = math.max(120.0, math.min(math.max(0.62 * w, 220.0), widget.maxHeight - 8 - 48.0 * rows - notesH));
     final status = _meshError != null
         ? 'The view could not be built: $_meshError'
         : _mesh == null
@@ -447,9 +523,11 @@ class LanderViewPanelState extends State<LanderViewPanel> with TickerProviderSta
       patterns: _patterns,
       sun: sun,
       earth: earth,
+      sunWord: words.sun,
+      earthWord: words.earth,
       maskDeg: s.mask.elevDeg,
       maskStepDeg: s.mask.azStepDeg,
-      maskLabel: s.site.custom ? 'Coarse horizon (400 m, on device)' : 'Site horizon (sharper DEM)',
+      maskLabel: landerMaskLabel(custom: s.site.custom),
       probe: _probe,
       status: status,
       focused: _focused,
@@ -486,7 +564,12 @@ class LanderViewPanelState extends State<LanderViewPanel> with TickerProviderSta
               key: const ValueKey('lander-view'),
               onTapUp: (d) {
                 _focus.requestFocus();
-                final a = unprojectView(cam.view(Size(w, viewH)), d.localPosition.dx, d.localPosition.dy);
+                final v = cam.view(Size(w, viewH));
+                // a disc callout (48 dp target) turns to its body
+                for (final (r, isSun) in LanderPainter.calloutTargets(v, sun, earth)) {
+                  if (r.contains(d.localPosition)) return isSun ? faceSun(live: false) : faceEarth(live: false);
+                }
+                final a = unprojectView(v, d.localPosition.dx, d.localPosition.dy);
                 animateTo(yaw: a.az, pitch: a.el, live: false);
               },
               onScaleStart: (d) {
@@ -512,7 +595,40 @@ class LanderViewPanelState extends State<LanderViewPanel> with TickerProviderSta
                 _lastFling = Duration.zero;
                 _fling.start();
               },
-              child: RepaintBoundary(child: CustomPaint(size: Size(w, viewH), painter: painter)),
+              child: Stack(children: [
+                RepaintBoundary(child: CustomPaint(size: Size(w, viewH), painter: painter)),
+                // the compass strip (48 dp, drawn by the painter): tap turns to
+                // that azimuth (an edge chevron: to its body), drag turns
+                Positioned(
+                  left: 0,
+                  right: 0,
+                  top: 0,
+                  height: LanderPainter.compassH,
+                  child: Semantics(
+                    label: landerCompassLabel,
+                    onTap: () => press(faceSun),
+                    child: Tooltip(
+                      message: landerCompassLabel,
+                      excludeFromSemantics: true,
+                      child: GestureDetector(
+                        key: const ValueKey('lander-compass'),
+                        behavior: HitTestBehavior.opaque,
+                        excludeFromSemantics: true,
+                        onTapUp: (d) {
+                          _focus.requestFocus();
+                          final v = cam.view(Size(w, viewH));
+                          final chev = LanderPainter.chevronAt(v, sun, earth, d.localPosition);
+                          if (chev != null) return chev ? faceSun(live: false) : faceEarth(live: false);
+                          final a = unprojectView(v, d.localPosition.dx, v.h / 2);
+                          animateTo(yaw: a.az, live: false);
+                        },
+                        onHorizontalDragUpdate: (d) => cam.set(yaw: cam.yaw - d.delta.dx * cam.hfov / w),
+                        onHorizontalDragEnd: (_) => _settled(),
+                      ),
+                    ),
+                  ),
+                ),
+              ]),
             ),
           ),
         ),
@@ -535,20 +651,13 @@ class LanderViewPanelState extends State<LanderViewPanel> with TickerProviderSta
       btn(Icons.zoom_in, 'Zoom in', () => zoom(1 / 1.25)),
       btn(Icons.rotate_right, 'Turn right 15°', () => turnBy(15)),
     ]);
-    final notes = <String>[
-      if (widget.layer != LightLayer.earth && sun.state == SkyState.belowHorizon)
-        'No direct sunlight here now. Ground in shadow is drawn dark; Earthshine is not computed.',
-      if (near != null && !far)
-        'Grey ground: light not computed (beyond 64 km${s.playing ? ', not computed while playing on the web' : ''}).',
-      'Compass: N points away from the pole. Drag to look around, tap to turn there.',
-    ];
     return SizedBox(
       width: w,
       child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
         ClipRRect(borderRadius: BorderRadius.circular(PH.radiusInner), child: SizedBox(height: viewH, child: view)),
         const SizedBox(height: 4),
         buttons,
-        for (final n in notes) Text(n, style: PHText.small.copyWith(color: PH.muted), maxLines: 2, overflow: TextOverflow.ellipsis),
+        for (final n in notes) Text(n, style: PHText.small.copyWith(color: PH.muted), maxLines: 4, overflow: TextOverflow.ellipsis),
       ]),
     );
   }

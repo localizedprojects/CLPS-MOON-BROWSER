@@ -458,7 +458,14 @@ Int32List landerFrameIndex(LanderMesh m, LightFrame f, {required bool far}); // 
 Int32List landerVertexColors(LanderMesh m, LightFrame? near, Int32List? nearIdx, LightFrame? far, Int32List? farIdx, LightLayer layer); // ARGB
 Uint8List landerPatternAlpha(LanderMesh m, LightFrame? near, Int32List? nearIdx, LightFrame? far, Int32List? farIdx, LightLayer layer, LightPattern p);
 LightClass? landerClassAt(LanderMesh m, int tri, LightFrame? near, Int32List? nearIdx, LightFrame? far, Int32List? farIdx, LightLayer layer); // dominant weight, null = not computed
+// added while building (core light):
+const int landerNotComputedArgb = 0xFF6E737B; // = light_map.dart beyondMapGround (tested), since this file has no Flutter
+const double landerAlbedo = 0.55;
+Int32List landerPatternColors(LanderMesh m, LightFrame? near, Int32List? nearIdx, LightFrame? far, Int32List? farIdx, LightLayer layer, LightPattern p); // ARGB for §4.4 step 2: on-pattern colour lightPixel(cls, shade, 0, 0, 1), alpha = landerPatternAlpha
+LightClass? landerVertexClass(LanderMesh m, int v, LightFrame? near, Int32List? nearIdx, LightFrame? far, Int32List? farIdx, LightLayer layer); // dominant weight of one vertex (S2, S6)
 ```
+
+Ties in the dominant weight go to the first class in `LightClass` order, "not computed" last.
 
 ### Widgets and app
 

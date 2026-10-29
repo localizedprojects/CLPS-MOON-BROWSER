@@ -169,12 +169,6 @@ void main() {
       }
     }
     bad.expectNone();
-    { // PROBE
-      final sw = Stopwatch()..start();
-      for (var i = 0; i < 20; i++) { landerVertexColors(m, f, idx, f, idx, LightLayer.values[i % 3]); }
-      // ignore: avoid_print
-      print('PROBE recolour ${m.vertexCount} vertices: ${sw.elapsedMicroseconds / 20} us');
-    }
     expect(pixels, greaterThan(3 * 5000));
     expect(centres, greaterThan(3 * 5000));
     expect(notComputed, greaterThan(0));

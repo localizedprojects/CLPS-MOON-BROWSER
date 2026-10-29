@@ -135,7 +135,7 @@ void main() {
           z[r * gs + c] = (rM + patch.at(r, c)) * math.cos(colat) - rM;
         }
       }
-      expect(Uint32List.view(z.buffer), Uint32List.view(g.z.buffer), reason: 'ds $ds');
+      expect(Uint32List.sublistView(z), Uint32List.sublistView(g.z), reason: 'ds $ds');
       // a window gives the same block means as the whole grid
       final win = gridWindowAround(gs, gs / 3, gs / 2, gs ~/ 2);
       final sub = blockMeanPatch(heights, n, px, ds, win);
@@ -211,7 +211,7 @@ void main() {
       expect(sky150[360], closeTo(want150, 0.01));
       expect(want150, lessThan(m150.skyline[360] - 1), reason: 'the 150 km ridge is under the near skyline');
       // every grid vertex: lookAt equals the curvature formula
-      final near = blockMeanPatch(ridgeDem(n, [row20], hR), n, px, 1, GridWindow(m20.cam.latDeg == lat ? 0 : 0, 0, n));
+      final near = blockMeanPatch(ridgeDem(n, [row20], hR), n, px, 1, const GridWindow(0, 0, n));
       for (var r = 0; r < n; r += 7) {
         for (var c = 0; c < n; c += 5) {
           final (x, y) = gridCentreM(n, px, r, c);
@@ -256,7 +256,20 @@ void main() {
     final all = buildLanderMesh(dem, n, px, latDeg: lat, lonDeg: lon, observerHeightM: 2, cull: false);
     final dHor = math.sqrt(2 * rM * 2);
     double dmax(LanderMesh m, int t) => [for (var q = 0; q < 3; q++) hyp(m, m.tri[3 * t + q])].reduce(math.max);
-    double dmin(LanderMesh m, int t) => [for (var q = 0; q < 3; q++) hyp(m, m.tri[3 * t + q])].reduce(math.min);
+    // 2-D distance from the eye's axis to the triangle in the (e, n) plane
+    double dmin(LanderMesh m, int t) {
+      final v = [for (var q = 0; q < 3; q++) (m.e[m.tri[3 * t + q]].toDouble(), m.n[m.tri[3 * t + q]].toDouble())];
+      double seg((double, double) a, (double, double) b) {
+        final dx = b.$1 - a.$1, dy = b.$2 - a.$2, l = dx * dx + dy * dy;
+        final s = l == 0 ? 0.0 : (-(a.$1 * dx + a.$2 * dy) / l).clamp(0.0, 1.0);
+        return math.sqrt(math.pow(a.$1 + s * dx, 2) + math.pow(a.$2 + s * dy, 2));
+      }
+
+      final c = [for (var k = 0; k < 3; k++) v[k].$1 * v[(k + 1) % 3].$2 - v[k].$2 * v[(k + 1) % 3].$1];
+      if (c.every((x) => x >= 0) || c.every((x) => x <= 0)) return 0;
+      return math.min(seg(v[0], v[1]), math.min(seg(v[1], v[2]), seg(v[2], v[0])));
+    }
+
     var nearKept = 0, nearAll = 0;
     for (var t = 0; t < m.triangleCount; t++) {
       if (m.part[m.tri[3 * t]] == 0) continue;

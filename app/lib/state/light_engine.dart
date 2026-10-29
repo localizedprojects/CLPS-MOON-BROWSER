@@ -11,7 +11,7 @@ import 'dart:typed_data';
 
 import '../core/dem.dart' show latLonToXY;
 import '../core/geo.dart';
-import '../core/horizon_compute.dart' show coarseMaxM;
+import '../core/lander_view.dart' show landerFarPx;
 import '../core/shadow.dart';
 import 'light_engine_io.dart' if (dart.library.js_interop) 'light_engine_web.dart' as impl;
 
@@ -38,7 +38,7 @@ class LightRequest {
   final bool coarse;
 
   /// The lander's view's far frame: a site-centred window of the region grid
-  /// (800 m; 1.6 km while [coarse]) reaching [coarseMaxM] (300 km) from the
+  /// (800 m; 1.6 km while [coarse]) reaching 300 km (coarseMaxM) from the
   /// site on each axis ([lightFarPx] px). Implies [closeUp] == false.
   final bool far;
   const LightRequest({required this.closeUp, required this.lat, required this.lon,
@@ -58,8 +58,9 @@ class LightRequest {
 /// Which frame [LightRequest] a view asks for (see `lightRequestFor`).
 enum LightExtent { closeUp, region, far }
 
-/// Side (px) of the far frame on a grid of [pxM] metres: 2 x 300 km.
-int lightFarPx(double pxM) => (2 * coarseMaxM / pxM).ceil();
+/// Side (px) of the far frame on a grid of [pxM] metres: 2 x 300 km (the
+/// lander's view's far patch, [landerFarPx]).
+int lightFarPx(double pxM) => landerFarPx(pxM);
 
 /// One computed frame, geo-referenced in polar-stereographic map metres.
 class LightFrame {

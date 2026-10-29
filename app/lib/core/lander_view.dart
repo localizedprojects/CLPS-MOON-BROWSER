@@ -152,10 +152,10 @@ LanderCamera landerCamera(TerrainPatch near, double latDeg, double lonDeg, doubl
 ({double az, double el, double dist}) lookAt(LanderCamera c, V3 pM) {
   final v = pM - c.eyeM;
   final e = v.dot(c.enu.east), n = v.dot(c.enu.north), u = v.dot(c.enu.up);
-  return (az: _az(e, n), el: math.atan2(u, math.sqrt(e * e + n * n)) * rad, dist: v.norm);
+  return (az: _azOf(e, n), el: math.atan2(u, math.sqrt(e * e + n * n)) * rad, dist: v.norm);
 }
 
-double _az(double e, double n) {
+double _azOf(double e, double n) {
   var a = math.atan2(e, n) * rad;
   if (a < 0) a += 360.0;
   if (a >= 360.0) a -= 360.0;
@@ -293,7 +293,7 @@ void _skyTri(Float64List sky, double step, Float64List sinA, Float64List cosA, F
 Float64List _vertexAz(Float32List e, Float32List n) {
   final a = Float64List(e.length);
   for (var i = 0; i < e.length; i++) {
-    a[i] = _az(e[i], n[i]);
+    a[i] = _azOf(e[i], n[i]);
   }
   return a;
 }
@@ -412,7 +412,9 @@ class LanderMeshWork {
     _tv = Int32List(3 * cap);
     _tp = Uint8List(cap);
     _tk = Uint32List(cap);
-    (_sinA, _cosA) = _azTables(720, 0.5);
+    final (sa, ca) = _azTables(720, 0.5);
+    _sinA = sa;
+    _cosA = ca;
     _phases = [
       (() => sN, (i) => _patchRow(near, heights, demSize, i)),
       (() => sF, (i) => _patchRow(far, heights, demSize, i)),
@@ -460,12 +462,11 @@ class LanderMeshWork {
     _n[id] = v.dot(cam.enu.north);
     _u[id] = v.dot(cam.enu.up);
     final e = _e[id], n = _n[id], u = _u[id], dh = math.sqrt(e * e + n * n);
-    _az[id] = _az0(e, n);
+    _az[id] = _azOf(e, n);
     _el[id] = math.atan2(u, dh) * rad;
     _dh[id] = dh;
   }
 
-  static double _az0(double e, double n) => _az(e, n);
 
   void _pixelRow(TerrainPatch p, int base, int i) {
     for (var j = 0; j < p.side; j++) {
@@ -755,7 +756,7 @@ class LanderMeshWork {
       tri[3 * i] = a;
       tri[3 * i + 1] = b;
       tri[3 * i + 2] = c;
-      final caz = _az((e[a] + e[b] + e[c]) / 3, (n[a] + n[b] + n[c]) / 3);
+      final caz = _azOf((e[a] + e[b] + e[c]) / 3, (n[a] + n[b] + n[c]) / 3);
       sec[(caz / 10).floor() % landerSectorCount].add(i);
     }
     _mesh = LanderMesh(cam, e, n, u, alpha, part, src, w, tri, [for (final s in sec) Int32List.fromList(s)],
@@ -831,7 +832,7 @@ _Basis _basis(LanderView v) {
   final (fe, fn, fu, re, rn, ue, un, uu, f, _) = _basis(v);
   final a = (x - v.w / 2) / f, b = -(y - v.h / 2) / f;
   final de = fe + a * re + b * ue, dn = fn + a * rn + b * un, du = fu + b * uu;
-  return (az: _az(de, dn), el: math.atan2(du, math.sqrt(de * de + dn * dn)) * rad);
+  return (az: _azOf(de, dn), el: math.atan2(du, math.sqrt(de * de + dn * dn)) * rad);
 }
 
 /// Sectors whose azimuths can show on screen: yaw ± (half the widest

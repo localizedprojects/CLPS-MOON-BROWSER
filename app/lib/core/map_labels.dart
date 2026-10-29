@@ -155,8 +155,8 @@ List<MapLabel> placeMapLabels({
         if (found != null) break;
       }
       // the first label always shows (only an obstacle or the edge can be in
-      // its way): shifted into view, at the first spot then clear of the
-      // obstacles (above, else as is)
+      // its way): shifted into view, at the first spot clear of the obstacles
+      // and its own marker, a little farther out if need be (else above)
       if (found == null && placed.isEmpty) {
         LabelBox fit(LabelBox b) {
           if (bounds == null || !shown(i)) return b;
@@ -165,8 +165,17 @@ List<MapLabel> placeMapLabels({
           return LabelBox(b.left + dx, b.top + dy, b.right + dx, b.bottom + dy);
         }
 
-        final tries = [for (final spot in LabelSpot.values) (fit(labelBoxAt(spot, x, y, reach[i], w, h, gap: gap)), spot)];
-        found = tries.firstWhere((t) => !obstacles.any(t.$1.overlaps), orElse: () => tries.first);
+        for (final extra in const [0.0, 8.0, 16.0, 24.0]) {
+          for (final spot in LabelSpot.values) {
+            final b = fit(labelBoxAt(spot, x, y, reach[i], w, h, gap: gap + extra));
+            if (!obstacles.any(b.overlaps) && !b.overlaps(markers[i])) {
+              found = (b, spot);
+              break;
+            }
+          }
+          if (found != null) break;
+        }
+        found ??= (fit(labelBoxAt(LabelSpot.above, x, y, reach[i], w, h, gap: gap)), LabelSpot.above);
       }
       if (found == null) {
         failed = i;

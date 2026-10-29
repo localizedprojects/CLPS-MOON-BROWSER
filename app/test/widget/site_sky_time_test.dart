@@ -170,8 +170,9 @@ void main() {
       final semantics = tester.ensureSemantics();
       await pump(tester, SingleChildScrollView(child: NowStatus(state: state)));
       expect(find.text('Power + Earth in view now'), findsOneWidget);
-      // only the one statement: no separate Sun or Earth chips
-      expect(find.descendant(of: find.byType(NowStatus), matching: find.byType(Text)), findsOneWidget);
+      // only the one statement (and the countdown line under it): no separate Sun or Earth chips
+      expect(find.descendant(of: find.byType(NowStatus), matching: find.byType(Text)), findsNWidgets(2));
+      expect(find.byKey(const ValueKey('nowCountdown')), findsOneWidget);
       expect(find.textContaining('Sun up'), findsNothing);
       final node = tester.getSemantics(find.byType(NowStatus));
       expect(node.getSemanticsData().flagsCollection.isLiveRegion, isTrue);
@@ -191,7 +192,7 @@ void main() {
         if (!seen.add(l.both)) continue;
         state.setCursor(t);
         await pump(tester, SingleChildScrollView(child: NowStatus(state: state)));
-        final texts = find.descendant(of: find.byType(NowStatus), matching: find.byType(Text));
+        final texts = find.descendant(of: find.byType(NowStatus), matching: find.byKey(const ValueKey('nowStatement')));
         expect(texts, findsOneWidget, reason: l.both);
         expect(tester.widget<Text>(texts).data, l.both);
         final glyphs = find.descendant(of: find.byType(NowStatus), matching: find.byType(MeaningGlyph));
@@ -222,7 +223,7 @@ void main() {
         expect(hit, isNotNull, reason: 'the default site has a time with Earth up and no DSN dish');
         state.setCursor(hit!);
         await pump(tester, SingleChildScrollView(child: NowStatus(state: state)));
-        final text = tester.widget<Text>(find.descendant(of: find.byType(NowStatus), matching: find.byType(Text))).data!;
+        final text = tester.widget<Text>(find.byKey(const ValueKey('nowStatement'))).data!;
         expect(text, contains('no DSN dish can reach Earth'));
         expect(NowStatus.statements(requireDsn: true).map((e) => e.$1), contains(text));
         final label = tester.getSemantics(find.byType(NowStatus)).label;

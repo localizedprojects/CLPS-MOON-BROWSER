@@ -66,15 +66,24 @@ void main() {
     state = AppState();
     await state.init();
     engine = _FakeEngine();
-    state.lightEngineForTest = engine;
-    state.demForTest = _dem();
   });
   tearDown(() => state.dispose());
+
+  // The fakes go in from inside the test body, as light_map_test installs its
+  // engine: the hooks wrap them in Future.value, and a future made in setUp
+  // belongs to the real zone, so the panel (running in the widget test's fake
+  // zone) awaiting it never resumes while the test only pumps; the mesh then
+  // never starts. On a device there is one zone and the same code runs as is.
+  void installFakes() {
+    state.lightEngineForTest = engine;
+    state.demForTest = _dem();
+  }
 
   // the preset nearest the pole: inside the synthetic DEM (±51 km)
   Future<void> nearPole(WidgetTester tester) async {
     final site = state.allSites.reduce((a, b) => a.lat < b.lat ? a : b);
     await tester.runAsync(() => state.selectSite(site.id));
+    installFakes();
   }
 
   LightFrame nearFrame({bool coarse = false, double? t}) =>
@@ -161,7 +170,9 @@ void main() {
     await nearPole(tester);
     await tester.pumpWidget(panel(near: nearFrame()));
     await meshReady(tester);
-    expect(find.ancestor(of: find.byType(CustomPaint).first, matching: find.byType(NoPageSwipe)), findsWidgets);
+    final viewPaint = find.descendant(of: find.byKey(const ValueKey('lander-view')), matching: find.byType(CustomPaint));
+    expect(viewPaint, findsOneWidget);
+    expect(find.ancestor(of: viewPaint, matching: find.byType(NoPageSwipe)), findsOneWidget);
     final p = panelState(tester), c = tester.getCenter(find.byKey(const ValueKey('lander-view')));
     final g = await tester.startGesture(c);
     await g.moveBy(const Offset(30, 0));

@@ -1,6 +1,6 @@
 /// The time bar of Site › Sky & time and Light & shadow: Play, ‹ Day, the
-/// time slider, Day ›, the UTC time on two lines and the next Sun + Earth
-/// stretch. The screens pin it, so it never scrolls away.
+/// time slider, Day ›, the UTC time on two lines (a button: an exact date and
+/// time) and the next Sun + Earth stretch. The screens pin it, so it never scrolls away.
 library;
 
 import 'dart:math' as math;
@@ -10,7 +10,7 @@ import 'package:flutter/semantics.dart' show SemanticsService;
 
 import '../core/metrics.dart' show NextStretch, bothAt;
 import '../core/summary.dart' show date;
-import '../core/wording.dart' show fmtDuration;
+import '../core/wording.dart' show everyStep, fmtDuration, periodDates;
 import '../state/app_state.dart';
 import '../theme.dart';
 import 'chart_bridge.dart' show utcLabel;
@@ -23,6 +23,32 @@ import 'feature_guide.dart';
   final t = DateTime.fromMillisecondsSinceEpoch(ms.round(), isUtc: true);
   String two(int v) => v.toString().padLeft(2, '0');
   return (date(ms), '${two(t.hour)}:${two(t.minute)} UTC');
+}
+
+/// The date picker's first and last day for the time shown: the UTC days of
+/// the period's start and of its last sample ([AppState.lastCursorMs]), as
+/// UTC midnights. Days outside them are disabled in the picker.
+(DateTime, DateTime) cursorPickerDays(double startMs, double lastMs) {
+  DateTime day(double ms) {
+    final t = DateTime.fromMillisecondsSinceEpoch(ms.round(), isUtc: true);
+    return DateTime.utc(t.year, t.month, t.day);
+  }
+
+  return (day(startMs), day(math.max(startMs, lastMs)));
+}
+
+/// The time shown for a picked UTC day and time of day: the nearest sample
+/// of the period's series (every [stepMs] from [startMs], so what the sky
+/// and the timeline show is that very moment), kept inside
+/// [startMs, lastMs]. The second value is true when the time had to move
+/// to the period's start or end (it lies outside the period).
+(double, bool) pickedCursorMs(DateTime day, int hour, int minute,
+    {required double startMs, required double lastMs, required double stepMs}) {
+  final want = DateTime.utc(day.year, day.month, day.day, hour, minute).millisecondsSinceEpoch.toDouble();
+  final last = math.max(startMs, lastMs);
+  final snapped = startMs + ((want - startMs) / stepMs).round() * stepMs;
+  final t = snapped.clamp(startMs, last);
+  return (t, want < startMs || want > last);
 }
 
 /// The time bar's link to the next Sun + Earth stretch from the cursor: a good
@@ -82,6 +108,59 @@ class _TimeScrubberState extends State<TimeScrubber> {
     _hideFocus.dispose();
     _showFocus.dispose();
     super.dispose();
+  }
+
+  /// "Time shown": pick an exact UTC day (only days in the period can be
+  /// picked; typing another one says to change the dates in Mission
+  /// settings), then the hour and minute (24 h, UTC). The time goes to the
+  /// nearest sample of the series ([pickedCursorMs]); Play pauses first.
+  Future<void> _pickTime() async {
+    final s = state;
+    if (s.playing) s.togglePlay();
+    final (first, last) = cursorPickerDays(s.rangeStartMs, s.lastCursorMs);
+    final cur = DateTime.fromMillisecondsSinceEpoch(s.cursorMs.round(), isUtc: true);
+    var initial = DateTime.utc(cur.year, cur.month, cur.day);
+    if (initial.isBefore(first)) initial = first;
+    if (initial.isAfter(last)) initial = last;
+    final period = periodDates(s.rangeStartMs, s.rangeEndMs);
+    final day = await showDatePicker(
+      context: context,
+      firstDate: first,
+      lastDate: last,
+      initialDate: initial,
+      helpText: 'Day shown (UTC), in your dates',
+      fieldLabelText: 'Day (UTC)',
+      errorInvalidText: 'Outside your dates ($period). To go there, change them in Mission settings.',
+      // the reason for a refused day is a sentence: let it wrap
+      builder: (context, child) => Theme(
+        data: Theme.of(context).copyWith(
+            inputDecorationTheme: Theme.of(context).inputDecorationTheme.copyWith(errorMaxLines: 3)),
+        child: child!,
+      ),
+    );
+    if (day == null || !mounted) return;
+    final step = s.options.stepMs;
+    final time = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay(hour: cur.hour, minute: cur.minute),
+      helpText: 'Time shown (UTC), to the nearest sample (${everyStep(step)})',
+      // UTC on a 24-hour clock, whatever the device's own setting
+      builder: (context, child) =>
+          MediaQuery(data: MediaQuery.of(context).copyWith(alwaysUse24HourFormat: true), child: child!),
+    );
+    if (time == null || !mounted) return;
+    // the period may have changed while the pickers were open: use the current one
+    final (ms, moved) =
+        pickedCursorMs(day, time.hour, time.minute, startMs: s.rangeStartMs, lastMs: s.lastCursorMs, stepMs: s.options.stepMs);
+    s.setCursor(ms);
+    final shown = 'Time shown: ${utcLabel(s.cursorMs)}';
+    if (moved) {
+      ScaffoldMessenger.maybeOf(context)?.showSnackBar(SnackBar(
+          content: Text('That time is outside your dates (${periodDates(s.rangeStartMs, s.rangeEndMs)}), so the nearest '
+              'one is shown. '
+              'To go further, change the dates in Mission settings.')));
+    }
+    SemanticsService.sendAnnouncement(View.of(context), shown, Directionality.of(context));
   }
 
   /// Fold or open the bar from its own button: keyboard focus moves to the
@@ -222,21 +301,48 @@ class _TimeScrubberState extends State<TimeScrubber> {
           final labelWidth = math.max(widestDay, width(timeText)) + 8;
           final buttons = 48.0 * (compact ? 5 : 4); // with the hide chevron
           final inline = c.maxWidth - buttons - labelWidth >= TimeScrubber.minSliderWidth;
+          // a button: it opens a date and then a time picker (an exact
+          // moment, which the slider cannot reach on a phone)
           final time = Semantics(
-            label: 'Time shown: $label',
+            button: true,
+            label: 'Time shown: $label. Choose an exact date and time',
             excludeSemantics: true,
-            child: SizedBox(
-              // (2 px to spare: text laid out at exactly its own width can wrap)
-              width: labelWidth - 6,
-              // always its two lines: a third would make the bar taller, and
-              // the bar is pinned by its bottom edge, so Pause would jump up
-              child: Text('$dayText\n$timeText',
-                  key: const ValueKey('scrubber-time'),
-                  textAlign: TextAlign.center,
-                  softWrap: false,
-                  maxLines: 2,
-                  overflow: TextOverflow.visible,
-                  style: labelStyle.copyWith(height: 1.3)),
+            onTap: _pickTime,
+            child: Tooltip(
+              message: 'Choose an exact date and time (UTC)',
+              excludeFromSemantics: true,
+              child: TextButton(
+                key: const ValueKey('time-pick'),
+                onPressed: _pickTime,
+                style: ButtonStyle(
+                  // no padding: the label keeps the width measured above
+                  padding: const WidgetStatePropertyAll(EdgeInsets.zero),
+                  minimumSize: const WidgetStatePropertyAll(Size(48, 48)),
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  foregroundColor: const WidgetStatePropertyAll(PH.text),
+                  // the measured style, so the two lines never wrap
+                  textStyle: WidgetStatePropertyAll(shownStyle),
+                  shape: const WidgetStatePropertyAll(
+                      RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(PH.radius)))),
+                  // a hairline says it is a control; the 2 px ice ring shows focus
+                  side: WidgetStateProperty.resolveWith((st) => st.contains(WidgetState.focused)
+                      ? const BorderSide(color: PH.ice, width: 2)
+                      : const BorderSide(color: PH.line)),
+                ),
+                child: SizedBox(
+                  // (2 px to spare: text laid out at exactly its own width can wrap)
+                  width: labelWidth - 6,
+                  // always its two lines: a third would make the bar taller, and
+                  // the bar is pinned by its bottom edge, so Pause would jump up
+                  child: Text('$dayText\n$timeText',
+                      key: const ValueKey('scrubber-time'),
+                      textAlign: TextAlign.center,
+                      softWrap: false,
+                      maxLines: 2,
+                      overflow: TextOverflow.visible,
+                      style: labelStyle.copyWith(height: 1.3)),
+                ),
+              ),
             ),
           );
           final nextIcon = GuideTarget(id: 'time-next', child: IconButton(tooltip: nextText, onPressed: goNext, icon: const Icon(Icons.skip_next)));

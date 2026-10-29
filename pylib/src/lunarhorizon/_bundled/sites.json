@@ -1,5 +1,5 @@
 {
- "generatedUtc": "2026-10-10T09:43:01Z",
+ "generatedUtc": "2026-10-29T12:27:24Z",
  "frame": "MOON_ME (LOLA DE421 mean-Earth compatible)",
  "dem": "LOLA LDEM_80S_80M (near) + LDEM_75S_240M (far, to 600 km); exact spherical-Moon geometry",
  "observerHeightsM": [
@@ -16,13 +16,13 @@
   },
   {
    "id": "illumination",
-   "name": "High-illumination points (literature)",
-   "note": "Exact points from De Rosa et al. 2012 (Planet. Space Sci.), selected for long sunlight in that study."
+   "name": "ESA Lunar Lander candidate sites (De Rosa et al. 2012)",
+   "note": "Exact points from De Rosa et al. 2012 (Planet. Space Sci.), 'Characterisation of potential landing sites for ESA's Lunar Lander project', selected for long sunlight in that study."
   },
   {
    "id": "missions",
-   "name": "Missions",
-   "note": "Actual landed positions (LROC) and published mission-area centres."
+   "name": "Missions (NASA CLPS and international)",
+   "note": "NASA Commercial Lunar Payload Services (CLPS) landers: IM-1 and IM-2 landed positions (LROC) and IM-2's intended target; NASA's VIPER rover area (a published mission-area centre); and international missions: China's Chang'e-7 and ISRO-JAXA's LUPEX / Chandrayaan-5. The two international points are unofficial, secondhand candidates (low confidence), not announced landing coordinates."
   }
  ],
  "sites": [
@@ -592,6 +592,107 @@
    "longTermSunlitPct": 40.0,
    "longTermEarthPct": 100.0,
    "longTermBothPct": 40.0
+  },
+  {
+   "id": "im-2-intended-target",
+   "name": "IM-2 intended landing site (Mons Mouton), pre-landing target",
+   "short": "IM-2 Athena (intended target)",
+   "group": "missions",
+   "kind": "region-center-approx",
+   "confidence": "high",
+   "notes": "verified: LROC 1401 was opened and states the coordinate verbatim (east longitude). A search for a second numeric source found only the NASA IM-2 press kit PDF (Feb 2025) and the DLR image page name only 'Mons Mouton', with no coordinates. LROC is therefore the only numeric source, though an authoritative one. Precision is 0.01\u00b0 (about 300 m in latitude, about 30 m in longitude at this latitude). By calculation this point is about 0.37 km from the landed position, which is consistent with the reported '~250 m' given the rounding. This is a target point, not a landed position. Wikipedia says the target was originally a ridge near Shackleton and was moved to Mons Mouton before launch.",
+   "sources": [
+    {
+     "title": "LROC: IM-2 Landing Region (published 26 Feb 2025)",
+     "url": "https://lroc.im-ldi.com/images/1401",
+     "says": "IM-2 intended landing site is at -84.78\u00b0, 29.13\u00b0E, 160 km from the south pole and 175 km from the IM-1 site."
+    },
+    {
+     "title": "Spaceflight Now (7 Mar 2025)",
+     "url": "https://spaceflightnow.com/2025/03/07/intuitive-machines-im-2-mission-ends-with-lander-on-its-side-on-the-moon/",
+     "says": "Athena touched down about 250 m (820 ft) from its intended landing site. No coordinates."
+    }
+   ],
+   "lat": -84.78,
+   "lon": 29.13,
+   "terrainHeightM": 5312.3,
+   "slopeDeg": 1.2,
+   "horizonMaxDeg": 4.01,
+   "horizonMaxAzDeg": 118.25,
+   "horizonMaxDistanceKm": 16.8,
+   "horizonMeanDeg": 1.01,
+   "longTermSunlitPct": 46.3,
+   "longTermEarthPct": 93.3,
+   "longTermBothPct": 43.5
+  },
+  {
+   "id": "change-7-planned-landing",
+   "name": "Chang'e-7 planned landing site (peak near SE ridge of Shackleton)",
+   "short": "Chang'e-7 (planned)",
+   "group": "missions",
+   "kind": "region-center-approx",
+   "confidence": "low",
+   "notes": "verified: Wikipedia states the coordinate, but its only citation is a 2023 Weibo post (ref [4]). Its other landing-site reference, SpaceNews (Jan 2024), only says 'Shackleton'. The Planetary Society, Gunter's Space Page, a 2023 ThePaper interview with chief designer Wu Weiren ('several candidate sites identified') and a 2026 ITHome article ('south of 85\u00b0S') give no coordinates. The NSR payload paper (PMC10880881) could not be fetched because of a CAPTCHA; per the prior researcher and the Planetary Society it shows only a map. No official CNSA coordinate was found. The longitude is east. Sanity checks: the cached LOLA DEM shows this point (about 1632 m) within about 20 m of a local high (1647.5 m at -88.81, 123.71), which is consistent with a 'peak'. By calculation, using the IAU Shackleton center (-89.67, 129.78; D = 21 km), the point lies about 26 km from Shackleton's center, so roughly 15 km outside the rim rather than on it. Treat this as an approximate, unofficial candidate at 0.1\u00b0 precision. Status: rolled out on Long March 5 Y14 on 19 Aug 2026; the launch was scrubbed about 23-24 Aug 2026 (Tropical Storm/Typhoon Narra and readiness) and delayed to 2027.",
+   "sources": [
+    {
+     "title": "Wikipedia: Chang'e 7 (coordinate cites ref [4], a 'Philleafspace' Weibo post of 25 Apr 2023)",
+     "url": "https://en.wikipedia.org/wiki/Chang%27e_7",
+     "says": "Landing site: peak near the southeast ridge of Shackleton crater, 88\u00b048'S 123\u00b024'E (88.8\u00b0S 123.4\u00b0E)."
+    },
+    {
+     "title": "The Planetary Society: Chang'e-7 mission page",
+     "url": "https://www.planetary.org/space-missions/change-7",
+     "says": "No final landing area publicly announced; preferred candidate is the rim of Shackleton crater. No coordinates."
+    },
+    {
+     "title": "Gunter's Space Page: Chang'e 7",
+     "url": "https://space.skyrocket.de/doc_sdat/change-7.htm",
+     "says": "Landing planned near the illuminated rim of Shackleton; no coordinates. Launch delayed to 2027."
+    }
+   ],
+   "lat": -88.8,
+   "lon": 123.4,
+   "terrainHeightM": 1631.8,
+   "slopeDeg": 6.1,
+   "horizonMaxDeg": 4.4,
+   "horizonMaxAzDeg": 142.5,
+   "horizonMaxDistanceKm": 0.1,
+   "horizonMeanDeg": 0.05,
+   "longTermSunlitPct": 57.2,
+   "longTermEarthPct": 60.8,
+   "longTermBothPct": 36.1
+  },
+  {
+   "id": "lupex-chandrayaan-5-candidate",
+   "name": "Chandrayaan-5 / LUPEX (ISRO-JAXA) candidate landing site, Shackleton-de Gerlache connecting ridge",
+   "short": "LUPEX / Chandrayaan-5 (candidate)",
+   "group": "missions",
+   "kind": "region-center-approx",
+   "confidence": "low",
+   "notes": "verified: opened the newsletter; the sentence 'could be 89.45\u00b0S, 222.85\u00b0E' is stated verbatim and attributed to a 2024 IAC talk by ISRO's P. Veeramuthuvel. Converted from 0-360 E: 222.85 - 360 = -137.15 (137.15\u00b0W). Independent corroboration of the region only: an ISRO SAC LPSC 2024 abstract studies the 'proposed LUPEX landing site' with an OHRC image centred at 89.2836\u00b0S, 140.556\u00b0W (= -140.556\u00b0E) on the same ridge, which by calculation is about 5 km away. Sanity check: the cached LOLA DEM shows the point (about 1954 m) is essentially at a local high (1957.5 m within 2 km), consistent with a ridge crest. The number is secondhand and hedged ('could be'), so it is a candidate and not a confirmed target. This is not a CLPS mission; launch is planned around 2028 or later on H3.",
+   "sources": [
+    {
+     "title": "Jatan Mehta, Indian Space Progress issue 25 (4 Apr 2025), citing P. Veeramuthuvel's IAC 2024 talk",
+     "url": "https://jatan.space/indian-space-issue-25/",
+     "says": "Chandrayaan 5's landing site could be 89.45\u00b0S, 222.85\u00b0E, on an elevated ridge connecting Shackleton and de Gerlache craters."
+    },
+    {
+     "title": "Dagar, Nagori, Rajasekhar, Bhattacharya, Bickel (2024), 'Boulders distribution at the proposed LUPEX landing site near lunar south pole using OHRC image', 55th LPSC #1898",
+     "url": "https://www.hou.usra.edu/meetings/lpsc2024/pdf/1898.pdf",
+     "says": "OHRC image of the 'proposed LUPEX landing site' on the Shackleton-de Gerlache ridge, centred at 89.2836\u00b0S, 140.556\u00b0W. This is an image center, not a site point."
+    }
+   ],
+   "lat": -89.45,
+   "lon": -137.15,
+   "terrainHeightM": 1954.4,
+   "slopeDeg": 1.1,
+   "horizonMaxDeg": 0.18,
+   "horizonMaxAzDeg": 344.75,
+   "horizonMaxDistanceKm": 0.3,
+   "horizonMeanDeg": -1.26,
+   "longTermSunlitPct": 84.9,
+   "longTermEarthPct": 58.2,
+   "longTermBothPct": 49.2
   }
  ]
 }

@@ -197,11 +197,11 @@
   "period": "2009-01-01 + 18.6 yr, hourly, surface observer, any part of disk",
   "nearFieldExclusionM": 120.0,
   "regions": {
-   "n": 11,
-   "valuesWithinLola3x3": "21/22",
-   "meanAbsDiffSunPct": 1.78,
-   "maxAbsDiffSunPct": 4.62,
-   "meanAbsDiffEarthPct": 2.02,
+   "n": 14,
+   "valuesWithinLola3x3": "27/28",
+   "meanAbsDiffSunPct": 1.98,
+   "maxAbsDiffSunPct": 5.17,
+   "meanAbsDiffEarthPct": 1.78,
    "maxAbsDiffEarthPct": 14.86
   },
   "ridgePeakPoints": {
@@ -212,7 +212,7 @@
    "meanAbsDiffEarthPct": 2.84,
    "maxAbsDiffEarthPct": 7.17
   },
-  "interpretation": "Region-type sites (11, broad terrain resolved by the DEM): the mean difference from the LOLA maps is 1.8 percentage points for the Sun and 2.0 for Earth, and 21 of 22 values lie inside LOLA's own 3x3-pixel range (+-0.5 points). The largest difference is 14.9 points (VIPER mission area, Earth); LOLA's 3x3 pixels around that site span 36.8-74.3 %, so the value depends strongly on the exact spot. Exact ridge/peak points from higher-resolution studies (5) differ more (mean 7.3 points for the Sun and 2.8 for Earth, 9 of 10 inside LOLA's 3x3 range, largest 20.3 points at Connecting ridge (CR1), Sun): they are dominated by sub-pixel terrain, so their sunlight depends strongly on the exact spot and mast height. This is why the app shows 2 m and 10 m observer heights and labels DEM fidelity.",
+  "interpretation": "Region-type sites (14, broad terrain resolved by the DEM): the mean difference from the LOLA maps is 2.0 percentage points for the Sun and 1.8 for Earth, and 27 of 28 values lie inside LOLA's own 3x3-pixel range (+-0.5 points). The largest difference is 14.9 points (VIPER mission area, Earth); LOLA's 3x3 pixels around that site span 36.8-74.3 %, so the value depends strongly on the exact spot. Exact ridge/peak points from higher-resolution studies (5) differ more (mean 7.3 points for the Sun and 2.8 for Earth, 9 of 10 inside LOLA's 3x3 range, largest 20.3 points at Connecting ridge (CR1), Sun): they are dominated by sub-pixel terrain, so their sunlight depends strongly on the exact spot and mast height. This is why the app shows 2 m and 10 m observer heights and labels DEM fidelity.",
   "sites": [
    {
     "id": "artemis3-haworth",
@@ -484,6 +484,57 @@
     "lolaEarth3x3": [
      1.0,
      1.0
+    ]
+   },
+   {
+    "id": "im-2-intended-target",
+    "name": "IM-2 Athena (intended target)",
+    "kind": "region-center-approx",
+    "oursSunlit": 0.4615818654629312,
+    "oursEarth": 0.9311184436484962,
+    "lolaSunlit": 0.46464000000000005,
+    "lolaSunlit3x3": [
+     0.45392000000000005,
+     0.4656
+    ],
+    "lolaEarth": 0.9311200000000001,
+    "lolaEarth3x3": [
+     0.87916,
+     0.9312400000000001
+    ]
+   },
+   {
+    "id": "change-7-planned-landing",
+    "name": "Chang'e-7 (planned)",
+    "kind": "region-center-approx",
+    "oursSunlit": 0.5390191845346156,
+    "oursEarth": 0.6074162209901379,
+    "lolaSunlit": 0.48736,
+    "lolaSunlit3x3": [
+     0.47824000000000005,
+     0.56184
+    ],
+    "lolaEarth": 0.5858000000000001,
+    "lolaEarth3x3": [
+     0.5179600000000001,
+     0.60624
+    ]
+   },
+   {
+    "id": "lupex-chandrayaan-5-candidate",
+    "name": "LUPEX / Chandrayaan-5 (candidate)",
+    "kind": "region-center-approx",
+    "oursSunlit": 0.7250196261223689,
+    "oursEarth": 0.5682682400274766,
+    "lolaSunlit": 0.7524000000000001,
+    "lolaSunlit3x3": [
+     0.52208,
+     0.8473200000000001
+    ],
+    "lolaEarth": 0.5733600000000001,
+    "lolaEarth3x3": [
+     0.49936,
+     0.58172
     ]
    }
   ]

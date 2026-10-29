@@ -100,7 +100,7 @@
    "url": "https://planetarynames.wr.usgs.gov/Feature/15325"
   }
  ],
- "reviewed": "2026-10-25",
+ "reviewed": "2026-10-29",
  "schema": 1,
  "sites": {
   "artemis3-de-gerlache-rim-2": {
@@ -312,7 +312,7 @@
      "url": "https://moon.nasa.gov/resources/544/mons-mouton"
     },
     {
-     "title": "LROC: IM-2 Landing Region (26 Feb 2025)",
+     "title": "LROC: IM-2 Landing Region (published 26 Feb 2025)",
      "titled": true,
      "url": "https://lroc.im-ldi.com/images/1401"
     },
@@ -471,6 +471,28 @@
      "title": "theregister.com",
      "titled": false,
      "url": "https://www.theregister.com/2026/03/02/nasa_artemis_reshuffle/"
+    }
+   ]
+  },
+  "change-7-planned-landing": {
+   "headline": "Unofficial Chang'e-7 landing point near Shackleton's southeast ridge",
+   "lede": "This point is an unofficial, approximate landing site for China's Chang'e-7 mission: a peak near the southeast ridge of Shackleton crater, at 88.8 S, 123.4 E.",
+   "overview": "This point is an unofficial, approximate landing site for China's Chang'e-7 mission: a peak near the southeast ridge of Shackleton crater, at 88.8 S, 123.4 E. Wikipedia gives this coordinate, citing only a Weibo post from April 2023; no official coordinate from China's space agency, CNSA, was found. The Planetary Society says no final landing area has been announced publicly and that the rim of Shackleton crater is the preferred candidate, and Gunter's Space Page places the landing near the illuminated rim of Shackleton. In the LOLA terrain map the point lies next to a local high, consistent with a peak, but outside Shackleton's rim rather than on it. Gunter's Space Page lists the launch as delayed to 2027.",
+   "sources": [
+    {
+     "title": "Wikipedia: Chang'e 7 (coordinate cites ref [4], a 'Philleafspace' Weibo post of 25 Apr 2023)",
+     "titled": true,
+     "url": "https://en.wikipedia.org/wiki/Chang%27e_7"
+    },
+    {
+     "title": "The Planetary Society: Chang'e-7 mission page",
+     "titled": true,
+     "url": "https://www.planetary.org/space-missions/change-7"
+    },
+    {
+     "title": "Gunter's Space Page: Chang'e 7",
+     "titled": true,
+     "url": "https://space.skyrocket.de/doc_sdat/change-7.htm"
     }
    ]
   },
@@ -672,7 +694,7 @@
      "url": "https://www.iau.org/Iau/News/PR2023/lunar-mountain-melba-roy-mouton.aspx"
     },
     {
-     "title": "Spaceflight Now: IM-2 mission ends with lander on its side (7 Mar 2025)",
+     "title": "Spaceflight Now (7 Mar 2025)",
      "titled": true,
      "url": "https://spaceflightnow.com/2025/03/07/intuitive-machines-im-2-mission-ends-with-lander-on-its-side-on-the-moon/"
     },
@@ -685,6 +707,40 @@
      "title": "nasa.gov",
      "titled": false,
      "url": "https://www.nasa.gov/missions/artemis/nasas-lunar-drill-technology-passes-tests-on-the-moon/"
+    }
+   ]
+  },
+  "im-2-intended-target": {
+   "headline": "IM-2 Athena's intended landing point on Mons Mouton, published by LROC",
+   "lede": "This is where Intuitive Machines' IM-2 lander Athena was aiming to land on Mons Mouton: LROC published the intended landing site on 26 February 2025 at 84.78 S, 29.13 E. LROC puts it 175 km from the IM-1 site.",
+   "overview": "This is where Intuitive Machines' IM-2 lander Athena was aiming to land on Mons Mouton: LROC published the intended landing site on 26 February 2025 at 84.78 S, 29.13 E. LROC puts it 175 km from the IM-1 site. Athena touched down about 250 m from this intended site, according to Spaceflight Now, so this preset is a target point, not a landed position; the IM-2 Athena (landed) preset marks where it came to rest. LROC gives the coordinate to 0.01 degrees, which is about 300 m in latitude.",
+   "sources": [
+    {
+     "title": "LROC: IM-2 Landing Region (published 26 Feb 2025)",
+     "titled": true,
+     "url": "https://lroc.im-ldi.com/images/1401"
+    },
+    {
+     "title": "Spaceflight Now (7 Mar 2025)",
+     "titled": true,
+     "url": "https://spaceflightnow.com/2025/03/07/intuitive-machines-im-2-mission-ends-with-lander-on-its-side-on-the-moon/"
+    }
+   ]
+  },
+  "lupex-chandrayaan-5-candidate": {
+   "headline": "Candidate LUPEX / Chandrayaan-5 site on the Shackleton-de Gerlache ridge",
+   "lede": "This point is a candidate landing site for LUPEX, the ISRO-JAXA mission also called Chandrayaan-5, on an elevated ridge connecting the craters Shackleton and de Gerlache.",
+   "overview": "This point is a candidate landing site for LUPEX, the ISRO-JAXA mission also called Chandrayaan-5, on an elevated ridge connecting the craters Shackleton and de Gerlache. The coordinate, 89.45 S, 137.15 W (given as 222.85 E), comes from a 2025 newsletter by Jatan Mehta reporting a 2024 IAC talk by Veeramuthuvel of ISRO, who said the landing site could be there; it is secondhand and hedged, not a confirmed target. A 2024 LPSC abstract by Dagar and colleagues at ISRO studies boulders at the proposed LUPEX landing site on the same ridge, using an OHRC image centred about 5 km away. In the LOLA terrain map the point sits at a local high, consistent with a ridge crest. LUPEX is not a NASA CLPS mission; its launch is planned for around 2028 or later on an H3 rocket.",
+   "sources": [
+    {
+     "title": "Jatan Mehta, Indian Space Progress issue 25 (4 Apr 2025), citing P. Veeramuthuvel's IAC 2024 talk",
+     "titled": true,
+     "url": "https://jatan.space/indian-space-issue-25/"
+    },
+    {
+     "title": "Dagar, Nagori, Rajasekhar, Bhattacharya, Bickel (2024), 'Boulders distribution at the proposed LUPEX landing site near lunar south pole using OHRC image', 55th LPSC #1898",
+     "titled": true,
+     "url": "https://www.hou.usra.edu/meetings/lpsc2024/pdf/1898.pdf"
     }
    ]
   },

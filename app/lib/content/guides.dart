@@ -43,9 +43,10 @@ const guideSteps = <String, List<GuideStep>>{
     GuideStep('chart-sky', 'The sky plot',
         'The real terrain skyline around the site, with the Sun\'s and Earth\'s paths over your dates. Tap it to see it full screen.'),
     GuideStep('chart-timeline', 'The timeline',
-        'How high the Sun and Earth are over the period, against the skyline under each. Tap it to jump to that moment.'),
+        'How high the Sun and Earth are over the period, against the skyline under each. Tap it to see it full screen.'),
     GuideStep('time-bar', 'Play and the time bar',
-        'Play through the period, step a day at a time, or drag to any moment. Light & shadow follows the same time.'),
+        'Play through the period, step a day at a time, or drag to any moment. Tap the date and time to pick an exact '
+        'moment (UTC). Light & shadow follows the same time.'),
     GuideStep('time-next', 'Next good stretch', 'Jumps to the next time the Sun and Earth are up together.'),
     GuideStep('simple-view', 'Simple view', 'Answers in plain words instead of the full charts.'),
   ],

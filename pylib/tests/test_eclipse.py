@@ -152,7 +152,8 @@ def test_visible_fraction_total_cover_and_no_overlap():
     far = visible_fraction(100, 0.1, RS, flat, occulter=Occulter(1.5, 0.3, RE))
     assert far == visible_fraction(100, 0.1, RS, flat)
     # a zero-radius occulter is exactly no occulter (how arrays mark "no overlap")
-    assert visible_fraction(100, 0.1, RS, flat, occulter=Occulter(0.0, 0.0, 0.0)) == visible_fraction(100, 0.1, RS, flat)
+    no_op = Occulter(0.0, 0.0, 0.0)
+    assert visible_fraction(100, 0.1, RS, flat, occulter=no_op) == visible_fraction(100, 0.1, RS, flat)
 
 
 def test_terrain_and_earth_not_double_counted():

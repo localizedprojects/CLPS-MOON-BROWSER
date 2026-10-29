@@ -96,12 +96,8 @@ class LanderViewPanel extends StatefulWidget {
 class LanderViewPanelState extends State<LanderViewPanel> with TickerProviderStateMixin {
   final cam = LanderCameraController();
   final _focus = FocusNode(debugLabel: 'lander-view');
-  late final AnimationController _turn =
-      AnimationController(vsync: this, duration: const Duration(milliseconds: 400))..addListener(_onTurnTick)
-        ..addStatusListener((st) {
-          if (st == AnimationStatus.completed) _settled();
-        });
-  late final Ticker _fling = createTicker(_onFlingTick);
+  late final AnimationController _turn;
+  late final Ticker _fling;
   double _y0 = 0, _dy = 0, _p0 = 0, _dp = 0, _f0 = 0, _df = 0, _vYaw = 0, _vPitch = 0, _hfovAtStart = 45;
   Duration _lastFling = Duration.zero;
   Offset _lastFocal = Offset.zero;
@@ -123,11 +119,23 @@ class LanderViewPanelState extends State<LanderViewPanel> with TickerProviderSta
   /// Every far-frame request this panel sent (tests).
   final List<LightRequest> farRequests = [];
   LanderMesh? get mesh => _mesh;
+  Object? get meshError => _meshError;
   bool get turning => _turn.isAnimating || _fling.isActive;
 
   AppState get _s => widget.state;
   String get _siteKey => '${_s.site.lat}|${_s.site.lon}|${_s.observerHeightM}';
   double get _tMs => widget.near?.request.tMs ?? _s.cursorMs;
+
+  @override
+  void initState() {
+    super.initState();
+    _turn = AnimationController(vsync: this, duration: const Duration(milliseconds: 400))
+      ..addListener(_onTurnTick)
+      ..addStatusListener((st) {
+        if (st == AnimationStatus.completed) _settled(live: _live);
+      });
+    _fling = createTicker(_onFlingTick);
+  }
 
   @override
   void didUpdateWidget(LanderViewPanel oldWidget) {

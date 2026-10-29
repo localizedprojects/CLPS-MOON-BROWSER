@@ -19,13 +19,15 @@ import 'dart:math' as math;
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
-import 'package:flutter/foundation.dart' show listEquals;
+import 'package:flutter/foundation.dart' show kIsWeb, listEquals;
 import 'package:flutter/material.dart';
 
 import '../core/catalog.dart';
 import '../core/dem.dart';
 import '../core/eclipse.dart';
 import '../core/geo.dart' show Observer;
+import '../core/lander_view.dart' show LanderMesh, landerNearAlpha;
+import '../state/lander_light.dart' show landerNotComputedArgb;
 import '../core/relief.dart';
 import '../core/shadow.dart';
 import '../core/visibility.dart' show EarthCriterion, SunCriterion, earthVisible;
@@ -630,6 +632,9 @@ class _LightMapState extends State<LightMap> {
 
   // legend shares of the shown frame, computed once per frame
   final _labelMemory = ArrowLabelMemory();
+
+  /// The lander's view's mesh (its FidelityBadge reads the eye height and DEM ends).
+  final _landerMesh = ValueNotifier<LanderMesh?>(null);
   LightFrame? _sharesFrame;
   LightShares? _shares;
 
@@ -693,6 +698,7 @@ class _LightMapState extends State<LightMap> {
   @override
   void dispose() {
     _debounce?.cancel();
+    _landerMesh.dispose();
     if (widget.active) LightMap.framePending.value = false;
     _images.dispose();
     _relief.dispose();
@@ -874,7 +880,9 @@ class _LightMapState extends State<LightMap> {
           // no Tooltip on touch (see segLabel); the meaning is in the accessible name
           ButtonSegment(
               value: LightViewKind.lander,
-              label: segLabel(l.view[2], "From the lander (2 m up): what you would see standing on the lander, 2 m above the ground"),
+              label: GuideTarget(
+                  id: 'light-lander',
+                  child: segLabel(l.view[2], "From the lander (2 m up): what you would see standing on the lander, 2 m above the ground")),
               icon: compact ? null : const Icon(Icons.landscape_outlined, size: 18)),
         ],
         selected: {kind},
@@ -913,7 +921,13 @@ class _LightMapState extends State<LightMap> {
     }
 
     final legend = _Legend(
-        layer: img?.layer ?? layer, shares: shares, scope: scope, onMap: onMap, approx: coarseShown, eclipse: eclipse?.sentence);
+        layer: img?.layer ?? layer,
+        shares: shares,
+        scope: scope,
+        onMap: onMap,
+        approx: coarseShown,
+        eclipse: eclipse?.sentence,
+        lander: kind == LightViewKind.lander);
     final status = _StatusLine(
         site: s.site,
         now: now,
@@ -929,7 +943,23 @@ class _LightMapState extends State<LightMap> {
     final pastMap = fine && viewBeyondBaseMap(_targetView, layers.halfWidthM);
     // agreement figures: test/core/shadow_test.dart (16 preset sites x 60 random moments, 2 m observer)
     final badge = kind == LightViewKind.lander
-        ? FidelityBadge(text: landerFidelityText(heightText, custom: s.site.custom, eclipse: eclipse != null, coarse: coarseShown))
+        ? Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+            ValueListenableBuilder<LanderMesh?>(
+                valueListenable: _landerMesh,
+                builder: (context, m, _) {
+                  // the mesh of this site and eye height only
+                  final mine = m != null && m.cam.latDeg == s.site.lat && m.cam.lonDeg == s.site.lon && m.cam.eyeHeightM == h;
+                  return FidelityBadge(
+                      key: const ValueKey('lander-badge'),
+                      text: landerFidelityText(heightText,
+                          custom: s.site.custom,
+                          eyeOffsetM: mine && !s.site.custom ? m.cam.groundM - s.site.terrainHeightM : null,
+                          demEnds: mine ? m.demEnds : const [],
+                          eclipse: eclipse != null));
+                }),
+            if (s.playing) FidelityBadge(key: const ValueKey('lander-play-badge'), text: landerPlayFidelity(web: kIsWeb)),
+            if (s.site.custom) const FidelityBadge(text: FidelityBadge.customHorizon),
+          ])
         : FidelityBadge(
       text: 'Shadows are computed on this device from the NASA LOLA elevation map at ${fine ? '400 m' : '800 m'} '
           'per pixel, for an observer $heightText above the ground, with the Sun\'s and Earth\'s directions from '
@@ -959,6 +989,7 @@ class _LightMapState extends State<LightMap> {
                 near: shownFrame != null && shownFrame.request.closeUp ? shownFrame : null,
                 layer: img?.layer ?? layer,
                 width: side,
+                meshOut: _landerMesh,
                 // a phone in portrait scrolls: the view keeps its full height there
                 maxHeight: bottomMayHide ? double.infinity : side));
       }
@@ -1392,8 +1423,18 @@ class _Legend extends StatelessWidget {
 
   /// A lunar eclipse at the frame's moment ([lightEclipseNote]'s sentence).
   final String? eclipse;
+
+  /// The lander's view: three more keys (light not computed, the
+  /// see-through near ground and the dashed horizon, §4.4).
+  final bool lander;
   const _Legend(
-      {required this.layer, required this.shares, required this.scope, this.onMap, this.approx = false, this.eclipse});
+      {required this.layer,
+      required this.shares,
+      required this.scope,
+      this.onMap,
+      this.approx = false,
+      this.eclipse,
+      this.lander = false});
 
   @override
   Widget build(BuildContext context) {
@@ -1441,9 +1482,54 @@ class _Legend extends StatelessWidget {
             const SizedBox(width: 6),
             Text(p, style: statStyle(size: 14)),
           ]),
+        if (lander)
+          for (final (k, label) in const [
+            (_LanderKey.notComputed, 'Light not computed'),
+            (_LanderKey.seeThrough, 'Near ground, see-through'),
+            (_LanderKey.horizon, 'Horizon (dashed)'),
+          ])
+            Row(mainAxisSize: MainAxisSize.min, children: [
+              CustomPaint(size: const Size(22, 16), painter: _LanderSwatch(k)),
+              const SizedBox(width: 8),
+              Flexible(child: Text(label, style: PHText.small)),
+            ]),
       ]),
     ]);
   }
+}
+
+enum _LanderKey { notComputed, seeThrough, horizon }
+
+/// The lander's view's extra legend keys: its grey, the near ground at its
+/// see-through alpha over the sky, and the dashed reference horizon.
+class _LanderSwatch extends CustomPainter {
+  final _LanderKey k;
+  _LanderSwatch(this.k);
+  @override
+  void paint(Canvas canvas, Size size) {
+    final r = Offset.zero & size;
+    canvas.drawRect(r, Paint()..color = PH.bg);
+    switch (k) {
+      case _LanderKey.notComputed:
+        canvas.drawRect(r, Paint()..color = const Color(landerNotComputedArgb));
+      case _LanderKey.seeThrough:
+        canvas.drawRect(Rect.fromLTWH(0, size.height / 2, size.width, size.height / 2), Paint()..color = PH.sun);
+        canvas.drawRect(r, Paint()..color = const Color(landerNotComputedArgb).withValues(alpha: landerNearAlpha));
+      case _LanderKey.horizon:
+        final p = Paint()
+          ..color = PH.text.withValues(alpha: 0.7)
+          ..strokeWidth = 1.2;
+        for (var x = 1.0; x < size.width; x += 7) {
+          canvas.drawLine(Offset(x, size.height / 2), Offset(math.min(size.width - 1, x + 4), size.height / 2), p);
+        }
+    }
+    canvas.drawRect(r, Paint()
+      ..style = PaintingStyle.stroke
+      ..color = PH.lineStrong);
+  }
+
+  @override
+  bool shouldRepaint(_LanderSwatch old) => old.k != k;
 }
 
 /// Legend swatch: the map's own pixel rule applied to mid-grey terrain.
@@ -1999,15 +2085,32 @@ LightRequest lightRequestFor(AppState s, {required LightExtent extent, double? t
       coarse: coarse ?? s.playing);
 }
 
-/// The lander's view FidelityBadge text (§6).
-String landerFidelityText(String heightText, {required bool custom, bool eclipse = false, bool coarse = false}) =>
-    'A 3D view from $heightText above the ground, built on this device from the same NASA LOLA heights the light '
-    'map uses (400 m grid within 64 km, 800 m beyond), with the map\'s own computed light and shadow for this '
-    'moment and the Sun\'s and Earth\'s directions from SPICE (DE440). It is not a photo: colours are the map\'s '
-    'light classes, and grey ground is where light is not computed. Ground nearer than 800 m is drawn see-through '
-    'because the light engine does not use it. The 400 m terrain smooths small hills and rims, so the drawn skyline '
-    'can differ from the '
-    '${custom ? 'coarse horizon computed on this device (dashed)' : 'site\'s sharper horizon (dashed, from the 80 m / 240 m DEM)'} '
-    'by about a degree. The words on the view ("Sun · in view") follow the drawn 400 m terrain; the status line uses the precise horizon.'
-    '${eclipse ? ' $lightEclipseFidelity' : ''}'
-    '${coarse ? ' While playing, the light uses a coarser grid; pause for full detail.' : ''}';
+/// The lander's view FidelityBadge text (§6): the main text, then (g) the
+/// eye's offset from a preset's 80 m height when over 5 m ([eyeOffsetM] =
+/// the 400 m surface minus the site's height), (h) where the terrain data
+/// ends, and the eclipse note.
+String landerFidelityText(String heightText,
+    {required bool custom,
+    double? eyeOffsetM,
+    List<({double az0, double az1, double distM})> demEnds = const [],
+    bool eclipse = false}) {
+  final ends = [...demEnds]..sort((a, b) => a.az0.compareTo(b.az0));
+  String deg(double a) => '${(((a % 360) + 360) % 360).round()}';
+  return 'Approximate: the light map\'s own 400 m LOLA terrain and light; Sun and Earth at true size and place. '
+      'Terrain is the grid the light map uses (400 m within 64 km, 800 m out to 300 km), block-averaged the same way, '
+      'so rims and peaks are smoothed and the drawn skyline can differ from '
+      '${custom ? '80 m horizons by 0.5–1.4° (up to about 6° on sharp rims); it matches this spot\'s 400 m horizon '
+          '(dashed) within about 0.4°' : 'this site\'s 80 m horizon mask (dashed) by about 1° and up to 5°'}. '
+      'Ground within 800 m is not resolved by the 400 m grid: where it would rise above the distant skyline it is '
+      'drawn see-through, because the light map and the horizon masks ignore it. Light and shadow are the Light '
+      'tab\'s computed frame for this moment, pixel for pixel; Earth\'s direction there is taken from the Moon\'s '
+      'centre, up to 0.3° higher than seen from the ground. Shadowed ground is drawn dark: Earthshine is not '
+      'computed, and the ground colour is a flat grey, not a photo. The Sun and Earth are drawn in their meaning '
+      'colours at true size and position (DE440, apparent, no refraction); glyphs, labels, the 0° line, the '
+      'compass and the stripe and dot patterns are visual aids.'
+      '${eyeOffsetM != null && eyeOffsetM.abs() > 5 ? ' The eye is $heightText above the 400 m surface, '
+          '${eyeOffsetM.abs().round()} m ${eyeOffsetM < 0 ? 'below' : 'above'} this site\'s 80 m height.' : ''}'
+      '${ends.isEmpty ? '' : ' Terrain data ends ${(ends.map((e) => e.distM).reduce(math.min) / 1000).round()} km away '
+          'toward azimuth ${ends.map((e) => '${deg(e.az0)}–${deg(e.az1)}°').join(', ')} (edge of the LOLA map).'}'
+      '${eclipse ? ' $lightEclipseFidelity' : ''}';
+}

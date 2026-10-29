@@ -128,7 +128,7 @@ void main() {
     await settle(t);
     await tapText(t, 'Light & shadow');
     final site = find.descendant(
-        of: find.byType(SegmentedButton<bool>), matching: find.textContaining(RegExp(r'\bsite\b', caseSensitive: false)));
+        of: find.byType(SegmentedButton<LightViewKind>), matching: find.textContaining(RegExp(r'\bsite\b', caseSensitive: false)));
     expect(await waitFor(t, site, timeout: const Duration(seconds: 30)), isTrue, reason: 'the Site / Region choice');
     await t.tap(site.first, warnIfMissed: false);
     await settle(t);

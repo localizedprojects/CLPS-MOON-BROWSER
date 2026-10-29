@@ -78,14 +78,17 @@ SunEclipse lightFrameEclipse(LightFrame f, {double terrainHeightM = 0}) {
 /// [f] as drawn during a lunar eclipse ([ecl], from [lightFrameEclipse]):
 /// while Earth hides the whole Sun no ground gets direct sunlight, so every
 /// pixel loses its Sun bits (the Sun and Both layers draw it as in shadow and
-/// the legend's Sun shares are 0); otherwise [f] itself (a partial eclipse
-/// keeps the terrain shadows; the note gives Earth's share). A copy of the
-/// flags only: no shadow is recomputed. One eclipse for the whole frame, the
-/// site's ([lightEclipseFidelity]).
+/// the legend's Sun shares are 0); while Earth covers part of it the terrain
+/// shadows stay, but no ground sees the whole disk (the fullDisk rule needs
+/// no overlap, formula.md §6.5), so every pixel loses its full-Sun bit and
+/// sunlit ground is drawn as seeing part of the Sun (the note gives Earth's
+/// share); without an eclipse [f] itself. A copy of the flags only: no shadow
+/// is recomputed. One eclipse for the whole frame, the site's
+/// ([lightEclipseFidelity]).
 LightFrame lightFrameEclipsed(LightFrame f, SunEclipse ecl) {
-  if (ecl.fraction < 1) return f;
+  if (ecl.fraction <= 0) return f;
   final flags = Uint8List.fromList(f.flags);
-  const keep = ~(lightSunAny | lightSunFull) & 0xFF;
+  final keep = (ecl.fraction >= 1 ? ~(lightSunAny | lightSunFull) : ~lightSunFull) & 0xFF;
   for (var i = 0; i < flags.length; i++) {
     flags[i] &= keep;
   }
@@ -630,7 +633,8 @@ class _LightMapState extends State<LightMap> {
   LightShares? _shares;
 
   // each computed frame as drawn (a total lunar eclipse takes its sunlight
-  // away, lightFrameEclipsed) and the eclipse of a drawn frame
+  // away, a partial one its full sunlight: lightFrameEclipsed) and the
+  // eclipse of a drawn frame
   final _asDrawn = Expando<LightFrame>();
   final _eclipseOf = Expando<SunEclipse>();
 
@@ -1393,7 +1397,7 @@ class _Legend extends StatelessWidget {
     final items = switch (layer) {
       LightLayer.sun => [
           (LightClass.fullSun, 'Full sunlight', pct((s) => s.sunFull)),
-          (LightClass.partSun, 'Sun partly over a ridge', pct((s) => s.sun - s.sunFull)),
+          (LightClass.partSun, eclipse != null ? 'Part of the Sun (ridge or Earth)' : 'Sun partly over a ridge', pct((s) => s.sun - s.sunFull)),
           (LightClass.shadow, 'In shadow', pct((s) => 1 - s.sun)),
         ],
       LightLayer.earth => [

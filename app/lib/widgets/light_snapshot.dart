@@ -128,8 +128,9 @@ class _LightSnapshotState extends State<LightSnapshot> {
   final _asDrawn = Expando<LightFrame>();
   final _eclipseOf = Expando<SunEclipse>();
 
-  /// [raw] as drawn: during a total lunar eclipse without direct sunlight
-  /// ([lightFrameEclipsed]); the same object for the same frame.
+  /// [raw] as drawn: during a total lunar eclipse without direct sunlight,
+  /// during a partial one without full sunlight ([lightFrameEclipsed]); the
+  /// same object for the same frame.
   LightFrame _drawn(LightFrame raw) {
     final done = _asDrawn[raw];
     if (done != null) return done;

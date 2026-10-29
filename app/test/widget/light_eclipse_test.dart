@@ -1,7 +1,8 @@
 // Light & shadow map and snapshot during a lunar eclipse (Earth in front of
 // the Sun, core/eclipse.dart): a total eclipse takes the direct sunlight off
-// the picture and says so; a partial one keeps the terrain shadows and gives
-// Earth's share of the Sun, the same number as the status line (nowAt).
+// the picture and says so; a partial one keeps the terrain shadows but no
+// ground sees the whole Sun (fullDisk needs no overlap, formula.md §6.5), and
+// gives Earth's share of the Sun, the same number as the status line (nowAt).
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
@@ -35,7 +36,7 @@ SunEclipse _ecl(double sepDeg) => SunEclipse.of(const AzEl(90, 4, 1.5e8), 0.27, 
 
 void main() {
   group('helpers', () {
-    test('a total eclipse clears the Sun bits of every pixel (Earth bits kept); otherwise the frame itself', () {
+    test('a total eclipse clears the Sun bits of every pixel, a partial one the full-Sun bit (Earth bits kept); otherwise the frame itself', () {
       final f = _frame([lightSunAny | lightSunFull | lightEarth, lightSunAny, lightEarth, 0]);
       final total = _ecl(0.3), partial = _ecl(1.0), none = _ecl(2.0);
       expect((total.fraction, partial.fraction > 0 && partial.fraction < 1, none.fraction), (1.0, true, 0.0));
@@ -43,7 +44,8 @@ void main() {
       expect(dark.flags, [lightEarth, 0, lightEarth, 0]);
       expect(f.flags, [lightSunAny | lightSunFull | lightEarth, lightSunAny, lightEarth, 0], reason: 'the frame is not changed');
       expect((dark.request, dark.size, dark.pxM, dark.shade), (f.request, f.size, f.pxM, f.shade));
-      expect(identical(lightFrameEclipsed(f, partial), f), isTrue);
+      expect(lightFrameEclipsed(f, partial).flags, [lightSunAny | lightEarth, lightSunAny, lightEarth, 0],
+          reason: 'a partial eclipse keeps the terrain shadows, but no pixel sees the whole disk');
       expect(identical(lightFrameEclipsed(f, none), f), isTrue);
     });
 
@@ -180,6 +182,7 @@ void main() {
       expect(sunLine(), endsWith('; $note'), reason: 'the status line gives the same share');
       expect(f2.flags.where((v) => v & lightSunAny != 0), isNotEmpty, reason: 'the terrain shadows are kept');
       expect(f2.flags.where((v) => v & lightSunAny == 0), isNotEmpty);
+      expect(f2.flags.where((v) => v & lightSunFull != 0), isEmpty, reason: 'Earth covers part of the disk: no ground sees all of it');
       expect(badges().where((b) => b.contains(lightEclipseFidelity)), hasLength(1));
 
       // no eclipse a day later: no note, no extra badge sentence

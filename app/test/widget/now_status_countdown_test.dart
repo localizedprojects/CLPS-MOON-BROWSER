@@ -145,6 +145,7 @@ void main() {
       await tester.runAsync(() async {
         await loadPlexFonts();
         await state.selectSite('artemis3-haworth');
+        // three months: the countdowns carry dates (the longest eclipse lines)
         await state.setRange(DateTime.utc(2027, 7, 1), DateTime.utc(2027, 10, 1));
       });
       tester.view.physicalSize = const Size(334, 900);
@@ -170,12 +171,6 @@ void main() {
         final ecl = (nowAt(state.eph!, state.observer, state.mask, t.millisecondsSinceEpoch.toDouble(), state.options)['sun']
             as Map<String, dynamic>)['eclipse'] as double;
         if (ecl > 0) eclipsed++;
-        if (ecl > 0 && m % 30 == 0) {
-          final h = await heightAt(t);
-          final txt = tester.widget<Text>(find.byKey(const ValueKey('nowCountdown'))).textSpan!.toPlainText();
-          // ignore: avoid_print
-          print('DBG $t $ecl h=$h base=$base ${txt.length} $txt');
-        }
         expect(await heightAt(t), base, reason: '$t (eclipse $ecl)');
       }
       expect(eclipsed, greaterThan(0), reason: 'the 2027-08-17 eclipse is seen from the site');

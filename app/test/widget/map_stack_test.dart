@@ -26,7 +26,8 @@ void main() {
   tearDownAll(() => state.dispose());
 
   /// The map alone on a [view]-sized page, as wide as the page (or as tall).
-  Future<List<String>> pumpMap(WidgetTester tester, {Size view = const Size(390, 844), MapViewController? controller}) async {
+  Future<List<String>> pumpMap(WidgetTester tester,
+      {Size view = const Size(390, 844), MapViewController? controller, List<bool>? pins}) async {
     tester.view.physicalSize = view;
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
@@ -48,6 +49,7 @@ void main() {
                 onPlaceCustom: (_, _) {},
                 showControls: false,
                 controller: controller,
+                onPinChanged: pins?.add,
               ),
             ),
           ),
@@ -174,6 +176,36 @@ void main() {
     handle.dispose();
   });
 
+  testWidgets('a tap on a count badge opens its stack\'s chooser and drops no pin', (tester) async {
+    final pins = <bool>[];
+    final picked = await pumpMap(tester, pins: pins);
+    expect(state.selectedId, 'derosa2012-mp1-malapert-peak', reason: 'the default selection widens its stack');
+    final side = tester.getSize(canvas()).width;
+    final ids = [for (final s in state.allSites) s.id];
+    final lay = mapMarkerLayout(
+        halfWidthM: state.mapLayers!.halfWidthM,
+        sites: state.allSites,
+        side: side,
+        zoom: 1,
+        selected: state.selectedId,
+        names: false,
+        scaler: MediaQuery.textScalerOf(tester.element(canvas())));
+    final multi = [for (final st in lay.stacks) if (st.length > 1) st]; // badges[k] is multi[k]'s
+    for (final (id, n) in [('derosa2012-mp1-malapert-peak', 2), ('im-2-athena-landed', 3)]) {
+      final k = multi.indexWhere((st) => st.contains(ids.indexOf(id)));
+      expect(multi[k], hasLength(n), reason: id);
+      final b = lay.badges[k].$1;
+      await tester.tapAt(tester.getTopLeft(canvas()) + Offset((b.left + b.right) / 2, (b.top + b.bottom) / 2));
+      await tester.pumpAndSettle();
+      expect(find.textContaining('$n sites here'), findsOneWidget, reason: id);
+      expect(find.byType(SiteChoiceRow), findsNWidgets(n), reason: id);
+      expect(picked, isEmpty, reason: id);
+      expect(pins, isEmpty, reason: '$id: no custom pin');
+      await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+      await tester.pumpAndSettle();
+    }
+  });
+
   testWidgets('stacks get a count badge at every zoom; the IM-2 pair stays stacked at max zoom', (tester) async {
     await pumpMap(tester);
     final side = tester.getSize(canvas()).width;
@@ -207,7 +239,15 @@ void main() {
       await tester.pump();
       expect(controller.labels, isTrue);
       final side = tester.getSize(canvas()).width;
-      for (final selected in [state.selectedId, 'im-2-athena-landed', 'derosa2012-cr1-connecting-ridge']) {
+      // the home view (zoom 1): the whole map, the zoom buttons over its top right
+      final home = LabelBox(0, 0, side, side), controls = LabelBox(side - 54, 6, side - 6, 6 + 3 * 48);
+      for (final selected in [
+        state.selectedId,
+        'im-2-athena-landed',
+        'derosa2012-cr1-connecting-ridge',
+        'artemis3-peak-near-cabeus-b',
+        'im-1-odysseus-landed',
+      ]) {
         for (final z in [1.0, 2.0, 4.0, mapMaxZoom]) {
           final lay = mapMarkerLayout(
               halfWidthM: state.mapLayers!.halfWidthM,
@@ -216,7 +256,9 @@ void main() {
               zoom: z,
               selected: selected,
               names: true,
-              scaler: MediaQuery.textScalerOf(tester.element(canvas())));
+              scaler: MediaQuery.textScalerOf(tester.element(canvas())),
+              view: z == 1 ? home : null,
+              controls: z == 1 ? controls : null);
           final why = '$selected at zoom $z';
           final boxes = [...lay.labels.map((l) => l.box), ...lay.badges.map((b) => b.$1)];
           for (var i = 0; i < boxes.length; i++) {
@@ -224,10 +266,32 @@ void main() {
               expect(boxes[i].overlaps(boxes[j]), isFalse, reason: '$why: ${boxes[i]} / ${boxes[j]}');
             }
           }
-          // every site named once, the selected one in full on its own label
+          // a badge covers no marker outside its stack (ring included)
+          final multi = [for (final st in lay.stacks) if (st.length > 1) st];
+          for (var k = 0; k < lay.badges.length; k++) {
+            for (var i = 0; i < state.allSites.length; i++) {
+              if (multi[k].contains(i)) continue;
+              final mk = LabelBox.around(lay.at[i].$1, lay.at[i].$2, state.allSites[i].id == selected ? 14.25 : 6.5);
+              expect(lay.badges[k].$1.overlaps(mk), isFalse, reason: '$why: badge ${lay.badges[k]} over ${state.allSites[i].id}');
+            }
+          }
+          if (z == 1) {
+            // names stay on the map and off the zoom buttons
+            for (final l in lay.labels) {
+              final b = l.box;
+              expect(b.left >= 0 && b.top >= 0 && b.right <= side && b.bottom <= side, isTrue, reason: '$why: $l off the map');
+              expect(b.overlaps(controls), isFalse, reason: '$why: $l under the zoom buttons');
+            }
+          }
+          // no site named twice, a "+n" only for its own stack, the selected
+          // one in full on its own label
           final named = [for (final l in lay.labels) ...[l.site, ...l.merged]];
-          expect(named.toSet(), hasLength(19), reason: why);
-          expect(named, hasLength(19), reason: why);
+          expect(named.toSet(), hasLength(named.length), reason: why);
+          for (final l in lay.labels) {
+            final st = lay.stacks.firstWhere((st) => st.contains(l.site));
+            expect(st, containsAll(l.merged), reason: '$why: $l');
+            expect(l.merged.length, lessThan(st.length), reason: '$why: $l');
+          }
           final sel = state.allSites.indexWhere((s) => s.id == selected);
           expect(lay.labels.first.site, sel, reason: why);
           expect(lay.labels.first.text, startsWith(state.allSites[sel].short), reason: why);

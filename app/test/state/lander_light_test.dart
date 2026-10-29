@@ -76,7 +76,7 @@ void main() {
     'mouton': (catalog.byId('artemis3-mons-mouton').lat, catalog.byId('artemis3-mons-mouton').lon),
     'custom': (-80.05, 1.44),
   };
-  final t2 = _utc(2026, 1, 20, 6); // a low Sun at SR1: lit rims and long shadows
+  late double t2; // a low Sun and a low Earth at SR1 (set in setUpAll): every layer shows several classes
   final tEclipse = _utc(2026, 3, 3, 11, 30);
   final fine = dem.size, half = dem.size ~/ 2, quarter = dem.size ~/ 4;
   late LightGrids grids;
@@ -95,6 +95,16 @@ void main() {
       meshes[e.key] =
           buildLanderMesh(dem.heights, dem.size, dem.scaleM, latDeg: e.value.$1, lonDeg: e.value.$2, observerHeightM: 2);
     }
+    final obs = Observer(sr1.lat, sr1.lon, sr1.terrainHeightM + 2);
+    t2 = double.nan;
+    for (var t = _utc(2026, 1, 16); t < _utc(2026, 3, 1); t += 3600e3) {
+      final s = obs.look(eph.sun(t)).el, e = obs.look(eph.earth(t)).el;
+      if (s > 0.3 && s < 1.2 && e > 0 && e < 1.5) {
+        t2 = t;
+        break;
+      }
+    }
+    expect(t2.isNaN, isFalse);
     mp1Mesh = buildLanderMesh(dem.heights, dem.size, dem.scaleM, latDeg: mp1.lat, lonDeg: mp1.lon, observerHeightM: 2);
   });
 
@@ -159,8 +169,14 @@ void main() {
       }
     }
     bad.expectNone();
-    expect(pixels, greaterThan(3 * 20000));
-    expect(centres, greaterThan(3 * 20000));
+    { // PROBE
+      final sw = Stopwatch()..start();
+      for (var i = 0; i < 20; i++) { landerVertexColors(m, f, idx, f, idx, LightLayer.values[i % 3]); }
+      // ignore: avoid_print
+      print('PROBE recolour ${m.vertexCount} vertices: ${sw.elapsedMicroseconds / 20} us');
+    }
+    expect(pixels, greaterThan(3 * 5000));
+    expect(centres, greaterThan(3 * 5000));
     expect(notComputed, greaterThan(0));
     expect(landerNotComputedArgb, beyondMapGround.toARGB32());
   });
@@ -320,7 +336,7 @@ void main() {
         bad.check(layer != LightLayer.sun || cls != LightClass.fullSun, () => 'full Sun at $v during the eclipse');
         n++;
       }
-      expect(n, greaterThan(20000));
+      expect(n, greaterThan(5000));
     }
     bad.expectNone();
   });

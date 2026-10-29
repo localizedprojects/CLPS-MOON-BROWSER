@@ -86,10 +86,10 @@ Float64List _rgbTable(int x, int y) {
 
 Float64List? _offPattern, _onPattern;
 
-int _argb(double a, double r, double g, double b) {
-  int byte(double x) => (x * 255).round().clamp(0, 255);
-  return (byte(a) << 24 | byte(r) << 16 | byte(g) << 8 | byte(b)).toSigned(32);
-}
+int _byte(double x) => x <= 0 ? 0 : (x >= 1 ? 255 : (x * 255).round());
+
+int _argb(double a, double r, double g, double b) =>
+    (_byte(a) << 24 | _byte(r) << 16 | _byte(g) << 8 | _byte(b)).toSigned(32);
 
 /// Opaque-ground ARGB of every vertex on [layer] (the vertex alpha of the
 /// mesh, i.e. the see-through near ground, in the alpha byte): RGB =
@@ -98,27 +98,33 @@ int _argb(double a, double r, double g, double b) {
 /// is not computed contributes [landerNotComputedArgb].
 Int32List landerVertexColors(LanderMesh m, LightFrame? near, Int32List? nearIdx, LightFrame? far, Int32List? farIdx,
     LightLayer layer) {
-  final t = _offPattern ??= _rgbTable(2, 0), cls = _classTable(layer);
+  final t = _offPattern ??= _rgbTable(2, 0);
+  // class index * 256 * 3 of each flag byte, then + shade * 3
+  final cls = Int32List.fromList([for (final k in _classTable(layer)) k.index * 768]);
   const nr = 0x6E / 255, ng = 0x73 / 255, nb = 0x7B / 255;
-  final nv = m.vertexCount, out = Int32List(nv);
+  final nv = m.vertexCount, out = Int32List(nv), part = m.part, wt = m.w, al = m.alpha;
+  final nOk = near != null && nearIdx != null, fOk = far != null && farIdx != null;
+  final nFlags = near?.flags, nShade = near?.shade, fFlags = far?.flags, fShade = far?.shade;
   for (var v = 0; v < nv; v++) {
-    final s = _source(m.part[v], near, nearIdx, far, farIdx);
+    final isFar = part[v] == 2, ok = isFar ? fOk : nOk;
+    final idx = isFar ? farIdx : nearIdx, flags = isFar ? fFlags : nFlags, shade = isFar ? fShade : nShade;
     var r = 0.0, g = 0.0, b = 0.0;
-    for (var q = 0; q < 4; q++) {
-      final w = m.w[4 * v + q];
-      final k = s == null ? -1 : s.$2[4 * v + q];
+    for (var q = 4 * v; q < 4 * v + 4; q++) {
+      final w = wt[q];
+      if (w == 0) continue;
+      final k = ok ? idx![q] : -1;
       if (k < 0) {
         r += w * nr;
         g += w * ng;
         b += w * nb;
         continue;
       }
-      final o = (cls[s!.$1.flags[k] & 7].index * 256 + s.$1.shade[k]) * 3;
+      final o = cls[flags![k] & 7] + shade![k] * 3;
       r += w * t[o];
       g += w * t[o + 1];
       b += w * t[o + 2];
     }
-    out[v] = _argb(m.alpha[v], r, g, b);
+    out[v] = _argb(al[v], r, g, b);
   }
   return out;
 }

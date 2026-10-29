@@ -472,15 +472,15 @@ void main() {
     }
 
     expect(whites(-150, 1000, -60), greaterThan(40), reason: 'stripes on the far-only part');
-    expect(whites(150, 1000, -60), 0, reason: 'the near plain triangle hides the far stripes');
+    expect(whites(300, 1000, -60), 0, reason: 'the near plain triangle hides the far stripes');
   });
 }
 
 /// Two triangles north of the eye (ENU metres from it), far (id 0) then near
 /// (id 1), overlapping on screen east of the view's centre.
 LanderMesh _twoTriangles({required Float64List skyline}) {
-  final e = Float32List.fromList([-400, 400, 0, 0, 450, 450]), n = Float32List.fromList([1000, 1000, 1000, 500, 500, 500]);
-  final u = Float32List.fromList([-300, -300, 200, -200, -200, 100]);
+  final e = Float32List.fromList([-600, 600, 0, 20, 300, 160]), n = Float32List.fromList([1000, 1000, 1000, 500, 500, 500]);
+  final u = Float32List.fromList([-300, -300, 300, -140, -140, 60]);
   return LanderMesh(
       LanderCamera(-89.9, 0, 0, 2, Enu.at(-89.9, 0), const V3(0, 0, 1737402)),
       e, n, u,

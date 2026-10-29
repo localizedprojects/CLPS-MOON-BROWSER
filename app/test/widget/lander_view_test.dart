@@ -3,11 +3,13 @@
 // moment and no isolate runs.
 import 'dart:math' as math;
 import 'dart:typed_data';
+import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:polar_horizon/core/dem.dart';
+import 'package:polar_horizon/core/geo.dart' show Enu, V3;
 import 'package:polar_horizon/core/lander_view.dart';
 import 'package:polar_horizon/core/shadow.dart' show lightEarth, lightSunAny, lightSunFull;
 import 'package:polar_horizon/state/app_state.dart';
@@ -308,9 +310,189 @@ void main() {
     }
   });
 
-  test('badge text: custom spot names the coarse horizon; presets the sharper one', () {
-    expect(landerFidelityText('2 m', custom: true), contains('coarse horizon computed on this device'));
-    expect(landerFidelityText('2 m', custom: false), contains('80 m / 240 m DEM'));
+  test('§6 badge texts: main summary (100 chars), (g) eye offset, (h) DEM ends, eclipse, play badge, caption', () {
+    final preset = landerFidelityText('2 m', custom: false), custom = landerFidelityText('2 m', custom: true);
+    const first = "Approximate: the light map's own 400 m LOLA terrain and light; Sun and Earth at true size and place.";
+    expect(first.length, 100);
+    expect(FidelityBadge.summaryOf(preset), first);
+    expect(FidelityBadge.summaryOf(custom), first);
+    expect(preset, contains("this site's 80 m horizon mask (dashed) by about 1° and up to 5°"));
+    expect(custom, contains("it matches this spot's 400 m horizon (dashed) within about 0.4°"));
+    for (final t in [preset, custom]) {
+      expect(t, contains('Earthshine is not computed'));
+      expect(t, contains('drawn see-through'));
+      expect(t, contains('visual aids'));
+    }
+    expect(landerFidelityText('2 m', custom: false, eyeOffsetM: -28.6),
+        contains("The eye is 2 m above the 400 m surface, 29 m below this site's 80 m height."));
+    expect(landerFidelityText('2 m', custom: false, eyeOffsetM: 7.2), contains('7 m above'));
+    expect(landerFidelityText('2 m', custom: false, eyeOffsetM: 4.9), isNot(contains('The eye is')));
+    expect(
+        landerFidelityText('2 m', custom: true, demEnds: const [(az0: 10, az1: 40, distM: 12400), (az0: 200, az1: 215.5, distM: 30000)]),
+        contains('Terrain data ends 12 km away toward azimuth 10–40°, 200–216° (edge of the LOLA map).'));
+    expect(preset, isNot(contains('Terrain data ends')));
     expect(landerFidelityText('2 m', custom: false, eclipse: true), contains(lightEclipseFidelity));
+    final play = landerPlayFidelity(web: false);
+    expect(play.length, 100);
+    expect(play, 'Approximate: while playing, light from coarser grids (800 m, 1.6 km beyond 64 km); pause for detail.');
+    expect(landerPlayFidelity(web: true), '$play Light beyond 64 km waits until you pause.');
+    expect(landerCaption(height: '2 m', site: 'SR1', utc: '11:30 UTC, 3 Mar 2026'),
+        startsWith('From the lander: 2 m above the ground at SR1, 11:30 UTC, 3 Mar 2026. Terrain and light come from'));
+    expect(landerMaskLabel(custom: false), 'Horizon mask (LOLA 80 m/240 m)');
+    expect(landerMaskLabel(custom: true), 'Coarse horizon (400 m, this device)');
   });
+
+  test('§5 callout words: precise mask first, the drawn terrain only when it differs', () {
+    expect(landerPreciseWord('up'), 'in view');
+    expect(landerPreciseWord('noDsn'), 'in view');
+    expect(landerPreciseWord('partly'), 'partly hidden');
+    expect(landerPreciseWord('notCounted'), 'partly hidden');
+    expect(landerPreciseWord('behindHills'), 'behind terrain');
+    expect(landerPreciseWord('belowHorizon'), 'below horizon');
+    expect([for (final k in SkyState.values) landerSkyWord(k)], ['in view', 'partly hidden', 'behind terrain', 'below horizon']);
+    final sky = Float64List(720)..fillRange(0, 720, 1.1);
+    final mesh = _twoTriangles(skyline: sky);
+    LanderPainter painter(String word) => LanderPainter(
+        cam: LanderCameraController(), mesh: mesh, proj: LanderProjection(), colors: null, sunWord: word, earthWord: word);
+    const behind = (az: 123.44, el: 0.9, rhoDeg: 0.27, state: SkyState.behindTerrain);
+    expect(painter('in view').calloutLines(behind, true),
+        ['Sun · az 123.4° · el +0.9°', 'in view', '400 m terrain here: behind terrain, skyline +1.1°']);
+    expect(painter('behind terrain').calloutLines(behind, true), ['Sun · az 123.4° · el +0.9°', 'behind terrain']);
+    expect(painter('below horizon').calloutLines((az: -9.0, el: -2.25, rhoDeg: 0.95, state: SkyState.belowHorizon), false),
+        ['Earth · az 351.0° · el -2.3°', 'below horizon']);
+  });
+
+  test('elevation scale steps adapt to the zoom (1/2/5/10°)', () {
+    expect(LanderPainter.elevationStep(10, 360), 1);
+    expect(LanderPainter.elevationStep(45, 360), 5);
+    expect(LanderPainter.elevationStep(30, 360), 5);
+    expect(LanderPainter.elevationStep(20, 360), 2);
+    expect(LanderPainter.elevationStep(120, 360), 10);
+  });
+
+  testWidgets('compass strip: Semantics and tooltip, tap turns there; callout and edge chevron turn to the body',
+      (tester) async {
+    size(tester, const Size(360, 900));
+    await nearPole(tester);
+    final handle = tester.ensureSemantics();
+    await tester.pumpWidget(panel(near: nearFrame(), reduced: true));
+    await meshReady(tester);
+    expect(find.bySemanticsLabel(landerCompassLabel), findsOneWidget);
+    expect(find.byTooltip(landerCompassLabel), findsOneWidget);
+    final st = panelState(tester), cp = find.byWidgetPredicate((w) => w is CustomPaint && w.painter is LanderPainter);
+    final viewSize = tester.getSize(cp), origin = tester.getTopLeft(cp);
+    LanderPainter p() => tester.widget<CustomPaint>(cp).painter! as LanderPainter;
+    // tap the strip 3/4 across: turns right (clockwise) by about a quarter of the field of view
+    st.cam.set(yaw: 100, pitch: 0, hfov: 60);
+    await tester.pump();
+    await tester.tapAt(origin + Offset(viewSize.width * 0.75, 20));
+    await tester.pumpAndSettle();
+    expect(st.cam.yaw, closeTo(100 + math.atan(0.5 * math.tan(30 * math.pi / 180)) * 180 / math.pi, 0.5));
+    expect(st.cam.pitch, 0);
+    // a callout's 48 dp target turns to its body
+    final sun = p().sun!;
+    st.cam.set(yaw: sun.az + 8, pitch: sun.el.clamp(-landerPitchMax, landerPitchMax).toDouble(), hfov: 45);
+    await tester.pump();
+    final targets = LanderPainter.calloutTargets(st.cam.view(viewSize), p().sun, p().earth);
+    final (rect, isSun) = targets.firstWhere((t) => t.$2);
+    expect(isSun, isTrue);
+    expect(rect.width, greaterThanOrEqualTo(48));
+    expect(rect.height, greaterThanOrEqualTo(48));
+    await tester.tapAt(origin + rect.center);
+    await tester.pumpAndSettle();
+    expect(turnDelta(st.cam.yaw, sun.az).abs(), lessThan(0.01));
+    // off view: an edge chevron "SUN 132°" in the strip
+    st.cam.set(yaw: sun.az + 90, pitch: 0);
+    await tester.pump();
+    final chev = LanderPainter.chevrons(st.cam.view(viewSize), p().sun, p().earth).firstWhere((c) => c.$2);
+    expect(chev.$3, isTrue, reason: 'the Sun is to the left');
+    expect(chev.$4, 'SUN ${(sun.az.round() % 360).toString().padLeft(3, '0')}°');
+    expect(chev.$1.height, greaterThanOrEqualTo(24));
+    await tester.tapAt(origin + chev.$1.center);
+    await tester.pumpAndSettle();
+    expect(turnDelta(st.cam.yaw, sun.az).abs(), lessThan(0.01));
+    // the accessible description uses the precise words
+    expect(find.bySemanticsLabel(RegExp(r"^Lander's view, facing .*Sun .*degrees (up|down), azimuth \d+ degrees, "
+        r'(in view|partly hidden|behind terrain|below horizon)\.')), findsOneWidget);
+    handle.dispose();
+  });
+
+  testWidgets('W10 custom spot: coarse-horizon label and customHorizon badge; legend keys; caption', (tester) async {
+    size(tester, const Size(800, 1400));
+    await nearPole(tester);
+    expect(await tester.runAsync(() => state.addCustomSite(-89.7, 40)), isTrue);
+    await tester.pumpWidget(MaterialApp(
+        theme: buildTheme(),
+        home: Scaffold(body: SingleChildScrollView(child: LightMap(state: state, active: true, onSelect: (_) {})))));
+    await tester.tap(find.text('Lander').first);
+    await tester.pump();
+    await meshReady(tester);
+    await tester.pump();
+    final painter = tester.widget<CustomPaint>(find.byWidgetPredicate((w) => w is CustomPaint && w.painter is LanderPainter)).painter!
+        as LanderPainter;
+    expect(painter.maskLabel, 'Coarse horizon (400 m, this device)');
+    expect(find.byWidgetPredicate((w) => w is FidelityBadge && w.text == FidelityBadge.customHorizon), findsOneWidget);
+    final badge = tester.widget<FidelityBadge>(find.byKey(const ValueKey('lander-badge')));
+    expect(badge.text, contains("it matches this spot's 400 m horizon (dashed)"));
+    expect(badge.text, isNot(contains('The eye is')), reason: 'no 80 m height for a custom spot');
+    for (final k in ['Light not computed', 'Near ground, see-through', 'Horizon (dashed)']) {
+      expect(find.text(k), findsOneWidget, reason: k);
+    }
+    expect(find.textContaining('From the lander: 2 m above the ground at'), findsOneWidget);
+    expect(find.byKey(const ValueKey('lander-play-badge')), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('W11 pattern pass: nearer plain triangle hides farther striped one', (tester) async {
+    final mesh = _twoTriangles(skyline: Float64List(720));
+    final colors = Int32List.fromList([for (var i = 0; i < 6; i++) i < 3 ? 0xFF505A64 : 0xFF283040]);
+    // striped (on-pattern white, alpha 1) far, plain (alpha 0) near
+    final stripes = Int32List.fromList([for (var i = 0; i < 6; i++) i < 3 ? 0xFFFFFFFF : 0x00FFFFFF]);
+    final cam = LanderCameraController()..set(yaw: 5, pitch: 0, hfov: 60);
+    final painter = LanderPainter(
+        cam: cam, mesh: mesh, proj: LanderProjection(), colors: colors, patterns: [(LightPattern.stripe, stripes)]);
+    const w = 400, h = 300;
+    final bytes = (await tester.runAsync(() async {
+      final rec = ui.PictureRecorder();
+      painter.paint(Canvas(rec), Size(w.toDouble(), h.toDouble()));
+      final img = await rec.endRecording().toImage(w, h);
+      return img.toByteData(format: ui.ImageByteFormat.rawRgba);
+    }))!;
+    final v = cam.view(const Size(400, 300));
+    int whites(double e, double n, double u) {
+      final c = LanderPainter.at(v, math.atan2(e, n) * 180 / math.pi, math.atan2(u, math.sqrt(e * e + n * n)) * 180 / math.pi)!;
+      var k = 0;
+      for (var y = c.dy.round() - 8; y < c.dy.round() + 8; y++) {
+        for (var x = c.dx.round() - 8; x < c.dx.round() + 8; x++) {
+          final o = 4 * (y * w + x);
+          if (bytes.getUint8(o) > 240 && bytes.getUint8(o + 1) > 240 && bytes.getUint8(o + 2) > 240) k++;
+        }
+      }
+      return k;
+    }
+
+    expect(whites(-150, 1000, -60), greaterThan(40), reason: 'stripes on the far-only part');
+    expect(whites(150, 1000, -60), 0, reason: 'the near plain triangle hides the far stripes');
+  });
+}
+
+/// Two triangles north of the eye (ENU metres from it), far (id 0) then near
+/// (id 1), overlapping on screen east of the view's centre.
+LanderMesh _twoTriangles({required Float64List skyline}) {
+  final e = Float32List.fromList([-400, 400, 0, 0, 450, 450]), n = Float32List.fromList([1000, 1000, 1000, 500, 500, 500]);
+  final u = Float32List.fromList([-300, -300, 200, -200, -200, 100]);
+  return LanderMesh(
+      LanderCamera(-89.9, 0, 0, 2, Enu.at(-89.9, 0), const V3(0, 0, 1737402)),
+      e, n, u,
+      Float32List(6)..fillRange(0, 6, 1),
+      Uint8List(6)..fillRange(0, 6, 1),
+      Int32List(24),
+      Float32List(24),
+      Uint32List.fromList([0, 1, 2, 3, 4, 5]),
+      [Int32List.fromList([0, 1]), for (var i = 1; i < 36; i++) Int32List(0)],
+      skyline,
+      const [],
+      6,
+      256,
+      400);
 }

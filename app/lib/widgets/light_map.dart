@@ -37,6 +37,7 @@ import 'chart_bridge.dart' show nowAt, utcLabel;
 import 'glyphs.dart';
 import 'time_bar.dart' show utcTwoLines;
 import 'feature_guide.dart';
+import 'lander_view.dart';
 
 export '../state/light_engine.dart' show LightClass, LightLayer, classify, lightOverlayPixels, lightPixel;
 export '../core/wording.dart' show eclipseSharePct;
@@ -507,8 +508,8 @@ class LightMap extends StatefulWidget {
   /// The view and layer switch labels: full words where both switches fit on
   /// one row, otherwise (phones) these short ones, so that both share one
   /// 48 dp row above the map and leave it as much height as possible.
-  static const switchLabels = (view: ['Around site', 'Whole region'], layer: ['Sunlight', 'Earth view', 'Both']);
-  static const shortSwitchLabels = (view: ['Site', 'Region'], layer: ['Sun', 'Earth', 'Both']);
+  static const switchLabels = (view: ['Around site', 'Whole region', 'Lander'], layer: ['Sunlight', 'Earth view', 'Both']);
+  static const shortSwitchLabels = (view: ['Site', 'Region', 'Lander'], layer: ['Sun', 'Earth', 'Both']);
 
   /// Side padding of a text-only segment (10 dp, so the short labels share
   /// one row even on a 360 dp phone).
@@ -590,14 +591,16 @@ class LightMap extends StatefulWidget {
 }
 
 class _LightMapState extends State<LightMap> {
-  bool closeUp = true;
+  LightViewKind kind = LightViewKind.closeUp;
+  // the lander's view uses the close-up frames (the same requests and cache entries as the map)
+  bool get closeUp => kind != LightViewKind.region;
   LightLayer layer = LightLayer.sun;
 
   // The view and layer choices outlive this State: the site screen and the
   // Light tab build the map under a different parent in portrait, phone
   // landscape and two panes, so rotating the phone makes a new State (qa-2).
   // They are kept in the route's PageStorage bucket under fixed ids.
-  static const _closeUpId = 'light-map-close-up', _layerId = 'light-map-layer';
+  static const _closeUpId = 'light-map-close-up', _viewId = 'light-map-view', _layerId = 'light-map-layer';
 
   void _remember(Object id, Object value) => PageStorage.maybeOf(context)?.writeState(context, value, identifier: id);
 
@@ -648,7 +651,12 @@ class _LightMapState extends State<LightMap> {
     super.initState();
     final store = PageStorage.maybeOf(context);
     final c = store?.readState(context, identifier: _closeUpId), l = store?.readState(context, identifier: _layerId);
-    if (c is bool) closeUp = c;
+    final v = store?.readState(context, identifier: _viewId);
+    if (v is String) {
+      kind = LightViewKind.values.firstWhere((k) => k.name == v, orElse: () => kind);
+    } else if (c is bool) {
+      kind = c ? LightViewKind.closeUp : LightViewKind.region; // the old bool switch
+    }
     if (l is LightLayer) layer = l;
     _images.update(active: widget.active, layer: layer);
   }
@@ -689,16 +697,7 @@ class _LightMapState extends State<LightMap> {
   void _maybeRequest() {
     final s = widget.state, eph = s.eph;
     if (!widget.active || eph == null || !mounted) return;
-    final site = s.site, t = s.cursorMs;
-    final q = LightRequest(
-        closeUp: closeUp,
-        lat: site.lat,
-        lon: site.lon,
-        sun: eph.sun(t),
-        earth: eph.earth(t),
-        tMs: t,
-        observerHeightM: s.observerHeightM,
-        coarse: s.playing);
+    final q = lightRequestFor(s, extent: closeUp ? LightExtent.closeUp : LightExtent.region);
     if (q.key == _sentKey) return;
     _sentKey = q.key;
     _queued = q;
@@ -720,18 +719,7 @@ class _LightMapState extends State<LightMap> {
     final t = q.tMs + s.playStepMs; // what _tick will set: the same sum
     // _tick stops (and sets the last time itself) once a step would reach it
     if (t < s.rangeStartMs || t >= s.lastCursorMs) return;
-    final site = s.site;
-    engine
-        .compute(LightRequest(
-            closeUp: closeUp,
-            lat: site.lat,
-            lon: site.lon,
-            sun: eph.sun(t),
-            earth: eph.earth(t),
-            tMs: t,
-            observerHeightM: s.observerHeightM,
-            coarse: true))
-        .ignore();
+    engine.compute(lightRequestFor(s, extent: closeUp ? LightExtent.closeUp : LightExtent.region, tMs: t, coarse: true)).ignore();
   }
 
   /// Latest request wins: while a frame computes, newer requests replace
@@ -865,24 +853,29 @@ class _LightMapState extends State<LightMap> {
       return Wrap(spacing: 12, runSpacing: 10, crossAxisAlignment: WrapCrossAlignment.center, children: [
       if (title) const Text('Light & shadow', style: PHText.subtitle),
       if (title) Text(utcLabel(tMap), style: numStyle(size: 13, color: PH.muted)),
-      GuideTarget(id: 'light-view', child: SegmentedButton<bool>(
+      GuideTarget(id: 'light-view', child: SegmentedButton<LightViewKind>(
         showSelectedIcon: false,
         style: style,
         segments: [
           ButtonSegment(
-              value: true,
+              value: LightViewKind.closeUp,
               label: segLabel(l.view[0], 'Around the site (64 km)'),
               icon: compact ? null : const Icon(Icons.center_focus_strong, size: 18)),
           ButtonSegment(
-              value: false,
+              value: LightViewKind.region,
               label: segLabel(l.view[1], 'Whole region (inside 80°S)'),
               icon: compact ? null : const Icon(Icons.public, size: 18)),
+          // no Tooltip on touch (see segLabel); the meaning is in the accessible name
+          ButtonSegment(
+              value: LightViewKind.lander,
+              label: segLabel(l.view[2], "From the lander (2 m up): what you would see standing on the lander, 2 m above the ground"),
+              icon: compact ? null : const Icon(Icons.landscape_outlined, size: 18)),
         ],
-        selected: {closeUp},
+        selected: {kind},
         onSelectionChanged: (v) => setState(() {
-          closeUp = v.first;
+          kind = v.first;
           _sentKey = null;
-          _remember(_closeUpId, closeUp);
+          _remember(_viewId, kind.name);
         }),
       )),
       GuideTarget(id: 'light-layer', child: SegmentedButton<LightLayer>(
@@ -929,7 +922,9 @@ class _LightMapState extends State<LightMap> {
     // from the view mapBox shades (its relief is drawn before the first frame arrives, too)
     final pastMap = fine && viewBeyondBaseMap(_targetView, layers.halfWidthM);
     // agreement figures: test/core/shadow_test.dart (16 preset sites x 60 random moments, 2 m observer)
-    final badge = FidelityBadge(
+    final badge = kind == LightViewKind.lander
+        ? FidelityBadge(text: landerFidelityText(heightText, custom: s.site.custom, eclipse: eclipse != null, coarse: coarseShown))
+        : FidelityBadge(
       text: 'Shadows are computed on this device from the NASA LOLA elevation map at ${fine ? '400 m' : '800 m'} '
           'per pixel, for an observer $heightText above the ground, with the Sun\'s and Earth\'s directions from '
           'SPICE (DE440). Checked against the per-site horizon calculations (2 m observer), "sunlit or not" agrees '
@@ -950,6 +945,17 @@ class _LightMapState extends State<LightMap> {
     // not be seen: the note then always goes at the top.
     Widget mapBox(double side, {bool bottomMayHide = false}) {
       _images.update(side: side, dpr: MediaQuery.devicePixelRatioOf(context));
+      if (kind == LightViewKind.lander) {
+        return GuideTarget(
+            id: 'light-map',
+            child: LanderViewPanel(
+                state: s,
+                near: shownFrame != null && shownFrame.request.closeUp ? shownFrame : null,
+                layer: img?.layer ?? layer,
+                width: side,
+                // a phone in portrait scrolls: the view keeps its full height there
+                maxHeight: bottomMayHide ? double.infinity : side));
+      }
       final view = _targetView;
       // the ground past the base map's edge: shaded on the device (ReliefKeeper)
       _relief.want(fine && viewBeyondBaseMap(view, layers.halfWidthM) ? view : null, s.dem, layers.relief);
@@ -1966,3 +1972,36 @@ class LightFramePainter extends CustomPainter {
       old.exact != exact ||
       old.textScaler != textScaler;
 }
+
+/// The Light tab's three views (docs/landers_view_spec.md §7.1).
+enum LightViewKind { closeUp, region, lander }
+
+/// The request for [s]'s site and moment ([tMs], default the cursor) at
+/// [extent]: the map, its prefetch and the lander's view all use it, so they
+/// share keys and cache entries (D2). [coarse] defaults to "playing".
+LightRequest lightRequestFor(AppState s, {required LightExtent extent, double? tMs, bool? coarse}) {
+  final t = tMs ?? s.cursorMs, eph = s.eph!;
+  return LightRequest(
+      closeUp: extent == LightExtent.closeUp,
+      far: extent == LightExtent.far,
+      lat: s.site.lat,
+      lon: s.site.lon,
+      sun: eph.sun(t),
+      earth: eph.earth(t),
+      tMs: t,
+      observerHeightM: s.observerHeightM,
+      coarse: coarse ?? s.playing);
+}
+
+/// The lander's view FidelityBadge text (§6).
+String landerFidelityText(String heightText, {required bool custom, bool eclipse = false, bool coarse = false}) =>
+    'A 3D view from $heightText above the ground, built on this device from the same NASA LOLA heights the light '
+    'map uses (400 m grid within 64 km, 800 m beyond), with the map\'s own computed light and shadow for this '
+    'moment and the Sun\'s and Earth\'s directions from SPICE (DE440). It is not a photo: colours are the map\'s '
+    'light classes, and grey ground is where light is not computed. Ground nearer than 800 m is drawn see-through '
+    'because the light engine does not use it. The 400 m terrain smooths small hills and rims, so the drawn skyline '
+    'can differ from the '
+    '${custom ? 'coarse horizon computed on this device (dashed)' : 'site\'s sharper horizon (dashed, from the 80 m / 240 m DEM)'} '
+    'by about a degree; the status words use the precise horizon.'
+    '${eclipse ? ' $lightEclipseFidelity' : ''}'
+    '${coarse ? ' While playing, the light uses a coarser grid; pause for full detail.' : ''}';

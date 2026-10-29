@@ -46,6 +46,12 @@ export interface BodyNow {
   clear?: number
   /** the shared state word (Dart `bodyStateShort`). Optional: old payloads lack it. */
   state?: BodyState
+  /** Sun only: share of the whole disk behind Earth (lunar eclipse), 0..1 (Dart `nowAt`). */
+  eclipse?: number
+  /** Sun only: the terrain alone would let the Sun count, Earth hides it. */
+  eclipseHides?: boolean
+  /** Sun only: power proxy on a Sun-facing panel, W/m² (1361 × (1 au / r)² × frac). */
+  power?: number
   /** the full Dart sentence (`sunStatusText` / `earthStatusText`). Optional. */
   say?: string
 }

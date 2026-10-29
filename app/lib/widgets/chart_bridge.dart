@@ -15,6 +15,7 @@ import 'package:intl/intl.dart';
 
 import '../core/catalog.dart';
 import '../core/decimate.dart';
+import '../core/eclipse.dart' show SunEclipse;
 import '../core/ephemeris.dart';
 import '../core/geo.dart';
 import '../core/horizon.dart';
@@ -419,17 +420,29 @@ Map<String, dynamic> bodyNow(AzEl a, double rho, double frac, double hz, bool vi
 Map<String, dynamic> nowAt(Ephemeris eph, Observer obs, HorizonMask mask, double tMs, SeriesOptions o) {
   final s = obs.look(eph.sun(tMs)), e = obs.look(eph.earth(tMs));
   final rs = angularRadiusDeg(sunRadiusKm, s.range), re = angularRadiusDeg(earthRadiusKm, e.range);
-  final fs = visibleFraction(s.az, s.el, rs, mask), fe = visibleFraction(e.az, e.el, re, mask);
+  // the Sun with Earth's disk removed during a lunar eclipse (as fillSeries)
+  final ecl = SunEclipse.of(s, rs, e, re);
+  final fs = visibleFraction(s.az, s.el, rs, mask, occulter: ecl.occulter), fe = visibleFraction(e.az, e.el, re, mask);
   final hs = mask.at(s.az), he = mask.at(e.az);
   // Earth under the user's Earth rule from the terrain alone, then the DSN
   // check: 'terrainVisible' lets labels say "no DSN" instead of "hidden"
   final terrainEv = earthVisible(o.earthCriterion, fe, e.el, he);
   final dsnIn = eph.dsnMask(tMs) != 0;
   final ev = terrainEv && !(o.requireDsn && !dsnIn);
-  final sv = sunVisible(o.sunCriterion, fs, s.el, hs);
+  final sv = sunVisible(o.sunCriterion, fs, s.el, hs, eclipse: ecl.fraction, centreHidden: ecl.centreHidden);
+  // Earth, not the terrain, is why the Sun does not count: the terrain alone would let it
+  final eclipseHides = ecl.overlaps && !sv && sunVisible(o.sunCriterion, visibleFraction(s.az, s.el, rs, mask), s.el, hs);
   return {
-    'sun': bodyNow(s, rs, fs, hs, sv,
-        say: sunStatusText(visible: sv, elDeg: s.el, rhoDeg: rs, frac: fs, sunRule: o.sunCriterion)),
+    'sun': {
+      ...bodyNow(s, rs, fs, hs, sv,
+          say: eclipseHides
+              ? 'Earth hides the Sun (lunar eclipse)'
+              : sunStatusText(visible: sv, elDeg: s.el, rhoDeg: rs, frac: fs, sunRule: o.sunCriterion)),
+      // share of the whole disk behind Earth, and the power proxy on a Sun-facing panel (W/m²)
+      'eclipse': ecl.fraction,
+      'eclipseHides': eclipseHides,
+      'power': powerProxy(fs, s.range),
+    },
     'earth': bodyNow(e, re, fe, he, ev,
         terrainVisible: terrainEv,
         say: earthStatusText(

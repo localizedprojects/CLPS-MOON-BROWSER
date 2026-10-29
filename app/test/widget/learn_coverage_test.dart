@@ -76,8 +76,13 @@ void main() {
   });
 
   testWidgets('320 px at 2x text: the section lays out without overflow', (tester) async {
-    await pumpLearn(tester, w: 320, h: 2400, text: 2);
+    await pumpLearn(tester, w: 320, h: 640, text: 2);
     expect(tester.takeException(), isNull);
-    expect(find.text('What this tool covers'), findsOneWidget);
+    // an overflow on the way reports through FlutterError and fails the test
+    final list = find.byType(Scrollable).first;
+    await tester.scrollUntilVisible(find.text('What this tool covers'), 300, scrollable: list, maxScrolls: 100);
+    await tester.scrollUntilVisible(find.textContaining('only bobbing up and down with libration'), 300,
+        scrollable: list, maxScrolls: 100);
+    expect(find.textContaining('only bobbing up and down with libration'), findsOneWidget);
   });
 }

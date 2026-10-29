@@ -60,7 +60,8 @@ void main() {
   });
 
   testWidgets('Start here cards go to Explore, Site and Compare (screen-reader taps too)', (tester) async {
-    await pumpLearn(tester, h: 2000);
+    // tall enough for the cards below "What this tool covers"
+    await pumpLearn(tester, h: 3200);
     state.goTo(Dest.learn);
     await tester.tap(find.text('Choose between a few'));
     expect(state.dest, Dest.compare);

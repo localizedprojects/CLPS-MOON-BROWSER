@@ -175,7 +175,8 @@ class _Coverage extends StatelessWidget {
             const SizedBox(height: 8),
             Text.rich(numSpans(addYourOwn, PHText.body)),
             const SizedBox(height: 16),
-            Semantics(header: true, child: const Text('Why the pole is hard', style: PHText.subtitle)),
+            // its own node, so it stays a header inside the card's merged text
+            Semantics(container: true, header: true, child: const Text('Why the pole is hard', style: PHText.subtitle)),
             const SizedBox(height: 4),
             Text.rich(numSpans(whyHard, PHText.body)),
           ]),

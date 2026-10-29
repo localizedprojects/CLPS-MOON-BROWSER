@@ -8,7 +8,7 @@
 library;
 
 import 'timeseries.dart';
-import 'wording.dart' show fmtDuration;
+import 'wording.dart' show eclipseHidesText, fmtDuration;
 
 /// The next change of one body's state after the time shown.
 class NextChange {
@@ -23,11 +23,16 @@ class NextChange {
   /// Sun (a lunar eclipse seen from the Moon), not the Sun crossing the skyline.
   final bool byEclipse;
 
-  const NextChange(this.atMs, this.inMs, {this.byEclipse = false});
+  /// With [byEclipse]: Earth covers the whole Sun on the dark side of the
+  /// change (otherwise only part of it, enough for the user's Sun rule).
+  final bool eclipseTotal;
+
+  const NextChange(this.atMs, this.inMs, {this.byEclipse = false, this.eclipseTotal = true});
   const NextChange.beyond()
       : atMs = null,
         inMs = 0,
-        byEclipse = false;
+        byEclipse = false,
+        eclipseTotal = true;
   bool get beyondPeriod => atMs == null;
 }
 
@@ -46,7 +51,7 @@ NextChange nextChange(SiteSeries s, int flag, double tMs, {bool? now}) {
     // the eclipse is the cause when Earth covers part of the Sun on the dark side of the change
     final dark = v ? j : j - 1;
     final ecl = flag == flagSun && dark >= 0 && s.sunEclipse[dark] > 0;
-    return NextChange(s.timeAt(j), s.timeAt(j) - tMs, byEclipse: ecl);
+    return NextChange(s.timeAt(j), s.timeAt(j) - tMs, byEclipse: ecl, eclipseTotal: ecl && s.sunEclipse[dark] >= 1);
   }
   return const NextChange.beyond();
 }
@@ -149,8 +154,8 @@ String countdownLine(Countdown c, {required String Function(double ms) dateOf, b
   String inT(NextChange n) => 'in ${fmtDuration(n.inMs)} (${dateOf(n.atMs!)})';
   final String head, sunNext;
   if (c.eclipseHides) {
-    head = 'Earth hides the Sun (lunar eclipse)';
-    sunNext = c.sun.beyondPeriod ? 'until after your dates' : 'ends ${inT(c.sun)}';
+    head = eclipseHidesText(c.eclipse);
+    sunNext = c.sun.beyondPeriod ? 'until after your dates' : '${c.eclipse >= 1 ? 'ends' : 'counted again'} ${inT(c.sun)}';
   } else {
     final where = c.sunElDeg >= 0 ? '${_deg(c.sunElDeg)} up' : '${_deg(c.sunElDeg)} below the horizon';
     final hills = '${_deg(c.sunClearDeg)} ${c.sunClearDeg >= 0 ? 'above' : 'below'} the hills';
@@ -161,7 +166,9 @@ String countdownLine(Countdown c, {required String Function(double ms) dateOf, b
       sunNext = c.sun.beyondPeriod
           ? 'no sunset in your dates'
           : c.sun.byEclipse
-              ? 'Earth hides the Sun ${inT(c.sun)}'
+              ? (c.sun.eclipseTotal
+                  ? 'Earth hides the Sun ${inT(c.sun)}'
+                  : 'the lunar eclipse stops the Sun counting ${inT(c.sun)}')
               : 'sunset ${inT(c.sun)}';
     } else {
       sunNext = c.sun.beyondPeriod ? 'no sunrise in your dates' : 'sunrise ${inT(c.sun)}';

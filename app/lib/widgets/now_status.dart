@@ -83,32 +83,40 @@ String shownTimeLabel(double ms, {double? refMs}) {
   final bool terrainEarth = earth['terrainVisible'] as bool? ??
       earthVisible(earthRule, n(earth, 'frac'), n(earth, 'el'), n(earth, 'hz'));
   // Earth's disk, not the terrain, hides the Sun (nowAt's 'eclipseHides')
-  final sunText =
-      sun['eclipseHides'] == true ? 'Earth hides the Sun (lunar eclipse)' : bodyChipText('Sun', stateOf(sun), n(sun, 'frac'));
+  final eclipseHides = sun['eclipseHides'] == true;
+  final sunText = eclipseHides
+      ? eclipseHidesText((sun['eclipse'] as num?)?.toDouble() ?? 1)
+      : bodyChipText('Sun', stateOf(sun), n(sun, 'frac'));
   final earthText = bodyChipText('Earth', stateOf(earth, terrainVisible: terrainEarth), n(earth, 'frac'));
   final (both, glyph) = nowStatement(
       sunUp: sunUp, earthUp: earthUp, sunState: stateOf(sun), earthState: stateOf(earth, terrainVisible: terrainEarth),
-      requireDsn: requireDsn);
+      requireDsn: requireDsn,
+      eclipseHides: eclipseHides);
   return (sun: sunText, earth: earthText, both: both, bothGlyph: glyph);
 }
 
 /// The one statement for a Sun and Earth state. The Sun half says when the
 /// Sun is only partly up, or showing but too low to count; the Earth half
 /// says when Earth is up but no DSN dish can reach it, so the line never
-/// reads against the sky chart above it.
+/// reads against the sky chart above it. With [eclipseHides] (nowAt's: Earth's
+/// disk, not the terrain, stops the Sun counting) the Sun half names the
+/// lunar eclipse.
 (String, GlyphKind) nowStatement({
   required bool sunUp,
   required bool earthUp,
   required String sunState,
   required String earthState,
   required bool requireDsn,
+  bool eclipseHides = false,
 }) {
   final contact = requireDsn ? 'Earth contact' : 'Earth in view';
   final partly = sunUp && sunState == 'partly' ? ' (Sun partly up)' : '';
-  final tooLow = !sunUp && sunState == 'notCounted';
+  final tooLow = !sunUp && !eclipseHides && sunState == 'notCounted';
   final noDish = !earthUp && earthState == 'noDsn';
   final noEarth = noDish ? 'no DSN dish can reach Earth' : 'no $contact';
-  final noPower = tooLow ? 'Sun too low to count for power' : 'no sunlight for power';
+  final noPower = eclipseHides
+      ? 'the lunar eclipse stops the Sun counting for power'
+      : (tooLow ? 'Sun too low to count for power' : 'no sunlight for power');
   return switch ((sunUp, earthUp)) {
     (true, true) => ('Power + $contact now$partly', GlyphKind.both),
     (true, false) => ('Power now$partly, but $noEarth', GlyphKind.sun),

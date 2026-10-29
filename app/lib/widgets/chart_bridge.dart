@@ -23,7 +23,7 @@ import '../core/timeseries.dart';
 import '../core/visibility.dart';
 import '../core/constants.dart';
 import '../core/summary.dart' show Ranked;
-import '../core/wording.dart' show bodyStateShort, earthMetricLabel, earthStatusText, sunStatusText;
+import '../core/wording.dart' show bodyStateShort, earthMetricLabel, earthStatusText, eclipseHidesText, sunStatusText;
 
 typedef ChartEventHandler = void Function(Map<String, dynamic> event);
 
@@ -435,7 +435,7 @@ Map<String, dynamic> nowAt(Ephemeris eph, Observer obs, HorizonMask mask, double
     'sun': <String, dynamic>{
       ...bodyNow(s, rs, fs, hs, sv,
           say: eclipseHides
-              ? 'Earth hides the Sun (lunar eclipse)'
+              ? eclipseHidesText(ecl.fraction)
               : sunStatusText(visible: sv, elDeg: s.el, rhoDeg: rs, frac: fs, sunRule: o.sunCriterion)),
       // share of the whole disk behind Earth, and the power proxy on a Sun-facing panel (W/m²)
       'eclipse': ecl.fraction,

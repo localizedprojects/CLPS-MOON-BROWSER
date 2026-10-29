@@ -83,6 +83,18 @@ String sunStatusText({
   return elDeg + rhoDeg < 0 ? 'Sun below the horizon' : 'Sun hidden behind terrain';
 }
 
+/// Earth's share of the Sun's disk as a whole percentage: a partial eclipse
+/// ([fraction] between 0 and 1) reads 1..99%, never 0% or 100%.
+int eclipseSharePct(double fraction) => fraction >= 1 ? 100 : (100 * fraction).round().clamp(1, 99);
+
+/// The Sun's status when Earth's disk, not the terrain, stops it counting
+/// under the user's Sun rule (a lunar eclipse; [eclipse]: Earth's share of
+/// the Sun's disk, 0..1): only a total cover "hides" the Sun; a partial one
+/// gives Earth's share ([eclipseSharePct]), so a sliver never reads as hidden.
+String eclipseHidesText(double eclipse) => eclipse >= 1
+    ? 'Earth hides the Sun (lunar eclipse)'
+    : 'Earth covers ${eclipseSharePct(eclipse)}% of the Sun (lunar eclipse), so it is not counted as sunlit under your Sun rule';
+
 /// Earth status at one moment.
 ///
 /// [visible] is the final verdict: [earthRule] against the skyline and, with

@@ -39,6 +39,7 @@ import 'time_bar.dart' show utcTwoLines;
 import 'feature_guide.dart';
 
 export '../state/light_engine.dart' show LightClass, LightLayer, classify, lightOverlayPixels, lightPixel;
+export '../core/wording.dart' show eclipseSharePct;
 
 Future<ui.Image> _decode(Uint8List rgba, int w) {
   final c = Completer<ui.Image>();
@@ -95,10 +96,6 @@ LightFrame lightFrameEclipsed(LightFrame f, SunEclipse ecl) {
   return LightFrame(f.request, f.size, f.pxM, f.x0M, f.y0M, flags, f.shade, f.computeMs);
 }
 
-/// Earth's share of the Sun's disk as a whole percentage: a partial eclipse
-/// ([fraction] between 0 and 1) reads 1..99%, never 0% or 100%.
-int eclipseSharePct(double fraction) => fraction >= 1 ? 100 : (100 * fraction).round().clamp(1, 99);
-
 /// The light map's note on a lunar eclipse at a frame's moment: null without
 /// one; for a total one, that no ground gets direct sunlight; for a partial
 /// one, Earth's share of the Sun ([SunEclipse.fraction], [eclipseSharePct]).
@@ -132,11 +129,7 @@ const lightEclipseFidelity = 'During a lunar eclipse, Earth\'s cover of the Sun 
 String lightSunStatus(Map<String, dynamic> sun, SunCriterion rule) {
   double n(String k) => (sun[k] as num).toDouble();
   final e = (sun['eclipse'] as num?)?.toDouble() ?? 0;
-  if (sun['eclipseHides'] == true) {
-    return e < 1
-        ? 'Earth covers ${eclipseSharePct(e)}% of the Sun (lunar eclipse), so it is not counted as sunlit under your Sun rule'
-        : 'Earth hides the Sun (lunar eclipse)';
-  }
+  if (sun['eclipseHides'] == true) return eclipseHidesText(e);
   final text = sunStatusText(visible: sun['visible'] == true, elDeg: n('el'), rhoDeg: n('rho'), frac: n('frac'), sunRule: rule);
   if (e <= 0) return text;
   return '$text; ${e >= 1 ? 'Earth hides the whole Sun' : 'Earth covers ${eclipseSharePct(e)}% of the Sun'} (lunar eclipse)';

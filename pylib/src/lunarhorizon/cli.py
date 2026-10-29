@@ -153,7 +153,7 @@ def _cmd_sky(a: argparse.Namespace, parser: argparse.ArgumentParser) -> int:
         "ephemeris": a.ephemeris,
         "sun": {"az_deg": float(s.sun_az[0]), "el_deg": float(s.sun_el[0]), "range_km": float(s.sun_range_km[0]),
                 "horizon_deg": float(s.sun_hz[0]), "visible_frac": float(s.sun_frac[0]),
-                "visible": bool(s.flags[0] & 1)},
+                "eclipse_frac": float(s.sun_eclipse[0]), "visible": bool(s.flags[0] & 1)},
         "earth": {"az_deg": float(s.earth_az[0]), "el_deg": float(s.earth_el[0]),
                   "range_km": float(s.earth_range_km[0]), "horizon_deg": float(s.earth_hz[0]),
                   "visible_frac": float(s.earth_frac[0]), "visible": bool(s.flags[0] & 2)},
@@ -170,6 +170,9 @@ def _cmd_sky(a: argparse.Namespace, parser: argparse.ArgumentParser) -> int:
         print(f"  {body.capitalize():5}  az {b['az_deg']:8.3f} deg  el {b['el_deg']:7.3f} deg  "
               f"horizon {b['horizon_deg']:6.3f} deg  visible {100 * b['visible_frac']:6.2f} %  "
               f"range {b['range_km']:,.0f} km  {'UP' if b['visible'] else 'down'}")
+    if out["sun"]["eclipse_frac"] > 0:
+        print(f"  Earth hides {100 * out['sun']['eclipse_frac']:.1f} % of the Sun's disk (a lunar eclipse seen "
+              "from the Moon; sharp-edged Earth, no atmosphere)")
     print(f"  Power proxy {out['power_wm2']:.1f} W/m^2")
     print(f"  DSN: {', '.join(out['dsn_stations']) or 'no complex sees the Moon at >= 10 deg'}")
     return 0

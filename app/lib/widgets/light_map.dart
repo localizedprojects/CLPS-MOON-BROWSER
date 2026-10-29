@@ -511,9 +511,13 @@ class LightMap extends StatefulWidget {
   static const switchLabels = (view: ['Around site', 'Whole region', 'Lander'], layer: ['Sunlight', 'Earth view', 'Both']);
   static const shortSwitchLabels = (view: ['Site', 'Region', 'Lander'], layer: ['Sun', 'Earth', 'Both']);
 
-  /// Side padding of a text-only segment (10 dp, so the short labels share
-  /// one row even on a 360 dp phone).
+  /// Side padding of a text-only segment with the full labels.
   static const segmentPad = 10.0;
+
+  /// Side padding of a short-label segment: 8 dp, so the three view and
+  /// three layer segments still share one row on a 393 dp phone (a 360 dp
+  /// one gives each switch its own row).
+  static const shortSegmentPad = 8.0;
 
   /// The smallest segment: a full 48 dp tap target.
   static const segmentMin = 48.0;
@@ -523,7 +527,7 @@ class LightMap extends StatefulWidget {
   /// even the short ones do not fit, the two switches take one row each.
   static ({bool icons, bool short, int rows}) switchFit(double width, TextScaler scaler) {
     // a segmented button gives every segment the width of its widest one
-    double seg(List<String> labels, bool icons) {
+    double seg(List<String> labels, bool icons, double pad) {
       var widest = 0.0;
       for (final l in labels) {
         final tp = TextPainter(
@@ -532,17 +536,17 @@ class LightMap extends StatefulWidget {
             textScaler: scaler)
           ..layout();
         // an icon segment: 18 dp icon, 8 dp gap, 12 + 16 dp padding
-        widest = math.max(widest, math.max(segmentMin, tp.width + (icons ? 18 + 8 + 28 : 2 * segmentPad)));
+        widest = math.max(widest, math.max(segmentMin, tp.width + (icons ? 18 + 8 + 28 : 2 * pad)));
         tp.dispose();
       }
       return labels.length * widest + 2 + 2; // the outline, a little slack
     }
 
-    bool fits(({List<String> view, List<String> layer}) l, bool icons) =>
-        seg(l.view, icons) + 12 + seg(l.layer, icons) <= width;
+    bool fits(({List<String> view, List<String> layer}) l, bool icons, {double pad = segmentPad}) =>
+        seg(l.view, icons, pad) + 12 + seg(l.layer, icons, pad) <= width;
     if (fits(switchLabels, true)) return (icons: true, short: false, rows: 1);
     if (fits(switchLabels, false)) return (icons: false, short: false, rows: 1);
-    if (fits(shortSwitchLabels, false)) return (icons: false, short: true, rows: 1);
+    if (fits(shortSwitchLabels, false, pad: shortSegmentPad)) return (icons: false, short: true, rows: 1);
     return (icons: false, short: true, rows: 2);
   }
 
@@ -846,9 +850,10 @@ class _LightMapState extends State<LightMap> {
       // of -4 makes that 48 dp (still a full tap target, and 48 dp tall), so
       // the short labels share one row on a 360 dp phone
       final style = compact
-          ? const ButtonStyle(
-              padding: WidgetStatePropertyAll(EdgeInsets.symmetric(horizontal: LightMap.segmentPad)),
-              visualDensity: VisualDensity(horizontal: -4, vertical: 0))
+          ? ButtonStyle(
+              padding: WidgetStatePropertyAll(
+                  EdgeInsets.symmetric(horizontal: fit.short ? LightMap.shortSegmentPad : LightMap.segmentPad)),
+              visualDensity: const VisualDensity(horizontal: -4, vertical: 0))
           : null;
       return Wrap(spacing: 12, runSpacing: 10, crossAxisAlignment: WrapCrossAlignment.center, children: [
       if (title) const Text('Light & shadow', style: PHText.subtitle),
@@ -1244,6 +1249,7 @@ class _LightMapState extends State<LightMap> {
                   final side = fullWidth
                       ? c2.maxWidth
                       : math.min(c2.maxWidth, withNote >= usable ? withNote : math.max(c2.maxHeight, pinFloor));
+                  debugPrint('DBGLM c=$c c2=$c2 side=$side full=$fullWidth usable=$usable');
                   return SingleChildScrollView(
                     child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, mainAxisSize: MainAxisSize.min, children: [
                       Center(child: mapBox(side, bottomMayHide: fullWidth)),

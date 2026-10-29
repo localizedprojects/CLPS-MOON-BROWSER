@@ -382,12 +382,15 @@ void main() {
     final st = panelState(tester), cp = find.byWidgetPredicate((w) => w is CustomPaint && w.painter is LanderPainter);
     final viewSize = tester.getSize(cp), origin = tester.getTopLeft(cp);
     LanderPainter p() => tester.widget<CustomPaint>(cp).painter! as LanderPainter;
-    // tap the strip 3/4 across: turns right (clockwise) by about a quarter of the field of view
+    // tap the strip 0.6 across, clear of the 104 dp edge chevrons (they turn to
+    // their body instead): turns right (clockwise) by the azimuth under the tap
     st.cam.set(yaw: 100, pitch: 0, hfov: 60);
     await tester.pump();
-    await tester.tapAt(origin + Offset(viewSize.width * 0.75, 20));
+    final tap = Offset(viewSize.width * 0.6, 20);
+    expect(LanderPainter.chevronAt(st.cam.view(viewSize), p().sun, p().earth, tap), isNull);
+    await tester.tapAt(origin + tap);
     await tester.pumpAndSettle();
-    expect(st.cam.yaw, closeTo(100 + math.atan(0.5 * math.tan(30 * math.pi / 180)) * 180 / math.pi, 0.5));
+    expect(st.cam.yaw, closeTo(100 + math.atan(0.2 * math.tan(30 * math.pi / 180)) * 180 / math.pi, 0.5));
     expect(st.cam.pitch, 0);
     // a callout's 48 dp target turns to its body
     final sun = p().sun!;

@@ -604,7 +604,10 @@ class LanderViewPanelState extends State<LanderViewPanel> with TickerProviderSta
                   right: 0,
                   top: 0,
                   height: LanderPainter.compassH,
+                  // its own node (container), so the label is not merged into the
+                  // view's description
                   child: Semantics(
+                    container: true,
                     label: landerCompassLabel,
                     child: Tooltip(
                       message: landerCompassLabel,

@@ -1,6 +1,7 @@
 // Lander's view widget tests (docs/landers_view_spec.md §11, W1-W8, W12):
 // fake light engine and a synthetic 256 px DEM, so the mesh builds in a
 // moment and no isolate runs.
+import 'dart:async';
 import 'dart:math' as math;
 import 'dart:typed_data';
 import 'dart:ui' as ui;
@@ -47,6 +48,16 @@ class _FakeEngine extends LightEngine {
 
   @override
   void dispose() {}
+}
+
+/// An engine whose full (not coarse) far compute never completes.
+class _StallFullFarEngine extends _FakeEngine {
+  @override
+  Future<LightFrame> compute(LightRequest q) {
+    if (!q.far || q.coarse) return super.compute(q);
+    requests.add(q);
+    return Completer<LightFrame>().future;
+  }
 }
 
 PolarGrid _dem() {
@@ -267,6 +278,25 @@ void main() {
     expect(engine.requests.every((q) => q.far), isTrue); // the panel itself never asks for near frames
     expect(tester.getSemantics(find.byKey(const ValueKey('lander-view'))).label, isNot(label0));
     handle.dispose();
+  });
+
+  testWidgets('W6b a coarse far frame is not shown next to a full near frame at the same moment (§2.4)',
+      (tester) async {
+    size(tester, const Size(360, 800));
+    await nearPole(tester);
+    state.lightEngineForTest = _StallFullFarEngine();
+    await tester.pumpWidget(panel(near: nearFrame(coarse: true)));
+    await meshReady(tester);
+    for (var i = 0; i < 5; i++) {
+      await tester.pump();
+    }
+    expect(find.textContaining('Grey ground: light not computed'), findsNothing);
+    // pause: the full near frame at the same moment; its full far frame never lands
+    await tester.pumpWidget(panel(near: nearFrame()));
+    await tester.pump();
+    await tester.pump();
+    expect(panelState(tester).farRequests.last.coarse, isFalse);
+    expect(find.textContaining('Grey ground: light not computed'), findsOneWidget);
   });
 
   testWidgets('W7 web engine skips the far frame while playing', (tester) async {

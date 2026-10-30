@@ -259,14 +259,23 @@ class LanderViewPanelState extends State<LanderViewPanel> with TickerProviderSta
     return n != null && n.request.closeUp && n.request.lat == _s.site.lat && n.request.lon == _s.site.lon ? n : null;
   }
 
+  /// The far frame only for the shown near frame's moment and grid (§2.4):
+  /// a stale or coarser one is never shown.
+  LightFrame? get _farFrame {
+    final near = _nearFrame, far = _far;
+    return far != null && near != null && far.request.tMs == near.request.tMs && far.request.coarse == near.request.coarse
+        ? far
+        : null;
+  }
+
   Int32List _indexFor(LanderMesh m, LightFrame f, bool far) =>
       _idx.putIfAbsent('$far|${f.size}|${f.pxM}|${f.x0M}|${f.y0M}', () => landerFrameIndex(m, f, far: far));
 
   void _recolor() {
     final m = _mesh, near = _nearFrame;
     if (m == null) return;
-    // the far frame only for the very moment of the near one
-    final far = _far != null && near != null && _far!.request.tMs == near.request.tMs ? _far : null;
+    // the far frame only for the very moment and grid of the near one
+    final far = _farFrame;
     final ni = near == null ? null : _indexFor(m, near, false), fi = far == null ? null : _indexFor(m, far, true);
     _colors = landerVertexColors(m, near, ni, far, fi, widget.layer);
     _patterns = [
@@ -284,13 +293,16 @@ class LanderViewPanelState extends State<LanderViewPanel> with TickerProviderSta
     if (!mounted || !identical(near, _nearFrame)) return;
     if (engine.onUiThread && _s.playing) return;
     final q = lightRequestFor(_s, extent: LightExtent.far, tMs: near.request.tMs, coarse: near.request.coarse);
+    // the eclipse observer is the site's, as for the near frame (§4.3); read with q, so a
+    // site change during the await cannot mismatch them (q's lat/lon is the site's)
+    final siteH = _s.site.terrainHeightM;
     if (q.key == _farSent) return;
     _farSent = q.key;
     farRequests.add(q);
     try {
       final raw = await engine.compute(q);
       if (!mounted || _farSent != q.key) return;
-      final f = lightFrameEclipsed(raw, lightFrameEclipse(raw));
+      final f = lightFrameEclipsed(raw, lightFrameEclipse(raw, terrainHeightM: siteH));
       setState(() {
         _far = f;
         _recolor();
@@ -340,7 +352,7 @@ class LanderViewPanelState extends State<LanderViewPanel> with TickerProviderSta
     final hit = m == null ? null : meshProbe(m, cam.yaw, cam.pitch);
     final az = 'az ${cam.yaw.toStringAsFixed(1)}° el ${cam.pitch >= 0 ? '+' : ''}${cam.pitch.toStringAsFixed(1)}°';
     if (m != null && hit != null) {
-      final near = _nearFrame, far = _far != null && near != null && _far!.request.tMs == near.request.tMs ? _far : null;
+      final near = _nearFrame, far = _farFrame;
       final k = landerClassAt(m, hit.tri, near, near == null ? null : _indexFor(m, near, false), far,
           far == null ? null : _indexFor(m, far, true), widget.layer);
       final km = hit.distM >= 1000 ? '${(hit.distM / 1000).toStringAsFixed(1)} km' : '${hit.distM.round()} m';
@@ -506,7 +518,7 @@ class LanderViewPanelState extends State<LanderViewPanel> with TickerProviderSta
     final scaler = MediaQuery.textScalerOf(context);
     final wide = w >= 600 && scaler.scale(14) <= 18;
     final sun = _body(true), earth = _body(false), words = _precise;
-    final near = _nearFrame, far = _far != null && near != null && _far!.request.tMs == near.request.tMs;
+    final near = _nearFrame, far = _farFrame != null;
     final h = s.observerHeightM;
     final notes = <String>[
       if (widget.layer != LightLayer.earth && !words.sun.startsWith('in view') && !words.sun.startsWith('partly hidden'))

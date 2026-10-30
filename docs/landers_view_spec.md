@@ -181,7 +181,7 @@ x  = w/2 + F·(v·r)/(v·f)       y = h/2 − F·(v·up')/(v·f)
 - `meshSkyline(m, azStepDeg: 0.5, minDistM)` is exact. For each azimuth it takes the max elevation over intersections of triangle edges with the vertical half-plane at that azimuth (the edge intersection is linear in 3-D), over triangles with `dmin ≥ minDistM`. Elevation along a segment in a vertical plane through the eye is monotonic, so edges suffice.
   - It is stored in the mesh with minDist 800 m (parts 1–2): the "far skyline".
   - The test compares it with minDist 600 m (`coarseMinM`) against `computeCoarseHorizon` (T5).
-- Near-field alpha: a part 0 vertex gets alpha 1 when its el ≤ the far skyline at its azimuth, else `landerNearAlpha` = 0.35.
+- Near-field alpha: a part 0 vertex, or a part 1 vertex under 800 m, gets alpha 1 when its el ≤ the far skyline at its azimuth, else `landerNearAlpha` = 0.35. Every other vertex gets alpha 1. (Part 1 keeps the 400 m cells that straddle the 800 m ring; their vertices under 800 m are near ground and are never in the far skyline, so they follow the lattice's rule. Vertices at 800 m or more stay opaque, so far peaks are not made translucent by skyline sampling between 0.5° steps.)
 - `demEnds`:
   - For each 0.5° azimuth, step the great circle at `coarseDistances()` (`horizon_compute.dart`) and record the first distance outside the DEM grid.
   - Merge consecutive azimuths into ranges `(az0, az1, distM)`. `distM` is the minimum in the range.
@@ -618,15 +618,18 @@ Three independent reviews (geometry and science, UI and accessibility, performan
 
 ### Geometry and science
 
-- **high**: Opaque 400 m cells straddling the 800 m ring hide a Sun that the map, the mask and the callouts all call visible (breaks D7) (`app/lib/core/lander_view.dart:541`)
+- [x] **high**: Opaque 400 m cells straddling the 800 m ring hide a Sun that the map, the mask and the callouts all call visible (breaks D7) (`app/lib/core/lander_view.dart:541`)
   - Scenario: _cellRow drops a near cell only when all 4 corners are within 800 m. Cells that straddle the ring stay in part 1 and get alpha 1 (line 728). Their triangles have dmin < 800 m, so _skyChunk (line 572) leaves them out of the far skyline. That same skyline drives the near-field alpha (line 735) and skyBody's line-3 check. I measured this on the shipped DEM at the Shackleton rim preset (derosa2012-sr1-shackleton-rim). The 400 m eye is 29 m below the precise site height (1703.8 vs 1733.1 m). At az 80°, a ray at el 0.0 to +0.2° hits an opaque part-1 triangle about 290-300 m away (vertices at 283, 522 and 537 m horizontal), which rises to +0.33°. At that azimuth both the far skyline and horizons.js
   - Suggested fix: Apply the lattice's see-through rule to the near ground that part 1 keeps. One option: in _finish, give every part-1 vertex with _dh < landerNearFieldM alpha landerNearAlpha when _el[v] > skylineAt(_sky, _az[v]). Another: drop part-1 cells with any corner inside 800 m and extend the lattice rings to about 800 + 400·√2 m. Add a test that the opaque (alpha 1) drawn skyline never exceeds max(far skyline, horizons.json) by more than a small tolerance at the presets.
-- **low**: A coarse far frame stays on screen next to a full near frame, unlabelled (stale check ignores `coarse`) (`app/lib/widgets/lander_view.dart:269`)
+  - Fixed (2026-10-30): `_finish` gives part 1 vertices under 800 m the lattice's see-through rule (§3.9); test 'opaque near ground never rises above the far skyline (D7)' on the shipped DEM (SR1, Haworth, Mons Mouton, custom spot), tolerance 0.2°. Vertices at 800 m or more stay opaque.
+- [x] **low**: A coarse far frame stays on screen next to a full near frame, unlabelled (stale check ignores `coarse`) (`app/lib/widgets/lander_view.dart:269`)
   - Scenario: _recolor (line 269), the probe (343) and the caption (509) show the far frame whenever its tMs equals the near frame's. §2.4 also requires `coarse` to match. On native, while playing, the far frame at T is computed on the 1.6 km grid. Pausing at T replaces the near frame with the full 400 m frame. Its tMs is still T, so the 1.6 km far light keeps showing beyond 64 km, yet the 'Approximate: while playing…' badge is gone because it keys on the near frame's coarse flag. If the full far compute then fails (the catch only clears _farSent), the unlabelled coarse light stays indefinitely. CLAUDE.md says any approximation is labelled.
   - Suggested fix: Compare `_far!.request.coarse == near.request.coarse` together with tMs in all three places, ideally through one shared getter, so a mismatched far frame drops to 'light not computed' grey until the matching one lands.
-- **low**: Far frame eclipse uses observer height 0 m, not the site's terrain height (`app/lib/widgets/lander_view.dart:293`)
+  - Fixed (2026-10-30): one `_farFrame` getter (tMs and `coarse` must equal the shown near frame's) serves the colours, the probe and the 'Grey ground' note; widget test W6b.
+- [x] **low**: Far frame eclipse uses observer height 0 m, not the site's terrain height (`app/lib/widgets/lander_view.dart:293`)
   - Scenario: _syncFar calls lightFrameEclipse(raw) with the default terrainHeightM = 0. The near frame passes through light_map._drawn with site.terrainHeightM, and §4.3 requires the same for both frames. At Mons Mouton (6397 m) the far frame's eclipse observer is 6.4 km lower, which shifts Earth's apparent position by about 3 arcsec. For a few seconds around each eclipse contact the two frames then disagree: for example the near frame is total (Sun bits cleared, ground dark) while the far frame is partial (Sun bits kept), so ground beyond 64 km is drawn sunlit next to dark near ground at the same moment.
   - Suggested fix: Use `lightFrameEclipse(raw, terrainHeightM: _s.site.terrainHeightM)` (the far request's lat/lon is the site), or reuse the SunEclipse already computed for the shown near frame at the same tMs.
+  - Fixed (2026-10-30): `_syncFar` passes `terrainHeightM: site.terrainHeightM`, read when the request is built (§4.3).
 
 ### UI and accessibility
 

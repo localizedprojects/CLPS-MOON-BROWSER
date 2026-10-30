@@ -1233,7 +1233,11 @@ class LanderPainter extends CustomPainter {
       }
     }
     final floor = math.min(strip.legend?.top ?? size.height, strip.readout?.top ?? size.height) - 2;
-    final sunBox = sun == null ? null : _callout(canvas, v, sun!, true, null, floor);
+    // the Sun's words keep clear of Earth's glyph too (an eclipse puts it right over the Sun)
+    final eg = earth == null ? null : calloutAnchor(v, earth!)?.glyph;
+    final sunBox = sun == null
+        ? null
+        : _callout(canvas, v, sun!, true, eg == null ? null : Rect.fromCircle(center: eg, radius: glyphR + 1), floor);
     final earthBox = earth == null ? null : _callout(canvas, v, earth!, false, sunBox, floor);
     final boxes = [?sunBox, ?earthBox, ?strip.legend, ?strip.readout, ...demLabels];
     _elevationScale(canvas, v, size, boxes);

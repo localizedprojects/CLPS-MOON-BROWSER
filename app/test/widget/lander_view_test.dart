@@ -428,7 +428,7 @@ void main() {
         cam: LanderCameraController(), mesh: mesh, proj: LanderProjection(), colors: null, sunWord: word, earthWord: word);
     const behind = (az: 123.44, el: 0.9, rhoDeg: 0.27, state: SkyState.behindTerrain);
     expect(painter('in view').calloutLines(behind, true),
-        ['Sun · az 123.4° · el +0.9°', 'in view', '400 m terrain here: behind terrain, skyline +1.1° beyond 800 m']);
+        ['Sun · az 123.4° · el +0.9°', 'in view', 'drawn terrain: behind terrain (skyline +1.1° from 800 m out)']);
     expect(painter('behind terrain').calloutLines(behind, true), ['Sun · az 123.4° · el +0.9°', 'behind terrain']);
     expect(painter('below horizon').calloutLines((az: -9.0, el: -2.25, rhoDeg: 0.95, state: SkyState.belowHorizon), false),
         ['Earth · az 351.0° · el -2.3°', 'below horizon']);
@@ -437,7 +437,7 @@ void main() {
     expect(painter('in view, 62 % covered by Earth (lunar eclipse)').calloutLines(up, true),
         ['Sun · az 6.9° · el +3.9°', 'in view, 62 % covered by Earth (lunar eclipse)']);
     expect(painter('hidden by Earth (lunar eclipse)').calloutLines(up, true),
-        ['Sun · az 6.9° · el +3.9°', 'hidden by Earth (lunar eclipse)', '400 m terrain here: in view, skyline +1.1° beyond 800 m']);
+        ['Sun · az 6.9° · el +3.9°', 'hidden by Earth (lunar eclipse)', 'drawn terrain: in view (skyline +1.1° from 800 m out)']);
   });
 
   test('§5 the callout skyline is the solid mesh silhouette at the body azimuth (not 180° away)', () {
@@ -448,7 +448,7 @@ void main() {
         sunWord: 'in view', earthWord: 'in view');
     for (final az in [0.0, 2.0, 6.9, 357.3]) {
       final line = painter.calloutLines((az: az, el: 20.0, rhoDeg: 0.27, state: SkyState.behindTerrain), true)[2];
-      expect(line, endsWith(' beyond 800 m'));
+      expect(line, endsWith(' from 800 m out)'));
       final label = double.parse(RegExp(r'skyline ([+-][\d.]+)°').firstMatch(line)!.group(1)!);
       // the apex ridge (0, 1000, 300) -> (+-600, 1000, -300) cut by the vertical plane at az
       final e = 1000 * math.tan(az * math.pi / 180), u = 300 - e.abs();
@@ -523,6 +523,31 @@ void main() {
     const b = (disc: Offset(180, 230), glyph: Offset(180, 200), rPx: 2.0);
     expect(LanderPainter.calloutBox(v, b, const Size(250, 50), null, 192), const Rect.fromLTWH(55, 238, 250, 50));
     expect(LanderPainter.calloutBox(v, b, const Size(250, 50), null, 192, bottom: 270), const Rect.fromLTWH(55, 136, 250, 50));
+    // its place above taken by the other callout: stacked above that one, not beside or under
+    // the glyph over the skyline (a lunar eclipse puts both bodies at one spot)
+    expect(LanderPainter.calloutBox(v, a, const Size(120, 40), const Rect.fromLTWH(40, 100, 120, 40), 142, up: true),
+        const Rect.fromLTWH(40, 56, 120, 40));
+  });
+
+  testWidgets('§5 the centre readout follows a camera set from outside; D7 near ground is hatched', (tester) async {
+    await nearPole(tester);
+    await tester.pumpWidget(panel(near: nearFrame()));
+    await meshReady(tester);
+    LanderPainter painter() => tester
+        .widget<CustomPaint>(
+            find.descendant(of: find.byKey(const ValueKey('lander-view')), matching: find.byType(CustomPaint)))
+        .painter! as LanderPainter;
+    final p = panelState(tester)..cam.set(yaw: 145, pitch: 1.5);
+    await tester.pump();
+    await tester.pump();
+    expect(painter().probeAt, (yaw: 145.0, pitch: 1.5));
+    expect(painter().probe, endsWith(landerProbeAz(145, 1.5)));
+    expect(landerProbeAz(145, 1.5), 'az 145.0° el +1.5°');
+    // the hatch on exactly the vertices drawn see-through
+    final m = p.mesh!, st = painter().seeThrough!;
+    expect([for (var i = 0; i < st.length; i++) if (st[i] != 0) i],
+        [for (var i = 0; i < m.vertexCount; i++) if (m.alpha[i] < 1) i]);
+    expect(landerSeeThroughLabel, contains('800 m'));
   });
 
   test('§5 bottom strip: the readout shares the legend row when both fit, else sits above it; never overlapping', () {
@@ -614,7 +639,7 @@ void main() {
     const v = LanderView(yawDeg: 0, pitchDeg: 0, hfovDeg: 45, w: 320, h: 220);
     final t = TextPainter(
         text: const TextSpan(
-            text: '400 m terrain here: partly hidden, skyline +0.2° beyond 800 m',
+            text: 'drawn terrain: partly hidden (skyline +0.2° from 800 m out)',
             style: TextStyle(fontFamily: PH.sans, fontSize: 11, fontWeight: FontWeight.w500)),
         textDirection: TextDirection.ltr,
         textScaler: const TextScaler.linear(PH.maxCanvasTextScale))

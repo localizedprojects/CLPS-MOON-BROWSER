@@ -29,7 +29,7 @@ Every disagreement is resolved in the table in §0, with the reason. Anything th
 | D17 | Azimuth ruler and compass strip | Ruler with N/E/S/W | 48 dp compass strip | **B's strip**, with A's "N = away from the pole" in its tooltip and Semantics. |
 | D18 | "Light not computed" ground | Neutral grey | `#2A3346` with a 45° hatch | **Neutral grey `beyondMapGround` (`#6E737B`, already in `light_map.dart`), no hatch**, plus an on-view text label and the probe text. A diagonal hatch would read as the partSun stripes. |
 | D19 | Fling inertia | No | Yes | **Kept.** It is about 20 lines and is off under reduced motion. |
-| D20 | Main-thread slice length | (isolate) | 20 ms | **8 ms** (`runSliced(..., sliceMs: 8)`), because the mesh is built on the UI thread on native too. |
+| D20 | Main-thread slice length | (isolate) | 20 ms | **4 ms, one unit per step** (`runSliced(..., rows: 1, sliceMs: 4)`), because the mesh is built on the UI thread on native too. Every unit is short (rows, 2048-triangle chunks, at most 16,384 elements of a sort or compaction pass), so a slice is at most 4 ms plus one unit, within the 8 ms of §8 (changed 2026-10-30 from rows 8 / 8 ms, review §14). |
 
 ## 1. Goal
 
@@ -52,7 +52,7 @@ The 3D view therefore always agrees with the Light tab's 2D map. Some sources ar
    - Near patch: ds = 1. The window is the close-up frame's window, `windowAround(pixelOf(site), closeUpPx = 320)` on the 400 m grid (2280 px).
    - Far patch: ds = 2. The window is `windowAround(pixelOf(site), landerFarPx(800) = 750)` on the 800 m grid (1140 px).
    - Both windows use the pure functions `gridPixelOf` and `gridWindowAround`, extracted from `ShadowGrid.pixelOf` and `ShadowGrid.windowAround` so the mesh and `_work` share one implementation.
-2. **Mesh.** `LanderMeshWork` (core) runs on the main thread through `runSliced(work.step, pause: <next frame>, rows: 8, sliceMs: 8)` (`app/lib/state/light_engine.dart`).
+2. **Mesh.** `LanderMeshWork` (core) runs on the main thread through `runSliced(work.step, pause: <next frame>, rows: 1, sliceMs: 4)` (`app/lib/state/light_engine.dart`), and stops at its next slice when the site changes or the panel is disposed.
    - It is started by the lander widget once `s.dem()` resolves.
    - It is cached in an LRU of 2 meshes keyed `'${site.lat}|${site.lon}|$observerHeightM'`, held by the lander widget's state and dropped when the light view leaves lander mode.
 3. **Near light frame.** The close-up frame `_LightMapState` already requests: `LightRequest(closeUp: true, ...)`, coarse while playing, debounced 60 ms, prefetched.
@@ -340,12 +340,12 @@ On the web while playing, the second sentence is "Light beyond 64 km waits until
 
 | Item | When | Budget |
 |---|---|---|
-| Patches + mesh build + cull + sort | Once per (site, observerHeightM), main thread, `runSliced` rows 8 / 8 ms | Native ≤ 250 ms CPU total, web ≤ 1.2 s total. No slice > 8 ms of work. A "Building the view…" text shows until it is done (no placeholder terrain). |
+| Patches + mesh build + cull + sort | Once per (site, observerHeightM), main thread, `runSliced` rows 1 / 4 ms (D20) | Native ≤ 250 ms CPU total, web ≤ 1.2 s total. No slice > 8 ms of work. A "Building the view…" text shows until it is done (no placeholder terrain). **As built (2026-10-30):** the slice rule holds (longest unit about 7 ms in the test VM on the shipped DEM; test 'built one unit at a time'), but the total does not: about 2-3 s of CPU in the VM at SR1, spread over 4 ms slices, so the UI keeps running while the view builds. Most of it is the 750 × 750 far patch (about 2.2M triangles, about 97 % culled). Meeting the total needs a smaller or decimated far patch, or the build in an isolate on native (D6 keeps it on the main thread). |
 | Mesh before culling | Transient | About 660k grid vertices (0.1M near + 0.56M far) + 2.3k lattice. Typed arrays only, freed after culling, ≤ 25 MB peak. |
 | Kept mesh | Cached, LRU of 2, dropped when leaving lander mode | ≤ 150k vertices and ≤ 8 MB. T10 asserts this for the 4 test sites; if exceeded, the builder reports it rather than silently thinning. |
-| Index rebuild | Sector set changes | ≤ 2 ms native |
+| Index rebuild | Sector set changes | ≤ 2 ms native. The merged ids are cached in `LanderProjection` per (mesh, sector set) (`mergeLanderSectors`: one marking pass and one linear pass, no sort); other repaints reuse them. |
 | Projection | yaw/pitch/hfov/size change | Into reused `Float32List`s; ≤ 2 ms native / 6 ms web for ≤ 40k vertices |
-| Recolour (gather) | New frame or layer | ≤ 3 ms native / 8 ms web |
+| Recolour (gather) | New frame or layer | ≤ 3 ms native / 8 ms web. One pass for the base and every pattern buffer (`landerColors`); a vertex on one full-weight source pixel reads packed colour tables. The far frame landing after the near one still recolours once more. |
 | Paint | Per frame | ≤ 80k triangles at the default hfov. 1 base pass + ≤ 2 pattern passes. `CustomPainter(repaint: controller)` inside a `RepaintBoundary`. `TextPainter`s cached by string. |
 | Far light frame | Per moment, lander mode only | One region-sized frame (562k px; 141k px coarse). Requested after the near frame; never ahead of a pending near request. Skipped on the web while playing. Cache cost about 1.1 MB per far frame. |
 | Probe and Semantics text | Gesture end, button press, frame change | Not per frame |
@@ -429,7 +429,8 @@ class LanderView { final double yawDeg, pitchDeg, hfovDeg, w, h; }
 ({double x, double y, bool front}) projectView(LanderView v, double e, double n, double u);
 ({double az, double el}) unprojectView(LanderView v, double x, double y);
 List<int> visibleSectors(LanderView v);
-int projectTriangles(LanderView v, LanderMesh m, List<int> sectors, Float32List xy, Uint16List idx /*batched*/);
+int projectTriangles(LanderView v, LanderMesh m, List<int> sectors, LanderProjection out, {int maxBatchVertices}); // batched; the merged ids cached in `out` per (mesh, sector set)
+Int32List mergeLanderSectors(LanderMesh m, List<int> sectors, Uint8List mark); // the sectors' triangle ids, ascending, each once
 double clampPitch(double deg); double clampHfov(double deg);
 double turnDelta(double fromDeg, double toDeg); // shortest signed turn, (-180, 180]
 
@@ -462,6 +463,7 @@ LightClass? landerClassAt(LanderMesh m, int tri, LightFrame? near, Int32List? ne
 const int landerNotComputedArgb = 0xFF6E737B; // = light_map.dart beyondMapGround (tested), since this file has no Flutter
 const double landerAlbedo = 0.55;
 Int32List landerPatternColors(LanderMesh m, LightFrame? near, Int32List? nearIdx, LightFrame? far, Int32List? farIdx, LightLayer layer, LightPattern p); // ARGB for §4.4 step 2: on-pattern colour lightPixel(cls, shade, 0, 0, 1), alpha = landerPatternAlpha
+(Int32List, List<Int32List>) landerColors(LanderMesh m, LightFrame? near, Int32List? nearIdx, LightFrame? far, Int32List? farIdx, LightLayer layer, List<LightPattern> patterns); // the two above in one pass, value for value (what the panel calls, §8)
 LightClass? landerVertexClass(LanderMesh m, int v, LightFrame? near, Int32List? nearIdx, LightFrame? far, Int32List? farIdx, LightLayer layer); // dominant weight of one vertex (S2, S6)
 ```
 
@@ -648,18 +650,22 @@ Three independent reviews (geometry and science, UI and accessibility, performan
 
 ### Performance and platforms
 
-- **high**: Mesh build blocks the UI thread: two single-unit phases of 120-165 ms, slices of about 20 ms, 2.3 s in total (budget 250 ms native / 1.2 s web, no slice over 8 ms) (`app/lib/core/lander_view.dart:438`)
+- [x] **high**: Mesh build blocks the UI thread: two single-unit phases of 120-165 ms, slices of about 20 ms, 2.3 s in total (budget 250 ms native / 1.2 s web, no slice over 8 ms) (`app/lib/core/lander_view.dart:438`)
   - Scenario: Open the lander's view at SR1 (or switch site or observer height while in it). LanderViewPanelState._ensureMesh (widgets/lander_view.dart:232) runs LanderMeshWork on the UI thread with runSliced(rows: 8, sliceMs: 8). I measured it with a throwaway test on the shipped 400 m DEM (VM JIT, warmed up). The build took 2335 ms of CPU over 675 step(8) calls, and 86 of those calls each took more than 8 ms (typically 20-25 ms, because 8 units of the far-patch cell rows or the 4096-triangle cull/sky chunks run before the time check). Measured one unit at a time, two units are monolithic: _sortSweep() at 164 ms and _finish() at 120 ms. On the web build (dart2js, UI-thread engine) those become long tasks
   - Suggested fix: Split _sortSweep (the radix passes and the heap set-up) and _finish (remap, compaction, the final radix sort, the sector fill) into chunked units of no more than about 4096 elements. Call runSliced with rows: 1, or make LanderMeshWork.step time-bounded, so that no slice goes past 8 ms. On native, consider building the mesh in Isolate.run (as dem_load_io.dart already does for the DEM) and returning the typed arrays through Isolate.exit. Also add a test that checks the largest single-unit time aga
-- **high**: projectTriangles re-merges and re-sorts the visible sectors and allocates two list literals per triangle on every paint (~7 ms per frame vs a 2 ms budget) (`app/lib/core/lander_view.dart:887`)
+  - Fixed (2026-10-30): the dmin sort and the final compaction run as units of at most 16,384 elements (a resumable `_Radix`: histogram, prefix and scatter units per 16-bit pass; then key, mark, number, compact and sector-fill chunks), sky and cull chunks are 2048 triangles, and the panel calls `runSliced(rows: 1, sliceMs: 4)` (D20). The mesh is bit-identical to before (same hashes on the shipped DEM, cull on and off). Test 'built one unit at a time: the same mesh, and no long unit (§8)' on the shipped DEM. Not fixed: the 2-3 s total (§8 'As built'); no isolate (D6).
+- [x] **high**: projectTriangles re-merges and re-sorts the visible sectors and allocates two list literals per triangle on every paint (~7 ms per frame vs a 2 ms budget) (`app/lib/core/lander_view.dart:887`)
   - Scenario: LanderPainter.paint (widgets/lander_view.dart:951) calls projectTriangles(v, m, visibleSectors(v), proj) on every repaint, and every repaint means every cam.notifyListeners tick of a drag, the 400 ms turn animation or a fling. Each call copies the sector lists into a new Int32List, runs ids.sort() over 25-40k ids, and then allocates `[a, b, c]` twice per triangle in its inner loop. Measured on the SR1 mesh (34k vertices, 62k triangles) at 411x560 px, pitch -10: mean 4.6-6.8 ms per call at hfov 45 and 7.2-7.5 ms at hfov 90, worst 15 ms. The merge and sort alone take 3-5.6 ms. The same projection loop over a cached id list, without the list literals, takes 0.56 ms. Spec §3.7/§8 says the index 
   - Suggested fix: Cache the merged, ordered triangle-id list in LanderProjection, keyed by the sector set: k-way merge the already-ascending sector lists, and rebuild only when visibleSectors changes. Replace the two `for (final q in [a, b, c])` loops with unrolled code for a, b and c. Keep xy/idx/batches cached and keyed by (yaw, pitch, hfov, w, h), so a repaint caused by a time step reuses the previous projection and only re-gathers colours.
-- **medium**: A mesh build in flight is not cancelled on dispose: leaving lander mode keeps a multi-second UI-thread build (+104 MB transient) running, and re-entering starts a second one (`app/lib/widgets/lander_view.dart:232`)
+  - Fixed (2026-10-30): `LanderProjection` caches the merged ids per (mesh, sector set) and rebuilds them with `mergeLanderSectors` (mark, then one linear pass, no sort) only when either changes; the per-triangle `[a, b, c]` literals are gone (unrolled count, indexed loop), same draw order and batches. Tests 'mergeLanderSectors: …' and 'projectTriangles reuses its merged ids: same output as a fresh projection'.
+- [x] **medium**: A mesh build in flight is not cancelled on dispose: leaving lander mode keeps a multi-second UI-thread build (+104 MB transient) running, and re-entering starts a second one (`app/lib/widgets/lander_view.dart:232`)
   - Scenario: The runSliced stop predicate is `_meshKey != key || w.step(r)`. dispose() (line 200) only clears _meshes and never changes _meshKey, so the predicate stays false after the panel is gone. light_map.dart mounts LanderViewPanel only while kind == LightViewKind.lander. A user who opens the lander's view and switches back to the map within the 2+ s build (or toggles it twice) leaves the orphaned build running to the end, consuming UI-thread slices and the transient working set. I measured that working set with ProcessInfo.currentRss: RSS rose by 104 MB (164 to 268 MB) during one SR1 build, against the spec's ≤ 25 MB peak, because about 1.33M vertices (pixel plus centre vertices) carry Float64 az/
   - Suggested fix: Add a `_disposed` flag (or set `_meshKey = null`) in dispose, and include it in the runSliced predicate: `(r) => !mounted || _meshKey != key || w.step(r)`. Separately, shrink the transient set toward the 25 MB budget: Float32 for _az/_el/_dh, and build the fan centres per cell only where they are needed, or drop large phase arrays as soon as they are consumed.
-- **low**: Recolour on each new light frame takes 7-8 ms for the 'both' layer (budget 3 ms native), and runs twice per time step on native (`app/lib/state/lander_light.dart:156`)
+  - Fixed (2026-10-30): dispose() sets `_meshKey = null`, the runSliced predicate is `!mounted || _meshKey != key || w.step(r)`, and `_ensureMesh` returns before allocating the work when the panel left during the DEM load. Widget test W7b (fails on the old code: the orphan ran the whole build). The transient memory is unchanged (a separate change).
+- [x] **low**: Recolour on each new light frame takes 7-8 ms for the 'both' layer (budget 3 ms native), and runs twice per time step on native (`app/lib/state/lander_light.dart:156`)
   - Scenario: didUpdateWidget calls _recolor whenever the near frame's identity changes, i.e. on every play step or scrub. _recolor runs landerVertexColors and then landerPatternColors for each pattern of the layer, and each landerPatternColors call first runs landerPatternAlpha in full and then a second per-vertex pass that calls _source() (a record per vertex) and reads m.part/m.w through the object. Measured on the SR1 mesh with real computed frames: the base colours take 2.2-3.0 ms, the two patterns 4.2-5.2 ms, so 'both' costs about 7-8 ms per recolour in the VM, against spec §8's ≤ 3 ms native / 8 ms web. On native the far frame lands about 50-150 ms after the near one and triggers a second full reco
   - Suggested fix: Fuse the pattern alpha and the pattern colour into one pass, compute the base and all pattern buffers in a single loop over vertices, and hoist the near/far source selection out of the loop (vertices are grouped by part, so loop per part range instead of calling _source per vertex). When only the far frame arrives, recolour only the part-2 vertices.
+  - Fixed (2026-10-30): `landerColors` computes the base and every pattern buffer in one loop with the near/far source hoisted, and reads packed (class, shade) tables for a vertex on one full-weight pixel; `_recolor` calls it once. Value for value equal to `landerVertexColors` / `landerPatternColors` (test S3b: SR1, every layer, near only and near + far, full and coarse). Not done: recolouring only part 2 when just the far frame lands.
 
 ### Skeptic verdicts so far
 

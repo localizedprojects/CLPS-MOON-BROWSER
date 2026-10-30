@@ -332,7 +332,7 @@ Float64List meshSkyline(LanderMesh m,
 }
 
 /// Elements per unit of the mesh build's linear passes and radix sorts.
-const int _chunk = 65536;
+const int _chunk = 16384;
 
 int _chunks(int n) => (n + _chunk - 1) ~/ _chunk;
 

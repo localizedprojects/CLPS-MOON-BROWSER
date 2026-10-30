@@ -203,6 +203,7 @@ class LanderViewPanelState extends State<LanderViewPanel> with TickerProviderSta
     _focus.dispose();
     cam.dispose();
     _meshes.clear();
+    _meshKey = null; // a build in flight (_ensureMesh) stops at its next slice
     super.dispose();
   }
 
@@ -227,10 +228,12 @@ class LanderViewPanelState extends State<LanderViewPanel> with TickerProviderSta
     final s = _s, lat = s.site.lat, lon = s.site.lon, h = s.observerHeightM;
     try {
       final g = await (widget.demForTest ?? s.dem)();
+      if (!mounted || _meshKey != key) return;
       final w = LanderMeshWork(g.heights, g.size, g.scaleM, latDeg: lat, lonDeg: lon, observerHeightM: h);
-      // 8 rows / 8 ms slices on the UI thread (D20); abandoned when the site changes
-      await runSliced((r) => _meshKey != key || w.step(r),
-          pause: () => Future<void>.delayed(Duration.zero), rows: 8, sliceMs: 8);
+      // one unit at a time, 4 ms slices on the UI thread (D20, §8: a slice is at most 4 ms plus
+      // one short unit); abandoned when the site changes or the panel is disposed
+      await runSliced((r) => !mounted || _meshKey != key || w.step(r),
+          pause: () => Future<void>.delayed(Duration.zero), rows: 1, sliceMs: 4);
       if (!mounted || _meshKey != key) return;
       _meshes[key] = w.mesh;
       while (_meshes.length > 2) {
@@ -277,10 +280,12 @@ class LanderViewPanelState extends State<LanderViewPanel> with TickerProviderSta
     // the far frame only for the very moment and grid of the near one
     final far = _farFrame;
     final ni = near == null ? null : _indexFor(m, near, false), fi = far == null ? null : _indexFor(m, far, true);
-    _colors = landerVertexColors(m, near, ni, far, fi, widget.layer);
-    _patterns = [
-      for (final p in landerPatternsOf(widget.layer)) (p, landerPatternColors(m, near, ni, far, fi, widget.layer, p))
-    ];
+    // the base colours and every pattern pass in one loop over the vertices (§8)
+    final pats = landerPatternsOf(widget.layer);
+    final (base, passes) = landerColors(m, near, ni, far, fi, widget.layer, pats);
+    _colors = base;
+    _patterns = [for (var i = 0; i < pats.length; i++) (pats[i], passes[i])];
+
     _refreshText();
   }
 

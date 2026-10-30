@@ -193,8 +193,8 @@ const calcSections = <CalcSection>[
         'disagree with the map. The eye is 2 m (or the mast height) above that 400 m surface. Each piece of ground '
         'takes its light and shadow from the light map\'s own computed frame for the moment on the time bar. Ground '
         'hidden behind nearer ground is skipped before drawing. Ground nearer than 800 m is not resolved by the 400 m '
-        'grid; where it would rise above the distant skyline it is drawn see-through, because the light map and the '
-        'horizon masks ignore it. Not drawn: stars, textures, Earthshine and any fill light.',
+        'grid; where it would rise above the distant skyline it is drawn see-through, because the light map leaves it '
+        'out. Not drawn: stars, textures, Earthshine and any fill light.',
     maths: [
       'mesh = light-map height grids (400 m < 64 km, 800 m < 300 km); no other height source',
       'eye = site on the 400 m surface + observer height, local ENU on the sphere normal',

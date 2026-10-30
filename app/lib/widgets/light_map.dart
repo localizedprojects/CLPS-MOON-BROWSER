@@ -2115,7 +2115,7 @@ String landerFidelityText(String heightText,
       '${custom ? '80 m horizons by 0.5–1.4° (up to about 6° on sharp rims); it matches this spot\'s 400 m horizon '
           '(dashed) within about 0.4°' : 'this site\'s 80 m horizon mask (dashed) by about 1° and up to 5°'}. '
       'Ground within 800 m is not resolved by the 400 m grid: where it would rise above the distant skyline it is '
-      'drawn see-through, because the light map and the horizon masks ignore it. Light and shadow are the Light '
+      'drawn see-through, because the light map leaves it out. Light and shadow are the Light '
       'tab\'s computed frame for this moment, pixel for pixel; Earth\'s direction there is taken from the Moon\'s '
       'centre, up to 0.3° higher than seen from the ground. Shadowed ground is drawn dark: Earthshine is not '
       'computed, and the ground colour is a flat grey, not a photo. The Sun and Earth are drawn in their meaning '

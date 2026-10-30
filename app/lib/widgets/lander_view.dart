@@ -1068,6 +1068,7 @@ class LanderPainter extends CustomPainter {
       level = (y0: y0, k: k); // its label goes on after the boxes, clear of them
     }
     // DEM ends (§3.9): dotted on the drawn skyline where the LOLA map stops
+    final demLabels = <Rect>[];
     if (m != null) {
       final warn = Paint()
         ..color = PH.warn
@@ -1093,7 +1094,9 @@ class LanderPainter extends CustomPainter {
           final t = _text('terrain data ends at ${(e.distM / 1000).round()} km', size: 10, color: PH.warn);
           final x = mid.dx.clamp(2.0, math.max(2.0, size.width - t.width - 2)).toDouble();
           final y = (mid.dy - t.height - 4).clamp(compassH + 2, math.max(compassH + 2, size.height - t.height)).toDouble();
-          canvas.drawRect(Rect.fromLTWH(x - 2, y, t.width + 4, t.height), Paint()..color = PH.bg.withValues(alpha: 0.7));
+          final r = Rect.fromLTWH(x - 2, y, t.width + 4, t.height);
+          demLabels.add(r);
+          canvas.drawRect(r, Paint()..color = PH.bg.withValues(alpha: 0.7));
           t.paint(canvas, Offset(x, y));
         }
       }
@@ -1135,7 +1138,7 @@ class LanderPainter extends CustomPainter {
     final floor = math.min(strip.legend?.top ?? size.height, strip.readout?.top ?? size.height) - 2;
     final sunBox = sun == null ? null : _callout(canvas, v, sun!, true, null, floor);
     final earthBox = earth == null ? null : _callout(canvas, v, earth!, false, sunBox, floor);
-    final boxes = [?sunBox, ?earthBox, ?strip.legend, ?strip.readout];
+    final boxes = [?sunBox, ?earthBox, ?strip.legend, ?strip.readout, ...demLabels];
     _elevationScale(canvas, v, size, boxes);
     if (level != null) {
       final t = _text('0° (level)', size: 10, color: PH.muted, mono: true);

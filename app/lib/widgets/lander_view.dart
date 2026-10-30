@@ -225,6 +225,7 @@ class LanderViewPanelState extends State<LanderViewPanel> with TickerProviderSta
       _setMesh(hit);
       return;
     }
+    _refreshText(); // the new site's camera (_initCamera ran in build) and 'Building the view…'
     final s = _s, lat = s.site.lat, lon = s.site.lon, h = s.observerHeightM;
     try {
       final g = await (widget.demForTest ?? s.dem)();
@@ -241,7 +242,10 @@ class LanderViewPanelState extends State<LanderViewPanel> with TickerProviderSta
       }
       _setMesh(w.mesh);
     } catch (e) {
-      if (mounted && _meshKey == key) setState(() => _meshError = e);
+      if (mounted && _meshKey == key) {
+        setState(() => _meshError = e);
+        _refreshText();
+      }
     }
   }
 
@@ -350,6 +354,15 @@ class LanderViewPanelState extends State<LanderViewPanel> with TickerProviderSta
     );
   }
 
+  /// The status line, painted on the canvas and said first in the label (§9).
+  String? get _status => _meshError != null
+      ? 'The view could not be built: $_meshError'
+      : _mesh == null
+          ? 'Building the view…'
+          : _nearFrame == null
+              ? 'Computing light…'
+              : null;
+
   void _refreshText({bool live = false}) {
     if (_s.eph == null) return;
     final sun = _body(true), earth = _body(false), m = _mesh;
@@ -378,8 +391,9 @@ class LanderViewPanelState extends State<LanderViewPanel> with TickerProviderSta
         earth: (az: earth.az, el: earth.el, state: _precise.earth),
         centre: centre);
     if (!mounted) return;
+    final st = _status;
     setState(() {
-      _semantic = text;
+      _semantic = st == null ? text : '$st $text';
       _probe = probe;
       _live = live;
     });
@@ -533,23 +547,23 @@ class LanderViewPanelState extends State<LanderViewPanel> with TickerProviderSta
       landerCaption(
           height: '${h.toStringAsFixed(h == h.roundToDouble() ? 0 : 1)} m', site: s.site.short, utc: utcLabel(_tMs)),
     ];
-    // the notes' measured height, so the panel fits [widget.maxHeight]
+    // the notes' measured height, so the panel fits [widget.maxHeight]; capped at
+    // 4 lines only in a box of finite height (a scrolling page shows them whole)
+    final noteLines = widget.maxHeight.isFinite ? 4 : null;
     var notesH = 0.0;
     for (final n in notes) {
       final tp = TextPainter(
-          text: TextSpan(text: n, style: PHText.small), textDirection: TextDirection.ltr, textScaler: scaler, maxLines: 4)
+          text: TextSpan(text: n, style: PHText.small), textDirection: TextDirection.ltr, textScaler: scaler, maxLines: noteLines)
         ..layout(maxWidth: w);
       notesH += tp.height;
       tp.dispose();
     }
-    final viewH = math.max(120.0, math.min(math.max(0.62 * w, 220.0), widget.maxHeight - 8 - 48.0 * rows - notesH));
-    final status = _meshError != null
-        ? 'The view could not be built: $_meshError'
-        : _mesh == null
-            ? 'Building the view…'
-            : near == null
-                ? 'Computing light…'
-                : null;
+    var viewH = math.max(120.0, math.min(math.max(0.62 * w, 220.0), widget.maxHeight - 8 - 48.0 * rows - notesH));
+    // a short box (phone landscape) that cannot hold all of it: the first button
+    // row stays on screen under the view, the rest of the buttons and the notes scroll
+    final scroll = widget.maxHeight.isFinite && viewH + 8 + 48.0 * rows + notesH > widget.maxHeight;
+    if (scroll) viewH = math.max(0.0, math.min(viewH, widget.maxHeight - 4 - 48));
+    final status = _status;
     final painter = LanderPainter(
       cam: cam,
       mesh: _mesh,
@@ -688,13 +702,26 @@ class LanderViewPanelState extends State<LanderViewPanel> with TickerProviderSta
       btn(Icons.zoom_in, 'Zoom in', () => zoom(1 / 1.25)),
       btn(Icons.rotate_right, 'Turn right 15°', () => turnBy(15)),
     ]);
+    final below = [
+      buttons,
+      for (final n in notes)
+        Text(n,
+            style: PHText.small.copyWith(color: PH.muted),
+            maxLines: noteLines,
+            overflow: noteLines == null ? null : TextOverflow.ellipsis),
+    ];
     return SizedBox(
       width: w,
+      height: scroll ? widget.maxHeight : null,
       child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
         ClipRRect(borderRadius: BorderRadius.circular(PH.radiusInner), child: SizedBox(height: viewH, child: view)),
         const SizedBox(height: 4),
-        buttons,
-        for (final n in notes) Text(n, style: PHText.small.copyWith(color: PH.muted), maxLines: 4, overflow: TextOverflow.ellipsis),
+        if (scroll)
+          Expanded(
+              child: SingleChildScrollView(
+                  child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: below)))
+        else
+          ...below,
       ]),
     );
   }
@@ -747,8 +774,9 @@ class LanderPainter extends CustomPainter {
       });
 
   static final _texts = <String, TextPainter>{};
-  TextPainter _text(String s, {double size = 12, Color color = PH.text, bool mono = false}) {
-    final key = '$s|$size|${color.toARGB32()}|$mono|${textScaler.scale(10)}';
+  /// A canvas label; wider than [maxWidth] it wraps (never cut at the view's edge).
+  TextPainter _text(String s, {double size = 12, Color color = PH.text, bool mono = false, double maxWidth = double.infinity}) {
+    final key = '$s|$size|${color.toARGB32()}|$mono|${textScaler.scale(10)}|$maxWidth';
     final hit = _texts[key];
     if (hit != null) return hit;
     if (_texts.length > 96) _texts.clear();
@@ -760,7 +788,7 @@ class LanderPainter extends CustomPainter {
                 : TextStyle(fontFamily: PH.sans, fontSize: size, color: color, fontWeight: FontWeight.w500)),
         textDirection: TextDirection.ltr,
         textScaler: textScaler)
-      ..layout();
+      ..layout(maxWidth: math.max(0.0, maxWidth));
   }
 
   /// Screen position of direction (az, el), or null behind the camera.
@@ -945,7 +973,9 @@ class LanderPainter extends CustomPainter {
         _dashedLine(canvas, a.glyph - const Offset(8, 0), a.glyph + const Offset(8, 0), ring, on: 3, off: 2);
       }
     }
-    final ts = [for (final (i, l) in lines.indexed) _text(l, size: 11, color: i == 0 ? color : PH.text, mono: i == 0)];
+    final ts = [
+      for (final (i, l) in lines.indexed) _text(l, size: 11, color: i == 0 ? color : PH.text, mono: i == 0, maxWidth: v.w - 6)
+    ];
     final tw = ts.map((t) => t.width).reduce(math.max), th = ts.fold(0.0, (s, t) => s + t.height);
     double clampY(double y) => y.clamp(compassH + 2, math.max(compassH + 2, v.h - th - 4)).toDouble();
     final box = calloutBox(v, a, Size(tw + 6, th + 2), avoid, clampY(a.glyph.dy - 8) - 1);
@@ -1044,7 +1074,7 @@ class LanderPainter extends CustomPainter {
         if (prev != null && p != null && on++ % 2 == 0) canvas.drawLine(prev, p, dash);
         prev = p;
       }
-      final t = _text(maskLabel, size: 10, color: PH.text);
+      final t = _text(maskLabel, size: 10, color: PH.text, maxWidth: size.width - 40);
       final box = Rect.fromLTWH(size.width - t.width - 34, bottom - t.height - 2, t.width + 30, t.height + 4);
       canvas.drawRect(box, Paint()..color = PH.bg.withValues(alpha: 0.8));
       _dashedLine(canvas, Offset(box.left + 4, box.center.dy), Offset(box.left + 22, box.center.dy), dash);
@@ -1065,8 +1095,8 @@ class LanderPainter extends CustomPainter {
     canvas.drawLine(Offset(cx, cy + 3), Offset(cx, cy + 9), cross);
     final msg = status ?? probe;
     if (msg != null) {
-      final t = _text(msg, size: 11, mono: status == null);
-      final r = Rect.fromLTWH(6, bottom - t.height - 4, math.min(t.width, size.width - 12) + 8, t.height + 4);
+      final t = _text(msg, size: 11, mono: status == null, maxWidth: size.width - 20);
+      final r = Rect.fromLTWH(6, bottom - t.height - 4, t.width + 8, t.height + 4);
       canvas.drawRect(r, Paint()..color = PH.bg.withValues(alpha: 0.8));
       canvas.save();
       canvas.clipRect(r);

@@ -513,6 +513,44 @@ void main() {
     }
   });
 
+  test('§5 a body in view gets its words above it (not over the skyline under it); none goes below the strip', () {
+    const v = LanderView(yawDeg: 0, pitchDeg: 0, hfovDeg: 60, w: 360, h: 300);
+    const a = (disc: Offset(100, 180), glyph: Offset(100, 150), rPx: 2.0);
+    expect(LanderPainter.calloutBox(v, a, const Size(120, 40), null, 142, up: true), const Rect.fromLTWH(40, 96, 120, 40));
+    // a hidden body keeps the side placement
+    expect(LanderPainter.calloutBox(v, a, const Size(120, 40), null, 142), const Rect.fromLTWH(111, 142, 120, 40));
+    // too wide for the sides, and the room under the disc is the bottom strip's: above the glyph
+    const b = (disc: Offset(180, 230), glyph: Offset(180, 200), rPx: 2.0);
+    expect(LanderPainter.calloutBox(v, b, const Size(250, 50), null, 192), const Rect.fromLTWH(55, 238, 250, 50));
+    expect(LanderPainter.calloutBox(v, b, const Size(250, 50), null, 192, bottom: 270), const Rect.fromLTWH(55, 136, 250, 50));
+  });
+
+  test('§5 bottom strip: the readout shares the legend row when both fit, else sits above it; never overlapping', () {
+    const size = Size(400, 220);
+    final row = LanderPainter.bottomStrip(size, const Size(150, 13), const Size(190, 14));
+    expect(row.legend, const Rect.fromLTWH(216, 199, 180, 17));
+    expect(row.readout, const Rect.fromLTWH(6, 198, 198, 18));
+    final stacked = LanderPainter.bottomStrip(size, const Size(150, 13), const Size(200, 14));
+    expect(stacked.readout, const Rect.fromLTWH(6, 179, 208, 18));
+    for (final s in [row, stacked]) {
+      expect(s.readout!.overlaps(s.legend!), isFalse);
+      expect(s.legend!.right <= size.width && s.legend!.bottom <= size.height, isTrue);
+    }
+    // no legend (no mask): the readout at the foot
+    expect(LanderPainter.bottomStrip(size, null, const Size(200, 14)).readout, const Rect.fromLTWH(6, 196, 208, 18));
+    expect(LanderPainter.bottomStrip(size, null, null), (legend: null, readout: null));
+  });
+
+  test('§5 a scale label is drawn only whole inside the view and clear of every box', () {
+    const size = Size(360, 300);
+    expect(LanderPainter.labelFits(const Rect.fromLTWH(8, 100, 24, 12), size, const []), isTrue);
+    expect(LanderPainter.labelFits(const Rect.fromLTWH(8, 290, 24, 12), size, const []), isFalse); // cut at the foot
+    expect(LanderPainter.labelFits(const Rect.fromLTWH(8, 44, 24, 12), size, const []), isFalse); // under the compass
+    expect(LanderPainter.labelFits(const Rect.fromLTWH(340, 100, 24, 12), size, const []), isFalse); // past the edge
+    expect(LanderPainter.labelFits(const Rect.fromLTWH(8, 100, 24, 12), size, const [Rect.fromLTWH(6, 105, 200, 18)]),
+        isFalse);
+  });
+
   testWidgets('phone landscape (short side by side): the panel fits its box; Face the Sun stays on screen',
       (tester) async {
     await nearPole(tester);
@@ -543,6 +581,17 @@ void main() {
       expect(box.inflate(0.5).contains(face.topLeft) && box.inflate(0.5).contains(face.bottomRight), isTrue,
           reason: '$slot: $face in $box');
       expect(face.bottom, lessThanOrEqualTo(slot.height + 0.5), reason: '$slot: $face');
+      // all seven controls on screen (48 dp each), not only the first row's
+      for (final label in const ['Turn left 15°', 'Face the Sun', 'Face Earth', 'Level', 'Zoom out', 'Zoom in', 'Turn right 15°']) {
+        final r = tester.getRect(find.byTooltip(label));
+        expect(r.width >= 48 && r.height >= 48, isTrue, reason: '$slot $label: $r');
+        expect(box.inflate(0.5).contains(r.topLeft) && box.inflate(0.5).contains(r.bottomRight), isTrue,
+            reason: '$slot $label: $r in $box');
+        expect(r.bottom, lessThanOrEqualTo(slot.height + 0.5), reason: '$slot $label: $r');
+      }
+      // the view is a wide strip in the wide column, not a small square
+      final view = tester.getSize(find.byKey(const ValueKey('lander-view')));
+      expect(view.width, greaterThan(slot.width * 0.45), reason: '$slot: $view');
     }
   });
 

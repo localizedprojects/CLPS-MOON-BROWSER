@@ -779,14 +779,19 @@ class LanderPainter extends CustomPainter {
     return (disc: p, glyph: Offset(p.dx, math.max(compassH + 12, p.dy - math.max(24.0, rPx + 14))), rPx: rPx);
   }
 
+  /// [r] grown to whole logical pixels: a 48 dp box built around a centre can
+  /// come out a hair under 48 dp wide in floating point.
+  static Rect _snapOut(Rect r) =>
+      Rect.fromLTRB(r.left.floorToDouble(), r.top.floorToDouble(), r.right.ceilToDouble(), r.bottom.ceilToDouble());
+
   /// The callouts' 48 dp tap targets (glyph and disc): true = the Sun.
   static List<(Rect, bool)> calloutTargets(LanderView v, SkyBody? sun, SkyBody? earth) => [
         for (final (b, isSun) in [(sun, true), (earth, false)])
           if (b != null)
             if (calloutAnchor(v, b) case final a?)
               (
-                Rect.fromCenter(center: a.glyph, width: 48, height: 48)
-                    .expandToInclude(Rect.fromCenter(center: a.disc, width: 48, height: 48)),
+                _snapOut(Rect.fromCenter(center: a.glyph, width: 48, height: 48)
+                    .expandToInclude(Rect.fromCenter(center: a.disc, width: 48, height: 48))),
                 isSun
               ),
       ];

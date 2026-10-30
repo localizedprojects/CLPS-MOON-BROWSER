@@ -1003,8 +1003,9 @@ class LanderPainter extends CustomPainter {
       '${isSun ? 'Sun' : 'Earth'} · az ${((b.az % 360 + 360) % 360).toStringAsFixed(1)}° · el ${sgn(b.el)}',
       word,
       // (an eclipse's share after the comma is not a terrain word)
-      // the skyline of the solid ground from 800 m (the light map's); nearer ground is see-through above it
-      if (mesh != word.split(',').first && sky != null) '400 m terrain here: $mesh, skyline ${sgn(sky)} beyond 800 m',
+      // the skyline of the solid ground from 800 m (the light map's); nearer ground is see-through
+      // above it, drawn hatched (the legend's landerSeeThroughLabel)
+      if (mesh != word.split(',').first && sky != null) 'drawn terrain: $mesh (skyline ${sgn(sky)} from 800 m out)',
     ];
   }
 
@@ -1015,10 +1016,11 @@ class LanderPainter extends CustomPainter {
   /// else centred above the glyph, else stacked below or above the other
   /// callout [avoid] (a lunar eclipse puts both bodies at one spot); the first
   /// inside the view (under the compass strip) that keeps clear of the body's
-  /// own disc and of [avoid]. [top] is the side placements' top. A body in
-  /// view ([up]) tries centred above its glyph first, so its words never hide
-  /// the skyline under it. Nothing goes below [bottom] (the bottom strip's
-  /// top, [bottomStrip]; default the view's foot).
+  /// own disc and of [avoid]. [top] is the side placements' top. A body above
+  /// the drawn skyline ([up]) tries centred above its glyph first, then
+  /// stacked above [avoid], so its words never hide the skyline under it.
+  /// Nothing goes below [bottom] (the bottom strip's top, [bottomStrip];
+  /// default the view's foot).
   static Rect calloutBox(LanderView v, ({Offset disc, Offset glyph, double rPx}) a, Size box, Rect? avoid, double top,
       {double? bottom, bool up = false}) {
     final floor = bottom ?? v.h;
@@ -1026,7 +1028,7 @@ class LanderPainter extends CustomPainter {
     final cx = (a.glyph.dx - box.width / 2).clamp(0.0, math.max(0.0, v.w - box.width)).toDouble();
     final above = Rect.fromLTWH(cx, a.glyph.dy - 14 - box.height, box.width, box.height);
     final cands = [
-      if (up) above,
+      if (up) ...[above, if (avoid != null) Rect.fromLTWH(cx, avoid.top - 4 - box.height, box.width, box.height)],
       Rect.fromLTWH(a.glyph.dx + 11, top, box.width, box.height),
       Rect.fromLTWH(a.glyph.dx - 11 - box.width, top, box.width, box.height),
       Rect.fromLTWH(cx, a.disc.dy + a.rPx + 6, box.width, box.height),
@@ -1053,6 +1055,8 @@ class LanderPainter extends CustomPainter {
     if (a == null) return null;
     final color = isSun ? PH.sun : PH.earth;
     final lines = calloutLines(b, isSun), up = lines[1].startsWith('in view') || lines[1].startsWith('partly hidden');
+    // words above a body over the drawn skyline (even one hidden by Earth), clear of the skyline
+    final above = up || b.state == SkyState.up || b.state == SkyState.partlyBehindTerrain;
     final lead = Paint()
       ..color = PH.text.withValues(alpha: 0.7)
       ..strokeWidth = 1;
@@ -1089,7 +1093,7 @@ class LanderPainter extends CustomPainter {
     ];
     final tw = ts.map((t) => t.width).reduce(math.max), th = ts.fold(0.0, (s, t) => s + t.height);
     double clampY(double y) => y.clamp(compassH + 2, math.max(compassH + 2, floor - th - 4)).toDouble();
-    final box = calloutBox(v, a, Size(tw + 6, th + 2), avoid, clampY(a.glyph.dy - 8) - 1, bottom: floor, up: up);
+    final box = calloutBox(v, a, Size(tw + 6, th + 2), avoid, clampY(a.glyph.dy - 8) - 1, bottom: floor, up: above);
     canvas.drawRect(box, Paint()..color = PH.bg.withValues(alpha: 0.8));
     var y = box.top + 1;
     for (final t in ts) {
@@ -1110,18 +1114,32 @@ class LanderPainter extends CustomPainter {
     if (sun != null) _disc(canvas, v, sun!, PH.sun);
     if (earth != null) _disc(canvas, v, earth!, PH.earth);
     final m = mesh, c = colors;
+    var hatched = false;
     if (m != null && c != null) {
       projectTriangles(v, m, visibleSectors(v), proj);
       _pass(canvas, c, Paint());
-      for (final (p, pc) in patterns) {
+      void textured(Int32List pc, ui.Image t) {
         canvas.saveLayer(full, Paint());
         _pass(canvas, pc, Paint()..blendMode = BlendMode.src);
         canvas.drawRect(
             full,
             Paint()
               ..blendMode = BlendMode.dstIn
-              ..shader = ImageShader(tile(p), TileMode.repeated, TileMode.repeated, Matrix4.identity().storage));
+              ..shader = ImageShader(t, TileMode.repeated, TileMode.repeated, Matrix4.identity().storage));
         canvas.restore();
+      }
+
+      for (final (p, pc) in patterns) {
+        textured(pc, tile(p));
+      }
+      // D7: the near ground drawn see-through above the 800 m skyline, hatched
+      // and named in the legend (a body seen through it is in view)
+      final st = seeThrough, nv = proj.batches.isEmpty ? 0 : proj.batches.last.vertexEnd;
+      if (st != null) {
+        for (var i = 0; i < nv && !hatched; i++) {
+          hatched = st[proj.vert[i]] != 0;
+        }
+        if (hatched) textured(st, hatchTile);
       }
     }
     final span = v.hfovDeg * 0.5 * math.max(1.0, v.w / v.h) + 10;
@@ -1192,17 +1210,26 @@ class LanderPainter extends CustomPainter {
     // the bottom strip (§5): the mask's legend and the centre readout, laid out
     // first so the callouts and the scale labels keep out of it
     final cx = size.width / 2, cy = size.height / 2;
-    final msg = status ?? probe;
+    // (the hatched near ground's line under the mask's, in one box)
+    final nearLegend = hatched ? _text(landerSeeThroughLabel, size: 10, color: PH.text, maxWidth: size.width - 40) : null;
+    final lh = legend?.height ?? 0;
+    final legendSize = legend == null && nearLegend == null
+        ? null
+        : Size(math.max(legend?.width ?? 0, nearLegend?.width ?? 0), lh + (nearLegend?.height ?? 0));
+    // a readout found for another camera (moved since): just the live direction
+    final pa = probeAt;
+    final live = probe != null && pa != null && (pa.yaw != cam.yaw || pa.pitch != cam.pitch);
+    final msg = status ?? (live ? 'Centre: ${landerProbeAz(cam.yaw, cam.pitch)}' : probe);
     var read = msg == null ? null : _readout(msg, mono: status == null, maxWidth: size.width - 20);
     Size? sz(TextPainter? t) => t == null ? null : Size(t.width, t.height);
-    var strip = bottomStrip(size, sz(legend), sz(read));
+    var strip = bottomStrip(size, legendSize, sz(read));
     if (status == null && strip.readout != null) {
       // the probe is secondary: left out where it would cover the crosshair or a body's glyph
       final r = strip.readout!;
       final glyphs = [Offset(cx, cy), for (final b in [sun, earth]) if (b != null) ?calloutAnchor(v, b)?.glyph];
       if (glyphs.any((g) => r.overlaps(Rect.fromCircle(center: g, radius: 10)))) {
         read = null;
-        strip = bottomStrip(size, sz(legend), null);
+        strip = bottomStrip(size, legendSize, null);
       }
     }
     final floor = math.min(strip.legend?.top ?? size.height, strip.readout?.top ?? size.height) - 2;
@@ -1231,10 +1258,27 @@ class LanderPainter extends CustomPainter {
     canvas.drawLine(Offset(cx, cy - 9), Offset(cx, cy - 3), cross);
     canvas.drawLine(Offset(cx, cy + 3), Offset(cx, cy + 9), cross);
     final lb = strip.legend;
-    if (legend != null && lb != null) {
+    if (lb != null) {
       canvas.drawRect(lb, Paint()..color = PH.bg.withValues(alpha: 0.8));
-      _dashedLine(canvas, Offset(lb.left + 4, lb.center.dy), Offset(lb.left + 22, lb.center.dy), dash);
-      legend.paint(canvas, Offset(lb.left + 26, lb.top + 2));
+      if (legend != null) {
+        final y = lb.top + 2 + lh / 2;
+        _dashedLine(canvas, Offset(lb.left + 4, y), Offset(lb.left + 22, y), dash);
+        legend.paint(canvas, Offset(lb.left + 26, lb.top + 2));
+      }
+      if (nearLegend != null) {
+        // a swatch of the hatch
+        final sw = Rect.fromLTWH(lb.left + 4, lb.top + 3 + lh, 18, math.max(1.0, nearLegend.height - 2));
+        final hp = Paint()
+          ..color = seeThroughColor
+          ..strokeWidth = 1;
+        canvas.save();
+        canvas.clipRect(sw);
+        for (var x = sw.left - sw.height; x < sw.right; x += 5) {
+          canvas.drawLine(Offset(x, sw.top), Offset(x + sw.height, sw.bottom), hp);
+        }
+        canvas.restore();
+        nearLegend.paint(canvas, Offset(lb.left + 26, lb.top + 2 + lh));
+      }
     }
     final r = strip.readout;
     if (read != null && r != null) {
@@ -1382,6 +1426,8 @@ class LanderPainter extends CustomPainter {
       !identical(old.maskDeg, maskDeg) ||
       old.maskLabel != maskLabel ||
       old.probe != probe ||
+      old.probeAt != probeAt ||
+      !identical(old.seeThrough, seeThrough) ||
       old.status != status ||
       old.focused != focused ||
       old.textScaler != textScaler;

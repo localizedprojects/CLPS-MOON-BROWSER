@@ -316,21 +316,27 @@ void main() {
   testWidgets('W7b leaving the view stops its mesh build in flight (dispose)', (tester) async {
     size(tester, const Size(360, 800));
     await nearPole(tester);
-    // one whole build here, for scale
-    var sw = Stopwatch()..start();
-    await tester.pumpWidget(panel());
-    await meshReady(tester);
-    final whole = sw.elapsedMicroseconds;
-    await tester.pumpWidget(const SizedBox());
-    // a new panel starts a new build (its first slice runs now); leave before it ends
+    // one whole build of this DEM and site (warm), for scale
+    final g = _dem(), site = state.site;
+    var build = 0;
+    for (var i = 0; i < 2; i++) {
+      final sw = Stopwatch()..start();
+      buildLanderMesh(g.heights, g.size, g.scaleM,
+          latDeg: site.lat, lonDeg: site.lon, observerHeightM: state.observerHeightM);
+      build = sw.elapsedMicroseconds;
+    }
+    // a panel starts its build (the first slice runs now); leave before it ends
     await tester.pumpWidget(panel());
     expect(panelState(tester).mesh, isNull);
+    final sw = Stopwatch()..start();
     await tester.pumpWidget(const SizedBox());
-    sw = Stopwatch()..start();
     await tester.pump(const Duration(seconds: 1));
     await tester.pump(const Duration(seconds: 1));
     // the orphan stops at its next slice instead of running the build to the end
-    expect(sw.elapsedMicroseconds, lessThan(whole ~/ 3), reason: 'whole build $whole µs');
+    final left = sw.elapsedMicroseconds;
+    // ignore: avoid_print
+    print('W7b: build $build µs, after leaving $left µs');
+    expect(left, lessThan(build ~/ 3));
   });
 
   testWidgets('W8 reduced motion: no running animation after Face the Sun', (tester) async {

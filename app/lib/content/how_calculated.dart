@@ -204,6 +204,6 @@ const calcSections = <CalcSection>[
     accuracy: 'The drawn skyline follows the 400 m terrain, so it can differ from a preset site\'s 80 m horizon mask '
         '(drawn dashed for reference) by about 1° and up to 5° on sharp rims; the callout words use the precise '
         'mask, and say so when the drawn terrain disagrees.',
-    ref: 'formula.md §12; docs/landers_view_spec.md',
+    ref: 'formula.md §12.11; docs/landers_view_spec.md',
   ),
 ];

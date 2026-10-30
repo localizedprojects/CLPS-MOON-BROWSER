@@ -886,7 +886,7 @@ class _LightMapState extends State<LightMap> {
               value: LightViewKind.lander,
               label: GuideTarget(
                   id: 'light-lander',
-                  child: segLabel(l.view[2], "From the lander (2 m up): what you would see standing on the lander, 2 m above the ground")),
+                  child: segLabel(l.view[2], 'From the lander (${_metres(s.observerHeightM)} up): what you would see standing on the lander, ${_metres(s.observerHeightM)} above the ground')),
               icon: compact ? null : const Icon(Icons.landscape_outlined, size: 18)),
         ],
         selected: {kind},
@@ -2127,3 +2127,6 @@ String landerFidelityText(String heightText,
           'toward azimuth ${ends.map((e) => '${deg(e.az0)}–${deg(e.az1)}°').join(', ')} (edge of the LOLA map).'}'
       '${eclipse ? ' $lightEclipseFidelity' : ''}';
 }
+
+/// "2 m" / "10 m" / "2.5 m" for an observer height in metres.
+String _metres(double h) => '${h == h.roundToDouble() ? h.toStringAsFixed(0) : h.toStringAsFixed(1)} m';

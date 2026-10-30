@@ -69,7 +69,7 @@ String landerProbeAz(double yawDeg, double pitchDeg) =>
 /// The legend of the hatched near ground (D7): ground nearer than 800 m is
 /// drawn see-through above the skyline of the ground from 800 m out, the one
 /// the callouts' terrain verdict and the light map count.
-const landerSeeThroughLabel = 'Hatched: ground within 800 m, see-through (not in the skyline)';
+const landerSeeThroughLabel = 'Hatched: ground < 800 m, see-through';
 
 /// The play badge (§6): a separate short FidelityBadge while playing.
 String landerPlayFidelity({required bool web}) =>

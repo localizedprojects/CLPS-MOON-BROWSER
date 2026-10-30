@@ -915,9 +915,10 @@ class LanderPainter extends CustomPainter {
   /// label's box so the next callout keeps clear of it.
   /// Where a callout's text box of [box] size goes (§5: labels clear of each
   /// other): right of the glyph, else left of it, else centred under the disc,
-  /// else centred above the glyph; the first inside the view (under the
-  /// compass strip) that keeps clear of the body's own disc and of [avoid]
-  /// (the other callout). [top] is the side placements' top.
+  /// else centred above the glyph, else stacked below or above the other
+  /// callout [avoid] (a lunar eclipse puts both bodies at one spot); the first
+  /// inside the view (under the compass strip) that keeps clear of the body's
+  /// own disc and of [avoid]. [top] is the side placements' top.
   static Rect calloutBox(LanderView v, ({Offset disc, Offset glyph, double rPx}) a, Size box, Rect? avoid, double top) {
     final disc = Rect.fromCircle(center: a.disc, radius: a.rPx + 3);
     final cx = (a.glyph.dx - box.width / 2).clamp(0.0, math.max(0.0, v.w - box.width)).toDouble();
@@ -926,6 +927,10 @@ class LanderPainter extends CustomPainter {
       Rect.fromLTWH(a.glyph.dx - 11 - box.width, top, box.width, box.height),
       Rect.fromLTWH(cx, a.disc.dy + a.rPx + 6, box.width, box.height),
       Rect.fromLTWH(cx, a.glyph.dy - 14 - box.height, box.width, box.height),
+      if (avoid != null) ...[
+        Rect.fromLTWH(cx, avoid.bottom + 4, box.width, box.height),
+        Rect.fromLTWH(cx, avoid.top - 4 - box.height, box.width, box.height),
+      ],
     ];
     bool inside(Rect r) => r.left >= 0 && r.right <= v.w && r.top >= compassH + 1 && r.bottom <= v.h;
     bool clear(Rect r) => !r.overlaps(disc) && (avoid == null || !r.overlaps(avoid));

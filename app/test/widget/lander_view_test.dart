@@ -7,12 +7,14 @@ import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart' show RenderParagraph;
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:polar_horizon/core/dem.dart';
 import 'package:polar_horizon/core/geo.dart' show Enu, V3;
 import 'package:polar_horizon/core/lander_view.dart';
 import 'package:polar_horizon/core/shadow.dart' show lightEarth, lightSunAny, lightSunFull;
+import 'package:polar_horizon/screens/site/light_tab.dart';
 import 'package:polar_horizon/state/app_state.dart';
 import 'package:polar_horizon/state/light_engine.dart';
 import 'package:polar_horizon/theme.dart';
@@ -102,7 +104,12 @@ void main() {
   LightFrame nearFrame({bool coarse = false, double? t}) =>
       _FakeEngine.frame(lightRequestFor(state, extent: LightExtent.closeUp, tMs: t, coarse: coarse));
 
-  Widget panel({double width = 360, LightFrame? near, bool reduced = false, LightLayer layer = LightLayer.sun}) =>
+  Widget panel(
+          {double width = 360,
+          LightFrame? near,
+          bool reduced = false,
+          LightLayer layer = LightLayer.sun,
+          Future<PolarGrid> Function()? dem}) =>
       MaterialApp(
         theme: buildTheme(),
         home: Builder(
@@ -112,7 +119,7 @@ void main() {
               body: SingleChildScrollView(
                 child: Align(
                   alignment: Alignment.topLeft,
-                  child: LanderViewPanel(state: state, near: near, layer: layer, width: width),
+                  child: LanderViewPanel(state: state, near: near, layer: layer, width: width, demForTest: dem),
                 ),
               ),
             ),
@@ -449,6 +456,120 @@ void main() {
     expect(other.overlaps(const Rect.fromLTWH(105, 80, 150, 30)), isFalse);
     expect(other.overlaps(Rect.fromCircle(center: a(100).disc, radius: 2)), isFalse);
     expect(other.top, greaterThanOrEqualTo(LanderPainter.compassH));
+  });
+
+  test('§5 lunar eclipse: the Earth callout stacks clear of the Sun one (both bodies at one spot)', () {
+    // MP1, 2026-03-03 11:30 UTC, facing the Sun on a 356 dp view: the Sun box is
+    // centred under its disc; Earth's side, under and above places all fail
+    for (final hfov in [20.5, 45.0]) {
+      final v = LanderView(yawDeg: 6.9, pitchDeg: 3.5, hfovDeg: hfov, w: 356, h: 220);
+      // as the painter's clampY: the box is the text's height plus 2
+      double top(Offset g, double h) =>
+          (g.dy - 8).clamp(LanderPainter.compassH + 2, math.max(LanderPainter.compassH + 2, v.h - h - 2)).toDouble() - 1;
+      final sa = LanderPainter.calloutAnchor(v, (az: 6.9, el: 3.9, rhoDeg: 0.27, state: SkyState.behindTerrain))!;
+      final ea = LanderPainter.calloutAnchor(v, (az: 6.9, el: 3.2, rhoDeg: 0.95, state: SkyState.up))!;
+      final sBox = LanderPainter.calloutBox(v, sa, const Size(210, 44), null, top(sa.glyph, 44));
+      final eBox = LanderPainter.calloutBox(v, ea, const Size(177, 30), sBox, top(ea.glyph, 30));
+      expect(eBox.overlaps(sBox), isFalse, reason: 'hfov $hfov: $eBox vs $sBox');
+      expect(eBox.overlaps(Rect.fromCircle(center: ea.disc, radius: ea.rPx)), isFalse);
+      expect(eBox.top, greaterThanOrEqualTo(LanderPainter.compassH));
+      expect(eBox.left >= 0 && eBox.right <= v.w && eBox.bottom <= v.h, isTrue, reason: '$eBox');
+    }
+  });
+
+  testWidgets('phone landscape (short side by side): the panel fits its box; Face the Sun stays on screen',
+      (tester) async {
+    await nearPole(tester);
+    for (final (window, slot) in const [(Size(851, 393), Size(771, 290)), (Size(891, 411), Size(735, 228))]) {
+      size(tester, window);
+      await tester.pumpWidget(MaterialApp(
+        theme: buildTheme(),
+        home: Builder(
+          builder: (context) => MediaQuery(
+            data: MediaQuery.of(context).copyWith(disableAnimations: true),
+            child: Scaffold(
+              body: Align(
+                alignment: Alignment.topLeft,
+                child: SizedBox.fromSize(size: slot, child: LightTab(state: state)),
+              ),
+            ),
+          ),
+        ),
+      ));
+      await tester.pump();
+      if (find.byType(LanderViewPanel).evaluate().isEmpty) {
+        await tester.tap(find.text('Lander'));
+        await tester.pump();
+      }
+      await meshReady(tester);
+      expect(tester.takeException(), isNull, reason: '$slot');
+      final box = tester.getRect(find.byType(LanderViewPanel)), face = tester.getRect(find.byTooltip('Face the Sun'));
+      expect(box.inflate(0.5).contains(face.topLeft) && box.inflate(0.5).contains(face.bottomRight), isTrue,
+          reason: '$slot: $face in $box');
+      expect(face.bottom, lessThanOrEqualTo(slot.height + 0.5), reason: '$slot: $face');
+    }
+  });
+
+  testWidgets('320 wide at text x2: notes whole on a scrolling page; canvas labels wrap inside the view',
+      (tester) async {
+    size(tester, const Size(320, 1000));
+    tester.platformDispatcher.textScaleFactorTestValue = 2;
+    addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+    await nearPole(tester);
+    await tester.pumpWidget(panel(width: 320, near: nearFrame(), layer: LightLayer.both));
+    await meshReady(tester);
+    expect(tester.takeException(), isNull);
+    final texts = find.descendant(of: find.byType(LanderViewPanel), matching: find.byType(RichText));
+    expect(texts, findsWidgets);
+    for (final e in texts.evaluate()) {
+      expect((e.renderObject! as RenderParagraph).didExceedMaxLines, isFalse);
+    }
+    // the longest callout line at x2, laid out as the painter does (wrapped to the
+    // view's width less its margin), gives a box the placement keeps in the view
+    const v = LanderView(yawDeg: 0, pitchDeg: 0, hfovDeg: 45, w: 320, h: 220);
+    final t = TextPainter(
+        text: const TextSpan(
+            text: '400 m terrain here: partly hidden, skyline +0.2°',
+            style: TextStyle(fontFamily: PH.sans, fontSize: 11, fontWeight: FontWeight.w500)),
+        textDirection: TextDirection.ltr,
+        textScaler: const TextScaler.linear(PH.maxCanvasTextScale))
+      ..layout(maxWidth: v.w - 6);
+    expect(t.height, greaterThan(t.preferredLineHeight * 1.5)); // it wraps
+    for (final x in [20.0, 160.0, 300.0]) {
+      final a = (disc: Offset(x, 130), glyph: Offset(x, 100), rPx: 2.0);
+      final r = LanderPainter.calloutBox(v, a, Size(t.width + 6, t.height + 2), null, 92);
+      expect(r.left >= 0 && r.right <= v.w, isTrue, reason: '$r');
+    }
+    t.dispose();
+  });
+
+  testWidgets('W12 the label says the status and the camera after a site switch (building, failed)', (tester) async {
+    size(tester, const Size(360, 800));
+    await nearPole(tester);
+    final handle = tester.ensureSemantics();
+    var fail = false;
+    Future<PolarGrid> dem() async => fail ? throw StateError('no DEM') : _dem();
+    await tester.pumpWidget(panel(near: nearFrame(), dem: dem));
+    await tester.pump();
+    expect(find.bySemanticsLabel(RegExp("^Building the view… Lander's view, facing ")), findsOneWidget);
+    await meshReady(tester);
+    await tester.tap(find.byTooltip('Face the Sun'));
+    await tester.pumpAndSettle();
+    expect(find.bySemanticsLabel(RegExp("^Lander's view, facing the Sun")), findsOneWidget);
+    fail = true;
+    final first = state.site.id;
+    await tester.runAsync(() => state.selectSite(state.allSites.firstWhere((s) => s.id != first).id));
+    await tester.pumpWidget(panel(dem: dem));
+    for (var i = 0; i < 5; i++) {
+      await tester.pump();
+    }
+    expect(panelState(tester).meshError, isNotNull);
+    final az = panelState(tester).cam.yaw.round() % 360;
+    expect(
+        find.bySemanticsLabel(
+            RegExp("^The view could not be built: Bad state: no DEM Lander's view, facing [^,]+, azimuth $az degrees\\.")),
+        findsOneWidget);
+    handle.dispose();
   });
 
   test('elevation scale steps adapt to the zoom (1/2/5/10°)', () {

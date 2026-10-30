@@ -976,23 +976,55 @@ class LanderProjection {
   int vertexCount = 0, indexCount = 0;
   Int32List _local = Int32List(0), _stamp = Int32List(0);
   int _batch = 0;
+  // the merged triangle ids of the last (mesh, sector set), rebuilt only when either changes (§8)
+  LanderMesh? _idsMesh;
+  List<int> _idsKey = const [];
+  Int32List _ids = Int32List(0);
+  Uint8List _mark = Uint8List(0);
 }
 
-/// Fills [out] from the triangles of [sectors] (merged in global draw order),
-/// dropping any triangle with a vertex at or behind the near plane; returns
-/// the triangle count.
-int projectTriangles(LanderView v, LanderMesh m, List<int> sectors, LanderProjection out, {int maxBatchVertices = 65535}) {
+bool _sameInts(List<int> a, List<int> b) {
+  if (a.length != b.length) return false;
+  for (var i = 0; i < a.length; i++) {
+    if (a[i] != b[i]) return false;
+  }
+  return true;
+}
+
+/// The triangle ids of [sectors] of [m], ascending (global draw order), each
+/// once: marked per sector, then collected in one pass over the ids ([mark]
+/// has one zero byte per triangle and is left zeroed).
+Int32List mergeLanderSectors(LanderMesh m, List<int> sectors, Uint8List mark) {
   var total = 0;
   for (final s in sectors) {
-    total += m.sectors[s].length;
+    for (final t in m.sectors[s]) {
+      if (mark[t] == 0) {
+        mark[t] = 1;
+        total++;
+      }
+    }
   }
   final ids = Int32List(total);
-  var k = 0;
-  for (final s in sectors) {
-    ids.setRange(k, k + m.sectors[s].length, m.sectors[s]);
-    k += m.sectors[s].length;
+  for (var t = 0, k = 0; k < total; t++) {
+    if (mark[t] == 1) {
+      mark[t] = 0;
+      ids[k++] = t;
+    }
   }
-  ids.sort();
+  return ids;
+}
+
+/// Fills [out] from the triangles of [sectors] (merged in global draw order,
+/// cached in [out] for the same mesh and sector set), dropping any triangle
+/// with a vertex at or behind the near plane; returns the triangle count.
+int projectTriangles(LanderView v, LanderMesh m, List<int> sectors, LanderProjection out, {int maxBatchVertices = 65535}) {
+  if (!identical(out._idsMesh, m) || !_sameInts(out._idsKey, sectors)) {
+    if (out._mark.length != m.tri.length ~/ 3) out._mark = Uint8List(m.tri.length ~/ 3);
+    out._ids = mergeLanderSectors(m, sectors, out._mark);
+    out._idsMesh = m;
+    out._idsKey = List.of(sectors);
+  }
+  final ids = out._ids;
   if (out._stamp.length != m.vertexCount) {
     out._stamp = Int32List(m.vertexCount)..fillRange(0, m.vertexCount, -1);
     out._local = Int32List(m.vertexCount);
@@ -1024,18 +1056,17 @@ int projectTriangles(LanderView v, LanderMesh m, List<int> sectors, LanderProjec
   for (final t in ids) {
     final a = m.tri[3 * t], b = m.tri[3 * t + 1], c = m.tri[3 * t + 2];
     if (!front(a) || !front(b) || !front(c)) continue;
-    var fresh = 0;
-    for (final q in [a, b, c]) {
-      if (out._stamp[q] != cur) fresh++;
-    }
+    final fresh = (out._stamp[a] != cur ? 1 : 0) + (out._stamp[b] != cur ? 1 : 0) + (out._stamp[c] != cur ? 1 : 0);
     if (out.vertexCount - batchStart + fresh > maxBatchVertices) {
       out.batches.add((vertexEnd: out.vertexCount, indexEnd: out.indexCount));
       batchStart = out.vertexCount;
       cur = ++out._batch;
     }
     grow();
-    for (final q in [a, b, c]) {
+    for (var j = 0; j < 3; j++) {
+      final q = m.tri[3 * t + j];
       if (out._stamp[q] != cur) {
+
         out._stamp[q] = cur;
         final li = out.vertexCount++;
         out._local[q] = li - batchStart;

@@ -178,7 +178,96 @@ Int32List landerPatternColors(LanderMesh m, LightFrame? near, Int32List? nearIdx
   return out;
 }
 
+Int32List? _offPacked, _onPacked;
+
+/// The RGB bytes (0xRRGGBB) of each (class, shade) entry of an [_rgbTable].
+Int32List _packRgb(Float64List t) {
+  final out = Int32List(t.length ~/ 3);
+  for (var i = 0; i < out.length; i++) {
+    out[i] = _byte(t[3 * i]) << 16 | _byte(t[3 * i + 1]) << 8 | _byte(t[3 * i + 2]);
+  }
+  return out;
+}
+
+/// [landerVertexColors] and [landerPatternColors] of each of [patterns] (no
+/// duplicates) in one loop over the vertices, value for value the same:
+/// (the base ARGB, one ARGB buffer per pattern). The recolour on a new frame
+/// or layer (§8); a vertex on one source pixel at full weight (the patch
+/// pixels) reads the packed colour tables directly.
+(Int32List, List<Int32List>) landerColors(LanderMesh m, LightFrame? near, Int32List? nearIdx, LightFrame? far,
+    Int32List? farIdx, LightLayer layer, List<LightPattern> patterns) {
+  final off = _offPattern ??= _rgbTable(2, 0), on = _onPattern ??= _rgbTable(0, 0);
+  final offP = _offPacked ??= _packRgb(off), onP = _onPacked ??= _packRgb(on);
+  final classes = _classTable(layer);
+  // class index * 256 * 3 of each flag byte (then + shade * 3), and its pattern slot (-1: none)
+  final cls = Int32List.fromList([for (final k in classes) k.index * 768]);
+  final pat = Int32List.fromList(
+      [for (final k in classes) lightPatternOf(k) == null ? -1 : patterns.indexOf(lightPatternOf(k)!)]);
+  const nr = 0x6E / 255, ng = 0x73 / 255, nb = 0x7B / 255;
+  final nv = m.vertexCount, out = Int32List(nv), part = m.part, wt = m.w, al = m.alpha;
+  final np = patterns.length, pout = [for (var i = 0; i < np; i++) Int32List(nv)];
+  final pa = Float64List(np), pr = Float64List(np), pg = Float64List(np), pb = Float64List(np);
+  final nOk = near != null && nearIdx != null, fOk = far != null && farIdx != null;
+  final nFlags = near?.flags, nShade = near?.shade, fFlags = far?.flags, fShade = far?.shade;
+  for (var v = 0; v < nv; v++) {
+    final isFar = part[v] == 2, ok = isFar ? fOk : nOk;
+    final idx = isFar ? farIdx : nearIdx, flags = isFar ? fFlags : nFlags, shade = isFar ? fShade : nShade;
+    final q0 = 4 * v;
+    if (ok && wt[q0] == 1 && wt[q0 + 1] == 0 && wt[q0 + 2] == 0 && wt[q0 + 3] == 0) {
+      final k = idx![q0];
+      if (k >= 0) {
+        final f = flags![k] & 7, ci = cls[f] ~/ 3 + shade![k];
+        out[v] = (_byte(al[v]) << 24 | offP[ci]).toSigned(32);
+        final i = pat[f];
+        if (i >= 0) {
+          final a = (al[v] * 255).round().clamp(0, 255);
+          if (a > 0) pout[i][v] = (_byte(a / 255) << 24 | onP[ci]).toSigned(32);
+        }
+        continue;
+      }
+    }
+    var r = 0.0, g = 0.0, b = 0.0;
+    for (var i = 0; i < np; i++) {
+      pa[i] = 0;
+      pr[i] = 0;
+      pg[i] = 0;
+      pb[i] = 0;
+    }
+    for (var q = q0; q < q0 + 4; q++) {
+      final w = wt[q];
+      if (w == 0) continue;
+      final k = ok ? idx![q] : -1;
+      if (k < 0) {
+        r += w * nr;
+        g += w * ng;
+        b += w * nb;
+        continue;
+      }
+      final f = flags![k] & 7, o = cls[f] + shade![k] * 3;
+      r += w * off[o];
+      g += w * off[o + 1];
+      b += w * off[o + 2];
+      final i = pat[f];
+      if (i >= 0) {
+        pa[i] += w;
+        pr[i] += w * on[o];
+        pg[i] += w * on[o + 1];
+        pb[i] += w * on[o + 2];
+      }
+    }
+    out[v] = _argb(al[v], r, g, b);
+    for (var i = 0; i < np; i++) {
+      final a = (pa[i] * al[v] * 255).round().clamp(0, 255);
+      if (a == 0) continue;
+      final sw = pa[i];
+      pout[i][v] = _argb(a / 255, pr[i] / sw, pg[i] / sw, pb[i] / sw);
+    }
+  }
+  return (out, pout);
+}
+
 /// Adds vertex [v]'s source weights to [acc] (one slot per class, the last
+
 /// for "not computed").
 void _accumulate(Float64List acc, LanderMesh m, int v, LightFrame? near, Int32List? nearIdx, LightFrame? far,
     Int32List? farIdx, List<LightClass> cls) {

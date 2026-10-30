@@ -331,25 +331,58 @@ Float64List meshSkyline(LanderMesh m,
   return sky;
 }
 
-/// Stable LSD radix sort of [ids] by [keys] (indexed by id), ascending.
-Int32List _radix(Int32List ids, Uint32List keys) {
-  var src = ids, dst = Int32List(ids.length);
-  for (var shift = 0; shift < 32; shift += 16) {
-    final cnt = Int32List(65537);
-    for (var i = 0; i < src.length; i++) {
-      cnt[((keys[src[i]] >> shift) & 0xFFFF) + 1]++;
+/// Elements per unit of the mesh build's linear passes and radix sorts.
+const int _chunk = 65536;
+
+int _chunks(int n) => (n + _chunk - 1) ~/ _chunk;
+
+/// Stable LSD radix sort of [ids] by [keys] (indexed by id), ascending, as
+/// resumable [unit]s of at most [_chunk] elements (per 16-bit pass: the
+/// histogram in chunks, the prefix sum, the scatter in chunks). [ids] is
+/// overwritten; the result is [src] once [done].
+class _Radix {
+  final Uint32List keys;
+  Int32List src, dst;
+  final cnt = Int32List(65537);
+  int _pass = 0, _stage = 0, _i = 0;
+  _Radix(Int32List ids, this.keys)
+      : src = ids,
+        dst = Int32List(ids.length);
+
+  bool get done => _pass == 2;
+
+  void unit() {
+    final s = 16 * _pass, n = src.length;
+    if (_stage == 0) {
+      final e = math.min(n, _i + _chunk);
+      for (; _i < e; _i++) {
+        cnt[((keys[src[_i]] >> s) & 0xFFFF) + 1]++;
+      }
+      if (_i == n) {
+        _stage = 1;
+        _i = 0;
+      }
+    } else if (_stage == 1) {
+      for (var k = 1; k < 65537; k++) {
+        cnt[k] += cnt[k - 1];
+      }
+      _stage = 2;
+    } else {
+      final e = math.min(n, _i + _chunk);
+      for (; _i < e; _i++) {
+        dst[cnt[(keys[src[_i]] >> s) & 0xFFFF]++] = src[_i];
+      }
+      if (_i == n) {
+        final t = src;
+        src = dst;
+        dst = t;
+        cnt.fillRange(0, 65537, 0);
+        _pass++;
+        _stage = 0;
+        _i = 0;
+      }
     }
-    for (var i = 1; i < 65537; i++) {
-      cnt[i] += cnt[i - 1];
-    }
-    for (var i = 0; i < src.length; i++) {
-      dst[cnt[(keys[src[i]] >> shift) & 0xFFFF]++] = src[i];
-    }
-    final t = src;
-    src = dst;
-    dst = t == ids ? Int32List(ids.length) : t;
   }
-  return src;
 }
 
 int _dm(double m) => m >= 429496729 ? 0xFFFFFFFF : (m * 10).floor();
@@ -359,8 +392,10 @@ int _dm(double m) => m >= 429496729 ? 0xFFFFFFFF : (m * 10).floor();
 
 /// [buildLanderMesh] a few units at a time ([step] until it returns true),
 /// for the main thread (runSliced). Units: patch rows, vertex rows, cell
-/// rows, 4096-triangle chunks; the dmin sort and the final compaction are
-/// one unit each. The sliced and one-shot results are bit-identical.
+/// rows, 2048-triangle sky and cull chunks, and for the dmin sort and the
+/// final compaction, chunks of at most [_chunk] elements (each 16-bit radix
+/// pass in histogram, prefix and scatter units), so no unit is long (§8).
+/// The sliced and one-shot results are bit-identical.
 class LanderMeshWork {
   final Int16List heights;
   final int demSize;
@@ -383,6 +418,16 @@ class LanderMeshWork {
   List<({double az0, double az1, double distM})> _ends = const [];
   Int32List? _sweep;
   late final Uint8List _keep;
+  // the chunked sort and compaction (§8)
+  _Radix? _rx;
+  Int32List _buf = Int32List(0);
+  int _m = 0, _nvOut = 0;
+  Uint32List _k1 = Uint32List(0), _k2 = Uint32List(0), _tri = Uint32List(0);
+  Int32List _asc = Int32List(0), _remap = Int32List(0), _src = Int32List(0);
+  Float32List _oe = Float32List(0), _on = Float32List(0), _ou = Float32List(0), _oal = Float32List(0);
+  Float32List _ow = Float32List(0);
+  Uint8List _part = Uint8List(0);
+  List<List<int>> _sec = const [];
   late final Float64List _occ = Float64List(7200)..fillRange(0, 7200, double.negativeInfinity);
   Float64List _hk = Float64List(1024);
   Int32List _hi = Int32List(1024);
@@ -433,12 +478,42 @@ class LanderMeshWork {
       (() => sN - 1, (i) => _cellRow(near, _bNP, _bNC, 1, i)),
       (() => sF - 1, (i) => _cellRow(far, _bFP, _bFC, 2, i)),
       (() => 1, (_) => _latticeTris()),
-      (() => (_nT + 4095) ~/ 4096, _skyChunk),
+      (() => (_nT + 2047) ~/ 2048, _skyChunk),
       (() => 90, _demEndChunk),
-      (() => cull ? 1 : 0, (_) => _sortSweep()),
-      (() => cull ? (_sweep!.length + 4095) ~/ 4096 : 0, _cullChunk),
-      (() => 1, (_) => _finish()),
+      // the dmin sweep order: collect the terrain triangles, radix sort by dmin
+      (() => cull ? 1 : 0, (_) => _buf = Int32List(_nT)),
+      (() => cull ? _chunks(_nT) : 0, _collectChunk),
+      (() => cull ? 1 : 0, (_) {
+        _rx = _Radix(Int32List.sublistView(_buf, 0, _m), _tk);
+        _keep = Uint8List(_nT);
+      }),
+      (() => cull ? _radixCount() : 0, (_) => _radixUnit()),
+      (() => cull ? 1 : 0, (_) => _sweep = _rx!.src),
+      (() => cull ? (_sweep!.length + 2047) ~/ 2048 : 0, _cullChunk),
+      // the final compaction (_finish in units)
+      (() => 1, (_) => _finishStart()),
+      (() => _chunks(_nT), _keyChunk),
+      (() => 1, (_) => _rx = _Radix(Int32List.sublistView(_buf, 0, _m), _k2)),
+      (() => _radixCount(), (_) => _radixUnit()),
+      (() => 1, (_) => _rx = _Radix(_rx!.src, _k1)),
+      (() => _radixCount(), (_) => _radixUnit()),
+      (() => 1, (_) {
+        _asc = _rx!.src;
+        _rx = null;
+        _remap = Int32List(_nV)..fillRange(0, _nV, -1);
+      }),
+      (() => _chunks(_asc.length), _markChunk),
+      (() => _chunks(_nV), _numberChunk),
+      (() => 1, (_) => _allocOut()),
+      (() => _chunks(_nV), _compactChunk),
+      (() => 1, (_) {
+        _tri = Uint32List(3 * _asc.length);
+        _sec = List.generate(landerSectorCount, (_) => <int>[]);
+      }),
+      (() => _chunks(_asc.length), _triChunk),
+      (() => 1, (_) => _finishEnd()),
     ];
+
   }
 
   bool get done => _mesh != null;
@@ -566,7 +641,7 @@ class LanderMeshWork {
   }
 
   void _skyChunk(int k) {
-    for (var t = k * 4096; t < math.min(_nT, (k + 1) * 4096); t++) {
+    for (var t = k * 2048; t < math.min(_nT, (k + 1) * 2048); t++) {
       if (_tp[t] == 0) continue;
       final a = _tv[3 * t], b = _tv[3 * t + 1], c = _tv[3 * t + 2];
       if (_triDmin(_e, _n, a, b, c) < landerNearFieldM) continue;
@@ -593,20 +668,6 @@ class LanderMeshWork {
       }
     }
     if (k == 89) _ends = _mergeEnds(_endDist);
-  }
-
-  void _sortSweep() {
-    var m = 0;
-    for (var t = 0; t < _nT; t++) {
-      if (_tp[t] != 0) m++;
-    }
-    final ids = Int32List(m);
-    m = 0;
-    for (var t = 0; t < _nT; t++) {
-      if (_tp[t] != 0) ids[m++] = t;
-    }
-    _sweep = _radix(ids, _tk);
-    _keep = Uint8List(_nT);
   }
 
   void _push(double key, int id) {
@@ -654,7 +715,7 @@ class LanderMeshWork {
   void _cullChunk(int k) {
     final sw = _sweep!;
     const nb = 7200;
-    for (var q = k * 4096; q < math.min(sw.length, (k + 1) * 4096); q++) {
+    for (var q = k * 2048; q < math.min(sw.length, (k + 1) * 2048); q++) {
       final t = sw[q];
       final limit = _tk[t] / 10.0;
       while (_hn > 0 && _hk[0] <= limit) {
@@ -686,40 +747,74 @@ class LanderMeshWork {
     }
   }
 
-  void _finish() {
-    // kept triangles in draw order: by cell-centre distance, then centroid distance, far to near
-    var m = 0;
-    for (var t = 0; t < _nT; t++) {
-      if (!cull || _tp[t] == 0 || _keep[t] == 1) m++;
+  int _radixCount() => _rx!.done ? _unit : _unit + 1;
+
+  void _radixUnit() => _rx!.unit();
+
+  /// Chunk [k] of the terrain triangle ids (part != 0) in id order, for the dmin sweep.
+  void _collectChunk(int k) {
+    for (var t = k * _chunk; t < math.min(_nT, (k + 1) * _chunk); t++) {
+      if (_tp[t] != 0) _buf[_m++] = t;
     }
-    final ids = Int32List(m);
-    final k1 = Uint32List(_nT), k2 = Uint32List(_nT);
-    m = 0;
-    double dist(double e, double n, double u) => math.sqrt(e * e + n * n + u * u);
-    for (var t = 0; t < _nT; t++) {
+  }
+
+  static double _len3(double e, double n, double u) => math.sqrt(e * e + n * n + u * u);
+
+  // ---- the final compaction, in units -------------------------------------
+
+  void _finishStart() {
+    _sweep = null;
+    _buf = Int32List(_nT);
+    _m = 0;
+    _k1 = Uint32List(_nT);
+    _k2 = Uint32List(_nT);
+  }
+
+  /// Chunk [k] of the kept triangles and their draw-order keys: by cell-centre
+  /// distance, then centroid distance (sorted ascending, drawn far to near).
+  void _keyChunk(int k) {
+    for (var t = k * _chunk; t < math.min(_nT, (k + 1) * _chunk); t++) {
       if (cull && _tp[t] != 0 && _keep[t] == 0) continue;
-      ids[m++] = t;
+      _buf[_m++] = t;
       final a = _tv[3 * t], b = _tv[3 * t + 1], c = _tv[3 * t + 2];
-      final cd = dist((_e[a] + _e[b] + _e[c]) / 3, (_n[a] + _n[b] + _n[c]) / 3, (_u[a] + _u[b] + _u[c]) / 3);
-      k2[t] = _dm(cd);
-      k1[t] = _tp[t] == 0 ? k2[t] : _dm(dist(_e[c], _n[c], _u[c]));
+      final cd = _len3((_e[a] + _e[b] + _e[c]) / 3, (_n[a] + _n[b] + _n[c]) / 3, (_u[a] + _u[b] + _u[c]) / 3);
+      _k2[t] = _dm(cd);
+      _k1[t] = _tp[t] == 0 ? _k2[t] : _dm(_len3(_e[c], _n[c], _u[c]));
     }
-    final asc = _radix(_radix(ids, k2), k1);
-    // vertex compaction (original order kept, so edge orientation by index is kept)
-    final remap = Int32List(_nV)..fillRange(0, _nV, -1);
-    for (final t in asc) {
+  }
+
+  /// Vertex compaction (original order kept, so edge orientation by index is
+  /// kept): mark the vertices of chunk [k] of the kept triangles.
+  void _markChunk(int k) {
+    for (var i = k * _chunk; i < math.min(_asc.length, (k + 1) * _chunk); i++) {
+      final t = _asc[i];
       for (var q = 0; q < 3; q++) {
-        remap[_tv[3 * t + q]] = 0;
+        _remap[_tv[3 * t + q]] = 0;
       }
     }
-    var nv = 0;
-    for (var v = 0; v < _nV; v++) {
-      if (remap[v] == 0) remap[v] = nv++;
+  }
+
+  void _numberChunk(int k) {
+    for (var v = k * _chunk; v < math.min(_nV, (k + 1) * _chunk); v++) {
+      if (_remap[v] == 0) _remap[v] = _nvOut++;
     }
-    final e = Float32List(nv), n = Float32List(nv), u = Float32List(nv), alpha = Float32List(nv);
-    final part = Uint8List(nv), src = Int32List(4 * nv), w = Float32List(4 * nv);
+  }
+
+  void _allocOut() {
+    final nv = _nvOut;
+    _oe = Float32List(nv);
+    _on = Float32List(nv);
+    _ou = Float32List(nv);
+    _oal = Float32List(nv);
+    _part = Uint8List(nv);
+    _src = Int32List(4 * nv);
+    _ow = Float32List(4 * nv);
+  }
+
+  void _compactChunk(int ch) {
+    final e = _oe, n = _on, u = _ou, alpha = _oal, part = _part, src = _src, w = _ow, remap = _remap;
     final fs = demSize ~/ 2;
-    for (var v = 0; v < _nV; v++) {
+    for (var v = ch * _chunk; v < math.min(_nV, (ch + 1) * _chunk); v++) {
       final o = remap[v];
       if (o < 0) continue;
       e[o] = _e[v];
@@ -758,9 +853,12 @@ class LanderMeshWork {
         w.fillRange(4 * o, 4 * o + 4, 0.25);
       }
     }
-    final tri = Uint32List(3 * asc.length);
-    final sec = List.generate(landerSectorCount, (_) => <int>[]);
-    for (var i = 0; i < asc.length; i++) {
+  }
+
+  /// Chunk [k] of the triangles in draw order (far to near) and their sectors.
+  void _triChunk(int k) {
+    final asc = _asc, remap = _remap, e = _oe, n = _on, tri = _tri, sec = _sec;
+    for (var i = k * _chunk; i < math.min(asc.length, (k + 1) * _chunk); i++) {
       final t = asc[asc.length - 1 - i];
       final a = remap[_tv[3 * t]], b = remap[_tv[3 * t + 1]], c = remap[_tv[3 * t + 2]];
       tri[3 * i] = a;
@@ -769,8 +867,14 @@ class LanderMeshWork {
       final caz = _azOf((e[a] + e[b] + e[c]) / 3, (n[a] + n[b] + n[c]) / 3);
       sec[(caz / 10).floor() % landerSectorCount].add(i);
     }
-    _mesh = LanderMesh(cam, e, n, u, alpha, part, src, w, tri, [for (final s in sec) Int32List.fromList(s)],
+  }
+
+  void _finishEnd() {
+    _mesh = LanderMesh(cam, _oe, _on, _ou, _oal, _part, _src, _ow, _tri, [for (final s in _sec) Int32List.fromList(s)],
         Float64List.fromList(_sky), _ends, _nV - _nL, demSize, demPxM);
+    // the work buffers are not needed any more
+    _buf = _asc = _remap = Int32List(0);
+    _k1 = _k2 = Uint32List(0);
   }
 }
 

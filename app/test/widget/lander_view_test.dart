@@ -428,7 +428,7 @@ void main() {
         cam: LanderCameraController(), mesh: mesh, proj: LanderProjection(), colors: null, sunWord: word, earthWord: word);
     const behind = (az: 123.44, el: 0.9, rhoDeg: 0.27, state: SkyState.behindTerrain);
     expect(painter('in view').calloutLines(behind, true),
-        ['Sun · az 123.4° · el +0.9°', 'in view', '400 m terrain here: behind terrain, skyline +1.1°']);
+        ['Sun · az 123.4° · el +0.9°', 'in view', '400 m terrain here: behind terrain, skyline +1.1° beyond 800 m']);
     expect(painter('behind terrain').calloutLines(behind, true), ['Sun · az 123.4° · el +0.9°', 'behind terrain']);
     expect(painter('below horizon').calloutLines((az: -9.0, el: -2.25, rhoDeg: 0.95, state: SkyState.belowHorizon), false),
         ['Earth · az 351.0° · el -2.3°', 'below horizon']);
@@ -437,7 +437,43 @@ void main() {
     expect(painter('in view, 62 % covered by Earth (lunar eclipse)').calloutLines(up, true),
         ['Sun · az 6.9° · el +3.9°', 'in view, 62 % covered by Earth (lunar eclipse)']);
     expect(painter('hidden by Earth (lunar eclipse)').calloutLines(up, true),
-        ['Sun · az 6.9° · el +3.9°', 'hidden by Earth (lunar eclipse)', '400 m terrain here: in view, skyline +1.1°']);
+        ['Sun · az 6.9° · el +3.9°', 'hidden by Earth (lunar eclipse)', '400 m terrain here: in view, skyline +1.1° beyond 800 m']);
+  });
+
+  test('§5 the callout skyline is the solid mesh silhouette at the body azimuth (not 180° away)', () {
+    // far triangle 1000 m north, apex (0, 1000, 300) m; the near one (500 m) is see-through ground
+    final sky = meshSkyline(_twoTriangles(skyline: Float64List(720)));
+    final painter = LanderPainter(
+        cam: LanderCameraController(), mesh: _twoTriangles(skyline: sky), proj: LanderProjection(), colors: null,
+        sunWord: 'in view', earthWord: 'in view');
+    for (final az in [0.0, 2.0, 6.9, 357.3]) {
+      final line = painter.calloutLines((az: az, el: 20.0, rhoDeg: 0.27, state: SkyState.behindTerrain), true)[2];
+      expect(line, endsWith(' beyond 800 m'));
+      final label = double.parse(RegExp(r'skyline ([+-][\d.]+)°').firstMatch(line)!.group(1)!);
+      // the apex ridge (0, 1000, 300) -> (+-600, 1000, -300) cut by the vertical plane at az
+      final e = 1000 * math.tan(az * math.pi / 180), u = 300 - e.abs();
+      expect(label, closeTo(math.atan2(u, math.sqrt(e * e + 1e6)) * 180 / math.pi, 0.5), reason: 'az $az');
+    }
+    expect(skylineAt(sky, 186.9), -90); // nothing south of the eye
+  });
+
+  test('§5 callout glyph: on the true spot while the disc is small; a big disc keeps it off the sky when hidden', () {
+    // MP1 sun-down: el -4.1° on a 45° view; the glyph is the true spot whatever the state
+    const wide = LanderView(yawDeg: 0, pitchDeg: 0, hfovDeg: 45, w: 360, h: 300);
+    for (final s in SkyState.values) {
+      final a = LanderPainter.calloutAnchor(wide, (az: 0.0, el: -4.1, rhoDeg: 0.27, state: s))!;
+      expect(a.glyph, a.disc, reason: '$s');
+      expect(a.disc.dy, closeTo(LanderPainter.at(wide, 0, -4.1)!.dy, 1e-9));
+    }
+    // zoomed in, the disc outgrows the glyph: glyph above a body that is up, below a hidden one
+    const narrow = LanderView(yawDeg: 0, pitchDeg: 0, hfovDeg: 10, w: 360, h: 300);
+    final up = LanderPainter.calloutAnchor(narrow, (az: 0.0, el: 1.0, rhoDeg: 0.27, state: SkyState.up))!;
+    expect(up.rPx, greaterThan(LanderPainter.glyphR));
+    expect(up.glyph.dy, lessThan(up.disc.dy - up.rPx));
+    for (final s in [SkyState.behindTerrain, SkyState.belowHorizon]) {
+      final hid = LanderPainter.calloutAnchor(narrow, (az: 0.0, el: -1.0, rhoDeg: 0.27, state: s))!;
+      expect(hid.glyph.dy, greaterThan(hid.disc.dy + hid.rPx), reason: '$s');
+    }
   });
 
   test('§5 callout text boxes keep clear of their own disc and of the other callout', () {
@@ -529,7 +565,7 @@ void main() {
     const v = LanderView(yawDeg: 0, pitchDeg: 0, hfovDeg: 45, w: 320, h: 220);
     final t = TextPainter(
         text: const TextSpan(
-            text: '400 m terrain here: partly hidden, skyline +0.2°',
+            text: '400 m terrain here: partly hidden, skyline +0.2° beyond 800 m',
             style: TextStyle(fontFamily: PH.sans, fontSize: 11, fontWeight: FontWeight.w500)),
         textDirection: TextDirection.ltr,
         textScaler: const TextScaler.linear(PH.maxCanvasTextScale))

@@ -1,5 +1,11 @@
 # Final deep review: plan
 
+> **Status note (2026-10-30).** This plan is unchanged since 2026-10-10. The app has grown since
+> (releases 1.1.0 to 1.9.1; see PLAN.md §4): the light & shadow map out to 75°S, lunar eclipses in the
+> Sun fraction (`formula.md` §6.5), three more mission sites (IM-2's intended target, Chang'e-7, Chandrayaan-5/LUPEX), sunset and Earthset countdowns with live
+> power, and the Lander's view (`docs/landers_view_spec.md`). A run of this plan must cover those
+> too, in parts 3 to 6 and 10 to 12. No record of a complete run is kept in the repository.
+
 The user asked for this on 2026-10-10. Once every step is done, run one complete
 multi-agent workflow over the entire project, going deep into each part. This file
 fixes its scope so nothing is skipped and every result can be traced.

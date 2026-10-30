@@ -9,6 +9,7 @@ import 'package:polar_horizon/screens/learn.dart';
 import 'package:polar_horizon/screens/validation_page.dart';
 import 'package:polar_horizon/state/app_state.dart';
 import 'package:polar_horizon/theme.dart';
+import 'package:polar_horizon/version.dart';
 import 'package:polar_horizon/widgets/explain.dart';
 import 'package:provider/provider.dart';
 
@@ -97,6 +98,37 @@ void main() {
     expect(find.textContaining('LRO LOLA', findRichText: true), findsOneWidget);
     expect(find.textContaining('JPL Horizons', findRichText: true), findsWidgets);
     expect(find.textContaining('SPICE', findRichText: true), findsWidgets);
+  });
+
+  testWidgets('the Lander\'s view has its own card, after the light map\'s', (tester) async {
+    expect(learnViews.indexOf(explainLander), learnViews.indexOf(explainLight) + 1);
+    await pumpLearn(tester, w: 1280, h: 4000);
+    expect(find.text(explainLander.title), findsOneWidget);
+    for (final words in ['2 m (or the mast height', 'same computed light and shadow as the map', 'Drag to look around',
+        'pinch', 'Face the Sun or Face Earth', 'see-through and hatched', 'approximate', '400 m']) {
+      expect(explainLander.body, contains(words));
+    }
+  });
+
+  testWidgets('shortcuts: the Site keys, then the Lander\'s view keys it handles; the version in the credits',
+      (tester) async {
+    await pumpLearn(tester, w: 1280, h: 4000);
+    final lander = find.text('In the Lander\'s view (after clicking it):');
+    expect(find.text('On the Site screen, when no button or slider has focus:'), findsOneWidget);
+    expect(lander, findsOneWidget);
+    for (final what in ['Turn left or right', 'Turn left or right in small steps', 'Look up or down', 'Zoom in or out',
+        'Face the Sun', 'Face Earth', 'Face north (away from the pole)', 'Level the view', 'Give the keys back to the page']) {
+      final row = find.text(what);
+      expect(row, findsOneWidget, reason: what);
+      expect(tester.getTopLeft(row).dy, greaterThan(tester.getTopLeft(lander).dy), reason: what);
+    }
+    // each key row is one screen-reader node: the keys by name, then what they do
+    final semantics = tester.ensureSemantics();
+    await tester.pump();
+    expect(tester.getSemantics(find.text('Look up or down')).label, contains('Up arrow'));
+    expect(tester.getSemantics(find.text('Zoom in or out')).label, contains('Minus'));
+    semantics.dispose();
+    expect(find.text('Version $appVersion'), findsOneWidget);
   });
 
   testWidgets('score card: the current goal, its weights and the top site\'s arithmetic', (tester) async {

@@ -6,6 +6,7 @@ import 'package:polar_horizon/core/score.dart';
 import 'package:polar_horizon/core/summary.dart';
 import 'package:polar_horizon/core/timeseries.dart';
 import 'package:polar_horizon/core/visibility.dart' show EarthCriterion, SunCriterion;
+import 'package:polar_horizon/version.dart';
 
 void main() {
   const site = Site(id: 'x', name: 'Test site', short: 'Test', group: 'g', kind: 'k', confidence: 'c', notes: '',
@@ -20,6 +21,8 @@ void main() {
     final csv = seriesCsv(site, s, observerHeightM: 2, options: const SeriesOptions(), ephemeris: 'DE440');
     final lines = csv.trim().split('\n');
     expect(lines.where((l) => l.startsWith('#')).length, 6);
+    // the first header line names the site and the app version that wrote it
+    expect(lines.first, '# Lunar Horizon export - Test site - Version $appVersion');
     // power is irradiance on a panel facing the Sun (no cos e); DSN bits are the nearest hourly sample
     expect(csv, contains('panel facing the Sun'));
     expect(csv, isNot(contains('vertical')));
@@ -42,6 +45,7 @@ void main() {
     final csv = scorecardCsv([Ranked('x', 'Site, "A"', m, score(m, const ScoreWeights()))], 'P', 'formula');
     expect(csv, contains('1,"Site, ""A""",'));
     expect(csv, contains('# formula'));
+    expect(csv.split('\n').first, '# Lunar Horizon comparison - P - Version $appVersion');
     expect(csv, isNot(contains('Earth contact')));
     final dsn = scorecardCsv([Ranked('x', 'A', m, score(m, const ScoreWeights()))], 'P', 'formula', requireDsn: true);
     expect(dsn, contains('# pct_earth and longest_earth_outage_h count Earth contact'));

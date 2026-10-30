@@ -21,7 +21,7 @@ for Malapert peak (MP1), the [phone landing card](screenshots/landing-phone.webp
 
 **Say:** "Artemis landers will go to the Moon's south pole. There the Sun skims the
 horizon and mountains block it for days. A lander needs two things: sunlight for
-power, and Earth above the skyline to radio home. So which spot, and when? Polar
+power, and Earth above the skyline to radio home. So which spot, and when? Lunar
 Horizon answers that in one screen."
 
 **Point at:** the top pick, "Sun and Earth both up {47}% of the time", and the longest
@@ -64,7 +64,7 @@ timeline. Press Play for a few seconds, then pause. (For a plain-words version, 
 **Simple view** switch shows short answers like "Sun + Earth
 together: NOW · … more" and "Where to look".)
 
-## 1:30–2:00 · See it on the terrain (tab: "Light & shadow")
+## 1:30–2:10 · See it on the terrain (tab: "Light & shadow", then "Lander")
 
 **Show:** the Light & shadow tab, around the site. Scrub a few hours forward and watch
 the shadows swing. Switch to "Both".
@@ -73,7 +73,16 @@ the shadows swing. Switch to "Both".
 reaches, and where Earth is in view. Near the pole even small hills cast shadows tens of
 kilometres long, which is why a few hundred metres can decide a landing site."
 
-## 2:00–2:30 · Compare and decide (Compare)
+**Then, about 12 s: the Lander's view.** Switch the view from "Around site" to
+**Lander** (the same label on a phone), then tap **Face the Sun**. Leave the time where it is.
+
+**Say:** "And this is what the lander itself would see, looking at the Sun. The terrain
+and the light are the map's own: the same 400 m heights and the same computed sunlight,
+so it is approximate, and the badge says so."
+
+**Point at:** the Sun on the skyline and the approximation badge.
+
+## 2:10–2:30 · Compare and decide (Compare)
 
 **Show:** Compare with the top 3 shortlisted. The chart under "Best for your priorities"
 says "Best: {site}" (or "almost tied with {site}" when the scores are close), with one

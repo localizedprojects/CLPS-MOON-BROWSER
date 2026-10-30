@@ -19,7 +19,8 @@ export '../core/wording.dart' show longTermCustomNote;
 const aboutSiteTitle = 'About this site';
 
 /// The exact label of the long-term averages (ux_build_contracts §1.4).
-const longTermLabel = '18.6-year average (2 m above ground, any part of the Sun or Earth)';
+const longTermLabel = '18.6-year average (2 m above ground, any part of the Sun or Earth; lunar eclipses not included, '
+    'under 0.1 percentage point)';
 
 class AboutSite extends StatelessWidget {
   final Site site;

@@ -37,6 +37,7 @@ import '../state/light_engine.dart';
 import '../theme.dart';
 import 'chart_bridge.dart' show nowAt, utcLabel;
 import 'glyphs.dart';
+import 'hide_on_scroll.dart';
 import 'time_bar.dart' show utcTwoLines;
 import 'feature_guide.dart';
 import 'lander_view.dart';
@@ -488,12 +489,28 @@ class LightMap extends StatefulWidget {
   /// the legend in every layout, so it never takes height from the map.
   final Widget? sideNote;
 
+  /// Picks the extra card for the view shown (the Lander's view has its own
+  /// explanation); when given, it takes the place of [sideNote].
+  final Widget? Function(LightViewKind kind)? sideNoteFor;
+
   /// Pinned above the scrolling side column of the short side-by-side layout
   /// (a phone in landscape): the parent's time bar, which has no room above
   /// or below a full-height map there. The other layouts ignore it.
   final Widget? sideTop;
+
+  /// The height of the scrolling slot this map is in, where its own height is
+  /// unbounded (a slot too short to pin the time bar): the lander's view and
+  /// its buttons are sized to fit it once scrolled to (null: not limited).
+  final double? scrollSlotHeight;
   const LightMap(
-      {super.key, required this.state, required this.active, required this.onSelect, this.sideNote, this.sideTop});
+      {super.key,
+      required this.state,
+      required this.active,
+      required this.onSelect,
+      this.sideNote,
+      this.sideNoteFor,
+      this.sideTop,
+      this.scrollSlotHeight});
 
   /// The card's margin plus its padding around the content.
   static const _inset = EdgeInsets.all(6 + 16);
@@ -505,6 +522,12 @@ class LightMap extends StatefulWidget {
   /// The side column's least width beside the lander's view in phone
   /// landscape (the view takes the rest, §5).
   static const landerSideMin = 300.0;
+
+  /// The site whose lander view (active map, phone landscape) hid the app's
+  /// top bars; null when they were not hidden for it. Static so the new
+  /// LightMap after turning the phone can bring them back; cleared when the
+  /// map goes inactive (leaving the tab or destination brings the bars back).
+  static String? _landerHidFor;
 
   /// The stacked layout pins the switches above the map when a whole map at
   /// least this big (or the width) fits under them; a smaller slot scrolls
@@ -639,6 +662,9 @@ class _LightMapState extends State<LightMap> {
 
   /// The lander's view's mesh (its FidelityBadge reads the eye height and DEM ends).
   final _landerMesh = ValueNotifier<LanderMesh?>(null);
+
+  /// The side column of a phone in landscape (it scrolls, with its bar shown).
+  final _sideScroll = ScrollController();
   LightFrame? _sharesFrame;
   LightShares? _shares;
 
@@ -682,6 +708,9 @@ class _LightMapState extends State<LightMap> {
       // shown again: an unchanged moment is not recomputed (a change is
       // picked up by _maybeRequest); only a failed one is retried
       if (widget.active && _error != null) _sentKey = null;
+      // leaving the tab or destination brings the bars back (HideOnScroll's
+      // resetKey); coming back to the lander's view hides them again
+      if (!widget.active) LightMap._landerHidFor = null;
       _images.update(active: widget.active);
       _reportPending();
     }
@@ -703,6 +732,7 @@ class _LightMapState extends State<LightMap> {
   void dispose() {
     _debounce?.cancel();
     _landerMesh.dispose();
+    _sideScroll.dispose();
     if (widget.active) LightMap.framePending.value = false;
     _images.dispose();
     _relief.dispose();
@@ -985,7 +1015,10 @@ class _LightMapState extends State<LightMap> {
     // not be seen: the note then always goes at the top.
     // [landerSize]: the lander's view in a box of its own shape (a wide strip in
     // phone landscape) instead of the [side] square
-    Widget mapBox(double side, {bool bottomMayHide = false, Size? landerSize}) {
+    // [landerFit]: the stacked layouts (a phone in portrait), where [side] is the
+    // card's full width: the height on screen the lander's view and its buttons
+    // fit in (LanderViewPanel.fitHeight; null: the page scrolls)
+    Widget mapBox(double side, {bool bottomMayHide = false, Size? landerSize, double? landerFit}) {
       _images.update(side: side, dpr: MediaQuery.devicePixelRatioOf(context));
       if (kind == LightViewKind.lander) {
         return GuideTarget(
@@ -996,6 +1029,7 @@ class _LightMapState extends State<LightMap> {
                 layer: img?.layer ?? layer,
                 width: landerSize?.width ?? side,
                 meshOut: _landerMesh,
+                fitHeight: landerFit,
                 // a phone in portrait scrolls: the view keeps its full height there
                 maxHeight: bottomMayHide ? double.infinity : (landerSize?.height ?? side)));
       }
@@ -1175,12 +1209,40 @@ class _LightMapState extends State<LightMap> {
       ));
     }
 
-    final note = widget.sideNote;
+    final pick = widget.sideNoteFor, note = pick != null ? pick(kind) : widget.sideNote;
+    // a phone in portrait: the lander's view and its seven 48 dp buttons take
+    // 8 dp more of the card's padding each side, so the buttons fit on one row
+    // (7 x 48 = 336 dp) from a 376 dp wide screen
+    final landerBleed = kind == LightViewKind.lander && MediaQuery.sizeOf(context).width < 440;
     return Card(
       margin: const EdgeInsets.all(6), // part of LightMap._inset
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: EdgeInsets.symmetric(horizontal: landerBleed ? 8 : 16, vertical: 16),
         child: LayoutBuilder(builder: (context, c) {
+          // the lander's view in phone landscape (a window under
+          // shortScreenMaxHeight, where the shell's bar hides too) hides the
+          // app's top bars (as Play does), so it is tall enough to read under
+          // its compass strip; once each time it opens there for a site (a
+          // pull down in the side column brings them back and is not undone),
+          // and they come back with any other view or layout (turning the
+          // phone: a new LightMap), except while Play runs (Play keeps them
+          // hidden and only hides them on its start)
+          final landerSide = LightMap._sideBySide(c) &&
+              LightMap._short(c) &&
+              kind == LightViewKind.lander &&
+              MediaQuery.sizeOf(context).height < shortScreenMaxHeight;
+          final want = landerSide ? widget.state.selectedId : null;
+          if (widget.active && want != LightMap._landerHidFor) {
+            LightMap._landerHidFor = want;
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (!mounted) return;
+              if (!landerSide) {
+                if (!widget.state.playing) HideOnScroll.reveal(context);
+              } else if (_sideScroll.hasClients) {
+                HideOnScroll.hide(context, _sideScroll.position);
+              }
+            });
+          }
           if (LightMap._sideBySide(c)) {
             if (LightMap._short(c)) {
               // phone landscape: the whole map at full height; the parent's
@@ -1199,8 +1261,14 @@ class _LightMapState extends State<LightMap> {
                 Expanded(
                   child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
                     ?widget.sideTop,
+                    // the column scrolls with its bar always shown, so switches
+                    // cut at its foot are seen to scroll
                     Expanded(
-                      child: SingleChildScrollView(
+                      child: Scrollbar(
+                        controller: _sideScroll,
+                        thumbVisibility: true,
+                        child: SingleChildScrollView(
+                        controller: _sideScroll,
                         child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
                           if (widget.sideTop != null) const SizedBox(height: 8),
                           header(phoneFit(LightMap.switchFit(c.maxWidth - 16 - side, scaler))),
@@ -1212,6 +1280,7 @@ class _LightMapState extends State<LightMap> {
                           badge,
                           if (note != null) ...[const SizedBox(height: 12), note],
                         ]),
+                      ),
                       ),
                     ),
                   ]),
@@ -1254,6 +1323,7 @@ class _LightMapState extends State<LightMap> {
           // short slot (large text on a small phone) scrolls the switches
           // and a usable map together instead of shrinking it to a thumbnail.
           final usable = math.min(c.maxWidth, LightMap.minStackedSide);
+          final lander = kind == LightViewKind.lander;
           final pinFloor = math.min(c.maxWidth, LightMap.minPinnedSide);
           final fit0 = LightMap.switchFit(c.maxWidth, scaler);
           final fit = c.maxWidth < 440 ? phoneFit(fit0) : fit0;
@@ -1266,13 +1336,15 @@ class _LightMapState extends State<LightMap> {
                       // (kept under FidelityBadge's 110-character first-sentence summary, so it is read whole)
                       '${pastMap ? '; past about 80°S the relief is shaded on this device' : ''}. '
                       'Status, legend and details below.');
+          // the lander's view: its own badge (§6) first under the view, in
+          // place of the map's short note and play note
           List<Widget> below() => [
                 const SizedBox(height: 12),
                 status,
                 const SizedBox(height: 10),
                 legend,
                 ?error,
-                badge,
+                if (!lander) badge,
                 if (note != null) ...[const SizedBox(height: 12), note],
               ];
           final textScale = (scaler.scale(14) / 14).clamp(1.0, 3.0);
@@ -1290,14 +1362,17 @@ class _LightMapState extends State<LightMap> {
                   // (new-light-map-size) when most of it is still on screen
                   // above the time bar; its lower edge, the note and the
                   // details then scroll in the slot
-                  final fullWidth = c.maxWidth < 440 && c2.maxHeight >= c2.maxWidth * LightMap.fullWidthMinShown;
+                  // The lander's view is a wide strip, never the map's square:
+                  // the full width, sized to keep it and its buttons above the
+                  // bar (LanderViewPanel.fitHeight); the rest scrolls here
+                  final fullWidth = lander || c.maxWidth < 440 && c2.maxHeight >= c2.maxWidth * LightMap.fullWidthMinShown;
                   final side = fullWidth
                       ? c2.maxWidth
                       : math.min(c2.maxWidth, withNote >= usable ? withNote : math.max(c2.maxHeight, pinFloor));
                   return SingleChildScrollView(
                     child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, mainAxisSize: MainAxisSize.min, children: [
-                      Center(child: mapBox(side, bottomMayHide: fullWidth)),
-                      shortNote,
+                      Center(child: mapBox(side, bottomMayHide: fullWidth, landerFit: lander ? c2.maxHeight : null)),
+                      lander ? badge : shortNote,
                       ...below(),
                     ]),
                   );
@@ -1307,13 +1382,18 @@ class _LightMapState extends State<LightMap> {
           }
           // a phone in portrait: the full width here too when most of the
           // map shows (new-light-map-size)
-          final phoneFull = c.maxWidth < 440 && room >= c.maxWidth * LightMap.fullWidthMinShown;
+          // (the lander's view: the full width, as above)
+          final phoneFull = lander || c.maxWidth < 440 && room >= c.maxWidth * LightMap.fullWidthMinShown;
           final side =
               c.maxHeight.isFinite && !phoneFull ? math.min(c.maxWidth, math.max(room, usable)) : c.maxWidth;
           final stacked = Column(crossAxisAlignment: CrossAxisAlignment.stretch, mainAxisSize: MainAxisSize.min, children: [
             controls,
             const SizedBox(height: 12),
-            Center(child: mapBox(side, bottomMayHide: phoneFull || !c.maxHeight.isFinite)),
+            Center(
+                child: mapBox(side,
+                    bottomMayHide: phoneFull || !c.maxHeight.isFinite,
+                    landerFit: lander ? (c.maxHeight.isFinite ? room : widget.scrollSlotHeight) : null)),
+            if (lander) badge,
             ...below(),
           ]);
           return c.maxHeight.isFinite ? SingleChildScrollView(child: stacked) : stacked;

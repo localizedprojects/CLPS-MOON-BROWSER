@@ -27,6 +27,7 @@ import '../core/ephemeris.dart';
 import '../core/geo.dart';
 import '../core/horizon.dart';
 import '../core/horizon_compute.dart';
+import '../core/lander_view.dart' show LanderMesh;
 import '../core/landing.dart';
 import '../core/landing_wording.dart' show goalName;
 import '../core/metrics.dart';
@@ -1196,6 +1197,23 @@ class AppState extends ChangeNotifier {
   @visibleForTesting
   set demForTest(PolarGrid g) => _demJob = Future.value(g);
 
+  ({String key, LanderMesh mesh})? _landerMesh;
+
+  /// What the lander's view mesh is built for: the site's position and the
+  /// observer height.
+  String get landerMeshKey => '${site.lat}|${site.lon}|$observerHeightM';
+
+  /// The lander's view mesh last built for [key] ([landerMeshKey]), if it is
+  /// still the one kept. One mesh is kept here, not in its panel, so leaving
+  /// the view (Lander > Site > Lander) or turning the phone (a new panel under
+  /// another parent) does not build it again, which takes minutes on a slow
+  /// phone; it is about 6 MB (MP1: 77 k vertices, 142 k triangles). It is
+  /// dropped once the site or the observer height changes.
+  LanderMesh? landerMesh(String key) => _landerMesh?.key == key ? _landerMesh!.mesh : null;
+
+  /// Keeps [mesh], built for [key] ([landerMeshKey]), in place of the last one.
+  void keepLanderMesh(String key, LanderMesh mesh) => _landerMesh = (key: key, mesh: mesh);
+
   /// Shadow engine behind the light & shadow map (started on first use; a
   /// failed start, e.g. the DEM fetch going offline, is tried again on the
   /// next call instead of failing for good, async-7).
@@ -1783,6 +1801,8 @@ class AppState extends ChangeNotifier {
 
   @override
   void notifyListeners() {
+    // another site or observer height: the kept lander mesh is not wanted any more
+    if (_landerMesh != null && _landerMesh!.key != landerMeshKey) _landerMesh = null;
     if (!_disposed) super.notifyListeners();
   }
 

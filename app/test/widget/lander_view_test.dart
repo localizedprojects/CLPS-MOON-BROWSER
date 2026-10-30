@@ -730,7 +730,7 @@ void main() {
     final chev = LanderPainter.chevrons(st.cam.view(viewSize), p().sun, p().earth).firstWhere((c) => c.$2);
     expect(chev.$3, isTrue, reason: 'the Sun is to the left');
     expect(chev.$4, 'SUN ${(sun.az.round() % 360).toString().padLeft(3, '0')}°');
-    expect(chev.$1.height, greaterThanOrEqualTo(24));
+    expect(chev.$1.height, greaterThanOrEqualTo(48));
     await tester.tapAt(origin + chev.$1.center);
     await tester.pumpAndSettle();
     expect(turnDelta(st.cam.yaw, sun.az).abs(), lessThan(0.01));
@@ -764,6 +764,128 @@ void main() {
     expect(find.textContaining('From the lander: 2 m above the ground at'), findsOneWidget);
     expect(find.byKey(const ValueKey('lander-play-badge')), findsNothing);
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('W13 a body under the compass strip keeps its callout (below the strip) and an undimmed disc',
+      (tester) async {
+    // 1.9.0: no callout and no status word; the strip's 78 % fill dimmed the Sun to about #3D3011
+    final cam = LanderCameraController()..set(yaw: 10, pitch: 0, hfov: 45);
+    const size = Size(400, 300);
+    final v = cam.view(size);
+    final SkyBody sun = (az: 10.0, el: unprojectView(v, 200, 30).el, rhoDeg: 0.27, state: SkyState.up);
+    final a = LanderPainter.calloutAnchor(v, sun)!;
+    expect(a.disc.dy, closeTo(30, 0.01));
+    expect(a.glyph.dy, greaterThanOrEqualTo(LanderPainter.compassH + 10), reason: 'the glyph is below the strip');
+    expect(a.glyph.dy - 10, greaterThan(a.disc.dy + a.rPx + 2), reason: 'room for the leader up to the disc');
+    expect(LanderPainter.calloutTargets(v, sun, null).single.$2, isTrue);
+    final bytes = await _paintBytes(
+        tester, LanderPainter(cam: cam, mesh: null, proj: LanderProjection(), colors: null, sun: sun), size);
+    final o = 4 * (30 * 400 + 200);
+    expect([bytes.getUint8(o), bytes.getUint8(o + 1), bytes.getUint8(o + 2)], [greaterThan(0xE0), greaterThan(0x90), lessThan(0x50)],
+        reason: 'the disc is the Sun\'s amber, not dimmed by the strip');
+    final box = LanderPainter.paintedSky!.callouts.single;
+    expect(box.top, greaterThanOrEqualTo(LanderPainter.compassH), reason: 'the callout words are under the strip');
+    expect(box.overlaps(Rect.fromCircle(center: a.glyph, radius: LanderPainter.glyphR - 2)), isFalse,
+        reason: 'the words keep off the glyph under the strip');
+  });
+
+  test('W14 the callout words keep off the centre reticle (Face the Sun puts the body on it)', () {
+    // 392 dp wide: a short landscape-like view, the portrait view (a hidden body, and one in view)
+    for (final (h, box, up) in [(120.0, const Size(200, 47), true), (243.0, const Size(250, 47), false), (243.0, const Size(150, 47), true)]) {
+      final v = LanderView(yawDeg: 0, pitchDeg: 0, hfovDeg: 45, w: 392, h: h);
+      final c = Offset(196, h / 2), floor = h - 20;
+      final a = (disc: c, glyph: c, rPx: 1.5);
+      final reticle = LanderPainter.reticleBox(Size(392, h));
+      expect(reticle.contains(c) && reticle.width >= 18 && reticle.height >= 18, isTrue);
+      final top = (c.dy - 8).clamp(LanderPainter.compassH + 2, math.max(LanderPainter.compassH + 2, floor - box.height - 4)) - 1;
+      final r = LanderPainter.calloutBox(v, a, box, null, top.toDouble(), bottom: floor, up: up, reticle: reticle);
+      expect(r.overlaps(reticle), isFalse, reason: '$h $box $up: $r vs $reticle');
+      expect(r.overlaps(Rect.fromCircle(center: c, radius: 4.5)), isFalse, reason: '$h: $r');
+      expect(r.top >= LanderPainter.compassH && r.bottom <= h && r.left >= 0 && r.right <= 392, isTrue, reason: '$h: $r');
+    }
+  });
+
+  test('W14c zoomed in on the Sun: the callout words keep off the big disc, the reticle and the bottom strip', () {
+    // c2 shots: at hfov 10 the disc (10.6 px) sits just under the centre and its glyph 24.6 dp above it, by
+    // the reticle; the box went over the reticle's top, across the glyph's upper half (dimming it)
+    const box = Size(171, 30);
+    // (width, height, floor, room clear of the glyph too); 352.7 x 195: the c2 view, where no place clear
+    // of disc, reticle and glyph fits under the floor: the box may reach over the glyph's edge (painted
+    // over it), never over its centre
+    for (final (w, h, floor, roomy) in [(392.7, 212.0, 137.0, true), (352.7, 195.0, 137.1, false)]) {
+      final v = LanderView(yawDeg: 37.1, pitchDeg: 3.4, hfovDeg: 10, w: w, h: h);
+      final c = Size(w, h).center(Offset.zero);
+      final a = (disc: c + const Offset(0, 9.4), glyph: c - const Offset(0, 15.2), rPx: 10.6);
+      final reticle = LanderPainter.reticleBox(Size(w, h));
+      final top = (a.glyph.dy - 8).clamp(LanderPainter.compassH + 2, floor - box.height - 4) - 1;
+      final r = LanderPainter.calloutBox(v, a, box, null, top.toDouble(), bottom: floor, up: true, reticle: reticle);
+      expect(r.overlaps(Rect.fromCircle(center: a.glyph, radius: roomy ? LanderPainter.glyphR - 2 : 2)), isFalse,
+          reason: '$w: $r, never over the glyph\'s centre');
+      expect(r.overlaps(Rect.fromCircle(center: a.disc, radius: a.rPx + 3)), isFalse, reason: '$w: $r');
+      expect(r.overlaps(reticle), isFalse, reason: '$w: $r');
+      expect(r.top >= LanderPainter.compassH && r.bottom <= floor && r.left >= 0 && r.right <= w, isTrue,
+          reason: '$w: $r, not over the bottom strip');
+    }
+  });
+
+  testWidgets('W14b after Face the Sun and Face Earth no callout box covers the crosshair', (tester) async {
+    size(tester, const Size(392, 900));
+    await nearPole(tester);
+    await tester.pumpWidget(panel(width: 392, near: nearFrame(), reduced: true));
+    await meshReady(tester);
+    final st = panelState(tester), cp = find.byWidgetPredicate((w) => w is CustomPaint && w.painter is LanderPainter);
+    for (final face in [st.faceSun, st.faceEarth]) {
+      face();
+      await tester.pumpAndSettle();
+      final reticle = LanderPainter.reticleBox(tester.getSize(cp)), boxes = LanderPainter.paintedSky!.callouts;
+      expect(boxes, isNotEmpty);
+      for (final b in boxes) {
+        expect(b.overlaps(reticle), isFalse, reason: '$b vs $reticle');
+      }
+    }
+  });
+
+  testWidgets('W15 two edge chevrons on one side sit side by side: 48 dp targets, the ticks under them shown',
+      (tester) async {
+    // 1.9.0: 'EARTH 004°' under 'SUN 311°', each 104 x 24 dp, on an opaque box over the ticks and labels
+    final cam = LanderCameraController()..set(yaw: 100, pitch: 0, hfov: 45);
+    const size = Size(400, 300);
+    final v = cam.view(size);
+    const SkyBody sun = (az: 311.4, el: 4.1, rhoDeg: 0.27, state: SkyState.up),
+        earth = (az: 4.2, el: 9.3, rhoDeg: 0.95, state: SkyState.up);
+    final ch = LanderPainter.chevrons(v, sun, earth);
+    expect([for (final c in ch) c.$4], ['SUN 311°', 'EARTH 004°']);
+    expect([for (final c in ch) c.$3], [true, true], reason: 'both to the left');
+    expect(ch[0].$1, const Rect.fromLTWH(0, 0, 104, 48));
+    expect(ch[1].$1, const Rect.fromLTWH(104, 0, 104, 48));
+    expect(LanderPainter.chevronAt(v, sun, earth, const Offset(150, 44)), isFalse, reason: "Earth's, to the strip's foot");
+    // on the right edge too
+    final r = LanderPainter.chevrons(const LanderView(yawDeg: 250, pitchDeg: 0, hfovDeg: 45, w: 400, h: 300), sun, earth);
+    expect(r.map((c) => c.$1), [const Rect.fromLTWH(296, 0, 104, 48), const Rect.fromLTWH(192, 0, 104, 48)]);
+    final bytes = await _paintBytes(
+        tester, LanderPainter(cam: cam, mesh: null, proj: LanderProjection(), colors: null, sun: sun, earth: earth), size);
+    var ticks = 0;
+    for (var x = 0; x < 208; x++) {
+      if (bytes.getUint8(4 * (45 * 400 + x)) > 0x40) ticks++;
+    }
+    expect(ticks, greaterThanOrEqualTo(3), reason: 'the azimuth ticks under the chevrons stay in view');
+  });
+
+  testWidgets('W16 zoomed in on a short view, the elevation scale still labels a row', (tester) async {
+    // 10° wide, 0.4° up: the only whole-degree row in the view is 0° (unlabelled); 1.9.0 showed no figure
+    final cam = LanderCameraController()..set(yaw: 0, pitch: 0.4, hfov: 10);
+    const size = Size(392, 110);
+    final v = cam.view(size);
+    final f = LanderPainter.elevationFallbacks(v, 0, LanderPainter.elevationStep(10, 392));
+    expect(f.first, (-0.5, true));
+    expect(f.last, (0.4, true), reason: 'last, the centre row itself');
+    await _paintBytes(tester, LanderPainter(cam: cam, mesh: null, proj: LanderProjection(), colors: null), size);
+    expect(LanderPainter.paintedSky!.scale, [-0.5]);
+    // a normal view keeps its whole-degree rows
+    cam.set(hfov: 45, pitch: 0);
+    await _paintBytes(tester, LanderPainter(cam: cam, mesh: null, proj: LanderProjection(), colors: null), const Size(392, 300));
+    expect(LanderPainter.paintedSky!.scale, isNotEmpty);
+    expect(LanderPainter.paintedSky!.scale.every((e) => e == e.roundToDouble()), isTrue);
   });
 
   testWidgets('W11 pattern pass: nearer plain triangle hides farther striped one', (tester) async {
@@ -819,3 +941,11 @@ LanderMesh _twoTriangles({required Float64List skyline}) {
       256,
       400);
 }
+
+/// [p] painted on a [s] canvas, as RGBA bytes.
+Future<ByteData> _paintBytes(WidgetTester tester, LanderPainter p, Size s) async => (await tester.runAsync(() async {
+      final rec = ui.PictureRecorder();
+      p.paint(Canvas(rec), s);
+      final img = await rec.endRecording().toImage(s.width.round(), s.height.round());
+      return img.toByteData(format: ui.ImageByteFormat.rawRgba);
+    }))!;

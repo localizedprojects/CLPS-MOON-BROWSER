@@ -153,6 +153,17 @@ const explainLight = ExplainCard(
   terms: ['Terrain horizon', 'Upper limb', 'PSR'],
 );
 
+const explainLander = ExplainCard(
+  title: 'Lander\'s view: the same terrain, seen from the site',
+  body: 'This is the ground around the site as a lander would see it, from 2 m (or the mast height set in Mission '
+      'settings) above the terrain. Each piece of ground is lit by the same computed light and shadow as the map, for '
+      'the moment on the time bar, and the Sun and Earth are drawn at their true size and direction. Drag to look '
+      'around, pinch or use the buttons to zoom, and tap Face the Sun or Face Earth to turn toward them. Ground very '
+      'close to the lander, which the terrain map cannot resolve, is drawn see-through and hatched. It is approximate: '
+      'the terrain is a 400 m grid, so the skyline can differ from a preset site\'s sharper horizon by about a degree.',
+  terms: ['Terrain horizon', 'Upper limb', 'DTE'],
+);
+
 const explainExplore = ExplainCard(
   title: 'Explore: the best spot, and how the others compare',
   body: 'The top card names the site with the best score over your chosen dates. The score weighs sunlight, Earth in view, '

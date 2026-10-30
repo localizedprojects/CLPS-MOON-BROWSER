@@ -240,7 +240,10 @@ void main() {
       expect(find.text(aboutSiteTitle), findsOneWidget);
       await tester.tap(find.text(aboutSiteTitle));
       await tester.pumpAndSettle();
-      expect(find.text('18.6-year average (2 m above ground, any part of the Sun or Earth)'), findsOneWidget);
+      expect(
+          find.text('18.6-year average (2 m above ground, any part of the Sun or Earth; lunar eclipses not included, '
+              'under 0.1 percentage point)'),
+          findsOneWidget);
       expect(find.text('70%'), findsOneWidget);
       expect(find.text('Artemis III candidate region · 4.5° slope'), findsOneWidget);
       expect(find.text('A paper'), findsOneWidget);

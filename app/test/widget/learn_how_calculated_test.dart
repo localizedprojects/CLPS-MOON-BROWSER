@@ -78,7 +78,7 @@ void main() {
     expect(title.size.width, greaterThan(0));
   });
 
-  testWidgets('the Validation page answers first and links to "How it\'s calculated"', (tester) async {
+  testWidgets('the Validation page answers first, links to "How it\'s calculated" and has the Lander\'s view row', (tester) async {
     await pumpPage(tester, const ValidationPage(), w: 320, h: 640, text: 2);
     await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 200)));
     await tester.pumpAndSettle();
@@ -95,5 +95,20 @@ void main() {
     await tester.tap(link);
     await tester.pumpAndSettle();
     expect(find.byType(HowCalculatedPage), findsOneWidget);
+
+    // back on the checks (one load of the report per file: a second page
+    // would wait on the asset cache of this test's fake clock): a row for the
+    // Lander's view skyline, with formula.md §12.11's figures
+    Navigator.of(tester.element(find.byType(HowCalculatedPage))).pop();
+    await tester.pumpAndSettle();
+    final row = find.textContaining('Lander\'s view skyline');
+    await tester.scrollUntilVisible(row, 300, scrollable: find.byType(Scrollable).first, maxScrolls: 200);
+    expect(row, findsOneWidget);
+    expect(find.text('max < 0.1°'), findsOneWidget);
+    final note = find.textContaining('formula.md §12.11');
+    expect(note, findsOneWidget);
+    final t = tester.widget<Text>(note).data!;
+    expect(t, contains('about 1°'));
+    expect(t, contains('up to 5° on sharp rims'));
   });
 }

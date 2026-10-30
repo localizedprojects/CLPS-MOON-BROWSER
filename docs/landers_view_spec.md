@@ -252,6 +252,7 @@ Draw only what is computed: shadowed ground is dark, and the Earth layer still s
 - An off-view body gets an edge chevron with `SUN 132°` on the compass strip.
 - Tap targets are 48 dp; tapping turns to the body.
 - Labels are laid out clear of each other, as `ArrowLabelMemory` does.
+- Build (1.9.1, after a review of emulator screenshots): a body inside the view but under the compass strip keeps its callout, placed under the strip with its leader up to the disc, and the strip's dimming leaves the disc (and the leader) out. The callout words keep off the centre crosshair (after Face the Sun the body sits on it) and no crosshair arm is drawn across them. Two edge chevrons on one edge sit side by side, each a 104 x 48 dp target, on a translucent band over the words' row only, so the ticks and azimuth labels under them stay in view.
 
 **Compass strip** (48 dp tall, inside the top edge, D17).
 - Ticks every 5°, labels every 30° (`030`, Plex Mono tabular); N/E/S/W in larger type.
@@ -261,6 +262,7 @@ Draw only what is computed: shadowed ground is dark, and the Earth layer still s
 
 **Elevation scale** (left edge).
 - Ticks at the screen y where the centre column has el = k° (1/2/5/10° steps, adaptive to the zoom), labelled `+2°`.
+- Build (1.9.1): when no row of the step gets its label (zoomed in, or the rows fall under the strip or the callouts), one reference is still shown: the row nearest the centre at a finer step (5, 2, 1, 0.5, 0.2°, labelled `+0.5°` below 1°), else the centre row's own elevation.
 - A hairline traces the el = 0° curve, labelled `0° (level)`. It is a visual aid.
 
 **Reference line.**
@@ -287,6 +289,8 @@ The first sentence is the ≤ 110-character summary (`FidelityBadge.summaryOf`).
 
 On the web while playing, the second sentence is "Light beyond 64 km waits until you pause."
 
+Build (1.9.1): in the stacked (portrait) layouts the main badge comes first under the view, followed by the play badge while playing; the 2D map's one-line short note and its play note are not shown with the Lander's view.
+
 **Caption** (under the view): "From the lander: {observerHeight} above the ground at {site}, {UTC}. Terrain and light come from the same 400 m LOLA grid and the same computed frame as the map; the Sun and Earth are at their exact positions."
 
 **Guide and Learn.**
@@ -309,6 +313,8 @@ On the web while playing, the second sentence is "Light beyond 64 km waits until
 - **Phone 360 portrait.** The view fills the width, with height `clamp(0.62·w, 220, slot)`. The compass strip sits inside at the top. Under the view is a row of seven 48 dp icon buttons: Turn left 15°, Face the Sun, Face Earth, Level, Zoom out, Zoom in, Turn right 15° (7 × 48 = 336 dp). Legend, caption and badges scroll below.
 - **Phone landscape** (`LightMap.shortSideBySideFor`). The view takes the full height; the time bar is in the side column, as for the map.
   - Build (deliberate difference, 2026-10-30): the panel sits in the map's square box (width = height = the box side). When the view, the buttons and the notes do not all fit, the view keeps its height (at least 120 dp, at most the box less one 48 dp button row), the first button row stays on screen under it, and the rest of the buttons and the notes scroll there. The notes are capped at 4 lines only in this finite box.
+  - Build (1.9.1, 2026-10-30, after an Android 7 emulator run with a Pixel 4 profile, where the view was 410 x 99 dp and the side column cut the view switch in half): the view takes all the height above one row of buttons and only the notes scroll under them; the app's top bars hide while it is shown (as for Play; they come back with any other view or layout, or with a pull down in the side column), so at 781 x 393 dp the view is about 409 x 211 dp; the side column shows its scroll bar, so switches cut at its foot are seen to scroll.
+- **Phone portrait** (Build, 1.9.1): the view always takes the full card width (never the 2D map's square side), with 8 dp of the card's padding each side so the seven buttons fit on one row from a 376 dp wide screen. Its height keeps the view and all its buttons above the pinned time bar, never under `max(160 dp, half the width)` (`LanderViewPanel.minFitViewHeightFor`); the notes scroll. Where the slot is too short to pin the time bar (360 x 640), the view scrolls with the page and one scroll shows it and all its buttons. The built mesh is kept by the app state for the current site and observer height, so Lander > Site > Lander and turning the phone do not build it again.
 - **Tablet and web (≥ 600 wide).** The same row with text labels ('Face the Sun', 'Face Earth', 'Level').
 
 ### 7.3 Camera

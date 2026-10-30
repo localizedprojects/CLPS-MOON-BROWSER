@@ -78,12 +78,20 @@ pipeline/ (Python: spiceypy, numpy)              app/assets/data/ (committed, ~1
 
 ## 4. Milestones (a commit after each; pause for review at M1 and M5)
 
-- **M1:** pipeline + validation + Dart az/el core with tests passing
-- **M2:** sky polar plot + timeline
-- **M3:** map, site selection, metrics engine + Blender 360° region turntable with tappable landing sites
-- **M4:** comparison, scorecard, summaries
-- **M5:** Explain mode, accessibility, export, polish
-- **M6:** README, demo script, judge one-pager, web deploy config, and **an Android emulator run with screenshots**
+- **M1:** pipeline + validation + Dart az/el core with tests passing. **Done** (initial release).
+- **M2:** sky polar plot + timeline. **Done** (initial release).
+- **M3:** map, site selection, metrics engine + Blender 360° region turntable with tappable landing sites. **Done** (initial release); the turntable and the other Blender views were later replaced in the app by the computed light & shadow map (see the note above).
+- **M4:** comparison, scorecard, summaries. **Done** (initial release).
+- **M5:** Explain mode, accessibility, export, polish. **Done** (initial release).
+- **M6:** README, demo script, judge one-pager, web deploy config, and **an Android emulator run with screenshots**. **Done** (initial release); the web app is published from `main` by `deploy-pages.yml`.
+
+**Status (2026-10-30).** M1–M6 were built before the repository's first public commit (`5838d00`, 2026-10-14, history squashed), so there are no separate `M<n>` commits; later work shipped as numbered releases through pull requests:
+- **1.1.0–1.3.1** (2026-10-17 to 10-20): loading screen, Play kept in step with the charts, first-launch tutorial, Android 7 fixes.
+- **1.4.0** (10-20): feature guides on every screen. **1.5.0** (10-25): the *At a glance* overview for every site.
+- **1.6.0–1.7.0** (10-28): terrain and the Explore map's layers out to 75°S, so sites near 80°S (IM-1) get a full light & shadow close-up.
+- **1.8.0** (10-29): sunset and Earthset countdowns, the mission catalogue grows from 16 to 19 sites (IM-2's intended target, Chang'e-7's planned site and a Chandrayaan-5/LUPEX candidate join the IM-1 and IM-2 landed positions and the VIPER area; groups renamed), live power, exact time entry, and **lunar eclipses**: the Sun's visible fraction now leaves out the part of its disk behind Earth (`formula.md` §6.5).
+- **1.9.0** (10-30): the **Lander's view**, a 3D look around the horizon from the lander, built from the light map's own 400 m terrain and its computed light for the moment shown, and labelled approximate (`docs/landers_view_spec.md`, `formula.md` §12.11).
+- **1.9.1** (in progress): Lander's view phone layout and readability fixes, a Learn card, shortcuts, and the version shown in the app.
 
 ## 5. Assumptions (decided without asking)
 

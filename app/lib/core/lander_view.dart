@@ -738,6 +738,10 @@ class LanderMeshWork {
       final isFar = v >= _bFP;
       final p = isFar ? far : near, gs = isFar ? fs : demSize;
       part[o] = isFar ? 2 : 1;
+      // D7: the 400 m cells kept inside 800 m (cells straddling the ring) are near ground, see-through
+      // above the far skyline like the lattice. Such a vertex is never in the far skyline (any triangle
+      // holding it has dmin < 800 m), so the comparison is safe; vertices at 800 m or more keep alpha 1.
+      if (!isFar && _dh[v] < landerNearFieldM && _el[v] > skylineAt(_sky, _az[v])) alpha[o] = landerNearAlpha;
       final pix = isFar ? _bFP : _bNP, cen = isFar ? _bFC : _bNC;
       if (v < cen) {
         final i = (v - pix) ~/ p.side, j = (v - pix) % p.side;

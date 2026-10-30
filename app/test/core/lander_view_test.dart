@@ -412,9 +412,14 @@ void main() {
             ws += m.w[4 * v + q];
           }
           expect(ws, closeTo(1, 1e-6));
-          if (m.part[v] != 0) continue;
-          final under = elOf(m, v) <= skylineAt(m.skyline, azOf(m, v));
-          expect(m.alpha[v], under ? 1.0 : closeTo(landerNearAlpha, 1e-7));
+          // part 0, and part 1 under 800 m (cells straddling the ring), are see-through above the far
+          // skyline (D7); every other vertex is opaque
+          if (m.part[v] == 0 || (m.part[v] == 1 && hyp(m, v) < landerNearFieldM)) {
+            final under = elOf(m, v) <= skylineAt(m.skyline, azOf(m, v));
+            expect(m.alpha[v], under ? 1.0 : closeTo(landerNearAlpha, 1e-7), reason: '${e.key} v$v part ${m.part[v]}');
+          } else {
+            expect(m.alpha[v], 1.0, reason: '${e.key} v$v part ${m.part[v]}');
+          }
         }
       }
       // lattice heights are the fan surface's (Haworth)
@@ -443,6 +448,45 @@ void main() {
           expect(m.n[v], closeTo(d.dot(en.north), 1e-3));
           expect(m.u[v], closeTo(d.dot(en.up), 1e-3));
         }
+      }
+    });
+
+    test('opaque near ground never rises above the far skyline (D7)', () {
+      // The painter draws the Sun and Earth discs, then the terrain over them. A
+      // body above the far skyline (which the map, the mask and the callouts call
+      // visible) must not be hidden by opaque near ground: part 0/1 triangles whose
+      // vertices all have alpha 1 stay at or under the far skyline at every azimuth.
+      const step = 0.1, nAz = 3600;
+      for (final e in spots.entries) {
+        final m = meshes[e.key]!;
+        final best = Float64List(nAz)..fillRange(0, nAz, -999);
+        for (var t = 0; t < m.triangleCount; t++) {
+          final ids = [m.tri[3 * t], m.tri[3 * t + 1], m.tri[3 * t + 2]];
+          if (m.part[ids[0]] == 2 || ids.any((v) => m.alpha[v] != 1)) continue;
+          // the triangle's azimuth span (all of it when it holds or surrounds the eye)
+          final a0 = azOf(m, ids[0]);
+          double off(int v) {
+            final d = (azOf(m, v) - a0) % 360;
+            return d > 180 ? d - 360 : d;
+          }
+
+          final d1 = off(ids[1]), d2 = off(ids[2]);
+          final lo = math.min(0.0, math.min(d1, d2)), hi = math.max(0.0, math.max(d1, d2));
+          final full = hi - lo > 179 || ids.any((v) => hyp(m, v) < 1);
+          final i0 = full ? 0 : ((a0 + lo) / step).floor(), i1 = full ? nAz - 1 : ((a0 + hi) / step).ceil();
+          for (var i = i0; i <= i1; i++) {
+            final k = i % nAz, az = k * step * deg;
+            best[k] = math.max(best[k], crossEl(m, t, math.sin(az), math.cos(az)));
+          }
+        }
+        var worst = -999.0, at = 0.0;
+        for (var k = 0; k < nAz; k++) {
+          final over = best[k] - skylineAt(m.skyline, k * step);
+          if (over > worst) (worst, at) = (over, k * step);
+        }
+        // ignore: avoid_print
+        print('D7 ${e.key}: opaque near ground at most ${worst.toStringAsFixed(3)}° above the far skyline (az $at)');
+        expect(worst, lessThanOrEqualTo(0.2), reason: '${e.key} at az $at');
       }
     });
 

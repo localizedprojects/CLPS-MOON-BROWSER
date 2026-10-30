@@ -62,6 +62,15 @@ String landerSunEclipseWord(String word, {required double eclipse, required bool
   return word;
 }
 
+/// The centre readout's direction (§5): "az 145.0° el +1.5°".
+String landerProbeAz(double yawDeg, double pitchDeg) =>
+    'az ${yawDeg.toStringAsFixed(1)}° el ${pitchDeg >= 0 ? '+' : ''}${pitchDeg.toStringAsFixed(1)}°';
+
+/// The legend of the hatched near ground (D7): ground nearer than 800 m is
+/// drawn see-through above the skyline of the ground from 800 m out, the one
+/// the callouts' terrain verdict and the light map count.
+const landerSeeThroughLabel = 'Hatched: ground within 800 m, see-through (not in the skyline)';
+
 /// The play badge (§6): a separate short FidelityBadge while playing.
 String landerPlayFidelity({required bool web}) =>
     'Approximate: while playing, light from coarser grids (800 m, 1.6 km beyond 64 km); pause for detail.'
@@ -163,6 +172,11 @@ class LanderViewPanelState extends State<LanderViewPanel> with TickerProviderSta
   bool _focused = false, _live = false;
   String _semantic = "Lander's view.";
   String? _probe;
+  // the camera [_probe] was found for (a probe of another camera is not shown, §5)
+  ({double yaw, double pitch})? _probeAt;
+  bool _camRefresh = false, _dragging = false;
+  // per vertex: the hatch colour on the see-through near ground (D7), else 0
+  Int32List? _seeThrough;
   static final _flatSky = Float64List(720);
 
   /// Every far-frame request this panel sent (tests).
@@ -184,6 +198,18 @@ class LanderViewPanelState extends State<LanderViewPanel> with TickerProviderSta
         if (st == AnimationStatus.completed) _settled(live: _live);
       });
     _fling = createTicker(_onFlingTick);
+    cam.addListener(_onCam);
+  }
+
+  /// A camera moved by any path that does not end in [_settled] (a camera set
+  /// from outside): once it is still, the words and the centre probe follow it.
+  void _onCam() {
+    if (_camRefresh || _probeAt == (yaw: cam.yaw, pitch: cam.pitch)) return;
+    _camRefresh = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _camRefresh = false;
+      if (mounted && !turning && !_dragging && _probeAt != (yaw: cam.yaw, pitch: cam.pitch)) _settled(live: _live);
+    });
   }
 
   @override
@@ -253,6 +279,7 @@ class LanderViewPanelState extends State<LanderViewPanel> with TickerProviderSta
     if (!mounted) return;
     setState(() {
       _mesh = m;
+      _seeThrough = null;
       _recolor();
     });
     widget.meshOut?.value = m;
@@ -289,6 +316,12 @@ class LanderViewPanelState extends State<LanderViewPanel> with TickerProviderSta
     final (base, passes) = landerColors(m, near, ni, far, fi, widget.layer, pats);
     _colors = base;
     _patterns = [for (var i = 0; i < pats.length; i++) (pats[i], passes[i])];
+    if (_seeThrough == null) {
+      final st = _seeThrough = Int32List(m.vertexCount), on = LanderPainter.seeThroughColor.toARGB32();
+      for (var i = 0; i < st.length; i++) {
+        if (m.alpha[i] < 1) st[i] = on;
+      }
+    }
 
     _refreshText();
   }
@@ -368,7 +401,7 @@ class LanderViewPanelState extends State<LanderViewPanel> with TickerProviderSta
     final sun = _body(true), earth = _body(false), m = _mesh;
     String? centre, probe;
     final hit = m == null ? null : meshProbe(m, cam.yaw, cam.pitch);
-    final az = 'az ${cam.yaw.toStringAsFixed(1)}° el ${cam.pitch >= 0 ? '+' : ''}${cam.pitch.toStringAsFixed(1)}°';
+    final az = landerProbeAz(cam.yaw, cam.pitch);
     if (m != null && hit != null) {
       final near = _nearFrame, far = _farFrame;
       final k = landerClassAt(m, hit.tri, near, near == null ? null : _indexFor(m, near, false), far,
@@ -395,6 +428,7 @@ class LanderViewPanelState extends State<LanderViewPanel> with TickerProviderSta
     setState(() {
       _semantic = st == null ? text : '$st $text';
       _probe = probe;
+      _probeAt = (yaw: cam.yaw, pitch: cam.pitch);
       _live = live;
     });
   }
@@ -578,6 +612,8 @@ class LanderViewPanelState extends State<LanderViewPanel> with TickerProviderSta
       maskStepDeg: s.mask.azStepDeg,
       maskLabel: landerMaskLabel(custom: s.site.custom),
       probe: _probe,
+      probeAt: _probeAt,
+      seeThrough: near == null ? null : _seeThrough,
       status: status,
       focused: _focused,
       textScaler: scaler.clamp(maxScaleFactor: PH.maxCanvasTextScale),
@@ -623,6 +659,7 @@ class LanderViewPanelState extends State<LanderViewPanel> with TickerProviderSta
               },
               onScaleStart: (d) {
                 _stopMotion();
+                _dragging = true;
                 _hfovAtStart = cam.hfov;
                 _lastFocal = d.focalPoint;
               },
@@ -634,6 +671,7 @@ class LanderViewPanelState extends State<LanderViewPanel> with TickerProviderSta
                 cam.set(yaw: cam.yaw - delta.dx * k, pitch: cam.pitch + delta.dy * k);
               },
               onScaleEnd: (d) {
+                _dragging = false;
                 final v = d.velocity.pixelsPerSecond, k = cam.hfov / w;
                 if (_reduced || d.pointerCount > 0 || v.distance < 50) {
                   _settled();
@@ -673,8 +711,12 @@ class LanderViewPanelState extends State<LanderViewPanel> with TickerProviderSta
                           final a = unprojectView(v, d.localPosition.dx, v.h / 2);
                           animateTo(yaw: a.az, live: false);
                         },
+                        onHorizontalDragStart: (_) => _dragging = true,
                         onHorizontalDragUpdate: (d) => cam.set(yaw: cam.yaw - d.delta.dx * cam.hfov / w),
-                        onHorizontalDragEnd: (_) => _settled(),
+                        onHorizontalDragEnd: (_) {
+                          _dragging = false;
+                          _settled();
+                        },
                       ),
                     ),
                   ),
@@ -756,13 +798,22 @@ class LanderPainter extends CustomPainter {
   final double maskStepDeg;
   final String maskLabel;
   final String? probe, status;
+
+  /// The camera [probe] was found for; another camera's readout is just its
+  /// direction ([landerProbeAz]), never an old probe's (null: [probe] as is).
+  final ({double yaw, double pitch})? probeAt;
+
+  /// Per vertex: [seeThroughColor] on the see-through near ground, else 0;
+  /// drawn hatched and named in the legend (null: none).
+  final Int32List? seeThrough;
   final bool focused;
   final TextScaler textScaler;
 
   LanderPainter(
       {required this.cam, required this.mesh, required this.proj, required this.colors, this.patterns = const [],
       this.sun, this.earth, this.sunWord, this.earthWord, this.maskDeg, this.maskStepDeg = 0.5, this.maskLabel = '',
-      this.probe, this.status, this.focused = false, this.textScaler = TextScaler.noScaling})
+      this.probe, this.probeAt, this.seeThrough, this.status, this.focused = false,
+      this.textScaler = TextScaler.noScaling})
       : super(repaint: cam);
 
   /// Height of the compass strip at the top (a 48 dp tap target).
@@ -782,6 +833,25 @@ class LanderPainter extends CustomPainter {
         pic.dispose();
         return img;
       });
+
+  /// The hatch of the see-through near ground: a neutral colour (it is no light class).
+  static final seeThroughColor = PH.text.withValues(alpha: 0.6);
+
+  static ui.Image? _hatchTile;
+
+  /// A 30 x 30 logical-px tile of 1 px hairlines falling to the right every
+  /// 10 px: unlike the light classes' stripe (rising, 2 px every 6 px).
+  static ui.Image get hatchTile => _hatchTile ??= () {
+        final r = ui.PictureRecorder(), c = Canvas(r), on = Paint()..color = const Color(0xFFFFFFFF);
+        for (var y = 0; y < 30; y++) {
+          for (var x = 0; x < 30; x++) {
+            if ((x - y) % 10 == 0) c.drawRect(Rect.fromLTWH(x.toDouble(), y.toDouble(), 1, 1), on);
+          }
+        }
+        final pic = r.endRecording(), img = pic.toImageSync(30, 30);
+        pic.dispose();
+        return img;
+      }();
 
   static final _texts = <String, TextPainter>{};
   /// A canvas label; wider than [maxWidth] it wraps (never cut at the view's edge).

@@ -26,15 +26,19 @@ Scan the code with your phone's camera. It opens <https://localizedprojects.gith
 
 ### Screenshots
 
-Release web build, Next 12 months, 2 m lander, default rules: the MP1 landing window with Sky & time and the phone Sky & time from 13 October 2026 (the classic sky plot and timeline); Explore, Compare and the phone landing card from 12 October 2026.
+Version 1.9.1 web build, 30 October 2026: Next 12 months, 2 m lander, default rules, Balanced goal, time shown 30 October 2026 00:00 UTC.
 
 | Explore | Malapert peak (MP1): best landing window and Sky & time |
 |---|---|
-| ![Explore: the preset sites ranked, with the top pick and the terrain map](docs/screenshots/explore-desktop.webp) | ![Site: the best 14-day landing window for MP1 next to the Sky & time view](docs/screenshots/site-landing-sky-desktop.webp) |
+| ![Explore: the top pick of the 19 ranked preset sites (Malapert peak, MP1: Sun and Earth both up 43% of the time), the sites on the LOLA terrain map, and the selected-site card](docs/screenshots/explore-desktop.webp) | ![Site: the best 14-day landing window for MP1 next to the Sky & time view](docs/screenshots/site-landing-sky-desktop.webp) |
 
 | Compare | Phone: landing window | Phone: Sky & time |
 |---|---|---|
-| ![Compare: winner card with the worked score and the side-by-side chart](docs/screenshots/compare-desktop.webp) | ![Phone: the best landing window card](docs/screenshots/landing-phone.webp) | ![Phone: Sky & time with the sky plot of the terrain skyline and the Sun and Earth paths](docs/screenshots/sky-phone.webp) |
+| ![Compare: the top 3 sites with the winner card, the worked score and the side-by-side chart](docs/screenshots/compare-desktop.webp) | ![Phone: the best 14-day landing window card for MP1](docs/screenshots/landing-phone.webp) | ![Phone: Sky & time with the sky plot of the terrain skyline and the Sun and Earth paths](docs/screenshots/sky-phone.webp) |
+
+| Light & shadow: Lander view (MP1, facing the Sun) | Phone: Lander view |
+|---|---|
+| ![Light & shadow, Lander view at Malapert peak (MP1): the horizon from 2 m up, facing the Sun, with the computed light on the 400 m LOLA terrain](docs/screenshots/lander-desktop.webp) | ![Phone: the Lander view at Malapert peak (MP1), facing the Sun, with its turn, face and zoom buttons](docs/screenshots/lander-phone.webp) |
 
 ---
 
@@ -170,7 +174,7 @@ The two wrong-frame rows show the Horizons check is sensitive: using either wron
 | Check | What was compared | Result |
 |---|---|---|
 | Smooth-sphere dip | The ray-march on a featureless 1737.4 km sphere vs the analytic dip arccos(R / (R + h)) | error 5.39e-6′ (h = 2 m), 3.76e-6′ (10 m), 2.67e-6′ (1000 m), 1.85e-5′ (5000 m) |
-| Blender ray-traced skyline | The skyline rendered by Blender Cycles from a LOLA terrain mesh vs our 2 m horizon masks, at 16 sites × 4096 columns, 0.0878° per pixel | mean of site means 0.0392°, worst p95 0.090°, worst max 0.1749° |
+| Blender ray-traced skyline | The skyline rendered by Blender Cycles from a LOLA terrain mesh vs our 2 m horizon masks, at 16 sites (the catalogue before the three mission sites added in 1.8.0) × 4096 columns, 0.0878° per pixel | mean of site means 0.0392°, worst p95 0.090°, worst max 0.1749° |
 
 **End-to-end illumination vs the LOLA team's maps.** Our long-term percentage of time that any part of the Sun or Earth is above the terrain horizon was compared with the LOLA average-visibility maps `AVGVISIB_75S_120M_201608` (Mazarico et al. 2011 method). Our side uses DE440 with the LOLA 80 m / 240 m horizons, a surface observer, and hourly samples over 18.6 years from 2009-01-01. Terrain within 120 m is excluded.
 

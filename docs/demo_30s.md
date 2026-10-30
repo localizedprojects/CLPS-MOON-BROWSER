@@ -28,11 +28,11 @@ captions**, and runs 30 s or less. Record it from the web build
 | 1 | 0:00–0:04 (4 s) | Which lunar south-pole site, and when, gives sunlight and Earth contact? | First launch, the goal question "What matters most for your mission?". At about 0:03 tap **Balanced**. |
 | 2 | 0:04–0:09 (5 s) | 19 sites ranked by Sun and Earth above the real skyline. | **Explore** once the ranking has finished: the map with the ranked sites and the top-pick card ("Sun and Earth both up N% of the time" and its longest stretch with both). Default dates (next 12 months), goal Balanced. |
 | 3 | 0:09–0:15 (6 s) | Best landing window: Sun and Earth up for the whole mission. | Tap **See this site** on the top-pick card (Site › **Overview** of the top pick), then **Find the best landing window** (14-day mission). Hold on the result: the landing span, the suggested landing time and the Sun and Earth lines. |
-| 4 | 0:15–0:21 (6 s) | Computed light and shadow over NASA LOLA terrain at landing. | Tap **Show me the landing** (Sky & time opens at the suggested landing; cut this), then the **Light & shadow** tab. The time stays at the suggested landing. View **Around site**, layer **Both**. Hold still; do not scrub. |
+| 4 | 0:15–0:21 (6 s) | Computed light and shadow over NASA LOLA terrain at landing. | Tap **Show me the landing** (Sky & time opens at the suggested landing; cut this), then the **Light & shadow** tab. The time stays at the suggested landing. View **Around site** (labelled **Site** in narrower windows, as in the 1280 px recording), layer **Both**. Hold still; do not scrub. |
 | 5 | 0:21–0:26 (5 s) | The lander's view facing the Sun (approximate, 400 m terrain). | Same site and time. Switch the view to **Lander**, then tap **Face the Sun**. Keep the approximation badge in frame. |
-| 6 | 0:26–0:30 (4 s) | Checked against NASA JPL Horizons: worst error 0.0016 arcminutes. | **Learn** › **Can I trust these numbers?**, which opens *Validation & assumptions*. Frame the "In short" rows: directions vs NASA JPL Horizons (worst case) and long-term sunlit time vs the NASA LOLA team's maps. |
+| 6 | 0:26–0:29.9 (3.9 s) | Checked against NASA JPL Horizons: worst error 0.0016 arcminutes. | **Learn** › **Can I trust these numbers?**, which opens *Validation & assumptions*. Frame the "In short" rows: directions vs NASA JPL Horizons (worst case) and long-term sunlit time vs the NASA LOLA team's maps. |
 
-Total: 30 s. Captions are 9 to 11 words each.
+Total: 29.9 s (30 s or less). Captions are 9 to 11 words each.
 
 ## Notes for the edit
 

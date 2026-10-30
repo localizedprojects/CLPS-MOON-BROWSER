@@ -313,7 +313,28 @@ void main() {
     state.playing = false;
   });
 
+  testWidgets('W7b leaving the view stops its mesh build in flight (dispose)', (tester) async {
+    size(tester, const Size(360, 800));
+    await nearPole(tester);
+    // one whole build here, for scale
+    var sw = Stopwatch()..start();
+    await tester.pumpWidget(panel());
+    await meshReady(tester);
+    final whole = sw.elapsedMicroseconds;
+    await tester.pumpWidget(const SizedBox());
+    // a new panel starts a new build (its first slice runs now); leave before it ends
+    await tester.pumpWidget(panel());
+    expect(panelState(tester).mesh, isNull);
+    await tester.pumpWidget(const SizedBox());
+    sw = Stopwatch()..start();
+    await tester.pump(const Duration(seconds: 1));
+    await tester.pump(const Duration(seconds: 1));
+    // the orphan stops at its next slice instead of running the build to the end
+    expect(sw.elapsedMicroseconds, lessThan(whole ~/ 3), reason: 'whole build $whole µs');
+  });
+
   testWidgets('W8 reduced motion: no running animation after Face the Sun', (tester) async {
+
     size(tester, const Size(360, 800));
     await nearPole(tester);
     await tester.pumpWidget(panel(near: nearFrame(), reduced: true));

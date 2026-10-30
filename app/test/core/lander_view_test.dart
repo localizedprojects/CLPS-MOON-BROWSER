@@ -515,9 +515,83 @@ void main() {
       expect(first - north.single.distM, lessThanOrEqualTo(first * coarseGrowth + 1e-6));
       expect(first, lessThan(coarseMaxM));
     });
+
+    test('built one unit at a time: the same mesh, and no long unit (§8)', () {
+      const id = 'derosa2012-sr1-shackleton-rim';
+      final w = LanderMeshWork(grid.heights, grid.size, grid.scaleM,
+          latDeg: spots[id]!.$1, lonDeg: spots[id]!.$2, observerHeightM: 2);
+      final us = <int>[];
+      final sw = Stopwatch();
+      while (true) {
+        sw
+          ..reset()
+          ..start();
+        final done = w.step(1);
+        us.add(sw.elapsedMicroseconds);
+        if (done) break;
+      }
+      expectSameMesh(w.mesh, meshes[id]!);
+      us.sort();
+      final top = us.reversed.take(3).toList();
+      // ignore: avoid_print
+      print('§8 units: ${us.length}, total ${us.fold(0, (a, b) => a + b) ~/ 1000} ms, longest $top µs');
+      // §8 asks no slice over 8 ms on a device (units of a few ms, 4 ms slices); in the test VM on a
+      // shared machine allow 2x, and one or two pauses (GC) under 100 ms. The old one-unit sort and
+      // compaction took 120-165 ms each.
+      expect(top[0], lessThan(100000));
+      expect(top[2], lessThan(16000));
+    });
+  });
+
+  test('mergeLanderSectors: the sectors\' ids ascending, each once, mark left zeroed', () {
+    const n = 200;
+    final m = buildLanderMesh(smoothDem(n, 42), n, px, latDeg: -89.5, lonDeg: 30, observerHeightM: 2);
+    final mark = Uint8List(m.triangleCount);
+    for (final sectors in [<int>[], [3], [35, 0, 1], [5, 4, 5], List.generate(landerSectorCount, (i) => i)]) {
+      final ids = mergeLanderSectors(m, sectors, mark);
+      final want = {for (final s in sectors) ...m.sectors[s]}.toList()..sort();
+      expect(ids, want);
+      expect(mark.every((b) => b == 0), isTrue);
+    }
+    expect(mergeLanderSectors(m, List.generate(landerSectorCount, (i) => i), mark).length, m.triangleCount);
+  });
+
+  test('projectTriangles reuses its merged ids: same output as a fresh projection', () {
+    const n = 200;
+    final m = buildLanderMesh(smoothDem(n, 42), n, px, latDeg: -89.5, lonDeg: 30, observerHeightM: 2);
+    final m2 = buildLanderMesh(smoothDem(n, 7), n, px, latDeg: -89.5, lonDeg: 30, observerHeightM: 2);
+    final reused = LanderProjection();
+    void same(LanderView v, LanderMesh mesh) {
+      final fresh = LanderProjection();
+      final a = projectTriangles(v, mesh, visibleSectors(v), reused), b = projectTriangles(v, mesh, visibleSectors(v), fresh);
+      expect(a, b);
+      expect(a, greaterThan(0));
+      expect((reused.vertexCount, reused.indexCount), (fresh.vertexCount, fresh.indexCount));
+      expect(reused.xy.sublist(0, 2 * reused.vertexCount), fresh.xy.sublist(0, 2 * fresh.vertexCount));
+      expect(reused.vert.sublist(0, reused.vertexCount), fresh.vert.sublist(0, fresh.vertexCount));
+      expect(reused.idx.sublist(0, reused.indexCount), fresh.idx.sublist(0, fresh.indexCount));
+      expect(reused.batches, fresh.batches);
+    }
+
+    const v1 = LanderView(yawDeg: 40, pitchDeg: -4, hfovDeg: 70, w: 200, h: 100);
+    same(v1, m);
+    same(v1, m); // the same view again: the cached ids
+    same(const LanderView(yawDeg: 43, pitchDeg: -6, hfovDeg: 70, w: 200, h: 100), m); // same sectors, new view
+    same(const LanderView(yawDeg: 200, pitchDeg: 2, hfovDeg: 40, w: 300, h: 120), m); // another sector set
+    same(v1, m2); // another mesh
+    same(v1, m);
+    // small batches: the batch splits match too
+    final fresh = LanderProjection(), small = LanderProjection();
+    projectTriangles(v1, m, visibleSectors(v1), small, maxBatchVertices: 300);
+    projectTriangles(v1, m, visibleSectors(v1), small, maxBatchVertices: 300);
+    projectTriangles(v1, m, visibleSectors(v1), fresh, maxBatchVertices: 300);
+    expect(small.batches.length, greaterThan(1));
+    expect(small.batches, fresh.batches);
+    expect(small.idx.sublist(0, small.indexCount), fresh.idx.sublist(0, fresh.indexCount));
   });
 
   test('projectView orientation', () {
+
     ({double e, double n, double u}) dir(double az, double el) =>
         (e: math.cos(el * deg) * math.sin(az * deg), n: math.cos(el * deg) * math.cos(az * deg), u: math.sin(el * deg));
     ({double x, double y, bool front}) p(LanderView v, double az, double el) {

@@ -245,7 +245,38 @@ void main() {
     }
   });
 
+  test('S3b landerColors equals landerVertexColors and landerPatternColors, value for value (§8)', () {
+    final m = meshes['sr1']!;
+    var fast = 0;
+    for (var v = 0; v < m.vertexCount; v++) {
+      if (m.w[4 * v] == 1) fast++;
+    }
+    expect(fast, greaterThan(1000)); // the table path is exercised, and the weighted one
+    expect(fast, lessThan(m.vertexCount));
+    for (final coarse in [false, true]) {
+      final near = computeLightFrame(grids, req(sr1.lat, sr1.lon, t2, coarse: coarse));
+      final far = computeLightFrame(grids, req(sr1.lat, sr1.lon, t2, closeUp: false, far: true, coarse: coarse));
+      final ni = landerFrameIndex(m, near, far: false), fi = landerFrameIndex(m, far, far: true);
+      for (final (f, i) in [(null, null), (far, fi)]) {
+        for (final layer in LightLayer.values) {
+          final pats = LightPattern.values;
+          final (base, passes) = landerColors(m, near, ni, f, i, layer, pats);
+          expect(base, landerVertexColors(m, near, ni, f, i, layer), reason: '$layer coarse $coarse far ${f != null}');
+          for (var p = 0; p < pats.length; p++) {
+            expect(passes[p], landerPatternColors(m, near, ni, f, i, layer, pats[p]),
+                reason: '$layer ${pats[p]} coarse $coarse far ${f != null}');
+          }
+        }
+      }
+    }
+    // no frame at all: grey base, no pattern
+    final (base, passes) = landerColors(m, null, null, null, null, LightLayer.both, LightPattern.values);
+    expect(base, landerVertexColors(m, null, null, null, null, LightLayer.both));
+    expect(passes.every((p) => p.every((c) => c == 0)), isTrue);
+  });
+
   test('S4 far frame equals the region frame where they overlap', () {
+
     final far = computeLightFrame(grids, req(sr1.lat, sr1.lon, t2, closeUp: false, far: true));
     final region = computeLightFrame(grids, req(sr1.lat, sr1.lon, t2, closeUp: false));
     expect((far.pxM, region.pxM), (800, 800));

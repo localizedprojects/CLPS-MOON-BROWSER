@@ -9,6 +9,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:polar_horizon/screens/site/light_tab.dart';
 import 'package:polar_horizon/state/app_state.dart';
 import 'package:polar_horizon/theme.dart';
+import 'package:polar_horizon/widgets/explain.dart';
 import 'package:polar_horizon/widgets/light_map.dart';
 import 'package:polar_horizon/widgets/time_bar.dart';
 
@@ -156,6 +157,27 @@ void main() {
     expect(layer.top, view.top, reason: 'one row');
     expect(layer.bottom, lessThanOrEqualTo(map.bottom), reason: 'both switches on screen without scrolling');
     expect(layer.right, lessThanOrEqualTo(slot.width));
+    await done(tester);
+  });
+
+  testWidgets('"Explain as I go": the side note explains the view shown (the Lander\'s view has its own)', (tester) async {
+    addTearDown(() => state.setExplainInline(false));
+    state.setExplainInline(true);
+    await pump(tester, const Size(393, 851), const Size(393, 560));
+    final pick = tester.widget<LightMap>(find.byType(LightMap)).sideNoteFor!;
+    expect(pick(LightViewKind.closeUp), same(explainLight));
+    expect(pick(LightViewKind.region), same(explainLight));
+    expect(pick(LightViewKind.lander), same(explainLander));
+    // shown under the map with its status and legend (the close-up is the default view)
+    expect(find.text(explainLight.title), findsOneWidget);
+    expect(find.text(explainLander.title), findsNothing);
+
+    state.setExplainInline(false);
+    await pump(tester, const Size(393, 851), const Size(393, 560));
+    final off = tester.widget<LightMap>(find.byType(LightMap)).sideNoteFor!;
+    for (final k in LightViewKind.values) {
+      expect(off(k), isNull, reason: k.name);
+    }
     await done(tester);
   });
 

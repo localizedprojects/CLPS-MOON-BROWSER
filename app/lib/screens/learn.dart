@@ -12,6 +12,7 @@ import '../core/ranking.dart';
 import '../core/summary.dart';
 import '../state/app_state.dart';
 import '../theme.dart';
+import '../version.dart';
 import '../widgets/explain.dart';
 import '../widgets/site_card.dart' show FocusRingInkWell;
 import '../widgets/site_glance_card.dart' show numSpans;
@@ -20,7 +21,7 @@ import 'validation_page.dart';
 import '../widgets/feature_guide.dart';
 
 /// The views explained under "What each view shows", in app order.
-const learnViews = [explainExplore, explainOverview, explainSky, explainTimeline, explainLight, explainCompare];
+const learnViews = [explainExplore, explainOverview, explainSky, explainTimeline, explainLight, explainLander, explainCompare];
 
 class LearnScreen extends StatelessWidget {
   const LearnScreen({super.key});
@@ -407,7 +408,8 @@ class _ScoreCard extends StatelessWidget {
   static String _cap(String t) => t.isEmpty ? t : t[0].toUpperCase() + t.substring(1);
 }
 
-/// The Site screen's keys (bound in the shell).
+/// The Site screen's keys (bound in the shell), then the Lander's view's own
+/// (LanderViewPanel, while it has focus).
 class _Shortcuts extends StatelessWidget {
   const _Shortcuts();
 
@@ -420,24 +422,45 @@ class _Shortcuts extends StatelessWidget {
     (['Esc'], 'Give the keys back to the page after using a button or slider'),
   ];
 
+  /// The keys LanderViewPanel handles once it has focus (a click or tap on
+  /// it); Esc then goes to the shell, which gives the keys back to the page.
+  static const _landerKeys = <(List<String>, String)>[
+    (['←', '→'], 'Turn left or right'),
+    (['Shift', '←', '→'], 'Turn left or right in small steps'),
+    (['↑', '↓'], 'Look up or down'),
+    (['+', '−'], 'Zoom in or out'),
+    (['S'], 'Face the Sun'),
+    (['E'], 'Face Earth'),
+    (['N'], 'Face north (away from the pole)'),
+    (['Home'], 'Level the view'),
+    (['Esc'], 'Give the keys back to the page'),
+  ];
+
+  static Widget _group(String title, List<(List<String>, String)> rows) =>
+      Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text(title, style: PHText.body.copyWith(color: PH.muted)),
+        const SizedBox(height: 8),
+        for (final (keys, what) in rows)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 4),
+            child: MergeSemantics(
+              child: Wrap(spacing: 6, runSpacing: 4, crossAxisAlignment: WrapCrossAlignment.center, children: [
+                for (final k in keys) _KeyCap(k),
+                const SizedBox(width: 4),
+                Text(what, style: PHText.body),
+              ]),
+            ),
+          ),
+      ]);
+
   @override
   Widget build(BuildContext context) => Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
         _heading('Keyboard shortcuts'),
         _card(
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text('On the Site screen, when no button or slider has focus:', style: PHText.body.copyWith(color: PH.muted)),
-            const SizedBox(height: 8),
-            for (final (keys, what) in _keys)
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 4),
-                child: MergeSemantics(
-                  child: Wrap(spacing: 6, runSpacing: 4, crossAxisAlignment: WrapCrossAlignment.center, children: [
-                    for (final k in keys) _KeyCap(k),
-                    const SizedBox(width: 4),
-                    Text(what, style: PHText.body),
-                  ]),
-                ),
-              ),
+            _group('On the Site screen, when no button or slider has focus:', _keys),
+            const SizedBox(height: 12),
+            _group('In the Lander\'s view (after clicking it):', _landerKeys),
           ]),
         ),
       ]);
@@ -447,7 +470,14 @@ class _KeyCap extends StatelessWidget {
   final String label;
   const _KeyCap(this.label);
 
-  static const _spoken = {'←': 'Left arrow', '→': 'Right arrow'};
+  static const _spoken = {
+    '←': 'Left arrow',
+    '→': 'Right arrow',
+    '↑': 'Up arrow',
+    '↓': 'Down arrow',
+    '+': 'Plus',
+    '−': 'Minus',
+  };
 
   @override
   Widget build(BuildContext context) => Semantics(
@@ -488,6 +518,13 @@ class _Credits extends StatelessWidget {
             const SizedBox(height: 8),
             Text('Made for the NASA Space Apps Challenge. Not an official NASA product.',
                 style: PHText.small.copyWith(color: PH.muted)),
+            const SizedBox(height: 4),
+            Text.rich(
+                TextSpan(children: [
+                  TextSpan(text: 'Version ', style: PHText.small.copyWith(color: PH.muted)),
+                  TextSpan(text: appVersion, style: numStyle(size: 13, color: PH.muted)),
+                ]),
+                key: const ValueKey('learn-version')),
           ]),
         ),
       ]);

@@ -114,6 +114,11 @@ class ValidationPage extends StatelessWidget {
                           '${(b(sky, 'overall')['worstMaxAbsDeg'] as num?)?.toStringAsFixed(3) ?? '–'}°',
                       'a one-off check with an independent renderer (the app no longer shows these images); '
                           '~1–2 px at 0.088°/px'),
+                // formula.md §12.11 (test T5 in test/core/lander_view_test.dart)
+                const _Row('Lander\'s view skyline (its 3D terrain) vs the on-device 400 m horizon, 4 spots',
+                    'max < 0.1°',
+                    'formula.md §12.11. Against a preset site\'s sharper 80 m horizon mask it differs by about 1°, up '
+                        'to 5° on sharp rims (the view draws that mask dashed)'),
               ]),
               _section('End-to-end illumination vs NASA LOLA team maps', 'Mazarico et al. 2011 method, 18.6-year average', [
                 _Row('Region-type sites: mean |Δ| sunlit / Earth-visible',

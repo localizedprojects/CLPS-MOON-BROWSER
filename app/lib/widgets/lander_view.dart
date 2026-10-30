@@ -141,11 +141,32 @@ class LanderViewPanel extends StatefulWidget {
   /// Receives the built mesh (the light map's FidelityBadge reads its eye
   /// height and DEM ends, §6 (g) and (h)).
   final ValueNotifier<LanderMesh?>? meshOut;
+
+  /// The height on screen the view and all its buttons should fit in (a phone
+  /// in portrait: the slot above the pinned time bar, in which the panel's
+  /// notes then scroll); null: no such limit. The view stays at least
+  /// [minFitViewHeightFor] tall even where that leaves the buttons to scroll.
+  final double? fitHeight;
   const LanderViewPanel(
       {super.key, required this.state, required this.near, required this.layer, required this.width,
-      this.maxHeight = double.infinity, this.demForTest, this.meshOut});
+      this.maxHeight = double.infinity, this.fitHeight, this.demForTest, this.meshOut});
 
   static const buttonsWidth = 7 * 48.0;
+
+  /// The least height of the view in a [fitHeight] (and at least half its
+  /// width, [minFitViewHeightFor]): 112 dp of scene under the 48 dp compass
+  /// strip, where the bottom strip (the two-line horizon legend, the centre
+  /// readout above it: 54 dp from the foot) stays clear of the centre
+  /// crosshair with room left for the Sun's and Earth's words.
+  static const minFitViewHeight = 160.0;
+
+  /// [minFitViewHeight], or half of [width] where that is more.
+  static double minFitViewHeightFor(double width) => math.max(minFitViewHeight, 0.5 * width);
+
+  /// Rows of 48 dp buttons the seven controls take in [width] (they wrap,
+  /// never clipped).
+  static int buttonRows(double width) =>
+      width >= buttonsWidth ? 1 : (7 / math.max(1, (width / 48).floor())).ceil();
 
   @override
   State<LanderViewPanel> createState() => LanderViewPanelState();
@@ -160,7 +181,9 @@ class LanderViewPanelState extends State<LanderViewPanel> with TickerProviderSta
   Duration _lastFling = Duration.zero;
   Offset _lastFocal = Offset.zero;
 
-  final _meshes = <String, LanderMesh>{}; // LRU of 2, dropped with this panel (leaving lander mode)
+  // LRU of 2 for switching between two sites here; the current site's mesh is
+  // also kept by the app state (AppState.landerMesh), so it outlives this panel
+  final _meshes = <String, LanderMesh>{};
   String? _meshKey, _camKey, _farSent;
   LanderMesh? _mesh;
   Object? _meshError;
@@ -186,7 +209,7 @@ class LanderViewPanelState extends State<LanderViewPanel> with TickerProviderSta
   bool get turning => _turn.isAnimating || _fling.isActive;
 
   AppState get _s => widget.state;
-  String get _siteKey => '${_s.site.lat}|${_s.site.lon}|${_s.observerHeightM}';
+  String get _siteKey => _s.landerMeshKey;
   double get _tMs => widget.near?.request.tMs ?? _s.cursorMs;
 
   @override
@@ -245,9 +268,10 @@ class LanderViewPanelState extends State<LanderViewPanel> with TickerProviderSta
     _far = null;
     _farSent = null;
     _colors = null;
-    final hit = _meshes.remove(key);
+    final hit = _meshes.remove(key) ?? _s.landerMesh(key);
     if (hit != null) {
       _meshes[key] = hit;
+      _s.keepLanderMesh(key, hit);
       _setMesh(hit);
       return;
     }
@@ -263,6 +287,7 @@ class LanderViewPanelState extends State<LanderViewPanel> with TickerProviderSta
           pause: () => Future<void>.delayed(Duration.zero), rows: 1, sliceMs: 4);
       if (!mounted || _meshKey != key) return;
       _meshes[key] = w.mesh;
+      _s.keepLanderMesh(key, w.mesh);
       while (_meshes.length > 2) {
         _meshes.remove(_meshes.keys.first);
       }
@@ -567,7 +592,7 @@ class LanderViewPanelState extends State<LanderViewPanel> with TickerProviderSta
     if (s.eph == null) return const SizedBox.shrink();
     if (_siteKey != _meshKey) WidgetsBinding.instance.addPostFrameCallback((_) => mounted ? _ensureMesh() : null);
     _initCamera();
-    final w = widget.width, rows = w >= LanderViewPanel.buttonsWidth ? 1 : 2;
+    final w = widget.width, rows = LanderViewPanel.buttonRows(w);
     final scaler = MediaQuery.textScalerOf(context);
     final wide = w >= 600 && scaler.scale(14) <= 18;
     final sun = _body(true), earth = _body(false), words = _precise;
@@ -593,10 +618,20 @@ class LanderViewPanelState extends State<LanderViewPanel> with TickerProviderSta
       tp.dispose();
     }
     var viewH = math.max(120.0, math.min(math.max(0.62 * w, 220.0), widget.maxHeight - 8 - 48.0 * rows - notesH));
-    // a short box (phone landscape) that cannot hold all of it: the first button
-    // row stays on screen under the view, the rest of the buttons and the notes scroll
-    final scroll = widget.maxHeight.isFinite && viewH + 8 + 48.0 * rows + notesH > widget.maxHeight;
-    if (scroll) viewH = math.max(0.0, math.min(viewH, widget.maxHeight - 4 - 48));
+    // a phone in portrait: the view and all the buttons on screen above the
+    // time bar (the notes scroll), but never a view too short to read
+    final fit = widget.fitHeight;
+    if (fit != null) viewH = math.max(LanderViewPanel.minFitViewHeightFor(w), math.min(viewH, fit - 4 - 48.0 * rows));
+    // a short box that cannot hold all of it: the buttons stay on screen
+    // under the view, the notes scroll. A wide strip (phone landscape) is
+    // always laid out so: the view takes all the height above the buttons
+    // (not the notes' share of it, nor just the 120 dp floor)
+    final strip = widget.maxHeight.isFinite && w > widget.maxHeight;
+    final scroll = strip || widget.maxHeight.isFinite && viewH + 8 + 48.0 * rows + notesH > widget.maxHeight;
+    if (scroll) {
+      final cap = strip ? math.max(0.62 * w, 220.0) : viewH;
+      viewH = math.max(0.0, math.min(cap, widget.maxHeight - 4 - 48.0 * rows));
+    }
     final status = _status;
     final painter = LanderPainter(
       cam: cam,
@@ -744,15 +779,10 @@ class LanderViewPanelState extends State<LanderViewPanel> with TickerProviderSta
       btn(Icons.zoom_in, 'Zoom in', () => zoom(1 / 1.25)),
       btn(Icons.rotate_right, 'Turn right 15°', () => turnBy(15)),
     ];
-    // a short box: all seven stay on screen in one row under the view (it
-    // scrolls sideways when narrower than the seven); only the notes scroll
-    final buttons = scroll
-        ? SizedBox(
-            height: 48,
-            child: Center(
-                child: SingleChildScrollView(
-                    scrollDirection: Axis.horizontal, child: Row(mainAxisSize: MainAxisSize.min, children: controls))))
-        : Wrap(alignment: WrapAlignment.center, children: controls);
+    // all seven on [rows] rows (never clipped); in a short box they stay on
+    // screen under the view and only the notes scroll
+    final wrap = Wrap(alignment: WrapAlignment.center, children: controls);
+    final buttons = scroll ? SizedBox(height: 48.0 * rows, child: wrap) : wrap;
     final below = [
       if (!scroll) buttons,
       for (final n in notes)
@@ -819,6 +849,17 @@ class LanderPainter extends CustomPainter {
   /// Height of the compass strip at the top (a 48 dp tap target).
   static const compassH = 48.0;
 
+  /// Tests: the bottom strip as last painted by any LanderPainter (the
+  /// readout null when it was left out).
+  @visibleForTesting
+  static ({Rect? legend, Rect? readout})? paintedStrip;
+
+  /// Tests: the callouts' text boxes (Sun, Earth) and the elevations the
+  /// scale labelled, as last painted by any LanderPainter.
+  @visibleForTesting
+  static ({List<Rect> callouts, List<double> scale})? paintedSky;
+  static final _scaleShown = <double>[];
+
   static final _tiles = <LightPattern, ui.Image>{};
 
   /// A 30 x 30 logical-px repeating mask of [p] (both pattern periods divide 30).
@@ -883,16 +924,20 @@ class LanderPainter extends CustomPainter {
   static const double glyphR = 9;
 
   /// The disc centre, the glyph and the disc radius in px, or null when the
-  /// body is off the view (below the compass strip). While the disc is no
-  /// bigger than the glyph, the glyph sits on the body's true spot, so it reads
-  /// true against the elevation scale and a hidden body's glyph sits in the
-  /// terrain. A bigger disc shows itself: the glyph goes 24 dp above it when the
-  /// drawn terrain leaves it up, else below it, never in the sky over a body
-  /// the terrain hides.
+  /// body is off the view. While the disc is no bigger than the glyph, the
+  /// glyph sits on the body's true spot, so it reads true against the
+  /// elevation scale and a hidden body's glyph sits in the terrain. A bigger
+  /// disc shows itself: the glyph goes 24 dp above it when the drawn terrain
+  /// leaves it up, else below it, never in the sky over a body the terrain
+  /// hides. A body under the compass strip keeps its callout: the glyph goes
+  /// below the strip, its leader up to the disc.
   static ({Offset disc, Offset glyph, double rPx})? calloutAnchor(LanderView v, SkyBody b) {
     final p = at(v, b.az, b.el);
-    if (p == null || p.dx < 0 || p.dx > v.w || p.dy < compassH || p.dy > v.h) return null;
+    if (p == null || p.dx < 0 || p.dx > v.w || p.dy < 0 || p.dy > v.h) return null;
     final rPx = b.rhoDeg / v.hfovDeg * v.w;
+    if (p.dy < compassH) {
+      return (disc: p, glyph: Offset(p.dx, math.max(compassH + 14, p.dy + math.max(24.0, rPx + 14))), rPx: rPx);
+    }
     if (rPx <= glyphR) return (disc: p, glyph: p, rPx: rPx);
     final off = math.max(24.0, rPx + 14);
     final up = b.state == SkyState.up || b.state == SkyState.partlyBehindTerrain;
@@ -920,8 +965,13 @@ class LanderPainter extends CustomPainter {
               ),
       ];
 
+  /// An edge chevron's width; its words sit in the strip's top
+  /// [chevronRowH] px, clear of the azimuth labels and ticks under them.
+  static const chevronW = 104.0, chevronRowH = 19.0;
+
   /// Edge chevrons of bodies whose azimuth is out of view (§5), in the
-  /// compass strip: rect (the tap target), body, left edge, text.
+  /// compass strip: rect (the tap target, the strip's full 48 dp height),
+  /// body, left edge, text. Two on one edge go side by side.
   static List<(Rect, bool, bool, String)> chevrons(LanderView v, SkyBody? sun, SkyBody? earth) {
     final out = <(Rect, bool, bool, String)>[];
     var left = 0, right = 0;
@@ -929,16 +979,11 @@ class LanderPainter extends CustomPainter {
       if (b == null) continue;
       final p = at(v, b.az, v.pitchDeg);
       if (p != null && p.dx >= 0 && p.dx <= v.w) continue;
-      final isLeft = turnDelta(v.yawDeg, b.az) < 0, row = isLeft ? left++ : right++;
-      const w = 104.0, h = compassH / 2;
-      final r = Rect.fromLTWH(isLeft ? 0 : v.w - w, row * h, w, h);
+      final isLeft = turnDelta(v.yawDeg, b.az) < 0, slot = isLeft ? left++ : right++;
+      final r = Rect.fromLTWH(isLeft ? slot * chevronW : v.w - (slot + 1) * chevronW, 0, chevronW, compassH);
       out.add((r, isSun, isLeft, '${isSun ? 'SUN' : 'EARTH'} ${(b.az.round() % 360).toString().padLeft(3, '0')}°'));
     }
-    // one body on an edge: its target is the strip's full 48 dp height
-    return [
-      for (final c in out)
-        out.where((o) => o.$3 == c.$3).length == 1 ? (Rect.fromLTWH(c.$1.left, 0, c.$1.width, compassH), c.$2, c.$3, c.$4) : c
-    ];
+    return out;
   }
 
   /// The body of the edge chevron at [pos] (true = the Sun), or null.
@@ -1020,37 +1065,68 @@ class LanderPainter extends CustomPainter {
   /// the drawn skyline ([up]) tries centred above its glyph first, then
   /// stacked above [avoid], so its words never hide the skyline under it.
   /// Nothing goes below [bottom] (the bottom strip's top, [bottomStrip];
-  /// default the view's foot).
+  /// default the view's foot). No box covers the centre [reticle] (after Face
+  /// the Sun the body sits on it) or its own glyph (zoomed in, the glyph sits
+  /// over the disc, by the reticle): where no placement fits whole, one moved
+  /// into the view clear of the disc, the glyph and the reticle comes first.
   static Rect calloutBox(LanderView v, ({Offset disc, Offset glyph, double rPx}) a, Size box, Rect? avoid, double top,
-      {double? bottom, bool up = false}) {
+      {double? bottom, bool up = false, Rect? reticle}) {
     final floor = bottom ?? v.h;
     final disc = Rect.fromCircle(center: a.disc, radius: a.rPx + 3);
     final cx = (a.glyph.dx - box.width / 2).clamp(0.0, math.max(0.0, v.w - box.width)).toDouble();
     final above = Rect.fromLTWH(cx, a.glyph.dy - 14 - box.height, box.width, box.height);
+    // beside the glyph, and beside a disc zoomed in bigger than it
+    final side = math.max(11.0, a.rPx + 5);
     final cands = [
       if (up) ...[above, if (avoid != null) Rect.fromLTWH(cx, avoid.top - 4 - box.height, box.width, box.height)],
-      Rect.fromLTWH(a.glyph.dx + 11, top, box.width, box.height),
-      Rect.fromLTWH(a.glyph.dx - 11 - box.width, top, box.width, box.height),
+      Rect.fromLTWH(a.glyph.dx + side, top, box.width, box.height),
+      Rect.fromLTWH(a.glyph.dx - side - box.width, top, box.width, box.height),
       Rect.fromLTWH(cx, a.disc.dy + a.rPx + 6, box.width, box.height),
       if (!up) above,
       if (avoid != null) ...[
         Rect.fromLTWH(cx, avoid.bottom + 4, box.width, box.height),
         Rect.fromLTWH(cx, avoid.top - 4 - box.height, box.width, box.height),
       ],
+      if (reticle != null) ...[
+        Rect.fromLTWH(cx, reticle.bottom + 2, box.width, box.height),
+        Rect.fromLTWH(cx, reticle.top - 2 - box.height, box.width, box.height),
+      ],
     ];
     bool inside(Rect r) => r.left >= 0 && r.right <= v.w && r.top >= compassH + 1 && r.bottom <= floor;
-    bool clear(Rect r) => !r.overlaps(disc) && (avoid == null || !r.overlaps(avoid));
-    for (final r in cands) {
-      if (inside(r) && clear(r)) return r;
-    }
-    for (final r in cands) {
-      if (inside(r) && !r.overlaps(disc)) return r;
+    bool off(Rect r, Rect? o) => o == null || !r.overlaps(o);
+    // the glyph's body (its ray tips may go under a box's edge)
+    final glyph = Rect.fromCircle(center: a.glyph, radius: glyphR - 2);
+    // where nothing keeps clear of it all: a box may reach over the glyph's
+    // edge (painted over the box), never over its centre
+    final core = Rect.fromCircle(center: a.glyph, radius: 2);
+    bool edge(Rect r) => !r.overlaps(disc) && off(r, reticle) && !r.overlaps(core);
+    bool clear(Rect r) => edge(r) && !r.overlaps(glyph);
+    // a short view: the same places moved whole into it, under the strip and
+    // over [foot] (the floor, else the view's foot: over the bottom strip
+    // rather than over the reticle)
+    Rect moved(Rect r, double foot) => Rect.fromLTWH(r.left.clamp(0.0, math.max(0.0, v.w - r.width)).toDouble(),
+        r.top.clamp(compassH + 1, math.max(compassH + 1, foot - r.height)).toDouble(), r.width, r.height);
+    final shifted = [for (final r in cands) moved(r, floor)], deep = [for (final r in cands) moved(r, v.h)];
+    for (final (list, ok) in [
+      (cands, (Rect r) => inside(r) && clear(r) && off(r, avoid)),
+      (shifted, (Rect r) => clear(r) && off(r, avoid)),
+      (cands, (Rect r) => inside(r) && clear(r)),
+      (shifted, clear),
+      // over the glyph's edge (painted over the box) rather than over the bottom strip
+      (cands, (Rect r) => inside(r) && edge(r) && off(r, avoid)),
+      (shifted, (Rect r) => edge(r) && off(r, avoid)),
+      (deep, (Rect r) => clear(r) && off(r, avoid)),
+      (deep, clear),
+    ]) {
+      for (final r in list) {
+        if (ok(r)) return r;
+      }
     }
     // nothing fits (a tiny view): left-aligned at the side position
     return Rect.fromLTWH(math.max(0.0, math.min(cands.first.left, v.w - box.width)), top, box.width, box.height);
   }
 
-  Rect? _callout(Canvas canvas, LanderView v, SkyBody b, bool isSun, Rect? avoid, double floor) {
+  Rect? _callout(Canvas canvas, LanderView v, SkyBody b, bool isSun, Rect? avoid, double floor, Rect reticle) {
     final a = calloutAnchor(v, b);
     if (a == null) return null;
     final color = isSun ? PH.sun : PH.earth;
@@ -1065,36 +1141,43 @@ class LanderPainter extends CustomPainter {
     } else if (a.glyph.dy - 10 > a.disc.dy + a.rPx + 2) {
       canvas.drawLine(Offset(a.disc.dx, a.disc.dy + a.rPx + 2), a.glyph - const Offset(0, 10), lead);
     }
-    if (up) {
-      canvas.save();
-      canvas.translate(a.glyph.dx - 9, a.glyph.dy - 9);
-      GlyphPainter(isSun ? GlyphKind.sun : GlyphKind.earth).paint(canvas, const Size.square(18));
-      canvas.restore();
-    } else {
-      // hollow and dashed: the body is hidden (behind terrain or below the horizon)
-      final ring = Paint()
-        ..color = color
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 1.5;
-      for (var k = 0; k < 12; k += 2) {
-        canvas.drawArc(Rect.fromCircle(center: a.glyph, radius: 6), k * math.pi / 6, math.pi / 6, false, ring);
-      }
-      if (isSun) {
-        for (var k = 0; k < 8; k++) {
-          final d = Offset(math.cos(k * math.pi / 4), math.sin(k * math.pi / 4));
-          canvas.drawLine(a.glyph + d * 8, a.glyph + d * 10.5, ring);
-        }
+    // the glyph: painted over its box's background, so a box that must touch
+    // it (nothing else fits, zoomed in) never dims it
+    void paintGlyph() {
+      if (up) {
+        canvas.save();
+        canvas.translate(a.glyph.dx - 9, a.glyph.dy - 9);
+        GlyphPainter(isSun ? GlyphKind.sun : GlyphKind.earth).paint(canvas, const Size.square(18));
+        canvas.restore();
       } else {
-        _dashedLine(canvas, a.glyph - const Offset(8, 0), a.glyph + const Offset(8, 0), ring, on: 3, off: 2);
+        // hollow and dashed: the body is hidden (behind terrain or below the horizon)
+        final ring = Paint()
+          ..color = color
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 1.5;
+        for (var k = 0; k < 12; k += 2) {
+          canvas.drawArc(Rect.fromCircle(center: a.glyph, radius: 6), k * math.pi / 6, math.pi / 6, false, ring);
+        }
+        if (isSun) {
+          for (var k = 0; k < 8; k++) {
+            final d = Offset(math.cos(k * math.pi / 4), math.sin(k * math.pi / 4));
+            canvas.drawLine(a.glyph + d * 8, a.glyph + d * 10.5, ring);
+          }
+        } else {
+          _dashedLine(canvas, a.glyph - const Offset(8, 0), a.glyph + const Offset(8, 0), ring, on: 3, off: 2);
+        }
       }
     }
+
     final ts = [
       for (final (i, l) in lines.indexed) _text(l, size: 11, color: i == 0 ? color : PH.text, mono: i == 0, maxWidth: v.w - 6)
     ];
     final tw = ts.map((t) => t.width).reduce(math.max), th = ts.fold(0.0, (s, t) => s + t.height);
     double clampY(double y) => y.clamp(compassH + 2, math.max(compassH + 2, floor - th - 4)).toDouble();
-    final box = calloutBox(v, a, Size(tw + 6, th + 2), avoid, clampY(a.glyph.dy - 8) - 1, bottom: floor, up: above);
+    final box = calloutBox(v, a, Size(tw + 6, th + 2), avoid, clampY(a.glyph.dy - 8) - 1,
+        bottom: floor, up: above, reticle: reticle);
     canvas.drawRect(box, Paint()..color = PH.bg.withValues(alpha: 0.8));
+    paintGlyph();
     var y = box.top + 1;
     for (final t in ts) {
       t.paint(canvas, Offset(box.left + 3, y));
@@ -1235,12 +1318,17 @@ class LanderPainter extends CustomPainter {
     final floor = math.min(strip.legend?.top ?? size.height, strip.readout?.top ?? size.height) - 2;
     // the Sun's words keep clear of Earth's glyph too (an eclipse puts it right over the Sun)
     final eg = earth == null ? null : calloutAnchor(v, earth!)?.glyph;
+    // the centre crosshair's box: no callout's words go over it
+    final reticle = reticleBox(size);
     final sunBox = sun == null
         ? null
-        : _callout(canvas, v, sun!, true, eg == null ? null : Rect.fromCircle(center: eg, radius: glyphR + 1), floor);
-    final earthBox = earth == null ? null : _callout(canvas, v, earth!, false, sunBox, floor);
+        : _callout(
+            canvas, v, sun!, true, eg == null ? null : Rect.fromCircle(center: eg, radius: glyphR + 1), floor, reticle);
+    final earthBox = earth == null ? null : _callout(canvas, v, earth!, false, sunBox, floor, reticle);
     final boxes = [?sunBox, ?earthBox, ?strip.legend, ?strip.readout, ...demLabels];
+    _scaleShown.clear();
     _elevationScale(canvas, v, size, boxes);
+    paintedSky = (callouts: [?sunBox, ?earthBox], scale: List.of(_scaleShown));
     if (level != null) {
       final t = _text('0° (level)', size: 10, color: PH.muted, mono: true);
       // at the left by the scale, else at the right end, else left out
@@ -1253,14 +1341,19 @@ class LanderPainter extends CustomPainter {
       }
     }
     _compass(canvas, v, size);
-    // centre crosshair, then the bottom strip
+    // centre crosshair (an arm never crosses a callout's words), then the bottom strip
     final cross = Paint()
       ..color = PH.text
       ..strokeWidth = 1;
-    canvas.drawLine(Offset(cx - 9, cy), Offset(cx - 3, cy), cross);
-    canvas.drawLine(Offset(cx + 3, cy), Offset(cx + 9, cy), cross);
-    canvas.drawLine(Offset(cx, cy - 9), Offset(cx, cy - 3), cross);
-    canvas.drawLine(Offset(cx, cy + 3), Offset(cx, cy + 9), cross);
+    for (final (p0, p1) in [
+      (Offset(cx - 9, cy), Offset(cx - 3, cy)),
+      (Offset(cx + 3, cy), Offset(cx + 9, cy)),
+      (Offset(cx, cy - 9), Offset(cx, cy - 3)),
+      (Offset(cx, cy + 3), Offset(cx, cy + 9)),
+    ]) {
+      final arm = Rect.fromPoints(p0, p1).inflate(0.5);
+      if (![?sunBox, ?earthBox].any(arm.overlaps)) canvas.drawLine(p0, p1, cross);
+    }
     final lb = strip.legend;
     if (lb != null) {
       canvas.drawRect(lb, Paint()..color = PH.bg.withValues(alpha: 0.8));
@@ -1285,6 +1378,7 @@ class LanderPainter extends CustomPainter {
       }
     }
     final r = strip.readout;
+    paintedStrip = (legend: lb, readout: read == null ? null : r);
     if (read != null && r != null) {
       canvas.drawRect(r, Paint()..color = PH.bg.withValues(alpha: 0.8));
       canvas.save();
@@ -1302,6 +1396,9 @@ class LanderPainter extends CustomPainter {
     }
     canvas.restore();
   }
+
+  /// The centre crosshair's box in a view of [size] (its arms reach 9 px out).
+  static Rect reticleBox(Size size) => Rect.fromCenter(center: size.center(Offset.zero), width: 22, height: 22);
 
   /// The elevation step of the scale for [hfovDeg] over [w] px: 1, 2, 5 or
   /// 10°, the first at least 28 px apart.
@@ -1348,28 +1445,71 @@ class LanderPainter extends CustomPainter {
     final tick = Paint()
       ..color = PH.muted
       ..strokeWidth = 1;
-    for (var k = -90; k <= 90; k += step) {
-      final p = at(v, cam.yaw, k.toDouble());
-      if (p == null || p.dy < compassH + 6 || p.dy > size.height - 6) continue;
-      if (k == 0) {
-        if (labelFits(Rect.fromLTWH(0, p.dy - 1, 10, 2), size, boxes)) canvas.drawLine(Offset(0, p.dy), Offset(10, p.dy), tick);
-        continue;
-      }
-      final t = _text('${k > 0 ? '+' : '-'}${k.abs()}°', size: 10, color: PH.muted, mono: true);
+    // a labelled tick at elevation [e] (one decimal when [decimals]), if it fits
+    bool mark(double e, {bool decimals = false}) {
+      final p = at(v, cam.yaw, e);
+      if (p == null || p.dy < compassH + 6 || p.dy > size.height - 6) return false;
+      final t = _text('${e >= 0 ? '+' : '-'}${e.abs().toStringAsFixed(decimals ? 1 : 0)}°',
+          size: 10, color: PH.muted, mono: true);
       final label = Rect.fromLTWH(8, p.dy - t.height / 2, t.width + 4, t.height);
-      if (!labelFits(Rect.fromLTRB(0, label.top, label.right, label.bottom), size, boxes)) continue;
+      if (!labelFits(Rect.fromLTRB(0, label.top, label.right, label.bottom), size, boxes)) return false;
       canvas.drawLine(Offset(0, p.dy), Offset(6, p.dy), tick);
       // near opaque: the dashed mask line must not strike through it
       canvas.drawRect(label, Paint()..color = PH.bg.withValues(alpha: 0.85));
       t.paint(canvas, Offset(10, p.dy - t.height / 2));
+      _scaleShown.add(e);
+      return true;
     }
+
+    var shown = false;
+    for (var k = -90; k <= 90; k += step) {
+      if (k == 0) {
+        final p = at(v, cam.yaw, 0);
+        if (p == null || p.dy < compassH + 6 || p.dy > size.height - 6) continue;
+        if (labelFits(Rect.fromLTWH(0, p.dy - 1, 10, 2), size, boxes)) canvas.drawLine(Offset(0, p.dy), Offset(10, p.dy), tick);
+        continue;
+      }
+      shown = mark(k.toDouble()) || shown;
+    }
+    if (shown) return;
+    // none labelled (zoomed in, or the rows under the callouts): one reference
+    // nearest the centre at a finer step, else the centre row's own elevation
+    for (final e in elevationFallbacks(v, cam.yaw, step)) {
+      if (mark(e.$1, decimals: e.$2)) return;
+    }
+  }
+
+  /// The fallback references of the elevation scale when no row of [step]
+  /// gets its label (elevation, one decimal?): rows at a finer step (5, 2, 1,
+  /// 0.5, 0.2°) nearest the centre first, then the centre row's own elevation.
+  static List<(double, bool)> elevationFallbacks(LanderView v, double yawDeg, int step) {
+    final out = <(double, bool)>[];
+    final hi = unprojectView(v, v.w / 2, compassH + 6).el, lo = unprojectView(v, v.w / 2, v.h - 6).el;
+    final mid = v.pitchDeg;
+    for (final f in const [5.0, 2.0, 1.0, 0.5, 0.2]) {
+      if (f >= step) continue;
+      final rows = [for (var i = (lo / f).ceil(); i * f <= hi; i++) i * f]..removeWhere((e) => e.abs() < 1e-9);
+      rows.sort((a, b) => (a - mid).abs().compareTo((b - mid).abs()));
+      out.addAll([for (final e in rows) (e, f < 1)]);
+    }
+    return [...out, ((mid * 10).roundToDouble() / 10, true)];
   }
 
   /// The 48 px compass strip at the top: ticks every 5°, labels every 30°
   /// (`030`), N/E/S/W larger, Sun and Earth glyphs at their azimuths and
   /// edge chevrons for bodies out of view.
   void _compass(Canvas canvas, LanderView v, Size size) {
-    canvas.drawRect(Rect.fromLTWH(0, 0, size.width, compassH), Paint()..color = PH.bg.withValues(alpha: 0.78));
+    // dimmed, but never over a disc in it (nor its callout's leader down to the glyph)
+    final strip = Rect.fromLTWH(0, 0, size.width, compassH), holes = Path(), discs = <Rect>[];
+    for (final b in [sun, earth]) {
+      final a = b == null ? null : calloutAnchor(v, b);
+      if (a == null || a.disc.dy - a.rPx - 2 >= compassH) continue;
+      discs.add(Rect.fromCircle(center: a.disc, radius: a.rPx + 2));
+      holes.addOval(discs.last);
+      if (a.glyph.dy > a.disc.dy) holes.addRect(Rect.fromLTRB(a.disc.dx - 1.5, a.disc.dy, a.disc.dx + 1.5, compassH));
+    }
+    canvas.drawPath(Path.combine(PathOperation.difference, Path()..addRect(strip), holes),
+        Paint()..color = PH.bg.withValues(alpha: 0.78));
     final tick = Paint()
       ..color = PH.muted
       ..strokeWidth = 1;
@@ -1389,13 +1529,17 @@ class LanderPainter extends CustomPainter {
         final t = word != null
             ? _text(word, size: 14, color: PH.text)
             : _text(a.toString().padLeft(3, '0'), size: 10, color: PH.muted, mono: true);
-        t.paint(canvas, Offset(x - t.width / 2, 27 - t.height / 2));
+        final at = Offset(x - t.width / 2, 27 - t.height / 2);
+        // never over a disc in the strip
+        if (!discs.any((d) => d.overlaps(at & t.size))) t.paint(canvas, at);
       }
     }
     for (final (b, isSun) in [(sun, true), (earth, false)]) {
       if (b == null) continue;
       final x = xOf(b.az);
       if (x == null) continue;
+      // left out over a disc in the strip (its callout names it under the strip)
+      if (discs.any(Rect.fromLTWH(x - 6, 2, 12, 12).overlaps)) continue;
       canvas.save();
       canvas.translate(x - 6, 2);
       GlyphPainter(isSun ? GlyphKind.sun : GlyphKind.earth).paint(canvas, const Size.square(12));
@@ -1403,8 +1547,9 @@ class LanderPainter extends CustomPainter {
     }
     for (final (r, isSun, left, text) in chevrons(v, sun, earth)) {
       final color = isSun ? PH.sun : PH.earth, t = _text(text, size: 10, color: color, mono: true);
-      final row = Rect.fromLTWH(r.left, r.top, r.width, math.min(r.height, compassH / 2));
-      canvas.drawRect(row, Paint()..color = PH.bg);
+      // the words' row only, translucent: the azimuth labels and ticks under it stay in view
+      final row = Rect.fromLTWH(r.left, 0, r.width, chevronRowH);
+      canvas.drawRect(row, Paint()..color = PH.bg.withValues(alpha: 0.6));
       final cy = row.center.dy, chev = Paint()
         ..color = color
         ..style = PaintingStyle.stroke

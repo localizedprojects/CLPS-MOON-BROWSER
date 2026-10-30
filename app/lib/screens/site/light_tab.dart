@@ -22,13 +22,16 @@ class LightTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final s = state;
-    final note = s.explainInline ? explainLight : null;
-    LightMap lightMap({Widget? sideTop}) => LightMap(
+    // "Explain as I go": the note that explains the view shown
+    Widget? note(LightViewKind kind) =>
+        !s.explainInline ? null : (kind == LightViewKind.lander ? explainLander : explainLight);
+    LightMap lightMap({Widget? sideTop, double? scrollSlotHeight}) => LightMap(
       state: s,
       active: s.dest == Dest.site && s.siteTab == SiteTab.light,
       onSelect: (id) => s.openSite(id, tab: SiteTab.light),
-      sideNote: note,
+      sideNoteFor: note,
       sideTop: sideTop,
+      scrollSlotHeight: scrollSlotHeight,
     );
     // Play hides the top bars on a phone (as on Sky & time)
     return PlayHidesBars(
@@ -53,7 +56,9 @@ class LightTab extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   TimeBar(state: s, compact: true, alignTop: true),
-                  Padding(padding: const EdgeInsets.fromLTRB(6, 0, 6, 6), child: lightMap()),
+                  Padding(
+                      padding: const EdgeInsets.fromLTRB(6, 0, 6, 6),
+                      child: lightMap(scrollSlotHeight: c.maxHeight.isFinite ? c.maxHeight : null)),
                 ],
               ),
             );

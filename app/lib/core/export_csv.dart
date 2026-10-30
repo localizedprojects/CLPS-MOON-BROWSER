@@ -2,6 +2,7 @@
 /// and the comparison scorecard. Header comments record provenance.
 library;
 
+import '../version.dart';
 import 'catalog.dart';
 import 'metrics.dart';
 import 'summary.dart' show Ranked;
@@ -15,7 +16,7 @@ String _iso(double ms) => DateTime.fromMillisecondsSinceEpoch(ms.round(), isUtc:
 
 String seriesCsv(Site site, SiteSeries s, {required double observerHeightM, required SeriesOptions options, required String ephemeris}) {
   final b = StringBuffer()
-    ..writeln('# Lunar Horizon export - ${site.name}')
+    ..writeln('# Lunar Horizon export - ${site.name} - Version $appVersion')
     ..writeln('# lat_deg=${site.lat}, lon_deg_east=${site.lon}, terrain_m=${site.terrainHeightM.toStringAsFixed(1)}, '
         'observer_height_m=$observerHeightM, horizon=${_horizonSource(site)}')
     ..writeln('# ephemeris=$ephemeris; frame=MOON_ME; apparent LT+S; airless (no refraction); times UTC')
@@ -55,7 +56,7 @@ String scorecardCsv(List<Ranked> ranked, String period, String formula,
   String q(String s) => '"${s.replaceAll('"', '""')}"';
   String win(Interval? i) => i == null ? '' : '${_iso(i.startMs)},${i.hours.toStringAsFixed(1)}';
   final b = StringBuffer()
-    ..writeln('# Lunar Horizon comparison - $period')
+    ..writeln('# Lunar Horizon comparison - $period - Version $appVersion')
     ..writeln('# ${formula.replaceAll('\n', ' ')}')
     ..writeln('# mean_power_w_m2_proxy = period mean of 1361 * (1 au / r)^2 * visible fraction: a panel facing the Sun '
         '(no cos(elevation) factor, no panel losses); energy_kwh_m2_proxy = its sum over the period. '

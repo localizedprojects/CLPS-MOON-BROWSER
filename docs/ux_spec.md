@@ -1,5 +1,12 @@
 # Lunar Horizon UX redesign: concept scores, final spec and build plan
 
+> **Status note (2026-10-30).** This is the original design record. Its Blender-render parts (the
+> rendered PanoHero, the *Look around* tab and the 360 view, the turntable and the render thumbnails)
+> were superseded on 2026-10-10 by the computed light & shadow map (`app/lib/core/shadow.dart`) and the
+> *Light & shadow* tab; the renders are kept only as a skyline cross-check in `validation.json`. The
+> *Lander's view*, a 3D view from the lander built from the light map's own terrain and light, was
+> added in 1.9.0 ([landers_view_spec.md](landers_view_spec.md)). Read the README for the app as it is.
+
 ## Scores
 
 Criteria: **a** first-time usability · **b** calm, not a control panel · **c** planner and educator power · **d** use of Blender, 360 and React assets · **e** feasibility in a few days · **f** accessibility

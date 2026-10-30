@@ -9,7 +9,9 @@ Lunar Horizon answers one question: *which south-pole landing site, on which dat
 
 The same Flutter code runs as a web app and on Android.
 
-> **Status.** Complete: Explore (the map with every site ranked), Site (Overview, Sky & time with the classic sky plot and timeline, and the light & shadow map), Compare and Learn, plus the *best landing window* finder. Suggested landings keep the Sun and Earth at least 0.25° above the skyline. Code: [localizedprojects/CLPS-MOON-BROWSER](https://github.com/localizedprojects/CLPS-MOON-BROWSER). Web app: <https://localizedprojects.github.io/CLPS-MOON-BROWSER/>.
+> **Status.** Complete: Explore (the map with every site ranked), Site (Overview, Sky & time with the classic sky plot and timeline, and the light & shadow map with the 3D *Lander's view*), Compare and Learn, plus the *best landing window* finder. Suggested landings keep the Sun and Earth at least 0.25° above the skyline. The Sun's visible fraction allows for lunar eclipses (Earth in front of the Sun), and the sites include the NASA CLPS landers' positions (IM-1, IM-2) and the VIPER area, plus planned international sites (Chang'e-7, Chandrayaan-5/LUPEX). Code: [localizedprojects/CLPS-MOON-BROWSER](https://github.com/localizedprojects/CLPS-MOON-BROWSER). Web app: <https://localizedprojects.github.io/CLPS-MOON-BROWSER/>.
+
+**Space Apps submission:** [docs/submission.md](docs/submission.md) (summary, NASA data used, use of AI, links).
 
 ### Get the app
 
@@ -234,6 +236,8 @@ flutter test integration_test/map_75s_test.dart -d emulator-5554    # the Explor
 | `AVGVISIB_75S_120M_201608_EARTH` | <https://pds-geosciences.wustl.edu/lro/lro-l-lola-3-rdr-v1/lrolol_1xxx/extras/illumination/img/avgvisib_75s_120m_201608_earth.img> (same mirror) | validation, plus the average-Earth-visibility overlay (to 75°S) |
 
 **JPL Horizons** (<https://ssd.jpl.nasa.gov/api/horizons.api>) provides the independent reference for the direction checks. Its 48 responses (8 sites × 3 windows × 2 bodies) are cached in `pipeline/validation/horizons_cache/`.
+
+**DSN stations.** The Goldstone (DSS-14), Madrid (DSS-63) and Canberra (DSS-43) coordinates come from the JPL *DSN Telecommunications Link Design Handbook* (810-005), module 301 (see `DSN_COMPLEXES` in `pipeline/lunarsp/config.py`).
 
 > **The map is not a photograph.** The base map is shaded relief computed from LOLA laser altimetry (`pipeline/lunarsp/basemap.py`):
 > - `LDEM_80S_80M` is averaged to 320 m.

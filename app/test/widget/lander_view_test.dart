@@ -76,7 +76,10 @@ PolarGrid _dem() {
 void main() {
   late AppState state;
   late _FakeEngine engine;
-  setUpAll(loadPlexFonts);
+  setUpAll(() {
+    LanderPainter.debugRecord = true;
+    return loadPlexFonts();
+  });
   setUp(() async {
     state = AppState();
     await state.init();
@@ -480,15 +483,15 @@ void main() {
     const v = LanderView(yawDeg: 0, pitchDeg: 0, hfovDeg: 60, w: 360, h: 300);
     ({Offset disc, Offset glyph, double rPx}) a(double x) => (disc: Offset(x, 130), glyph: Offset(x, 100), rPx: 2.0);
     // room on the right: right of the glyph
-    expect(LanderPainter.calloutBox(v, a(100), const Size(120, 40), null, 92), const Rect.fromLTWH(111, 92, 120, 40));
+    expect(LanderPainter.calloutPlace(v, a(100), const Size(120, 40), const [], 92).box, const Rect.fromLTWH(111, 92, 120, 40));
     // near the right edge: left of it
-    expect(LanderPainter.calloutBox(v, a(320), const Size(120, 40), null, 92), const Rect.fromLTWH(189, 92, 120, 40));
+    expect(LanderPainter.calloutPlace(v, a(320), const Size(120, 40), const [], 92).box, const Rect.fromLTWH(189, 92, 120, 40));
     // too wide for either side: centred under the disc, never over it
-    final wide = LanderPainter.calloutBox(v, a(180), const Size(250, 50), null, 92);
+    final wide = LanderPainter.calloutPlace(v, a(180), const Size(250, 50), const [], 92).box;
     expect(wide, const Rect.fromLTWH(55, 138, 250, 50));
     expect(wide.overlaps(Rect.fromCircle(center: a(180).disc, radius: 2)), isFalse);
     // the other callout's box is avoided
-    final other = LanderPainter.calloutBox(v, a(100), const Size(120, 40), const Rect.fromLTWH(105, 80, 150, 30), 92);
+    final other = LanderPainter.calloutPlace(v, a(100), const Size(120, 40), const [Rect.fromLTWH(105, 80, 150, 30)], 92).box;
     expect(other.overlaps(const Rect.fromLTWH(105, 80, 150, 30)), isFalse);
     expect(other.overlaps(Rect.fromCircle(center: a(100).disc, radius: 2)), isFalse);
     expect(other.top, greaterThanOrEqualTo(LanderPainter.compassH));
@@ -504,8 +507,8 @@ void main() {
           (g.dy - 8).clamp(LanderPainter.compassH + 2, math.max(LanderPainter.compassH + 2, v.h - h - 2)).toDouble() - 1;
       final sa = LanderPainter.calloutAnchor(v, (az: 6.9, el: 3.9, rhoDeg: 0.27, state: SkyState.behindTerrain))!;
       final ea = LanderPainter.calloutAnchor(v, (az: 6.9, el: 3.2, rhoDeg: 0.95, state: SkyState.up))!;
-      final sBox = LanderPainter.calloutBox(v, sa, const Size(210, 44), null, top(sa.glyph, 44));
-      final eBox = LanderPainter.calloutBox(v, ea, const Size(177, 30), sBox, top(ea.glyph, 30));
+      final sBox = LanderPainter.calloutPlace(v, sa, const Size(210, 44), const [], top(sa.glyph, 44)).box;
+      final eBox = LanderPainter.calloutPlace(v, ea, const Size(177, 30), [sBox], top(ea.glyph, 30)).box;
       expect(eBox.overlaps(sBox), isFalse, reason: 'hfov $hfov: $eBox vs $sBox');
       expect(eBox.overlaps(Rect.fromCircle(center: ea.disc, radius: ea.rPx)), isFalse);
       expect(eBox.top, greaterThanOrEqualTo(LanderPainter.compassH));
@@ -516,16 +519,20 @@ void main() {
   test('§5 a body in view gets its words above it (not over the skyline under it); none goes below the strip', () {
     const v = LanderView(yawDeg: 0, pitchDeg: 0, hfovDeg: 60, w: 360, h: 300);
     const a = (disc: Offset(100, 180), glyph: Offset(100, 150), rPx: 2.0);
-    expect(LanderPainter.calloutBox(v, a, const Size(120, 40), null, 142, up: true), const Rect.fromLTWH(40, 96, 120, 40));
+    expect(LanderPainter.calloutPlace(v, a, const Size(120, 40), const [], 142, up: true).box, const Rect.fromLTWH(40, 96, 120, 40));
     // a hidden body keeps the side placement
-    expect(LanderPainter.calloutBox(v, a, const Size(120, 40), null, 142), const Rect.fromLTWH(111, 142, 120, 40));
+    expect(LanderPainter.calloutPlace(v, a, const Size(120, 40), const [], 142).box, const Rect.fromLTWH(111, 142, 120, 40));
     // too wide for the sides, and the room under the disc is the bottom strip's: above the glyph
     const b = (disc: Offset(180, 230), glyph: Offset(180, 200), rPx: 2.0);
-    expect(LanderPainter.calloutBox(v, b, const Size(250, 50), null, 192), const Rect.fromLTWH(55, 238, 250, 50));
-    expect(LanderPainter.calloutBox(v, b, const Size(250, 50), null, 192, bottom: 270), const Rect.fromLTWH(55, 136, 250, 50));
+    expect(LanderPainter.calloutPlace(v, b, const Size(250, 50), const [], 192).box, const Rect.fromLTWH(55, 238, 250, 50));
+    // (the bottom strip: a box across the view, its top 272 down)
+    expect(
+        LanderPainter.calloutPlace(v, b, const Size(250, 50), const [], 192, strip: const [Rect.fromLTRB(0, 272, 360, 300)])
+            .box,
+        const Rect.fromLTWH(55, 136, 250, 50));
     // its place above taken by the other callout: stacked above that one, not beside or under
     // the glyph over the skyline (a lunar eclipse puts both bodies at one spot)
-    expect(LanderPainter.calloutBox(v, a, const Size(120, 40), const Rect.fromLTWH(40, 100, 120, 40), 142, up: true),
+    expect(LanderPainter.calloutPlace(v, a, const Size(120, 40), const [Rect.fromLTWH(40, 100, 120, 40)], 142, up: true).box,
         const Rect.fromLTWH(40, 56, 120, 40));
   });
 
@@ -647,7 +654,7 @@ void main() {
     expect(t.height, greaterThan(t.preferredLineHeight * 1.5)); // it wraps
     for (final x in [20.0, 160.0, 300.0]) {
       final a = (disc: Offset(x, 130), glyph: Offset(x, 100), rPx: 2.0);
-      final r = LanderPainter.calloutBox(v, a, Size(t.width + 6, t.height + 2), null, 92);
+      final r = LanderPainter.calloutPlace(v, a, Size(t.width + 6, t.height + 2), const [], 92).box;
       expect(r.left >= 0 && r.right <= v.w, isTrue, reason: '$r');
     }
     t.dispose();
@@ -798,10 +805,15 @@ void main() {
       final reticle = LanderPainter.reticleBox(Size(392, h));
       expect(reticle.contains(c) && reticle.width >= 18 && reticle.height >= 18, isTrue);
       final top = (c.dy - 8).clamp(LanderPainter.compassH + 2, math.max(LanderPainter.compassH + 2, floor - box.height - 4)) - 1;
-      final r = LanderPainter.calloutBox(v, a, box, null, top.toDouble(), bottom: floor, up: up, reticle: reticle);
+      final r = LanderPainter.calloutPlace(v, a, box, const [], top.toDouble(),
+          strip: [Rect.fromLTRB(0, floor + 2, 392, h)], up: up, reticle: reticle).box;
       expect(r.overlaps(reticle), isFalse, reason: '$h $box $up: $r vs $reticle');
       expect(r.overlaps(Rect.fromCircle(center: c, radius: 4.5)), isFalse, reason: '$h: $r');
-      expect(r.top >= LanderPainter.compassH && r.bottom <= h && r.left >= 0 && r.right <= 392, isTrue, reason: '$h: $r');
+      // never under the bottom strip ([floor]); 120 high, no place clear of the reticle fits under the
+      // compass strip: above the disc, over the strip's sky (1.9.1: under the bottom strip, W18)
+      expect(r.top >= (h < 150 ? 0 : LanderPainter.compassH) && r.bottom <= floor && r.left >= 0 && r.right <= 392, isTrue,
+          reason: '$h: $r');
+      expect(r.overlaps(Rect.fromCircle(center: c, radius: a.rPx + 3)), isFalse, reason: '$h: $r, off its own disc');
     }
   });
 
@@ -818,7 +830,8 @@ void main() {
       final a = (disc: c + const Offset(0, 9.4), glyph: c - const Offset(0, 15.2), rPx: 10.6);
       final reticle = LanderPainter.reticleBox(Size(w, h));
       final top = (a.glyph.dy - 8).clamp(LanderPainter.compassH + 2, floor - box.height - 4) - 1;
-      final r = LanderPainter.calloutBox(v, a, box, null, top.toDouble(), bottom: floor, up: true, reticle: reticle);
+      final r = LanderPainter.calloutPlace(v, a, box, const [], top.toDouble(),
+          strip: [Rect.fromLTRB(0, floor + 2, w, h)], up: true, reticle: reticle).box;
       expect(r.overlaps(Rect.fromCircle(center: a.glyph, radius: roomy ? LanderPainter.glyphR - 2 : 2)), isFalse,
           reason: '$w: $r, never over the glyph\'s centre');
       expect(r.overlaps(Rect.fromCircle(center: a.disc, radius: a.rPx + 3)), isFalse, reason: '$w: $r');
@@ -888,6 +901,309 @@ void main() {
     expect(LanderPainter.paintedSky!.scale.every((e) => e == e.roundToDouble()), isTrue);
   });
 
+  test('W19 both bodies in a phone view: the two callouts never overlap, nor cover a glyph or the crosshair', () {
+    // 1.9.2 sweep at 352.7 x 176 (hfov 45, pitch -30): the Sun's disc in the compass strip at (17.6, 12.6)
+    // and Earth's at (123.4, 62.9) put the boxes over each other (Earth's later tiers dropped the Sun's
+    // box); Earth's words went over the Sun's glyph; a lunar eclipse (Earth's disc over the Sun's) stacked
+    // them. With the centre readout shown (it may be left out) and without, Earth in view and hidden; also
+    // a 120 dp scene under the compass strip, and a shorter one (where Earth's words may go one line, or
+    // into the Sun's callout, never under or over it).
+    final fails = <String>[];
+    var frames = 0;
+    for (final (size, hfov) in [
+      (const Size(352.7, 176), 45.0),
+      (const Size(352.7, 176), 90.0),
+      (const Size(410, 168), 45.0),
+      (const Size(352.7, 160), 45.0),
+    ]) {
+      final cam = LanderCameraController()..set(yaw: 0, pitch: -30, hfov: hfov);
+      final v = cam.view(size);
+      SkyBody at(Offset p, double rho, SkyState s) {
+        final q = unprojectView(v, p.dx, p.dy);
+        return (az: q.az, el: q.el, rhoDeg: rho, state: s);
+      }
+
+      final spots = [
+        for (final x in [17.6, 90.0, 123.4, size.width / 2, 260.0, size.width - 12.7])
+          for (final y in [12.6, 40.0, 62.9, size.height / 2, 130.0, size.height - 8]) Offset(x, y)
+      ];
+      void frame(SkyBody sun, SkyBody earth, String? probe, String? sunWord, String what) {
+        frames++;
+        LanderPainter(
+                cam: cam, mesh: null, proj: LanderProjection(), colors: null, sun: sun, earth: earth,
+                sunWord: sunWord, probe: probe)
+            .paint(Canvas(ui.PictureRecorder()), size);
+        final boxes = LanderPainter.paintedSky!.callouts, strip = LanderPainter.paintedStrip!;
+        final glyphs = [for (final b in [sun, earth]) ?LanderPainter.calloutAnchor(v, b)?.glyph];
+        final where = '$size hfov $hfov, $what, ${probe == null ? 'no readout' : 'readout'}: $boxes';
+        if (boxes.isEmpty) fails.add('$where: no callout');
+        if (boxes.length == 2 && boxes[0].overlaps(boxes[1])) fails.add('$where: the callouts overlap');
+        for (final b in boxes) {
+          if (b.overlaps(LanderPainter.reticleBox(size))) fails.add('$where: $b over the crosshair');
+          for (final g in glyphs) {
+            if (b.overlaps(Rect.fromCircle(center: g, radius: 2))) fails.add('$where: $b over the glyph at $g');
+          }
+          for (final s in [?strip.readout, ?strip.legend]) {
+            if (b.overlaps(s)) fails.add('$where: $b over the bottom strip\'s $s');
+          }
+        }
+      }
+
+      for (final probe in [null, 'Centre: regolith · 1.2 km · az 123.4° el -30.0°']) {
+        for (final (i, s) in spots.indexed) {
+          for (final (j, e) in spots.indexed) {
+            if ((s - e).distance < 1) continue;
+            final hidden = (i + j).isOdd ? SkyState.behindTerrain : SkyState.up;
+            frame(at(s, 0.27, SkyState.up), at(e, 0.95, hidden), probe, null, 'Sun $s, Earth $e ${hidden.name}');
+          }
+          // a lunar eclipse: Earth's disc over the Sun's (part covered, and all)
+          for (final (d, word) in [
+            (const Offset(3, 2), 'in view, 40 % covered by Earth (lunar eclipse)'),
+            (Offset.zero, 'hidden by Earth (lunar eclipse)'),
+          ]) {
+            frame(at(s, 0.27, SkyState.up), at(s + d, 0.95, SkyState.up), probe, word, 'eclipse at $s + $d');
+          }
+        }
+      }
+    }
+    expect(frames, greaterThan(10000));
+    expect(fails, isEmpty, reason: '${fails.length} of $frames frames:\n${fails.take(12).join('\n')}');
+  });
+
+  // W20-W22: frames of the 1.9.2 release gate (a 10 x 7 grid of cells, the
+  // mask's two-line legend and the centre readout, as on a phone)
+  test('W20 a lunar eclipse in a phone view: the two callouts never overlap', () {
+    // 1.9.2 gate, 352.7 x 176, hfov 10, pitch -30, cell (4, 0): no place for Earth's words clear of the
+    // Sun's, nor for its one line or the merged callout, and the two boxes went one over the other
+    final fails = <String>[];
+    var frames = 0;
+    for (final size in const [Size(352.7, 176), Size(392, 168)]) {
+      for (final hfov in [10.0, 45.0]) {
+        for (final pitch in [-30.0, 0.0]) {
+          for (var j = 0; j < 7; j++) {
+            for (var i = 0; i < 10; i++) {
+              final p = _gateCell(size, i, j);
+              final boxes = _gateFrame(size, hfov, pitch,
+                  sun: (p, SkyState.up),
+                  earth: (p + const Offset(3, 2), SkyState.up),
+                  sunWord: 'in view, 40 % covered by Earth (lunar eclipse)');
+              frames++;
+              if (boxes.length == 2 && boxes[0].overlaps(boxes[1])) {
+                fails.add('$size hfov $hfov pitch $pitch cell ($i, $j): $boxes');
+              }
+            }
+          }
+        }
+      }
+    }
+    expect(fails, isEmpty, reason: '${fails.length} of $frames frames:\n${fails.take(8).join('\n')}');
+  });
+
+  test('W21 a callout beside the legend keeps its place there (the legend is no floor across the view)', () {
+    // 1.9.2 gate, 392 x 120, hfov 10, pitch 0, cell (0, 1): the Sun's disc in the compass strip, its glyph
+    // under it; the box left of the legend (1.9.1: (0, 73)-(177.6, 103)) went over the glyph, held over
+    // the legend's top across the whole width
+    const size = Size(392, 120);
+    final p = _gateCell(size, 0, 1), boxes = _gateFrame(size, 10, 0, sun: (p, SkyState.up));
+    final v = (LanderCameraController()..set(yaw: 0, pitch: 0, hfov: 10)).view(size);
+    final a = LanderPainter.calloutAnchor(v, _gateBody(v, p, 0.27, SkyState.up))!, strip = LanderPainter.paintedStrip!;
+    expect(boxes, hasLength(1));
+    expect(boxes.single.overlaps(Rect.fromCircle(center: a.glyph, radius: 2)), isFalse,
+        reason: '${boxes.single} over the glyph at ${a.glyph}');
+    expect(boxes.single.overlaps(LanderPainter.reticleBox(size)), isFalse, reason: '${boxes.single} over the crosshair');
+    for (final s in [?strip.legend, ?strip.readout]) {
+      expect(boxes.single.overlaps(s), isFalse, reason: '${boxes.single} over the bottom strip\'s $s');
+    }
+  });
+
+  test('W22 a lone body with no place for two lines: no box over its glyph or the crosshair', () {
+    // 1.9.2 gate, 392 x 168, hfov 10, pitch -30, cell (0, 3): Earth's disc (r 37 px) at the left edge,
+    // its glyph over it; the box (0, 51)-(197.4, 81) covered the glyph and the crosshair
+    const size = Size(392, 168);
+    final p = _gateCell(size, 0, 3);
+    final v = (LanderCameraController()..set(yaw: 0, pitch: -30, hfov: 10)).view(size);
+    for (final s in [SkyState.up, SkyState.behindTerrain]) {
+      final boxes = _gateFrame(size, 10, -30, earth: (p, s));
+      final a = LanderPainter.calloutAnchor(v, _gateBody(v, p, 0.95, s))!, strip = LanderPainter.paintedStrip!;
+      for (final b in boxes) {
+        expect(b.overlaps(Rect.fromCircle(center: a.glyph, radius: 2)), isFalse, reason: '${s.name}: $b over the glyph');
+        expect(b.overlaps(LanderPainter.reticleBox(size)), isFalse, reason: '${s.name}: $b over the crosshair');
+        for (final r in [?strip.legend, ?strip.readout]) {
+          expect(b.overlaps(r), isFalse, reason: '${s.name}: $b over the bottom strip\'s $r');
+        }
+      }
+    }
+  });
+
+  test('W23 a body\'s words take a clear place above or beside its disc before going (round 4: the glyph alone)', () {
+    // 1.9.2 gate frames (size | hfov | pitch | cell | scenario) where a full box had a clear place over
+    // the compass strip's sky, right of the disc, or above the crosshair, but every place tried was
+    // anchored to the glyph, so the words went (the glyph alone) or the centre readout was left out
+    final fails = <String>[];
+    void frame(Size size, double pitch, int i, int j, String scen, {required Set<String> sun, required Set<String> earth,
+        bool readout = false}) {
+      final v = (LanderCameraController()..set(yaw: 0, pitch: pitch, hfov: 10)).view(size);
+      final p = _gateCell(size, i, j), q = _gateCell(size, (i + 3) % 10, (j + 2) % 7);
+      final (Offset, SkyState)? s = switch (scen) { 'sunOnly' || 'bothEarthHidden' => (p, SkyState.up), _ => null };
+      final (Offset, SkyState)? e = switch (scen) {
+        'earthOnly' => (p, SkyState.up),
+        'earthHidden' => (p, SkyState.behindTerrain),
+        'bothEarthHidden' => (q, SkyState.behindTerrain),
+        _ => null
+      };
+      final boxes = _gateFrame(size, 10, pitch, sun: s, earth: e);
+      final words = LanderPainter.paintedWords!, strip = LanderPainter.paintedStrip!;
+      final at = '$size pitch $pitch cell ($i, $j) $scen';
+      if (!sun.contains(words.sun) || !earth.contains(words.earth)) fails.add('$at: words $words');
+      if (readout && strip.readout == null) fails.add('$at: the readout left out');
+      final sb = s == null ? null : _gateBody(v, s.$1, 0.27, s.$2), eb = e == null ? null : _gateBody(v, e.$1, 0.95, e.$2);
+      final glyphs = [for (final b in [?sb, ?eb]) LanderPainter.calloutAnchor(v, b)!];
+      final keep = [
+        for (final (r, _, _, _) in LanderPainter.chevrons(v, sb, eb)) Rect.fromLTWH(r.left, 0, r.width, LanderPainter.chevronRowH)
+      ];
+      for (final b in boxes) {
+        final over = [
+          ?strip.legend,
+          ?strip.readout,
+          LanderPainter.reticleBox(size),
+          ...keep,
+          for (final g in glyphs) ...[Rect.fromCircle(center: g.glyph, radius: 2), Rect.fromCircle(center: g.disc, radius: 3)],
+          for (final o in boxes) if (o != b) o,
+        ].where(b.overlaps);
+        if (over.isNotEmpty || !(Offset.zero & size).contains(b.topLeft) || b.right > size.width || b.bottom > size.height) {
+          fails.add('$at: $b over $over');
+        }
+      }
+    }
+
+    frame(const Size(392, 120), 0, 3, 2, 'earthOnly', sun: {'-'}, earth: {'F'});
+    frame(const Size(392, 120), 30, 7, 2, 'sunOnly', sun: {'F'}, earth: {'-'});
+    frame(const Size(392, 168), 30, 0, 1, 'bothEarthHidden', sun: {'F'}, earth: {'F'});
+    for (final pitch in [-30.0, 0.0, 30.0]) {
+      frame(const Size(392, 168), pitch, 9, 2, 'earthHidden', sun: {'-'}, earth: {'F'}, readout: true);
+    }
+    frame(const Size(352.7, 176), -30, 4, 2, 'earthHidden', sun: {'-'}, earth: {'F', '1', '1w'});
+    expect(fails, isEmpty, reason: fails.join('\n'));
+  });
+
+  test('W24 callouts keep off the chevrons\' words and the other body\'s compass marker; leaders go under the boxes; the other disc',
+      () {
+    final fails = <String>[];
+    // what a box over the compass strip never covers (1.9.2): an edge chevron's words and the
+    // other body's azimuth marker, except where the two markers lie over each other (a lunar
+    // eclipse: a box over its own covers the other's). Its own marker, the rest of a chevron's
+    // tap target and the heading pointer are soft: kept clear where a place that fits allows
+    // (the release gate counts them)
+    List<String> overStrip(String at, Size size, LanderView v, SkyBody? s, SkyBody? e) {
+      final w = LanderPainter.paintedWords!, boxes = LanderPainter.paintedSky!.callouts;
+      // the boxes are the Sun's, then Earth's; Earth's words merged into the Sun's have none
+      final owners = [
+        if (const {'F', 'M', '1', '1w'}.contains(w.sun)) true,
+        if (const {'F', '1', '1w'}.contains(w.earth)) false,
+      ];
+      expect(owners.length, boxes.length, reason: '$at: words $w, boxes $boxes');
+      final markers = LanderPainter.compassMarkers(v, s, e);
+      final twin = markers.length == 2 && markers[0].$1.overlaps(markers[1].$1);
+      return [
+        for (var i = 0; i < boxes.length; i++)
+          for (final k in [
+            for (final (r, _, _, _) in LanderPainter.chevrons(v, s, e))
+              Rect.fromLTWH(r.left, 0, r.width, LanderPainter.chevronRowH),
+            for (final (r, isSun) in markers)
+              if (isSun != owners[i] && !twin) r,
+          ])
+            if (boxes[i].overlaps(k)) '$at: ${boxes[i]} over $k'
+      ];
+    }
+
+    // (a) 1.9.2 gate: the Sun's disc in the compass strip, Earth off the view's left or right
+    // edge (a chevron): the Sun's box went over the strip, over its own marker (round 5)
+    const phone = Size(352.7, 176);
+    var markersSeen = 0, chevronsSeen = 0;
+    for (final scen in ['offLeft', 'offRight']) {
+      for (var j = 0; j < 3; j++) {
+        for (var i = 0; i < 10; i++) {
+          final v = (LanderCameraController()..set(yaw: 0, pitch: 0, hfov: 45)).view(phone);
+          final s = _gateBody(v, _gateCell(phone, i, j), 0.27, SkyState.up);
+          final SkyBody e = (az: scen == 'offLeft' ? -100.0 : 100.0, el: 5.0, rhoDeg: 0.95, state: SkyState.up);
+          _paintFrame(phone, 45, 0, 0, sun: s, earth: e);
+          markersSeen += LanderPainter.paintedMarkers!.length;
+          chevronsSeen += LanderPainter.chevrons(v, s, e).length;
+          fails.addAll(overStrip('(a) cell ($i, $j) $scen', phone, v, s, e));
+        }
+      }
+    }
+    expect(markersSeen, greaterThan(0));
+    expect(chevronsSeen, 60);
+    // (b) a lunar eclipse by the compass strip (the review's camera): each leader runs from the
+    // disc in the strip down to its glyph; Earth's was drawn over the Sun's words (round 5)
+    var withLeaders = 0;
+    for (var j = 0; j < 2; j++) {
+      for (var i = 0; i < 10; i++) {
+        final v = (LanderCameraController()..set(yaw: 10, pitch: -7.5, hfov: 45)).view(phone);
+        final p = _gateCell(phone, i, j);
+        final s = _gateBody(v, p, 0.27, SkyState.up), e = _gateBody(v, p + const Offset(3, 2), 0.95, SkyState.up);
+        _paintFrame(phone, 45, 10, -7.5, sun: s, earth: e, sunWord: 'in view, 40 % covered by Earth (lunar eclipse)');
+        final order = LanderPainter.paintedOrder!;
+        final lastLeader = order.lastIndexWhere((o) => o.startsWith('leader'));
+        final firstBox = order.indexWhere((o) => !o.startsWith('leader'));
+        if (LanderPainter.paintedLeaders!.isNotEmpty && LanderPainter.paintedSky!.callouts.isNotEmpty) withLeaders++;
+        if (firstBox >= 0 && lastLeader > firstBox) fails.add('(b) cell ($i, $j): a leader after a box: $order');
+        fails.addAll(overStrip('(b) cell ($i, $j)', phone, v, s, e));
+      }
+    }
+    expect(withLeaders, greaterThan(0));
+    // (c) 1.9.2 gate 352.7 x 176 | hfov 45 | pitch -30 | cell (5, 1) | both: round 5 left out the
+    // readout (Earth first over the strip, the Sun's words then found no place); round 4 kept it
+    {
+      final p = _gateCell(phone, 5, 1), q = _gateCell(phone, 8, 3);
+      final v = (LanderCameraController()..set(yaw: 0, pitch: -30, hfov: 45)).view(phone);
+      _gateFrame(phone, 45, -30, sun: (p, SkyState.up), earth: (q, SkyState.up));
+      final words = LanderPainter.paintedWords!;
+      if (LanderPainter.paintedStrip!.readout == null) fails.add('(c) the readout left out');
+      if (words.sun != 'F' || words.earth != 'F') fails.add('(c) words $words');
+      final boxes = LanderPainter.paintedSky!.callouts;
+      if (boxes.length == 2 && boxes[0].overlaps(boxes[1])) fails.add('(c) $boxes overlap');
+      fails.addAll(overStrip('(c)', phone, v, _gateBody(v, p, 0.27, SkyState.up), _gateBody(v, q, 0.95, SkyState.up)));
+    }
+    // (e) 1.9.2 gate 352.7 x 176 | hfov 10 | pitch -30 | cells (5, 1) and (8, 3) | both: the Sun's
+    // disc in the compass strip, its marker above it; round 5 put Earth's box over the strip
+    // across the Sun's marker ((168.5, 11)-(352.7, 41) over (188, 2)-(200, 14))
+    {
+      final p = _gateCell(phone, 5, 1), q = _gateCell(phone, 8, 3);
+      final v = (LanderCameraController()..set(yaw: 0, pitch: -30, hfov: 10)).view(phone);
+      _gateFrame(phone, 10, -30, sun: (p, SkyState.up), earth: (q, SkyState.up));
+      expect(LanderPainter.paintedMarkers, isNotEmpty);
+      fails.addAll(overStrip('(e)', phone, v, _gateBody(v, p, 0.27, SkyState.up), _gateBody(v, q, 0.95, SkyState.up)));
+    }
+    // (d) zoomed in (392 x 120, hfov 10, pitch 0): the Sun's disc r 10.6 px, Earth's r 37.2 px; round 5
+    // put Earth's box over the Sun's disc in these gate frames (the other body's disc was in neither
+    // avoid list)
+    {
+      const size = Size(392, 120);
+      final v = (LanderCameraController()..set(yaw: 0, pitch: 0, hfov: 10)).view(size);
+      expect(_w24OtherDisc, isNotEmpty);
+      for (final (i, j) in _w24OtherDisc) {
+        final p = _gateCell(size, i, j), q = _gateCell(size, (i + 3) % 10, (j + 2) % 7);
+        final s = _gateBody(v, p, 0.27, SkyState.up), e = _gateBody(v, q, 0.95, SkyState.up);
+        _paintFrame(size, 10, 0, 0, sun: s, earth: e);
+        final sa = LanderPainter.calloutAnchor(v, s)!, ea = LanderPainter.calloutAnchor(v, e)!;
+        final boxes = LanderPainter.paintedSky!.callouts, words = LanderPainter.paintedWords!;
+        if (words.sun != 'F' || words.earth != 'F') fails.add('(d) cell ($i, $j): words $words');
+        if (boxes.length == 2) {
+          bool onDisc(Rect r, ({Offset disc, Offset glyph, double rPx}) a) {
+            final dx = a.disc.dx.clamp(r.left, r.right) - a.disc.dx, dy = a.disc.dy.clamp(r.top, r.bottom) - a.disc.dy;
+            return dx * dx + dy * dy < a.rPx * a.rPx;
+          }
+
+          if (onDisc(boxes[1], sa)) fails.add('(d) cell ($i, $j): Earth\'s box ${boxes[1]} over the Sun\'s disc');
+          if (onDisc(boxes[0], ea)) fails.add('(d) cell ($i, $j): the Sun\'s box ${boxes[0]} over Earth\'s disc');
+        }
+      }
+    }
+    expect(fails, isEmpty, reason: fails.join('\n'));
+  });
+
   testWidgets('W11 pattern pass: nearer plain triangle hides farther striped one', (tester) async {
     final mesh = _twoTriangles(skyline: Float64List(720));
     final colors = Int32List.fromList([for (var i = 0; i < 6; i++) i < 3 ? 0xFF505A64 : 0xFF283040]);
@@ -949,3 +1265,59 @@ Future<ByteData> _paintBytes(WidgetTester tester, LanderPainter p, Size s) async
       final img = await rec.endRecording().toImage(s.width.round(), s.height.round());
       return img.toByteData(format: ui.ImageByteFormat.rawRgba);
     }))!;
+
+/// The centre of cell ([i], [j]) of a 10 x 7 grid over a view of [size] (the
+/// 1.9.2 release gate's body positions).
+Offset _gateCell(Size size, int i, int j) => Offset((i + 0.5) * size.width / 10, (j + 0.5) * size.height / 7);
+
+/// A body drawn at pixel [p] of view [v].
+SkyBody _gateBody(LanderView v, Offset p, double rho, SkyState s) {
+  final q = unprojectView(v, p.dx, p.dy);
+  return (az: q.az, el: q.el, rhoDeg: rho, state: s);
+}
+
+/// One frame of the 1.9.2 release gate (no terrain, the mask's two-line legend,
+/// the centre readout): the callout boxes painted ([LanderPainter.paintedSky]).
+List<Rect> _gateFrame(Size size, double hfov, double pitch,
+    {(Offset, SkyState)? sun, (Offset, SkyState)? earth, String? sunWord}) {
+  final cam = LanderCameraController()..set(yaw: 0, pitch: pitch, hfov: hfov);
+  final v = cam.view(size);
+  LanderPainter(
+          cam: cam,
+          mesh: null,
+          proj: LanderProjection(),
+          colors: null,
+          sun: sun == null ? null : _gateBody(v, sun.$1, 0.27, sun.$2),
+          earth: earth == null ? null : _gateBody(v, earth.$1, 0.95, earth.$2),
+          sunWord: sunWord,
+          maskDeg: Float64List(720),
+          maskLabel: '${landerMaskLabel(custom: false)}\n$landerSeeThroughLabel',
+          probe: 'Centre: regolith · 1.2 km · az 123.4° el -30.0°')
+      .paint(Canvas(ui.PictureRecorder()), size);
+  return LanderPainter.paintedSky!.callouts;
+}
+
+/// The Sun's gate cells (Earth's is ((i + 3) % 10, (j + 2) % 7), as in the 1.9.2 release gate) of the
+/// 392 x 120, hfov 10, pitch 0 'both' frames where round 5 put Earth's box over the Sun's disc and the
+/// words fit clear of both discs (W24 (d)). Round 5's Earth box was (113.4, 17)-(291, 47) for (5, 0),
+/// over the Sun's disc at (215.6, 8.6), and (0, 73)-(177.6, 103) for (3, 4) and (4, 4), over the
+/// Sun's disc at (137.2, 77.1) and (176.4, 77.1). Round 6 still puts a box over a disc in the other
+/// such frames (cells (3, 1), (4, 1), (7..9, 0) and (7..9, 1)).
+const _w24OtherDisc = <(int, int)>[(5, 0), (3, 4), (4, 4)];
+
+/// One frame like [_gateFrame], at any yaw, the bodies given as az/el.
+void _paintFrame(Size size, double hfov, double yaw, double pitch, {SkyBody? sun, SkyBody? earth, String? sunWord}) {
+  final cam = LanderCameraController()..set(yaw: yaw, pitch: pitch, hfov: hfov);
+  LanderPainter(
+          cam: cam,
+          mesh: null,
+          proj: LanderProjection(),
+          colors: null,
+          sun: sun,
+          earth: earth,
+          sunWord: sunWord,
+          maskDeg: Float64List(720),
+          maskLabel: '${landerMaskLabel(custom: false)}\n$landerSeeThroughLabel',
+          probe: 'Centre: regolith · 1.2 km · az 123.4° el -30.0°')
+      .paint(Canvas(ui.PictureRecorder()), size);
+}

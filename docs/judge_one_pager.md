@@ -39,7 +39,7 @@
 
 ![Malapert peak (MP1): the best 14-day landing window next to the Sky & time view](screenshots/site-landing-sky-desktop.webp)
 
-*Web build of 13 October 2026, next 12 months, 2 m lander. More screenshots are in the [README](../README.md#screenshots).*
+*Version 1.9.2 web build of 30 October 2026, next 12 months, 2 m lander. More screenshots are in the [README](../README.md#screenshots).*
 
 **Next steps.** Refine near-field terrain with 20 m LOLA data, check the 2 m Earth numbers at peaks and ridges (Malapert peak's 56% rises to 78% with a 10 m mast).
 
@@ -57,7 +57,7 @@ Sources for every number in this brief (paths relative to the repository root; v
 - 1.73′ for the wrong frame: validation.json frame_sensitivity.MOON_PA.maxArcmin = 1.733.
 - 18.6 years; 14 regions, 1.98 and 1.78 percentage points; 5 ridge/peak points, 7.33 mean and 20.3 max: validation.json avgvis (period, regions.n, regions.meanAbsDiffSunPct, regions.meanAbsDiffEarthPct, ridgePeakPoints.n, ridgePeakPoints.meanAbsDiffSunPct, ridgePeakPoints.maxAbsDiffSunPct).
 - 120 m near-field exclusion: validation.json avgvis.nearFieldExclusionM = 120.0; PLAN.md section 5.
-- Light map: app/test/core/shadow_test.dart, test "shadow map vs ray-marched horizons at 16 sites x 60 moments" (16 x 60 = 960 checks; the "400 m horizons" are computeCoarseHorizon on the same 400 m DEM, the "80 m horizons" are the preset 2 m masks). The test prints all four figures; they are recorded in formula.md section 12.9 (table) and 13.11. They are not in validation.json. The 400 m and 800 m grids: app/lib/state/light_engine.dart (LightRequest, closeUpPx).
+- Light map: app/test/core/shadow_test.dart, test "shadow map vs ray-marched horizons at 16 sites x 60 moments" (16 x 60 = 960 checks, at the 16 sites of the catalogue before the three mission sites added in 1.8.0; the "400 m horizons" are computeCoarseHorizon on the same 400 m DEM, the "80 m horizons" are the preset 2 m masks). The test prints all four figures; they are recorded in formula.md section 12.9 (table) and 13.11. They are not in validation.json. The 400 m and 800 m grids: app/lib/state/light_engine.dart (LightRequest, closeUpPx).
 - 10- to 60-minute steps: formula.md section 9.1 (automatic step: 600 s up to 60 days, 1800 s up to 366 days, 3600 s beyond; timeseries.dart).
 - Score display: formulaText (app/lib/core/score.dart) is shown in app/lib/widgets/compare_panel.dart (Fine-tune). Goal presets (Goal, weightsFor) and scoreWhy are in app/lib/core/ranking.dart and tested in app/test/core/ranking_test.dart. The goal chips (app/lib/widgets/goal_chips.dart, calling AppState.setGoal) are on Explore and Compare; scoreWhy is shown in app/lib/widgets/winner_card.dart (Compare) and app/lib/screens/learn.dart (How the score works). Calendar: app/lib/widgets/good_days_calendar.dart; good days by month: app/lib/widgets/calendar_race.dart; longest night: app/lib/widgets/plan_for_dark_card.dart.
 - Numbers shown in the app: app/lib/screens/validation_page.dart (reads validation.json; its Limitations list gives the light map as "82–94%").

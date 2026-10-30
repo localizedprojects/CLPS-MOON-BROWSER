@@ -7,10 +7,11 @@ aloud: the app recomputes them for "the next 12 months" from today's date.
 default settings (next 12 months, 2 m lander). Close other tabs. Have the "Can I trust
 these numbers?" page one tap away. Total: about 3:00.
 
-**What it should look like** (web builds of 13 October 2026 for the landing window with Sky & time and the phone Sky & time, and of 12 October 2026 for the rest; the dates will differ
+**What it should look like** (version 1.9.1 web build of 30 October 2026; the dates will differ
 on the day): the [landing window and Sky & time](screenshots/site-landing-sky-desktop.webp)
 for Malapert peak (MP1), the [phone landing card](screenshots/landing-phone.webp) and
-[Sky & time on a phone](screenshots/sky-phone.webp), and [Compare](screenshots/compare-desktop.webp).
+[Sky & time on a phone](screenshots/sky-phone.webp), the [Lander view](screenshots/lander-desktop.webp)
+([on a phone](screenshots/lander-phone.webp)), and [Compare](screenshots/compare-desktop.webp).
 
 ---
 

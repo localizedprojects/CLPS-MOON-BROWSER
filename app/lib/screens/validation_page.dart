@@ -14,8 +14,25 @@ import 'how_calculated.dart';
 class ValidationPage extends StatelessWidget {
   const ValidationPage({super.key});
 
-  static Future<Map<String, dynamic>> _load() async =>
-      jsonDecode(await rootBundle.loadString('assets/data/validation.json')) as Map<String, dynamic>;
+  static Future<Map<String, dynamic>> _load() async {
+    final v = jsonDecode(await rootBundle.loadString('assets/data/validation.json')) as Map<String, dynamic>;
+    // the preset catalogue's size: the skyline check covers the 16 presets
+    // from before the three mission sites of 1.8.0, so "16 of 19 preset sites"
+    try {
+      final s = jsonDecode(await rootBundle.loadString('assets/data/sites.json')) as Map<String, dynamic>;
+      v['_presetCount'] = (s['sites'] as List).length;
+    } catch (_) {
+      // no catalogue: the count alone
+    }
+    return v;
+  }
+
+  /// "16 of 19 preset sites" ([checked] of the [total] presets), or
+  /// "16 preset sites" when all of them are checked or the total is unknown.
+  static String presetsChecked(int? checked, int? total) {
+    if (checked == null) return '– preset sites';
+    return total != null && total > checked ? '$checked of $total preset sites' : '$checked preset sites';
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -73,7 +90,7 @@ class ValidationPage extends StatelessWidget {
                 if (sky.isNotEmpty)
                   _Row('Skylines vs an independent ray tracer',
                       'mean ${(b(sky, 'overall')['meanOfMeansAbsDeg'] as num?)?.toStringAsFixed(2) ?? '–'}°',
-                      '${(sky['sites'] as Map?)?.length ?? '–'} preset sites'),
+                      presetsChecked((sky['sites'] as Map?)?.length, v['_presetCount'] as int?)),
                 const Padding(
                   padding: EdgeInsets.only(top: 4),
                   child: FidelityBadge(text: FidelityBadge.customHorizon),

@@ -35,8 +35,19 @@ class FocusableChart extends StatelessWidget {
 
   /// Full screen in landscape on a phone or tablet (a wide chart).
   final bool landscape;
+
+  /// The "Open full screen" button drawn over the chart's top-right corner.
+  /// False when the page shows a [ChartFocusButton] beside the chart's
+  /// heading instead, so the button never covers the chart's own controls
+  /// (Compare's "Exact numbers" sat under it at 1440 px, 1.9.2).
+  final bool overlayButton;
   const FocusableChart(
-      {super.key, required this.controller, required this.semanticsLabel, required this.title, this.landscape = false});
+      {super.key,
+      required this.controller,
+      required this.semanticsLabel,
+      required this.title,
+      this.landscape = false,
+      this.overlayButton = true});
 
   @override
   Widget build(BuildContext context) {
@@ -57,22 +68,47 @@ class FocusableChart extends StatelessWidget {
       Positioned.fill(
         child: GestureDetector(behavior: HitTestBehavior.opaque, excludeFromSemantics: true, onTap: open),
       ),
-      Positioned(
-        top: 2,
-        right: 2,
-        child: IconButton(
-          key: ValueKey('chart-focus-${controller.view}'),
-          tooltip: 'Open the $title full screen',
-          onPressed: open,
-          style: IconButton.styleFrom(
-            backgroundColor: const Color(0xCC0C1528),
-            foregroundColor: PH.text,
-            minimumSize: const Size(48, 48),
-          ),
-          icon: const Icon(Icons.open_in_full, size: 20),
+      if (overlayButton)
+        Positioned(
+          top: 2,
+          right: 2,
+          child: ChartFocusButton(
+              controller: controller, semanticsLabel: semanticsLabel, title: title, landscape: landscape),
         ),
-      ),
     ])));
+  }
+}
+
+/// The 48 dp "Open the <title> full screen" button of a [FocusableChart]:
+/// over the chart's corner, or placed by the page outside the chart (see
+/// [FocusableChart.overlayButton]). Nothing without a [ChartHub].
+class ChartFocusButton extends StatelessWidget {
+  final ChartController controller;
+  final String semanticsLabel, title;
+  final bool landscape;
+  const ChartFocusButton(
+      {super.key, required this.controller, required this.semanticsLabel, required this.title, this.landscape = false});
+
+  @override
+  Widget build(BuildContext context) {
+    final ChartHub hub;
+    try {
+      hub = context.read<ChartHub>();
+    } on ProviderNotFoundException {
+      return const SizedBox.shrink();
+    }
+    return IconButton(
+      key: ValueKey('chart-focus-${controller.view}'),
+      tooltip: 'Open the $title full screen',
+      onPressed: () => openChartFocus(context,
+          hub: hub, controller: controller, title: title, semanticsLabel: semanticsLabel, landscape: landscape),
+      style: IconButton.styleFrom(
+        backgroundColor: const Color(0xCC0C1528),
+        foregroundColor: PH.text,
+        minimumSize: const Size(48, 48),
+      ),
+      icon: const Icon(Icons.open_in_full, size: 20),
+    );
   }
 }
 

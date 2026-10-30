@@ -6,11 +6,12 @@
 // was clipped to that width (zoom in and turn right could not be tapped).
 import 'dart:math' as math;
 import 'dart:typed_data';
+import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:polar_horizon/core/dem.dart';
-import 'package:polar_horizon/core/lander_view.dart' show LanderMesh;
+import 'package:polar_horizon/core/lander_view.dart' show LanderMesh, SkyState;
 import 'package:polar_horizon/core/shadow.dart' show lightEarth, lightSunAny, lightSunFull;
 import 'package:polar_horizon/main.dart';
 import 'package:polar_horizon/screens/site/light_tab.dart';
@@ -74,7 +75,10 @@ const phones = <Phone>[
 
 void main() {
   late AppState state;
-  setUpAll(loadPlexFonts);
+  setUpAll(() {
+    LanderPainter.debugRecord = true;
+    return loadPlexFonts();
+  });
   setUp(() async {
     state = AppState();
     await state.init();
@@ -237,6 +241,95 @@ void main() {
     await done(tester);
   });
 
+  // W18 (callout): the Sun just under the compass strip (1.9.1 on the emulator:
+  // MP1, 30 Oct 2026 00:00 UTC, Sun az 311.4 el +4.1, camera pitch 0, and
+  // after Face the Sun); no place for its two-line callout fitted between the
+  // compass strip and the bottom strip clear of its disc and the crosshair, so
+  // the words went under the centre readout ('in view' hidden by it). A
+  // callout never goes under the bottom strip's boxes: above the disc instead,
+  // never over an edge chevron's words; where nothing fits (the disc inside
+  // the compass strip, or a chevron over the place above it) the centre
+  // readout is left out and the words go under the crosshair, never over it
+  // or the body's glyph.
+  testWidgets('W18 Pixel 4 portrait: the Sun\'s callout under the compass strip keeps off the readout and the legend',
+      (tester) async {
+    phone(tester, phones.first);
+    await openLander(tester);
+    final st = panelState(tester);
+    final cp = find.byWidgetPredicate((w) => w is CustomPaint && w.painter is LanderPainter);
+    final view = tester.getSize(cp);
+    expect(view.width, closeTo(352.7, 1));
+    final sun = (tester.widget<CustomPaint>(cp).painter! as LanderPainter).sun!;
+    expect(sun.state, SkyState.up, reason: 'the Sun in view, as on the emulator');
+    // the panel's own painter, painted again with its near ground hatched (as at
+    // MP1 on the emulator): the legend's second line raises the readout over it
+    // ([earth]: Earth moved; [readout]: the centre readout must show, else it
+    // may be left out to give the words their place). No edge chevron's words
+    // under a callout (a tap target).
+    void check(String when, {bool readout = true, SkyBody? earth}) {
+      final p = tester.widget<CustomPaint>(cp).painter! as LanderPainter;
+      final n = p.seeThrough?.length ?? p.colors!.length;
+      LanderPainter(
+              cam: p.cam, mesh: p.mesh, proj: p.proj, colors: p.colors, patterns: p.patterns, sun: p.sun,
+              earth: earth ?? p.earth, sunWord: p.sunWord, earthWord: p.earthWord, maskDeg: p.maskDeg,
+              maskStepDeg: p.maskStepDeg, maskLabel: p.maskLabel, probe: p.probe, probeAt: p.probeAt,
+              seeThrough: Int32List(n)..fillRange(0, n, 0x80FFFFFF), status: p.status, textScaler: p.textScaler)
+          .paint(Canvas(ui.PictureRecorder()), view);
+      final strip = LanderPainter.paintedStrip!, boxes = LanderPainter.paintedSky!.callouts;
+      if (readout) expect(strip.readout, isNotNull, reason: '$when: the centre readout is shown');
+      expect(strip.legend!.height, greaterThan(25), reason: '$when: two lines in the legend');
+      expect(boxes, isNotEmpty, reason: '$when: the Sun keeps its callout');
+      final v = st.cam.view(view), a = LanderPainter.calloutAnchor(v, sun)!;
+      final rows = [
+        for (final (r, _, _, _) in LanderPainter.chevrons(v, sun, earth ?? p.earth))
+          Rect.fromLTWH(r.left, 0, r.width, LanderPainter.chevronRowH)
+      ];
+      for (final b in boxes) {
+        for (final s in [?strip.readout, strip.legend!]) {
+          expect(b.overlaps(s), isFalse, reason: '$when: callout $b vs strip box $s (view $view)');
+        }
+        expect(b.overlaps(LanderPainter.reticleBox(view)), isFalse, reason: '$when: $b over the crosshair');
+        expect(b.overlaps(Rect.fromCircle(center: a.disc, radius: 3)), isFalse, reason: '$when: $b over the disc');
+        expect(b.overlaps(Rect.fromCircle(center: a.glyph, radius: 2)), isFalse, reason: '$when: $b over the glyph\'s centre');
+        for (final r in rows) {
+          expect(b.overlaps(r), isFalse, reason: '$when: $b over an edge chevron\'s words $r');
+        }
+      }
+    }
+
+    // pitch 0 with the Sun 4.1 deg above the centre row: just under the compass strip
+    st.cam.set(yaw: sun.az, pitch: sun.el - 4.1);
+    await tester.pump(const Duration(milliseconds: 400));
+    final a = LanderPainter.calloutAnchor(st.cam.view(view), sun)!;
+    expect(a.glyph.dy, inInclusiveRange(LanderPainter.compassH, LanderPainter.compassH + 16),
+        reason: 'the Sun just under the compass strip');
+    final e = (tester.widget<CustomPaint>(cp).painter! as LanderPainter).earth ?? sun;
+    // Earth under the view at the Sun's azimuth (no edge chevron): the words above the disc,
+    // over the strip's sky, the readout kept
+    check('pitch 0, no chevron', earth: (az: sun.az, el: sun.el - 60, rhoDeg: e.rhoDeg, state: e.state));
+    // Earth off the view on either side: its edge chevron's words over the strip's sky above
+    // the Sun; the readout is left out and the words go under the crosshair
+    for (final d in [30.0, -30.0]) {
+      final off = (az: sun.az + d, el: e.el, rhoDeg: e.rhoDeg, state: e.state);
+      expect(LanderPainter.chevrons(st.cam.view(view), sun, off).where((c) => !c.$2), hasLength(1),
+          reason: 'Earth ${d}deg off: its edge chevron is shown');
+      check('pitch 0, Earth ${d}deg off', readout: false, earth: off);
+    }
+    // the site's own Earth (its chevron, if any, kept clear)
+    check('pitch 0', readout: false);
+    st.faceSun();
+    await tester.pumpAndSettle();
+    check('after Face the Sun');
+    // pitch 0 with the Sun 7 deg above the centre row: its disc inside the compass strip, near the middle
+    st.cam.set(yaw: sun.az, pitch: sun.el - 7);
+    await tester.pump(const Duration(milliseconds: 400));
+    final d = LanderPainter.calloutAnchor(st.cam.view(view), sun)!.disc;
+    expect(d.dy, lessThan(LanderPainter.compassH), reason: 'the Sun\'s disc inside the compass strip');
+    expect(d.dx, closeTo(view.width / 2, 2), reason: 'the Sun near the middle');
+    check('disc in the strip', readout: false);
+    await done(tester);
+  });
+
   // phone landscape (the short side-by-side layout): the time bar beside the
   // view; the top bars hide (as for Play), so at least 120 dp of the scene
   // shows under the 48 dp compass strip and both switches fit in the side
@@ -384,6 +477,25 @@ void main() {
       await tester.pump();
       await tester.pump();
       expect(identical(panelState(tester).mesh, m), isTrue, reason: 'taken from the app state, not built again');
+      await done(tester);
+    });
+
+    testWidgets('Lander > Site > Lander: the first frame of the new panel already has the kept mesh', (tester) async {
+      phone(tester, phones.first);
+      final m = await built(tester);
+      view(tester, LightViewKind.closeUp);
+      await tester.pump();
+      expect(find.byType(LanderViewPanel), findsNothing);
+      view(tester, LightViewKind.lander);
+      await tester.pump(); // the new panel's first frame, before any post-frame callback has run
+      final painter = tester
+          .widgetList<CustomPaint>(find.descendant(of: find.byType(LanderViewPanel), matching: find.byType(CustomPaint)))
+          .map((c) => c.painter)
+          .whereType<LanderPainter>()
+          .single;
+      expect(identical(painter.mesh, m), isTrue, reason: 'taken from the app state in initState, not a frame later');
+      expect(painter.status ?? '', isNot(contains('Building the view')));
+      expect(find.bySemanticsLabel(RegExp('Building the view')), findsNothing);
       await done(tester);
     });
 

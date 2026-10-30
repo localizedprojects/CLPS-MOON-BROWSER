@@ -253,6 +253,28 @@ Draw only what is computed: shadowed ground is dark, and the Earth layer still s
 - Tap targets are 48 dp; tapping turns to the body.
 - Labels are laid out clear of each other, as `ArrowLabelMemory` does.
 - Build (1.9.1, after a review of emulator screenshots): a body inside the view but under the compass strip keeps its callout, placed under the strip with its leader up to the disc, and the strip's dimming leaves the disc (and the leader) out. The callout words keep off the centre crosshair (after Face the Sun the body sits on it) and no crosshair arm is drawn across them. Two edge chevrons on one edge sit side by side, each a 104 x 48 dp target, on a translucent band over the words' row only, so the ticks and azimuth labels under them stay in view.
+- Build (1.9.2, after the 1.9.1 emulator run showed the Sun's second line under the centre readout on a Pixel 4):
+  - Placement order. A callout never covers the centre readout, the legend, or an edge chevron's word row. Below those, the order is:
+    1. the crosshair, its own glyph and disc;
+    2. then the other body's callout and glyph.
+  - Candidate places. Beside the glyph, rows above and under it, and places by the other body's callout and the crosshair. Then above the disc, beside the glyph raised clear of the crosshair, beside the disc at its top, and beside the other callout under the crosshair. In a short view a box may sit over the compass strip's sky, never over an edge chevron's words; it goes just under them where that fits.
+  - Where Earth's words find no place clear of the Sun's, Earth is placed first and the Sun clear of it, so both keep their words in full where that fits.
+  - The bottom-strip floor applies only where a legend or readout box sits under the candidate box.
+  - Words before the readout. The centre readout is the secondary probe. It is dropped only when every callout then gets a clean place, or a body then keeps more of its words. A body's words outrank it.
+  - Shortening order, when no clean place is left:
+    1. Earth's callout (beside the Sun's) shortens to its position line.
+    2. Then it merges into the Sun's callout as a second line.
+    3. Then it shows its glyph alone.
+    A lone body shortens the same way: its position line (with the status word when the glyph does not show it), then its glyph alone.
+  - Two callout boxes are never stacked, a lunar eclipse included.
+  - Over the compass strip, a box never covers an edge chevron's words or the other body's azimuth marker. The exception is a lunar eclipse, where the two markers lie on top of each other. Soft keeps are kept clear where a place that fits allows, and are given up before the crosshair, a glyph or the readout:
+    1. the other body's disc and leader;
+    2. the rest of a chevron's tap target;
+    3. the body's own marker, since its callout repeats the azimuth;
+    4. the heading pointer.
+  - Both leaders are painted before both boxes, so a leader never crosses the other body's words.
+  - Placement cost: every candidate list is built only when reached, and each place is tried once. Placement takes about 0.3–1.3 ms of a paint in `flutter test` on a desktop CPU.
+  - The release gate is one harness painting the same 25,200 frames with the 1.9.1 and 1.9.2 code (5 view sizes × hfov 10/45/90° × pitch −30/0/+30° × 70 body positions × 8 scenes). 1.9.2 has no more overlaps than 1.9.1 in any category. It drops the readout more often, but only where that gives the callouts a clean place or a body more of its words. Tests W17–W24 cover it.
 
 **Compass strip** (48 dp tall, inside the top edge, D17).
 - Ticks every 5°, labels every 30° (`030`, Plex Mono tabular); N/E/S/W in larger type.

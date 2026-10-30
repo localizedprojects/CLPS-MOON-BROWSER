@@ -85,6 +85,11 @@ void main() {
     final list = find.byType(Scrollable).first;
     await tester.scrollUntilVisible(find.text('In short'), 300, scrollable: list);
     expect(find.textContaining('Planner mode'), findsNothing);
+    // the skyline check covers the 16 presets from before the three mission sites (1.9.2)
+    await tester.scrollUntilVisible(find.text('16 of 19 preset sites'), 200, scrollable: list);
+    expect(find.text('16 of 19 preset sites'), findsOneWidget);
+    expect(ValidationPage.presetsChecked(16, 16), '16 preset sites');
+    expect(ValidationPage.presetsChecked(null, 19), '– preset sites');
     expect(find.textContaining('360°'), findsNothing);
     expect(find.textContaining('484'), findsNothing);
     final link = find.widgetWithText(FilledButton, 'How it\'s calculated');

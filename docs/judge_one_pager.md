@@ -39,7 +39,7 @@
 
 ![Malapert peak (MP1): the best 14-day landing window next to the Sky & time view](screenshots/site-landing-sky-desktop.webp)
 
-*Version 1.9.1 web build of 30 October 2026, next 12 months, 2 m lander. More screenshots are in the [README](../README.md#screenshots).*
+*Version 1.9.2 web build of 30 October 2026, next 12 months, 2 m lander. More screenshots are in the [README](../README.md#screenshots).*
 
 **Next steps.** Refine near-field terrain with 20 m LOLA data, check the 2 m Earth numbers at peaks and ridges (Malapert peak's 56% rises to 78% with a 10 m mast).
 

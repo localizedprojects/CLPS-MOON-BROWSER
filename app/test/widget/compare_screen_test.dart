@@ -9,6 +9,7 @@ import 'package:polar_horizon/screens/compare.dart';
 import 'package:polar_horizon/state/app_state.dart';
 import 'package:polar_horizon/state/chart_hub.dart';
 import 'package:polar_horizon/theme.dart';
+import 'package:polar_horizon/widgets/chart_view.dart';
 import 'package:polar_horizon/widgets/compare_panel.dart';
 import 'package:polar_horizon/widgets/ranked_cards.dart';
 import 'package:polar_horizon/widgets/shortlist_bar.dart';
@@ -141,6 +142,31 @@ void main() {
             reason: 'phones: the chart comes before the shortlist and goals');
       }
       expect(find.byType(CompareChart), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+  }
+
+  // 1.9.2: the full-screen button covered the chart's own "Exact numbers"
+  // toggle ("Exact nur" at 1440x900). The toggle is drawn by the React chart
+  // at the chart's top right, inside the chart host's rect (a stub here), so
+  // the button must stay clear of that whole rect, at any width.
+  for (final size in const [Size(1440, 900), Size(390, 844)]) {
+    testWidgets('${size.width.round()}x${size.height.round()}: the full-screen button never covers the chart\'s '
+        '"Exact numbers" toggle', (tester) async {
+      await pumpCompare(tester, size: size);
+      final card = find.byType(CompareChart);
+      final button = tester.getRect(find.descendant(of: card, matching: find.byKey(const ValueKey('chart-focus-compare'))));
+      final chart = tester.getRect(find.descendant(of: card, matching: find.byType(ChartView)));
+      // where the toggle's label sits: the chart's top-right corner, one 48 px
+      // row tall and wide enough for "Exact numbers" (styles.css .ph-detail)
+      final toggle = Rect.fromLTRB(chart.right - 8 - 140, chart.top, chart.right, chart.top + 56);
+      expect(button.overlaps(chart), isFalse, reason: 'button $button over the chart $chart');
+      expect(button.overlaps(toggle), isFalse);
+      expect(button.width, greaterThanOrEqualTo(48));
+      expect(button.height, greaterThanOrEqualTo(48));
+      expect(button.bottom, lessThanOrEqualTo(chart.top));
+      expect((button.right - chart.right).abs(), lessThanOrEqualTo(1), reason: 'still at the chart\'s right edge');
+      expect(find.descendant(of: card, matching: find.byTooltip('Open the Side by side chart full screen')), findsOneWidget);
       expect(tester.takeException(), isNull);
     });
   }

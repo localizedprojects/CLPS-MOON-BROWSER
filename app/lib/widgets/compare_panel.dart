@@ -172,15 +172,19 @@ class CompareChart extends StatelessWidget {
   @override
   Widget build(BuildContext context) => LayoutBuilder(builder: (context, c) {
         final w = c.maxWidth.isFinite ? c.maxWidth : 600.0;
+        const label = 'Bar chart comparing the shortlisted sites', title = 'Side by side chart';
+        // The full-screen button sits in the heading row, outside the chart:
+        // over the chart it covered the chart's own "Exact numbers" toggle at
+        // the top right ("Exact nur" at 1440 px, 1.9.2), at any width.
         return Column(crossAxisAlignment: CrossAxisAlignment.stretch, mainAxisSize: MainAxisSize.min, children: [
-          if (showTitle) ...[
-            Text('Side by side', style: PHText.subtitle),
-            const SizedBox(height: 8),
-          ],
+          Row(children: [
+            Expanded(child: showTitle ? Text('Side by side', style: PHText.subtitle) : const SizedBox.shrink()),
+            ChartFocusButton(controller: chart, semanticsLabel: label, title: title),
+          ]),
+          const SizedBox(height: 4),
           SizedBox(
             height: compareChartHeight(rows, w, exact: exact),
-            child: FocusableChart(
-                controller: chart, semanticsLabel: 'Bar chart comparing the shortlisted sites', title: 'Side by side chart'),
+            child: FocusableChart(controller: chart, semanticsLabel: label, title: title, overlayButton: false),
           ),
         ]);
       });

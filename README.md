@@ -519,7 +519,7 @@ CLAUDE.md                   conventions for contributors and coding agents
 
 | Suite | Location | Command | Count |
 |---|---|---|---|
-| Flutter: Dart core, state, widgets | `app/test/` | `flutter test` | 1,209 pass, 4 skipped, with `flutter analyze` clean (30 October 2026) |
+| Flutter: Dart core, state, widgets | `app/test/` | `flutter test` | 1,233 pass, 4 skipped, with `flutter analyze` clean (30 October 2026) |
 | Chart bundle | `charts/src/*.test.ts` | `npm test` | 164 (30 October 2026) |
 | Python pipeline | `pipeline/tests/` | `python -m pytest` | 635: 633 pass, 2 skipped (DE442 not downloaded), with the SPICE kernels and LOLA DEMs in the cache (30 October 2026; about 180 tests skip without them) |
 | Python library | `pylib/tests/` | `python -m pytest` (from `pylib/`) | 520 pass, with the SPICE kernels in the cache (30 October 2026; some skip without them) |

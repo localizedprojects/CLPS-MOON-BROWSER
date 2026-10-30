@@ -798,13 +798,29 @@ class LanderPainter extends CustomPainter {
     return p.front ? Offset(p.x, p.y) : null;
   }
 
-  /// The disc centre, the glyph 24 dp above it and the disc radius in px,
-  /// or null when the body is off the view (below the compass strip).
+  /// Radius (px) of the callout glyph's body; a disc this small or smaller
+  /// is drawn under its glyph.
+  static const double glyphR = 9;
+
+  /// The disc centre, the glyph and the disc radius in px, or null when the
+  /// body is off the view (below the compass strip). While the disc is no
+  /// bigger than the glyph, the glyph sits on the body's true spot, so it reads
+  /// true against the elevation scale and a hidden body's glyph sits in the
+  /// terrain. A bigger disc shows itself: the glyph goes 24 dp above it when the
+  /// drawn terrain leaves it up, else below it, never in the sky over a body
+  /// the terrain hides.
   static ({Offset disc, Offset glyph, double rPx})? calloutAnchor(LanderView v, SkyBody b) {
     final p = at(v, b.az, b.el);
     if (p == null || p.dx < 0 || p.dx > v.w || p.dy < compassH || p.dy > v.h) return null;
     final rPx = b.rhoDeg / v.hfovDeg * v.w;
-    return (disc: p, glyph: Offset(p.dx, math.max(compassH + 12, p.dy - math.max(24.0, rPx + 14))), rPx: rPx);
+    if (rPx <= glyphR) return (disc: p, glyph: p, rPx: rPx);
+    final off = math.max(24.0, rPx + 14);
+    final up = b.state == SkyState.up || b.state == SkyState.partlyBehindTerrain;
+    return (
+      disc: p,
+      glyph: Offset(p.dx, up ? math.max(compassH + 12, p.dy - off) : math.min(v.h - 12, p.dy + off)),
+      rPx: rPx
+    );
   }
 
   /// [r] grown to whole logical pixels: a 48 dp box built around a centre can
@@ -907,7 +923,8 @@ class LanderPainter extends CustomPainter {
       '${isSun ? 'Sun' : 'Earth'} · az ${((b.az % 360 + 360) % 360).toStringAsFixed(1)}° · el ${sgn(b.el)}',
       word,
       // (an eclipse's share after the comma is not a terrain word)
-      if (mesh != word.split(',').first && sky != null) '400 m terrain here: $mesh, skyline ${sgn(sky)}',
+      // the skyline of the solid ground from 800 m (the light map's); nearer ground is see-through above it
+      if (mesh != word.split(',').first && sky != null) '400 m terrain here: $mesh, skyline ${sgn(sky)} beyond 800 m',
     ];
   }
 
@@ -954,6 +971,8 @@ class LanderPainter extends CustomPainter {
       ..strokeWidth = 1;
     if (a.disc.dy - a.rPx - 2 > a.glyph.dy + 10) {
       canvas.drawLine(Offset(a.disc.dx, a.disc.dy - a.rPx - 2), a.glyph + const Offset(0, 10), lead);
+    } else if (a.glyph.dy - 10 > a.disc.dy + a.rPx + 2) {
+      canvas.drawLine(Offset(a.disc.dx, a.disc.dy + a.rPx + 2), a.glyph - const Offset(0, 10), lead);
     }
     if (up) {
       canvas.save();

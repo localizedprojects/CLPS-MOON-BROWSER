@@ -64,7 +64,7 @@ void main() {
       size(tester, 390, 844);
       await pumpSite(tester, 'derosa2012-sr1-shackleton-rim', SiteTab.light);
       final layer = find.byType(SegmentedButton<LightLayer>);
-      final view = find.byType(SegmentedButton<bool>);
+      final view = find.byType(SegmentedButton<LightViewKind>);
       expect(layer, findsOneWidget);
       expect(find.descendant(of: layer, matching: find.text('Both')), findsOneWidget, reason: 'the short labels');
       expect(rawTooltipsIn(layer), findsNothing);

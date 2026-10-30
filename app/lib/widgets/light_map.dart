@@ -19,13 +19,15 @@ import 'dart:math' as math;
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
-import 'package:flutter/foundation.dart' show listEquals;
+import 'package:flutter/foundation.dart' show kIsWeb, listEquals;
 import 'package:flutter/material.dart';
 
 import '../core/catalog.dart';
 import '../core/dem.dart';
 import '../core/eclipse.dart';
 import '../core/geo.dart' show Observer;
+import '../core/lander_view.dart' show LanderMesh, landerNearAlpha;
+import '../state/lander_light.dart' show landerNotComputedArgb;
 import '../core/relief.dart';
 import '../core/shadow.dart';
 import '../core/visibility.dart' show EarthCriterion, SunCriterion, earthVisible;
@@ -37,6 +39,7 @@ import 'chart_bridge.dart' show nowAt, utcLabel;
 import 'glyphs.dart';
 import 'time_bar.dart' show utcTwoLines;
 import 'feature_guide.dart';
+import 'lander_view.dart';
 
 export '../state/light_engine.dart' show LightClass, LightLayer, classify, lightOverlayPixels, lightPixel;
 export '../core/wording.dart' show eclipseSharePct;
@@ -499,6 +502,10 @@ class LightMap extends StatefulWidget {
   /// the width) to fit a short slot; the map then scrolls with the controls.
   static const minStackedSide = 240.0;
 
+  /// The side column's least width beside the lander's view in phone
+  /// landscape (the view takes the rest, §5).
+  static const landerSideMin = 300.0;
+
   /// The stacked layout pins the switches above the map when a whole map at
   /// least this big (or the width) fits under them; a smaller slot scrolls
   /// the switches, a [minStackedSide] map and the rest together instead.
@@ -507,12 +514,17 @@ class LightMap extends StatefulWidget {
   /// The view and layer switch labels: full words where both switches fit on
   /// one row, otherwise (phones) these short ones, so that both share one
   /// 48 dp row above the map and leave it as much height as possible.
-  static const switchLabels = (view: ['Around site', 'Whole region'], layer: ['Sunlight', 'Earth view', 'Both']);
-  static const shortSwitchLabels = (view: ['Site', 'Region'], layer: ['Sun', 'Earth', 'Both']);
+  static const switchLabels = (view: ['Around site', 'Whole region', 'Lander'], layer: ['Sunlight', 'Earth view', 'Both']);
+  static const shortSwitchLabels = (view: ['Site', 'Region', 'Lander'], layer: ['Sun', 'Earth', 'Both']);
 
-  /// Side padding of a text-only segment (10 dp, so the short labels share
-  /// one row even on a 360 dp phone).
+  /// Side padding of a text-only segment with the full labels.
   static const segmentPad = 10.0;
+
+  /// Side padding of a short-label segment: 6 dp, so the three view and
+  /// three layer segments still share one 48 dp row on a 393 dp phone (a
+  /// 360 dp one gives each switch its own row). Every segment stays at least
+  /// [segmentMin] wide.
+  static const shortSegmentPad = 6.0;
 
   /// The smallest segment: a full 48 dp tap target.
   static const segmentMin = 48.0;
@@ -522,7 +534,7 @@ class LightMap extends StatefulWidget {
   /// even the short ones do not fit, the two switches take one row each.
   static ({bool icons, bool short, int rows}) switchFit(double width, TextScaler scaler) {
     // a segmented button gives every segment the width of its widest one
-    double seg(List<String> labels, bool icons) {
+    double seg(List<String> labels, bool icons, double pad) {
       var widest = 0.0;
       for (final l in labels) {
         final tp = TextPainter(
@@ -531,17 +543,17 @@ class LightMap extends StatefulWidget {
             textScaler: scaler)
           ..layout();
         // an icon segment: 18 dp icon, 8 dp gap, 12 + 16 dp padding
-        widest = math.max(widest, math.max(segmentMin, tp.width + (icons ? 18 + 8 + 28 : 2 * segmentPad)));
+        widest = math.max(widest, math.max(segmentMin, tp.width + (icons ? 18 + 8 + 28 : 2 * pad)));
         tp.dispose();
       }
       return labels.length * widest + 2 + 2; // the outline, a little slack
     }
 
-    bool fits(({List<String> view, List<String> layer}) l, bool icons) =>
-        seg(l.view, icons) + 12 + seg(l.layer, icons) <= width;
+    bool fits(({List<String> view, List<String> layer}) l, bool icons, {double pad = segmentPad}) =>
+        seg(l.view, icons, pad) + 12 + seg(l.layer, icons, pad) <= width;
     if (fits(switchLabels, true)) return (icons: true, short: false, rows: 1);
     if (fits(switchLabels, false)) return (icons: false, short: false, rows: 1);
-    if (fits(shortSwitchLabels, false)) return (icons: false, short: true, rows: 1);
+    if (fits(shortSwitchLabels, false, pad: shortSegmentPad)) return (icons: false, short: true, rows: 1);
     return (icons: false, short: true, rows: 2);
   }
 
@@ -590,14 +602,16 @@ class LightMap extends StatefulWidget {
 }
 
 class _LightMapState extends State<LightMap> {
-  bool closeUp = true;
+  LightViewKind kind = LightViewKind.closeUp;
+  // the lander's view uses the close-up frames (the same requests and cache entries as the map)
+  bool get closeUp => kind != LightViewKind.region;
   LightLayer layer = LightLayer.sun;
 
   // The view and layer choices outlive this State: the site screen and the
   // Light tab build the map under a different parent in portrait, phone
   // landscape and two panes, so rotating the phone makes a new State (qa-2).
   // They are kept in the route's PageStorage bucket under fixed ids.
-  static const _closeUpId = 'light-map-close-up', _layerId = 'light-map-layer';
+  static const _closeUpId = 'light-map-close-up', _viewId = 'light-map-view', _layerId = 'light-map-layer';
 
   void _remember(Object id, Object value) => PageStorage.maybeOf(context)?.writeState(context, value, identifier: id);
 
@@ -622,6 +636,9 @@ class _LightMapState extends State<LightMap> {
 
   // legend shares of the shown frame, computed once per frame
   final _labelMemory = ArrowLabelMemory();
+
+  /// The lander's view's mesh (its FidelityBadge reads the eye height and DEM ends).
+  final _landerMesh = ValueNotifier<LanderMesh?>(null);
   LightFrame? _sharesFrame;
   LightShares? _shares;
 
@@ -648,7 +665,12 @@ class _LightMapState extends State<LightMap> {
     super.initState();
     final store = PageStorage.maybeOf(context);
     final c = store?.readState(context, identifier: _closeUpId), l = store?.readState(context, identifier: _layerId);
-    if (c is bool) closeUp = c;
+    final v = store?.readState(context, identifier: _viewId);
+    if (v is String) {
+      kind = LightViewKind.values.firstWhere((k) => k.name == v, orElse: () => kind);
+    } else if (c is bool) {
+      kind = c ? LightViewKind.closeUp : LightViewKind.region; // the old bool switch
+    }
     if (l is LightLayer) layer = l;
     _images.update(active: widget.active, layer: layer);
   }
@@ -680,6 +702,7 @@ class _LightMapState extends State<LightMap> {
   @override
   void dispose() {
     _debounce?.cancel();
+    _landerMesh.dispose();
     if (widget.active) LightMap.framePending.value = false;
     _images.dispose();
     _relief.dispose();
@@ -689,16 +712,7 @@ class _LightMapState extends State<LightMap> {
   void _maybeRequest() {
     final s = widget.state, eph = s.eph;
     if (!widget.active || eph == null || !mounted) return;
-    final site = s.site, t = s.cursorMs;
-    final q = LightRequest(
-        closeUp: closeUp,
-        lat: site.lat,
-        lon: site.lon,
-        sun: eph.sun(t),
-        earth: eph.earth(t),
-        tMs: t,
-        observerHeightM: s.observerHeightM,
-        coarse: s.playing);
+    final q = lightRequestFor(s, extent: closeUp ? LightExtent.closeUp : LightExtent.region);
     if (q.key == _sentKey) return;
     _sentKey = q.key;
     _queued = q;
@@ -720,18 +734,7 @@ class _LightMapState extends State<LightMap> {
     final t = q.tMs + s.playStepMs; // what _tick will set: the same sum
     // _tick stops (and sets the last time itself) once a step would reach it
     if (t < s.rangeStartMs || t >= s.lastCursorMs) return;
-    final site = s.site;
-    engine
-        .compute(LightRequest(
-            closeUp: closeUp,
-            lat: site.lat,
-            lon: site.lon,
-            sun: eph.sun(t),
-            earth: eph.earth(t),
-            tMs: t,
-            observerHeightM: s.observerHeightM,
-            coarse: true))
-        .ignore();
+    engine.compute(lightRequestFor(s, extent: closeUp ? LightExtent.closeUp : LightExtent.region, tMs: t, coarse: true)).ignore();
   }
 
   /// Latest request wins: while a frame computes, newer requests replace
@@ -856,33 +859,41 @@ class _LightMapState extends State<LightMap> {
           fit.short ? Semantics(label: '$text: $meaning', excludeSemantics: true, child: Text(text)) : Text(text);
       // segments are text buttons at least 64 dp wide; a horizontal density
       // of -4 makes that 48 dp (still a full tap target, and 48 dp tall), so
-      // the short labels share one row on a 360 dp phone
+      // the short labels share one row on a 393 dp phone
       final style = compact
-          ? const ButtonStyle(
-              padding: WidgetStatePropertyAll(EdgeInsets.symmetric(horizontal: LightMap.segmentPad)),
-              visualDensity: VisualDensity(horizontal: -4, vertical: 0))
+          ? ButtonStyle(
+              padding: WidgetStatePropertyAll(
+                  EdgeInsets.symmetric(horizontal: fit.short ? LightMap.shortSegmentPad : LightMap.segmentPad)),
+              visualDensity: const VisualDensity(horizontal: -4, vertical: 0))
           : null;
       return Wrap(spacing: 12, runSpacing: 10, crossAxisAlignment: WrapCrossAlignment.center, children: [
       if (title) const Text('Light & shadow', style: PHText.subtitle),
       if (title) Text(utcLabel(tMap), style: numStyle(size: 13, color: PH.muted)),
-      GuideTarget(id: 'light-view', child: SegmentedButton<bool>(
+      GuideTarget(id: 'light-view', child: SegmentedButton<LightViewKind>(
         showSelectedIcon: false,
         style: style,
         segments: [
           ButtonSegment(
-              value: true,
+              value: LightViewKind.closeUp,
               label: segLabel(l.view[0], 'Around the site (64 km)'),
               icon: compact ? null : const Icon(Icons.center_focus_strong, size: 18)),
           ButtonSegment(
-              value: false,
+              value: LightViewKind.region,
               label: segLabel(l.view[1], 'Whole region (inside 80°S)'),
               icon: compact ? null : const Icon(Icons.public, size: 18)),
+          // no Tooltip on touch (see segLabel); the meaning is in the accessible name
+          ButtonSegment(
+              value: LightViewKind.lander,
+              label: GuideTarget(
+                  id: 'light-lander',
+                  child: segLabel(l.view[2], 'From the lander (${_metres(s.observerHeightM)} up): what you would see standing on the lander, ${_metres(s.observerHeightM)} above the ground')),
+              icon: compact ? null : const Icon(Icons.landscape_outlined, size: 18)),
         ],
-        selected: {closeUp},
+        selected: {kind},
         onSelectionChanged: (v) => setState(() {
-          closeUp = v.first;
+          kind = v.first;
           _sentKey = null;
-          _remember(_closeUpId, closeUp);
+          _remember(_viewId, kind.name);
         }),
       )),
       GuideTarget(id: 'light-layer', child: SegmentedButton<LightLayer>(
@@ -914,7 +925,13 @@ class _LightMapState extends State<LightMap> {
     }
 
     final legend = _Legend(
-        layer: img?.layer ?? layer, shares: shares, scope: scope, onMap: onMap, approx: coarseShown, eclipse: eclipse?.sentence);
+        layer: img?.layer ?? layer,
+        shares: shares,
+        scope: scope,
+        onMap: onMap,
+        approx: coarseShown,
+        eclipse: eclipse?.sentence,
+        lander: kind == LightViewKind.lander);
     final status = _StatusLine(
         site: s.site,
         now: now,
@@ -929,7 +946,25 @@ class _LightMapState extends State<LightMap> {
     // from the view mapBox shades (its relief is drawn before the first frame arrives, too)
     final pastMap = fine && viewBeyondBaseMap(_targetView, layers.halfWidthM);
     // agreement figures: test/core/shadow_test.dart (16 preset sites x 60 random moments, 2 m observer)
-    final badge = FidelityBadge(
+    final badge = kind == LightViewKind.lander
+        ? Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+            ValueListenableBuilder<LanderMesh?>(
+                valueListenable: _landerMesh,
+                builder: (context, m, _) {
+                  // the mesh of this site and eye height only
+                  final mine = m != null && m.cam.latDeg == s.site.lat && m.cam.lonDeg == s.site.lon && m.cam.eyeHeightM == h;
+                  return FidelityBadge(
+                      key: const ValueKey('lander-badge'),
+                      text: landerFidelityText(heightText,
+                          custom: s.site.custom,
+                          eyeOffsetM: mine && !s.site.custom ? m.cam.groundM - s.site.terrainHeightM : null,
+                          demEnds: mine ? m.demEnds : const [],
+                          eclipse: eclipse != null));
+                }),
+            if (s.playing) FidelityBadge(key: const ValueKey('lander-play-badge'), text: landerPlayFidelity(web: kIsWeb)),
+            if (s.site.custom) const FidelityBadge(text: FidelityBadge.customHorizon),
+          ])
+        : FidelityBadge(
       text: 'Shadows are computed on this device from the NASA LOLA elevation map at ${fine ? '400 m' : '800 m'} '
           'per pixel, for an observer $heightText above the ground, with the Sun\'s and Earth\'s directions from '
           'SPICE (DE440). Checked against the per-site horizon calculations (2 m observer), "sunlit or not" agrees '
@@ -948,8 +983,22 @@ class _LightMapState extends State<LightMap> {
     // [bottomMayHide]: the map's lower edge can sit under the pinned time bar
     // until the page is scrolled (a phone in portrait), so a note there would
     // not be seen: the note then always goes at the top.
-    Widget mapBox(double side, {bool bottomMayHide = false}) {
+    // [landerSize]: the lander's view in a box of its own shape (a wide strip in
+    // phone landscape) instead of the [side] square
+    Widget mapBox(double side, {bool bottomMayHide = false, Size? landerSize}) {
       _images.update(side: side, dpr: MediaQuery.devicePixelRatioOf(context));
+      if (kind == LightViewKind.lander) {
+        return GuideTarget(
+            id: 'light-map',
+            child: LanderViewPanel(
+                state: s,
+                near: shownFrame != null && shownFrame.request.closeUp ? shownFrame : null,
+                layer: img?.layer ?? layer,
+                width: landerSize?.width ?? side,
+                meshOut: _landerMesh,
+                // a phone in portrait scrolls: the view keeps its full height there
+                maxHeight: bottomMayHide ? double.infinity : (landerSize?.height ?? side)));
+      }
       final view = _targetView;
       // the ground past the base map's edge: shaded on the device (ReliefKeeper)
       _relief.want(fine && viewBeyondBaseMap(view, layers.halfWidthM) ? view : null, s.dem, layers.relief);
@@ -1136,9 +1185,16 @@ class _LightMapState extends State<LightMap> {
             if (LightMap._short(c)) {
               // phone landscape: the whole map at full height; the parent's
               // time bar is pinned beside it and the rest scrolls under that
-              final side = math.max(0.0, math.min(c.maxHeight, c.maxWidth - 16 - 240));
+              var side = math.max(0.0, math.min(c.maxHeight, c.maxWidth - 16 - 240));
+              // the lander's view is a wide strip, not a square: it takes the
+              // wide column and leaves the time bar and switches [landerSideMin]
+              final lander = kind == LightViewKind.lander
+                  ? Size(math.max(side, c.maxWidth - 16 - LightMap.landerSideMin), c.maxHeight)
+                  : null;
+              final map = mapBox(side, landerSize: lander);
+              if (lander != null) side = lander.width;
               return Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                mapBox(side),
+                map,
                 const SizedBox(width: 16),
                 Expanded(
                   child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
@@ -1380,8 +1436,18 @@ class _Legend extends StatelessWidget {
 
   /// A lunar eclipse at the frame's moment ([lightEclipseNote]'s sentence).
   final String? eclipse;
+
+  /// The lander's view: three more keys (light not computed, the
+  /// see-through near ground and the dashed horizon, §4.4).
+  final bool lander;
   const _Legend(
-      {required this.layer, required this.shares, required this.scope, this.onMap, this.approx = false, this.eclipse});
+      {required this.layer,
+      required this.shares,
+      required this.scope,
+      this.onMap,
+      this.approx = false,
+      this.eclipse,
+      this.lander = false});
 
   @override
   Widget build(BuildContext context) {
@@ -1429,9 +1495,54 @@ class _Legend extends StatelessWidget {
             const SizedBox(width: 6),
             Text(p, style: statStyle(size: 14)),
           ]),
+        if (lander)
+          for (final (k, label) in const [
+            (_LanderKey.notComputed, 'Light not computed'),
+            (_LanderKey.seeThrough, 'Near ground, see-through'),
+            (_LanderKey.horizon, 'Horizon (dashed)'),
+          ])
+            Row(mainAxisSize: MainAxisSize.min, children: [
+              CustomPaint(size: const Size(22, 16), painter: _LanderSwatch(k)),
+              const SizedBox(width: 8),
+              Flexible(child: Text(label, style: PHText.small)),
+            ]),
       ]),
     ]);
   }
+}
+
+enum _LanderKey { notComputed, seeThrough, horizon }
+
+/// The lander's view's extra legend keys: its grey, the near ground at its
+/// see-through alpha over the sky, and the dashed reference horizon.
+class _LanderSwatch extends CustomPainter {
+  final _LanderKey k;
+  _LanderSwatch(this.k);
+  @override
+  void paint(Canvas canvas, Size size) {
+    final r = Offset.zero & size;
+    canvas.drawRect(r, Paint()..color = PH.bg);
+    switch (k) {
+      case _LanderKey.notComputed:
+        canvas.drawRect(r, Paint()..color = const Color(landerNotComputedArgb));
+      case _LanderKey.seeThrough:
+        canvas.drawRect(Rect.fromLTWH(0, size.height / 2, size.width, size.height / 2), Paint()..color = PH.sun);
+        canvas.drawRect(r, Paint()..color = const Color(landerNotComputedArgb).withValues(alpha: landerNearAlpha));
+      case _LanderKey.horizon:
+        final p = Paint()
+          ..color = PH.text.withValues(alpha: 0.7)
+          ..strokeWidth = 1.2;
+        for (var x = 1.0; x < size.width; x += 7) {
+          canvas.drawLine(Offset(x, size.height / 2), Offset(math.min(size.width - 1, x + 4), size.height / 2), p);
+        }
+    }
+    canvas.drawRect(r, Paint()
+      ..style = PaintingStyle.stroke
+      ..color = PH.lineStrong);
+  }
+
+  @override
+  bool shouldRepaint(_LanderSwatch old) => old.k != k;
 }
 
 /// Legend swatch: the map's own pixel rule applied to mid-grey terrain.
@@ -1966,3 +2077,56 @@ class LightFramePainter extends CustomPainter {
       old.exact != exact ||
       old.textScaler != textScaler;
 }
+
+/// The Light tab's three views (docs/landers_view_spec.md §7.1).
+enum LightViewKind { closeUp, region, lander }
+
+/// The request for [s]'s site and moment ([tMs], default the cursor) at
+/// [extent]: the map, its prefetch and the lander's view all use it, so they
+/// share keys and cache entries (D2). [coarse] defaults to "playing".
+LightRequest lightRequestFor(AppState s, {required LightExtent extent, double? tMs, bool? coarse}) {
+  final t = tMs ?? s.cursorMs, eph = s.eph!;
+  return LightRequest(
+      closeUp: extent == LightExtent.closeUp,
+      far: extent == LightExtent.far,
+      lat: s.site.lat,
+      lon: s.site.lon,
+      sun: eph.sun(t),
+      earth: eph.earth(t),
+      tMs: t,
+      observerHeightM: s.observerHeightM,
+      coarse: coarse ?? s.playing);
+}
+
+/// The lander's view FidelityBadge text (§6): the main text, then (g) the
+/// eye's offset from a preset's 80 m height when over 5 m ([eyeOffsetM] =
+/// the 400 m surface minus the site's height), (h) where the terrain data
+/// ends, and the eclipse note.
+String landerFidelityText(String heightText,
+    {required bool custom,
+    double? eyeOffsetM,
+    List<({double az0, double az1, double distM})> demEnds = const [],
+    bool eclipse = false}) {
+  final ends = [...demEnds]..sort((a, b) => a.az0.compareTo(b.az0));
+  String deg(double a) => '${(((a % 360) + 360) % 360).round()}';
+  return 'Approximate: the light map\'s own 400 m LOLA terrain and light; Sun and Earth at true size and place. '
+      'Terrain is the grid the light map uses (400 m within 64 km, 800 m out to 300 km), block-averaged the same way, '
+      'so rims and peaks are smoothed and the drawn skyline can differ from '
+      '${custom ? '80 m horizons by 0.5–1.4° (up to about 6° on sharp rims); it matches this spot\'s 400 m horizon '
+          '(dashed) within about 0.4°' : 'this site\'s 80 m horizon mask (dashed) by about 1° and up to 5°'}. '
+      'Ground within 800 m is not resolved by the 400 m grid: where it would rise above the distant skyline it is '
+      'drawn see-through, because the light map leaves it out. Light and shadow are the Light '
+      'tab\'s computed frame for this moment, pixel for pixel; Earth\'s direction there is taken from the Moon\'s '
+      'centre, up to 0.3° higher than seen from the ground. Shadowed ground is drawn dark: Earthshine is not '
+      'computed, and the ground colour is a flat grey, not a photo. The Sun and Earth are drawn in their meaning '
+      'colours at true size and position (DE440, apparent, no refraction); glyphs, labels, the 0° line, the '
+      'compass and the stripe and dot patterns are visual aids.'
+      '${eyeOffsetM != null && eyeOffsetM.abs() > 5 ? ' The eye is $heightText above the 400 m surface, '
+          '${eyeOffsetM.abs().round()} m ${eyeOffsetM < 0 ? 'below' : 'above'} this site\'s 80 m height.' : ''}'
+      '${ends.isEmpty ? '' : ' Terrain data ends ${(ends.map((e) => e.distM).reduce(math.min) / 1000).round()} km away '
+          'toward azimuth ${ends.map((e) => '${deg(e.az0)}–${deg(e.az1)}°').join(', ')} (edge of the LOLA map).'}'
+      '${eclipse ? ' $lightEclipseFidelity' : ''}';
+}
+
+/// "2 m" / "10 m" / "2.5 m" for an observer height in metres.
+String _metres(double h) => '${h == h.roundToDouble() ? h.toStringAsFixed(0) : h.toStringAsFixed(1)} m';

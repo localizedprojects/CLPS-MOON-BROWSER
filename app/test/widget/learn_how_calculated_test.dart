@@ -39,7 +39,7 @@ void main() {
         expect(find.text(m), findsOneWidget, reason: m);
       }
       expect(find.textContaining(c.accuracy, findRichText: true), findsOneWidget);
-      expect(find.textContaining(c.ref), findsOneWidget);
+      expect(find.text('Full derivation: ${c.ref}, in the project repository'), findsOneWidget, reason: c.ref);
     }
     // the maths sits in a monospace block
     final maths = tester.widget<Text>(find.text(calcSections.first.maths.first));

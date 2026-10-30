@@ -1193,16 +1193,17 @@ These cards print metrics of §9.4 with the wording of §11.1 and `StatBar.pctTe
 
 ## 12. Light and shadow map (shadow.dart)
 
-`shadow.dart` computes where the Sun and the Earth are visible over the LOLA polar map at one instant. It drives the Light & shadow view of the Site destination (`light_map.dart`), which replaced the Blender 360° view, and the still light snapshots (§12.10). The view asks `light_engine.dart` for frames. The engine builds two grids once from the shipped 400 m DEM (`LightGrids`, `light_engine.dart:73-77`) and serves two kinds of frame (`LightRequest` and `computeLightFrame`, `light_engine.dart:23-37,106-129`):
+`shadow.dart` computes where the Sun and the Earth are visible over the LOLA polar map at one instant. It drives the Light & shadow view of the Site destination (`light_map.dart`), which replaced the Blender 360° view, and the still light snapshots (§12.10). The view asks `light_engine.dart` for frames. The engine builds three grids once from the shipped 400 m DEM (800 m, 400 m and 1.6 km for playback; `LightGrids`, `light_engine.dart:100-117`) and serves three kinds of frame (`LightRequest`, `light_engine.dart:24-56`; the window is chosen in `_work`, `light_engine.dart:166-182`; `computeLightFrame`, `light_engine.dart:192-197`):
 
 | Frame | Grid | Window | Pixels | Extent |
 |---|---|---|---|---|
 | Whole region | 800 m (`downsample` 2), $n=760$ | none (full grid) | 760 × 760 | ±304 km (80–90°S) |
 | Site close-up | 400 m (`downsample` 1), $n=1520$ | `closeUpPx` = 320 px around the site's pixel (§12.4) | 320 × 320 | 128 km square |
+| Lander's view far frame (§12.11) | 800 m (`downsample` 2) | `lightFarPx` = 750 px around the site's pixel (`LightRequest.far`) | 750 × 750 | ±300 km |
 
-- The region frame is the same for every site. The request key is time and observer height for the region, and latitude, longitude, time and observer height for the close-up (`LightRequest.key`, `light_engine.dart:36`), so custom sites get a close-up too. The still close-up widget `light_snapshot.dart` requests the same close-up frame (`light_snapshot.dart:154-161`); it is placed on Explore's top pick and on Site › Overview (§12.10).
+- The region frame is the same for every site. The request key is time and observer height for the region, and latitude, longitude, time and observer height for the close-up and for the far frame (`LightRequest.key`, `light_engine.dart:49-55`; the prefixes are `r|`, `c|` and `f|`, plus `|k` for playback), so custom sites get a close-up too. The still close-up widget `light_snapshot.dart` requests the same close-up frame (`light_snapshot.dart:154-161`); it is placed on Explore's top pick and on Site › Overview (§12.10).
 - Frames are computed in a worker isolate on Android and desktop (`light_engine_io.dart`) and on the main thread on the web (`light_engine_web.dart`).
-- **Observer height.** Every frame uses the app's chosen observer height (2 or 10 m above every pixel) through `LightRequest.observerHeightM` (`light_engine.dart:113-117`, part of the key). `computeLightFrame` passes it to `LightFieldWork`, whose Sun and Earth sweeps both receive it (`light_engine.dart:113`; `shadow.dart:368-398`). The near field stays at the default 1.5 px. Tests: `shadow_test.dart:182-197` (a 10 m mast lights more pixels) and `light_engine_test.dart:163-176`. The §12.9 agreement figures are for a 2 m observer, and the badge says so (`light_map.dart:475-485`).
+- **Observer height.** Every frame uses the app's chosen observer height (2 or 10 m above every pixel) through `LightRequest.observerHeightM` (part of the key). `computeLightFrame` passes it to `LightFieldWork` in `_work`, whose Sun and Earth sweeps both receive it (`light_engine.dart:166-182`; `shadow.dart:368-398`). The near field stays at the default 1.5 px. Tests: `shadow_test.dart:182-197` (a 10 m mast lights more pixels) and `light_engine_test.dart:163-176`. The §12.9 agreement figures are for a 2 m observer, and the badge says so (`light_map.dart:475-485`).
 
 ### 12.1 Pole-tangent height field
 
@@ -1361,6 +1362,66 @@ The in-app `FidelityBadge` rounds these to 94 % / 87 % and 91 % / 82 % (`light_m
 - **Explore top pick:** $t$ is the start of the top-ranked site's longest Sun + Earth run, else the start of its longest sunlit run, else the period start (`top_pick_card.dart:61-63,137`).
 - **Site › Overview** (below the three big numbers): "Best moment" is the start of the longest Sun + Earth run, and "Longest night" is the midpoint $(t_a+t_b)/2$ of the longest run without the Sun (`heroMomentMs`, `site/overview.dart:36-42`). Only moments that exist are offered; with neither, the cursor time is used (`site/overview.dart:182-184`). The picture's own caption is off; the Overview prints which moment it is and then the approximation note `lightSnapshotFidelity` (`light_snapshot.dart:30-33`).
 - The light is computed when $t$ lies in the loaded ephemeris, and the Sun/Earth arrows (`nowAt`, §9.3) appear only when $t$ also lies in the chosen period (`snapshotCoverage`, `light_snapshot.dart:43-45`). A custom spot that is not selected has no loaded horizon and gets no arrows (`_maskFor` and `_now`, `light_snapshot.dart:129-134,268-275`).
+
+### 12.11 Lander's view
+
+The Light tab's third view (`widgets/lander_view.dart`) draws the terrain around the site as seen from the observer's eye. Its geometry is pure Dart in `core/lander_view.dart` and its colours come from `state/lander_light.dart`. The full design is in `docs/landers_view_spec.md`.
+
+**Heights.** These are the light engine's own grids. There is no other height source and no shape-from-shadow.
+- Part 1 is the 400 m close-up window, 320 px.
+- Part 2 is a site-centred window of the 800 m grid (`LightExtent.far`), out to `coarseMaxM` = 300 km.
+- Both are block-averaged with the same `blockMeanRow` as `ShadowGrid` (`blockMeanPatch`, `lander_view.dart:55`). The heights are therefore bit-identical to the light map's (test T1).
+
+Pixel (r, c) of an n px grid at p m sits at $x=(c+0.5-n/2)\,p$, $y=(n/2-0.5-r)\,p$. Its true position on the sphere inverts §12.1's projection (`mapPointM`, `lander_view.dart:72`):
+
+$$\rho=\sqrt{x^2+y^2},\quad g=2\arctan\frac{\rho}{2R},\quad \lambda=\operatorname{atan2}(x,y),\quad \mathbf P=(R+h)\,(\sin g\cos\lambda,\ \sin g\sin\lambda,\ -\cos g)$$
+
+**Cells.**
+- Each cell of four adjacent pixel centres is drawn as 4 triangles fanned around its centre vertex. The centre's height is the mean of the 4 corners.
+- `patchFanHeightAt` (`lander_view.dart:134`) evaluates that one surface anywhere.
+- Part 0 re-cuts the same surface as a polar lattice under the eye: 13 rings from 0.5 to 800 m and 180 spokes.
+- Every vertex carries 4 source pixels and 4 weights (summing to 1). Heights and light both use these weights.
+
+**Eye.**
+- The eye is at $(R+h_\text{grid}+h_\text{obs})\,\hat{\mathbf u}(\varphi,\lambda)$. Here $h_\text{grid}$ is the bilinear 400 m height at the site, as `computeCoarseHorizon` uses, and $h_\text{obs}$ is the observer height (2 m or 10 m).
+- For $\mathbf v=\mathbf P-\text{eye}$ in the local ENU of §3.1 (spherical normal; north is away from the pole): $az=\operatorname{atan2}(e,n)$, $el=\operatorname{atan2}(u,\sqrt{e^2+n^2})$.
+
+**Culling** (conservative, once per site and observer height; `LanderMeshWork._cullChunk`, `lander_view.dart:715`).
+- Triangles are swept near to far in 0.05° azimuth bins.
+- A triangle is dropped only if, in every bin it touches, its top elevation plus a great-circle bulge bound β lies below that bin's occlusion level, $O_b=\max(el_\text{min}-\beta)$ over nearer ground already committed.
+- The near field (part 0) is never culled and never occludes.
+- Draw order is far to near by true distance, radix-sorted once per site and observer height.
+
+**Projection** (`projectTriangles`, `lander_view.dart:1020`). Rectilinear, with yaw ψ, pitch θ, horizontal field of view $\mathit{hfov}$ and a view $w$ px wide:
+
+$$\mathbf f=\cos\theta(\sin\psi\,\mathbf E+\cos\psi\,\mathbf N)+\sin\theta\,\mathbf U,\quad \mathbf r=\cos\psi\,\mathbf E-\sin\psi\,\mathbf N,\quad \mathbf{up}'=\mathbf r\times\mathbf f,\quad F=\frac{w/2}{\tan(\mathit{hfov}/2)}$$
+
+$$x=\tfrac w2+F\,\frac{\mathbf v\cdot\mathbf r}{\mathbf v\cdot\mathbf f},\qquad y=\tfrac h2-F\,\frac{\mathbf v\cdot\mathbf{up}'}{\mathbf v\cdot\mathbf f}$$
+
+Here $h$ is the view's height in px. The limits are |θ| ≤ 30° and 10° ≤ hfov ≤ 90°. A triangle is dropped if a vertex has $\mathbf v\cdot\mathbf f\le0.01\,|\mathbf v|$.
+
+**Light** (`landerVertexColors`, `lander_light.dart:99`).
+- Each source pixel is classified exactly as on the map (§12.6), from the computed frame's flags and Lambert shade. Parts 0–1 use the close-up frame; part 2 uses the far frame.
+- Vertex colour = $\sum_i w_i\,\operatorname{clamp}(0.55\,m_i+s_i)$, i.e. the map's class colour on a flat 0.55 grey albedo.
+- Both frames pass through the eclipse cut of §6.5, as on the map.
+- A pixel outside any computed frame is drawn as "light not computed" grey (#6E737B), with a label. No placeholder light is drawn.
+- The map's stripe and dot patterns are drawn in screen space, so colour is not the only encoding.
+
+**Near ground.** The 400 m grid does not resolve ground within 800 m. The light map ignores it (the near-field lag $L=2$ px of §12.3). The on-device coarse horizon starts at 600 m (`coarseMinM`), and the precise masks start at 120 m on their 80 m grid.
+- A vertex under 800 m that rises above the far skyline (the mesh's own skyline from 800 m out, `meshSkyline`, `lander_view.dart:318`) is drawn at alpha 0.35.
+- It is also hatched, labelled "see-through", so it never hides a Sun that the map and the masks call visible.
+
+**Sky.**
+- The Sun and Earth are discs of true angular radius, $\arcsin(695700/r)$ and $\arcsin(6378.1366/r)$, around their apparent (`LT+S`) directions. Each is drawn as a 64-gon (`discOutline`, `lander_view.dart:1119`) before the terrain, so terrain occludes them.
+- The callout's status word is the app's own, from the site's horizon mask: the precise mask at a preset, the on-device coarse horizon at a custom spot. A third line appears when the 400 m terrain disagrees (`skyBody`, `lander_view.dart:1104`).
+- The background is flat. There are no stars, Earthshine or fill light.
+
+**Validation** (test T5, `test/core/lander_view_test.dart`). The mesh's skyline from 600 m out is compared with `computeCoarseHorizon` on the same grid at 0.5° azimuth steps:
+- mean ≤ 0.05°, p95 ≤ 0.2°, max ≤ 0.4°. The tolerance allows for one 400 m cell between the two cut-offs.
+- Measured (30 October 2026) at Shackleton rim SR1, Haworth, Mons Mouton and a custom spot: mean 0.004–0.008°, p95 0.015–0.038°, max 0.029–0.094°. Culling keeps 8,000–34,400 of the 1,327,662 grid vertices out to 300 km.
+- Near ground left opaque (test D7) rises at most 0.155° above the far skyline, which is less than the 0.5° skyline sampling step.
+
+Against a preset's 80 m horizon mask, the 400 m skyline differs by about 1°, and by up to 5° on sharp rims. The view therefore also draws that mask dashed, and its `FidelityBadge` says so.
 
 ---
 

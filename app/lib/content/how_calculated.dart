@@ -186,4 +186,24 @@ const calcSections = <CalcSection>[
         'from the 400 m map, so those lines are marked "(approx.)".',
     ref: 'formula.md §11.14',
   ),
+  CalcSection(
+    title: 'Lander\'s view',
+    plain: 'The 3D view from the lander is built on this device from the same LOLA heights the light map uses: the '
+        '400 m grid within 64 km and an 800 m grid out to 300 km, block-averaged the same way, so it can never '
+        'disagree with the map. The eye is 2 m (or the mast height) above that 400 m surface. Each piece of ground '
+        'takes its light and shadow from the light map\'s own computed frame for the moment on the time bar. Ground '
+        'hidden behind nearer ground is skipped before drawing. Ground nearer than 800 m is not resolved by the 400 m '
+        'grid; where it would rise above the distant skyline it is drawn see-through, because the light map leaves it '
+        'out. Not drawn: stars, textures, Earthshine and any fill light.',
+    maths: [
+      'mesh = light-map height grids (400 m < 64 km, 800 m < 300 km); no other height source',
+      'eye = site on the 400 m surface + observer height, local ENU on the sphere normal',
+      'ground colour = light class of the map frame x Lambert shade (flat grey albedo)',
+      'Sun and Earth discs: true angular radius, apparent (LT+S) directions, no refraction',
+    ],
+    accuracy: 'The drawn skyline follows the 400 m terrain, so it can differ from a preset site\'s 80 m horizon mask '
+        '(drawn dashed for reference) by about 1° and up to 5° on sharp rims; the callout words use the precise '
+        'mask, and say so when the drawn terrain disagrees.',
+    ref: 'formula.md §12.11; docs/landers_view_spec.md',
+  ),
 ];

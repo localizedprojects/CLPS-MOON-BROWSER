@@ -11,6 +11,7 @@ import 'dart:typed_data';
 
 import '../core/dem.dart' show latLonToXY;
 import '../core/geo.dart';
+import '../core/lander_view.dart' show landerFarPx;
 import '../core/shadow.dart';
 import 'light_engine_io.dart' if (dart.library.js_interop) 'light_engine_web.dart' as impl;
 
@@ -35,12 +36,31 @@ class LightRequest {
   /// Half the resolution (a 800 m close-up / 1.6 km region grid, about 4x
   /// cheaper), for smooth playback; the full frame follows when it stops.
   final bool coarse;
+
+  /// The lander's view's far frame: a site-centred window of the region grid
+  /// (800 m; 1.6 km while [coarse]) reaching 300 km (coarseMaxM) from the
+  /// site on each axis ([lightFarPx] px). Implies [closeUp] == false.
+  final bool far;
   const LightRequest({required this.closeUp, required this.lat, required this.lon,
-      required this.sun, required this.earth, required this.tMs, this.observerHeightM = 2.0, this.coarse = false});
+      required this.sun, required this.earth, required this.tMs, this.observerHeightM = 2.0, this.coarse = false,
+      this.far = false})
+      : assert(!(far && closeUp), 'a far frame is not a close-up');
 
   String get key =>
-      (closeUp ? 'c|$lat|$lon|$tMs|$observerHeightM' : 'r|$tMs|$observerHeightM') + (coarse ? '|k' : '');
+      (far
+          ? 'f|$lat|$lon|$tMs|$observerHeightM'
+          : closeUp
+              ? 'c|$lat|$lon|$tMs|$observerHeightM'
+              : 'r|$tMs|$observerHeightM') +
+      (coarse ? '|k' : '');
 }
+
+/// Which frame [LightRequest] a view asks for (see `lightRequestFor`).
+enum LightExtent { closeUp, region, far }
+
+/// Side (px) of the far frame on a grid of [pxM] metres: 2 x 300 km (the
+/// lander's view's far patch, [landerFarPx]).
+int lightFarPx(double pxM) => landerFarPx(pxM);
 
 /// One computed frame, geo-referenced in polar-stereographic map metres.
 class LightFrame {
@@ -146,6 +166,12 @@ Future<void> runSliced(bool Function(int rows) step,
 LightFieldWork _work(LightGrids grids, LightRequest q) {
   final g = q.closeUp ? (q.coarse ? grids.region : grids.fine) : (q.coarse ? grids.coarse : grids.region);
   GridWindow? win;
+  if (q.far) {
+    final g = q.coarse ? grids.coarse : grids.region;
+    final (row, col) = g.pixelOf(q.lat, q.lon);
+    return LightFieldWork(g, q.sun, q.earth,
+        window: g.windowAround(row, col, lightFarPx(g.pxM)), observerHeightM: q.observerHeightM);
+  }
   if (q.closeUp) {
     final (row, col) = g.pixelOf(q.lat, q.lon);
     win = g.windowAround(row, col, q.coarse ? closeUpPx ~/ 2 : closeUpPx);
@@ -202,6 +228,23 @@ enum LightLayer { sun, earth, both }
 /// Light classes drawn by the map (also used by the legend).
 enum LightClass { shadow, partSun, fullSun, earthHidden, earthSeen, both, sunOnly, earthOnly, neither }
 
+/// The map's two textures: stripes (partSun / sunOnly) and dots (earthOnly),
+/// at logical pixel (lx, ly) of the output.
+enum LightPattern { stripe, dot }
+
+/// The single stripe / dot predicate ([lightPixel] and the lander's view).
+bool lightPatternOn(LightPattern p, int lx, int ly) => switch (p) {
+      LightPattern.stripe => (lx + ly) % 6 < 2,
+      LightPattern.dot => lx % 5 < 2 && ly % 5 < 2,
+    };
+
+/// The texture a class is drawn with, or null for a plain class.
+LightPattern? lightPatternOf(LightClass k) => switch (k) {
+      LightClass.partSun || LightClass.sunOnly => LightPattern.stripe,
+      LightClass.earthOnly => LightPattern.dot,
+      _ => null,
+    };
+
 LightClass classify(int flags, LightLayer layer) {
   final sun = flags & lightSunAny != 0, full = flags & lightSunFull != 0, earth = flags & lightEarth != 0;
   return switch (layer) {
@@ -223,8 +266,8 @@ LightClass classify(int flags, LightLayer layer) {
 ({double mr, double mg, double mb, double sr, double sg, double sb}) lightPixel(
     LightClass k, double shade, int x, int y, double scale) {
   final lx = (x / scale).floor(), ly = (y / scale).floor();
-  final stripe = (lx + ly) % 6 < 2;
-  final dot = lx % 5 < 2 && ly % 5 < 2;
+  final stripe = lightPatternOn(LightPattern.stripe, lx, ly);
+  final dot = lightPatternOn(LightPattern.dot, lx, ly);
   const dark = (mr: 0.15, mg: 0.19, mb: 0.29, sr: 0.0, sg: 0.0, sb: 0.0);
   switch (k) {
     case LightClass.shadow || LightClass.earthHidden || LightClass.neither:

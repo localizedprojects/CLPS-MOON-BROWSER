@@ -55,6 +55,7 @@ const guideSteps = <String, List<GuideStep>>{
     GuideStep('light-layer', 'What is lit', 'Show where sunlight reaches, where Earth is in view, or both.'),
     GuideStep('light-map', 'Light and shadow',
         'Worked out on this device from NASA terrain, for the moment on the time bar.'),
+    GuideStep('light-lander', 'Stand on the lander', 'See the horizon from 2 m up. Drag to look around; the light is the map\'s own.'),
     GuideStep('time-play', 'Watch the shadows move', 'Play moves ten hours per step here, so the shadows sweep at a readable pace.'),
   ],
   'compare': [

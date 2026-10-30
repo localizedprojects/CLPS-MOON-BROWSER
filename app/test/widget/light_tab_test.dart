@@ -24,7 +24,7 @@ void main() {
   tearDownAll(() => state.dispose());
 
   Finder mapPaint() => find.byWidgetPredicate((w) => w is CustomPaint && w.painter is LightFramePainter);
-  Finder viewSwitch() => find.byType(SegmentedButton<bool>);
+  Finder viewSwitch() => find.byType(SegmentedButton<LightViewKind>);
   Finder layerSwitch() => find.byType(SegmentedButton<LightLayer>);
 
   Future<void> pump(WidgetTester tester, Size window, Size slot, {double text = 1}) async {
@@ -105,7 +105,7 @@ void main() {
     ('web 390x844', Size(390, 844), Size(390, 513)),
     ('a 360 dp phone', Size(360, 800), Size(360, 461)),
   ]) {
-    testWidgets('portrait $name: both switches on one row above the full-width map (web-1, new-light-map-size)',
+    testWidgets('portrait $name: both switches above the full-width map, on one row from 390 dp (web-1, new-light-map-size)',
         (tester) async {
       await pump(tester, window, slot);
       final map = tester.getRect(mapPaint());
@@ -114,7 +114,14 @@ void main() {
       final bar = tester.getRect(find.byType(TimeScrubber));
       expect(view.bottom, lessThan(map.top), reason: 'Around site / Whole region above the map');
       expect(layer.bottom, lessThan(map.top), reason: 'Sunlight / Earth view / Both above the map');
-      expect(layer.top, view.top, reason: 'one row, so the map keeps the height');
+      if (slot.width >= 390) {
+        expect(layer.top, view.top, reason: 'one row, so the map keeps the height');
+      } else {
+        // three view and three layer segments, each a 48 dp target, need
+        // more than a 360 dp phone's card: each switch gets its own row
+        // (docs/landers_view_spec.md §9, W1)
+        expect(layer.top, greaterThan(view.bottom), reason: 'the layer switch on the second row');
+      }
       expect(view.top, greaterThanOrEqualTo(0));
       // new-light-map-size: the full slot width (no wide empty margins), at
       // least two thirds of it on screen above the bar; the rest scrolls
@@ -161,21 +168,21 @@ void main() {
     await tester.tap(find.descendant(of: viewSwitch(), matching: find.textContaining(RegExp('region', caseSensitive: false))));
     await tester.pump();
     SegmentedButton<LightLayer> layers() => tester.widget(layerSwitch());
-    SegmentedButton<bool> views() => tester.widget(viewSwitch());
+    SegmentedButton<LightViewKind> views() => tester.widget(viewSwitch());
     expect(layers().selected, {LightLayer.both});
-    expect(views().selected, {false});
+    expect(views().selected, {LightViewKind.region});
 
     // on its side: the side-by-side layout (a new LightMap State)
     await pump(tester, const Size(851, 393), const Size(771, 290));
     expect(tester.getRect(find.byType(TimeScrubber)).left, greaterThan(tester.getRect(mapPaint()).right),
         reason: 'the landscape layout, not the portrait one');
     expect(layers().selected, {LightLayer.both});
-    expect(views().selected, {false});
+    expect(views().selected, {LightViewKind.region});
 
     // and back upright
     await pump(tester, const Size(393, 851), const Size(393, 560));
     expect(layers().selected, {LightLayer.both});
-    expect(views().selected, {false});
+    expect(views().selected, {LightViewKind.region});
     await done(tester);
   });
 }

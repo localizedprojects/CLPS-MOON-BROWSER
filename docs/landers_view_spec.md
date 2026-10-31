@@ -24,7 +24,7 @@ Every disagreement is resolved in the table in §0, with the reason. Anything th
 | D12 | Sun/Earth state word | From the mesh skyline | From `nowAt` (precise mask) | **Both.** Line 2 of the callout is the app's own status word (`bodyStateShort`, the same as the status line and the sky plot). When the 400 m mesh disagrees, line 3 says so ("400 m terrain here: behind terrain, skyline +1.1°"). The disc itself is occluded geometrically by the drawn terrain. |
 | D13 | Non-colour encoding of light classes | Stripe and dot pattern passes | Luminance ordering | **A.** In the Both layer, sunOnly and earthOnly differ by only about 0.015 in luminance (computed from `lightPixel` at albedo 0.55), so luminance alone fails "colour is never the only encoding". The centre probe text and the legend are kept as well. Fallback: §4.4. |
 | D14 | Ridge outlines (drawing aid) | No | Yes | **Cut.** The sky/terrain edge and the dashed horizon line already outline the skyline. The aid would add an algorithm and a badge. |
-| D15 | Full-screen `LanderViewPage` | No | Yes | **Cut.** Phone landscape already gives a full-height view (`LightMap.shortSideBySideFor`). |
+| D15 | Full-screen `LanderViewPage` | No | Yes | ~~**Cut.**~~ **Revisited 2026-10-31 (1.10.0, user request)**: see [Full screen and site switching](#full-screen-and-site-switching-1100-user-decision-2026-10-31). Phone landscape inline still gives a full-height view (`LightMap.shortSideBySideFor`). |
 | D16 | Probe | Tap terrain | Centre crosshair | **Merged.** A crosshair readout is always shown. Tapping anywhere turns that point to the centre (animated), so the probe reads it. |
 | D17 | Azimuth ruler and compass strip | Ruler with N/E/S/W | 48 dp compass strip | **B's strip**, with A's "N = away from the pole" in its tooltip and Semantics. |
 | D18 | "Light not computed" ground | Neutral grey | `#2A3346` with a 45° hatch | **Neutral grey `beyondMapGround` (`#6E737B`, already in `light_map.dart`), no hatch**, plus an on-view text label and the probe text. A diagonal hatch would read as the partSun stripes. |
@@ -606,7 +606,7 @@ The lead visually checks the shots for:
 
 ## 13. Out of scope
 
-- The height stretch (D11), ridge outlines (D14), and the full-screen `LanderViewPage` (D15).
+- The height stretch (D11) and ridge outlines (D14). (The full-screen view, D15, was cut here and added in 1.10.0 by user request: see "Full screen and site switching" below.)
 - Building the mesh in the isolate (D6), and a `FragmentProgram` / WebGL renderer (only the D13 fallback chain).
 - Shape-from-shadow, any height source other than the 400 m DEM block means, `horizons.json` shaping the mesh, and the 80 m / 240 m DEMs in the mesh.
 - Earthshine, fill light, relief shading, albedo maps, textures, stars, atmosphere, Earth's phase or night side on its disc, and the Sun's corona.
@@ -617,6 +617,55 @@ The lead visually checks the shots for:
 - Light prefetch of far frames during play, and far frames on the web during play.
 - Blender renders (no longer shown in the app).
 - On-device performance measurement as a unit test (a lead device check, §8).
+
+## Full screen and site switching (1.10.0, user decision 2026-10-31)
+
+D15 is revisited by user request: the user wants to expand the Lander's view for a better look, and to switch landing spots without leaving it. Nothing about the fidelity changes. Full screen shows the same mesh, the same computed light frames and the same sky, with the same labels.
+
+**Opening.**
+- In Light & shadow, view switch **Lander**, an expand button sits at the view's top right, just below the compass strip. It uses `Icons.open_in_full` like `ChartFocusButton`, is 48 × 48 dp, and has the tooltip and accessible name "Open the Lander's view full screen".
+- The button is outside the view's gesture detector and outside its description. `LanderPainter.reserve` keeps the elevation-scale and level labels off it, and keeps callouts off it whenever another placement fits (the same prefer tier as the edge chevrons).
+- With the view focused, **F** opens full screen too. F does nothing when Ctrl, Cmd or Alt is held, so the browser's find still works. It is listed on the Learn shortcuts card.
+- The button and F are absent while "Building the view…" is shown, or when the build failed. Opening mid-build would drop that build.
+
+**The page** (`widgets/lander_full_screen.dart`, `openLanderFullScreen`):
+- It is an opaque fade route, like `openChartFocus`, and it does not force an orientation.
+- It contains:
+  - a top bar with the site switcher and the close button;
+  - the layer switch (Sun / Earth / Both);
+  - a "Show the legend" button, which opens the colour and pattern keys, because colour is never the only encoding;
+  - the view itself, with its compass, callouts, crosshair readout and seven buttons, and the notes scrolling under the buttons (`LanderViewPanel.fill`);
+  - the lander FidelityBadges, collapsed by default (`LanderFidelityBadges`, the same text as inline). In the column layout they scroll, the main badge first, within at most 30% of the room between the bars (`LanderFullScreenPage.notesShare`), so opening the full approximation text ("More"), the playback badge and a custom spot's horizon badge never squeeze the view or push the time bar off screen;
+  - the light engine's error, if it fails, as the map shows it (warning colour), with "Try again" (48 dp), which asks for the same moment again. Play does not wait on a failing engine;
+  - the time bar (Play, step, date).
+- Layouts:
+  - Portrait phones, tablets and the web use a column. From 720 dp wide, the layer switch shares the top bar's row.
+  - A phone on its side shows the view on the left and a 300 dp column on the right. The top bar and the time bar are pinned in that column; the layer switch, legend and badges scroll below them.
+- The page names itself to screen readers as "Lander's view full screen". It has no feature-guide targets.
+
+**Same frames, same camera, same mesh.**
+- The map behind asks for no frames while the page is open: its loop is inactive while `_fullOpen` is set, and it shows a note in the view's place. The page therefore runs its own copy of the map's request path, `LightFrameLoop` in `state/light_loop.dart`. That class was moved out of `_LightMapState` without changing behaviour: the same keys, the 60 ms scrub debounce, the playback prefetch, and the eclipse applied once per frame. Because the keys match, the engine's cache serves both views.
+- The panel asks for its far frame itself, as inline. While the page is open it owns `LightMap.framePending`, so Play waits on the frame shown there: the map behind clears the flag on opening and then leaves it alone (its `_reportPending` returns while `_fullOpen`), even when a frame of its own that was in flight finishes. The map behind shows "The Lander's view is open full screen." in the view's place and asks for nothing, so there is never a second panel building a mesh.
+- The panel sits under the host route's PageStorage bucket. The camera (`lander-camera-<siteId>`: yaw, pitch, hfov) and the layer (`LightMap.layerStoreId`) therefore carry over both ways.
+- The mesh is adopted from `AppState.landerMesh` on opening and again on closing, so neither rebuilds it.
+
+**Closing.** The X ("Close full screen", 48 dp), Esc, the system back button and the browser's Back all close the page. On the web, Back only closes it: the screen underneath stays, as with sheets. Closing keeps the current camera, so the inline view takes it up. On close the map behind re-reads the layer, asks for the current moment again and reports to Play.
+
+**Switching the landing site inside the page.**
+- The top bar has three controls:
+  - Previous site, with the tooltip and accessible name "Previous site: <short name>";
+  - the current site's short name with a drop-down mark ("Change site. Current site: <short name>"). A tap opens the same single-select site picker as "Change site";
+  - Next site ("Next site: <short name>").
+- Previous and next step through `AppState.allSites`: the presets in catalogue order, then the user's own spots. They wrap around at both ends (`core/site_order.dart`, `siteNeighbours`) and are left out when there is no other site.
+- A switch first keeps the current camera under the current site's id. Then it calls `AppState.openSite(id, tab: siteTab)`, the same call as "Change site". The app's selected site changes, the Site screen behind follows (one web history entry per switch), and the page stays open on the Lander's view.
+- The new site's mesh then builds, showing "Building the view…", unless the panel's LRU of two meshes still holds it. After that the view takes the new site's remembered camera; without one it faces the Sun if its elevation is above −5°, else Earth if that is above −5°, else north. Switching back to the last site is therefore instant, with its camera as it was left.
+- Until the new site's light frame arrives, the page shows no light shares or eclipse note for it: the legend and the badges use a frame only when it is the selected site's, never the previous site's under the new name.
+- On close, the Light & shadow screen shows the new site in the Lander view, with the mesh adopted rather than rebuilt and the camera carried back.
+
+**Known limits.**
+- Closing or switching while a mesh is building drops that build, and the next view starts it again (slow on an Android 7 phone). The expand button is hidden mid-build to soften this. Moving build ownership into `AppState` is out of scope.
+- Callouts avoid the expand button only when another placement fits. In a very short view, one may still fall under it.
+- Tests: FS1–FS16 in `test/widget/lander_full_screen_test.dart`, plus `test/state/light_loop_test.dart` and `test/core/site_order_test.dart`.
 
 ## Build split (two builders, about 300k tokens)
 

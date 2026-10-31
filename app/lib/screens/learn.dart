@@ -433,6 +433,7 @@ class _Shortcuts extends StatelessWidget {
     (['E'], 'Face Earth'),
     (['N'], 'Face north (away from the pole)'),
     (['Home'], 'Level the view'),
+    (['F'], 'Open the view full screen (Esc closes it)'),
     (['Esc'], 'Give the keys back to the page'),
   ];
 

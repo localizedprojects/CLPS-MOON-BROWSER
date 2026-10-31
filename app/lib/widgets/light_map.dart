@@ -27,7 +27,7 @@ import '../core/dem.dart';
 import '../core/eclipse.dart';
 import '../core/geo.dart' show Observer;
 import '../core/lander_view.dart' show LanderMesh, landerNearAlpha;
-import '../state/lander_light.dart' show landerNotComputedArgb;
+import '../state/lander_light.dart' show landerAlbedo, landerNotComputedArgb;
 import '../core/relief.dart';
 import '../core/shadow.dart';
 import '../core/visibility.dart' show EarthCriterion, SunCriterion, earthVisible;
@@ -1594,7 +1594,9 @@ class _Legend extends StatelessWidget {
 enum _LanderKey { notComputed, seeThrough, horizon }
 
 /// The lander's view's extra legend keys: its grey, the near ground at its
-/// see-through alpha over the sky, and the dashed reference horizon.
+/// see-through alpha over the sky and hatched as the view draws it (neutral
+/// grey under the hatch: that ground takes any light class's colour, and
+/// amber would read as the Sun), and the dashed reference horizon.
 class _LanderSwatch extends CustomPainter {
   final _LanderKey k;
   _LanderSwatch(this.k);
@@ -1606,8 +1608,18 @@ class _LanderSwatch extends CustomPainter {
       case _LanderKey.notComputed:
         canvas.drawRect(r, Paint()..color = const Color(landerNotComputedArgb));
       case _LanderKey.seeThrough:
-        canvas.drawRect(Rect.fromLTWH(0, size.height / 2, size.width, size.height / 2), Paint()..color = PH.sun);
-        canvas.drawRect(r, Paint()..color = const Color(landerNotComputedArgb).withValues(alpha: landerNearAlpha));
+        canvas.drawRect(r, Paint()
+          ..color = const Color.from(alpha: landerNearAlpha, red: landerAlbedo, green: landerAlbedo, blue: landerAlbedo));
+        // hairlines falling to the right, as the view draws them
+        final hp = Paint()
+          ..color = LanderPainter.seeThroughColor
+          ..strokeWidth = 1;
+        canvas.save();
+        canvas.clipRect(r);
+        for (var x = -size.height; x < size.width; x += 5) {
+          canvas.drawLine(Offset(x, 0), Offset(x + size.height, size.height), hp);
+        }
+        canvas.restore();
       case _LanderKey.horizon:
         final p = Paint()
           ..color = PH.text.withValues(alpha: 0.7)
@@ -1624,6 +1636,10 @@ class _LanderSwatch extends CustomPainter {
   @override
   bool shouldRepaint(_LanderSwatch old) => old.k != k;
 }
+
+/// The legend's 'Near ground, see-through' swatch (for tests).
+@visibleForTesting
+CustomPainter landerSeeThroughSwatch() => _LanderSwatch(_LanderKey.seeThrough);
 
 /// Legend swatch: the map's own pixel rule applied to mid-grey terrain.
 class _Swatch extends CustomPainter {

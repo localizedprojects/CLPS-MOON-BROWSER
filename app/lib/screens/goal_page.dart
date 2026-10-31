@@ -27,6 +27,9 @@ class GoalPage extends StatelessWidget {
         Goal.earth => const MeaningGlyph(GlyphKind.earth, size: 28, semantic: false),
       };
 
+  /// The progress line while the sites are ranked.
+  static String _ranking(int done, int total) => 'Ranking the sites in the background: $done of $total';
+
   @override
   Widget build(BuildContext context) {
     final s = state;
@@ -34,7 +37,7 @@ class GoalPage extends StatelessWidget {
     final progress = s.error != null
         ? null
         : s.rankTotal > 0 && !s.rankingDone
-            ? 'Ranking the sites in the background: ${s.rankProgress} of ${s.rankTotal}'
+            ? _ranking(s.rankProgress, s.rankTotal)
             : s.ready
                 ? null
                 : 'Loading the sites in the background…';
@@ -68,11 +71,18 @@ class GoalPage extends StatelessWidget {
                   ),
                   const SizedBox(height: 10),
                 ],
-                if (progress != null)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 6),
-                    child: Text(progress, style: PHText.small.copyWith(color: PH.muted)),
+                // once ranked, an unseen last line keeps its slot (wrapped or not),
+                // so the centred cards do not jump down
+                Padding(
+                  padding: const EdgeInsets.only(top: 6),
+                  child: Visibility(
+                    visible: progress != null,
+                    maintainSize: true,
+                    maintainAnimation: true,
+                    maintainState: true,
+                    child: Text(progress ?? _ranking(s.rankTotal, s.rankTotal), style: PHText.small.copyWith(color: PH.muted)),
                   ),
+                ),
               ]),
             ),
           ),

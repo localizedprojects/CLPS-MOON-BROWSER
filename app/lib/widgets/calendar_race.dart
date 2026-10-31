@@ -63,7 +63,7 @@ class CalendarRace extends StatelessWidget {
           _Cell(
             n: totals[i],
             lead: totals[i] > 0 && totals[i] == maxTotal,
-            label: '${sites[i].$1}, whole period: ${totals[i]} good days of ${totalDays[i]}',
+            label: '${sites[i].$1}, whole period: ${_goodDays(totals[i])} of ${totalDays[i]}',
           ),
       ],
     );
@@ -107,7 +107,7 @@ class CalendarRace extends StatelessWidget {
             _Cell(
               n: good(m),
               lead: best > 0 && good(m) == best,
-              label: '${sites[i].$1}, $label: ${good(m)} good days of ${m.days}${best > 0 && good(m) == best ? ', the most this month' : ''}',
+              label: '${sites[i].$1}, $label: ${_goodDays(good(m))} of ${m.days}${best > 0 && good(m) == best ? ', the most this month' : ''}',
             )
           else
             _Cell(n: null, lead: false, label: '${sites[i].$1}, $label: not in the period'),
@@ -223,3 +223,6 @@ class _Row {
   final List<_Cell> cells;
   const _Row({required this.label, required this.note, required this.cells});
 }
+
+/// "1 good day", "3 good days" for the cells' screen-reader labels.
+String _goodDays(int n) => n == 1 ? '1 good day' : '$n good days';

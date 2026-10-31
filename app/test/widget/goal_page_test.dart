@@ -13,6 +13,8 @@ import 'package:polar_horizon/theme.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'light_test_fonts.dart';
+
 void main() {
   Future<AppState> pumpShell(WidgetTester tester, {Map<String, Object> saved = const {}}) async {
     SharedPreferences.setMockInitialValues(saved);
@@ -70,6 +72,36 @@ void main() {
     }
     await tester.pump(const Duration(milliseconds: 600));
     expect(find.byType(GoalPage), findsNothing);
+  });
+
+  group('the progress line', () {
+    // the real fonts, so the line fits on one row as on the 411 x 868 dp phone
+    setUpAll(loadPlexFonts);
+
+    testWidgets('the cards above it stay put when it goes', (tester) async {
+      // verify:launch#1: the centred column lost the line when ranking ended and every card moved down 12 dp
+      final s = AppState();
+      final rebuild = ValueNotifier(0);
+      addTearDown(rebuild.dispose);
+      tester.view.physicalSize = const Size(411, 868);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      await tester.pumpWidget(MaterialApp(
+        theme: buildTheme(),
+        home: ValueListenableBuilder<int>(valueListenable: rebuild, builder: (_, _, _) => GoalPage(state: s)),
+      ));
+      const line = 'Loading the sites in the background…';
+      expect(find.text(line), findsOneWidget);
+      Rect card(Goal g) => tester.getRect(find.byKey(ValueKey('goal-${g.name}')));
+      final before = {for (final g in Goal.values) g: card(g)};
+      s.error = 'Failed to load data: test'; // leaves no progress line, as ready does
+      rebuild.value++;
+      await tester.pump();
+      expect(find.text(line), findsNothing);
+      for (final g in Goal.values) {
+        expect(card(g), before[g], reason: '${g.name} must not move when the line goes');
+      }
+    });
   });
 
   test('a missing store keeps Balanced and marks nothing', () async {

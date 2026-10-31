@@ -10,6 +10,7 @@ import 'dart:math' as math;
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
@@ -125,6 +126,13 @@ const landerSeeThroughLabel = 'Hatched: ground < 800 m, see-through';
 String landerPlayFidelity({required bool web}) =>
     'Approximate: while playing, light from coarser grids (800 m, 1.6 km beyond 64 km); pause for detail.'
     '${web ? ' Light beyond 64 km waits until you pause.' : ''}';
+
+/// The grey ground's note (§6): light beyond 64 km not computed; "not
+/// computed while playing" only on the web ([web]), where the far frame waits
+/// until you pause (D5); elsewhere it is still computed while playing (1.9.2:
+/// the web's words on Android too).
+String landerGreyNote({required bool playing, required bool web}) =>
+    'Grey ground: light not computed (beyond 64 km${playing && web ? ', not computed while playing on the web' : ''}).';
 
 /// The caption under the view (§6).
 String landerCaption({required String height, required String site, required String utc}) =>
@@ -691,20 +699,20 @@ class LanderViewPanelState extends State<LanderViewPanel> with TickerProviderSta
     final notes = <String>[
       if (widget.layer != LightLayer.earth && !words.sun.startsWith('in view') && !words.sun.startsWith('partly hidden'))
         'No direct sunlight here now. Ground in shadow is drawn dark; Earthshine is not computed.',
-      if (near != null && !far)
-        'Grey ground: light not computed (beyond 64 km${s.playing ? ', not computed while playing on the web' : ''}).',
+      if (near != null && !far) landerGreyNote(playing: s.playing, web: kIsWeb),
       landerCaption(
           height: '${h.toStringAsFixed(h == h.roundToDouble() ? 0 : 1)} m', site: s.site.short, utc: utcLabel(_tMs)),
     ];
     // the notes' measured height, so the panel fits [widget.maxHeight]; capped at
     // 4 lines only in a box of finite height (a scrolling page shows them whole)
     final noteLines = widget.maxHeight.isFinite ? 4 : null;
-    var notesH = 0.0;
+    var notesH = 0.0, lineH = 0.0;
     for (final n in notes) {
       final tp = TextPainter(
           text: TextSpan(text: n, style: PHText.small), textDirection: TextDirection.ltr, textScaler: scaler, maxLines: noteLines)
         ..layout(maxWidth: w);
       notesH += tp.height;
+      lineH = tp.preferredLineHeight;
       tp.dispose();
     }
     var viewH = math.max(120.0, math.min(math.max(0.62 * w, 220.0), widget.maxHeight - 8 - 48.0 * rows - notesH));
@@ -714,13 +722,17 @@ class LanderViewPanelState extends State<LanderViewPanel> with TickerProviderSta
     if (fit != null) viewH = math.max(LanderViewPanel.minFitViewHeightFor(w), math.min(viewH, fit - 4 - 48.0 * rows));
     // a short box that cannot hold all of it: the buttons stay on screen
     // under the view, the notes scroll. A wide strip (phone landscape) is
-    // always laid out so: the view takes all the height above the buttons
-    // (not the notes' share of it, nor just the 120 dp floor)
+    // always laid out so: the view takes the height above the buttons (not
+    // the notes' share of it, nor just the 120 dp floor) less two lines of the
+    // notes, kept in view to scroll there (1.9.2: 0 dp, so the caption and the
+    // notes were never seen), never at the cost of 120 dp of scene under the
+    // compass strip
     final strip = widget.maxHeight.isFinite && w > widget.maxHeight;
     final scroll = strip || widget.maxHeight.isFinite && viewH + 8 + 48.0 * rows + notesH > widget.maxHeight;
     if (scroll) {
       final cap = strip ? math.max(0.62 * w, 220.0) : viewH;
-      viewH = math.max(0.0, math.min(cap, widget.maxHeight - 4 - 48.0 * rows));
+      final room = widget.maxHeight - 4 - 48.0 * rows, keep = strip ? math.min(notesH, 2 * lineH) : 0.0;
+      viewH = math.max(0.0, math.min(cap, math.max(math.min(LanderPainter.compassH + 120, room), room - keep)));
     }
     final status = _status;
     final painter = LanderPainter(
@@ -747,6 +759,8 @@ class LanderViewPanelState extends State<LanderViewPanel> with TickerProviderSta
       _focus.requestFocus();
       f();
     }
+    // the device's touch slop, the one the page's scroll uses (as GestureDetector)
+    final touch = MediaQuery.maybeGestureSettingsOf(context);
 
     final view = Semantics(
       container: true,
@@ -770,42 +784,59 @@ class LanderViewPanelState extends State<LanderViewPanel> with TickerProviderSta
         child: NoPageSwipe(
           child: Listener(
             onPointerSignal: _onSignal,
-            child: GestureDetector(
+            // a drag on the view is its own from the touch slop on, in any direction
+            // ([_ViewScaleRecognizer]): a vertical one turns the pitch, never the page
+            // (outside the view the page still scrolls)
+            child: RawGestureDetector(
               key: const ValueKey('lander-view'),
-              onTapUp: (d) {
-                _focus.requestFocus();
-                final v = cam.view(Size(w, viewH));
-                // a disc callout (48 dp target) turns to its body
-                for (final (r, isSun) in LanderPainter.calloutTargets(v, sun, earth)) {
-                  if (r.contains(d.localPosition)) return isSun ? faceSun(live: false) : faceEarth(live: false);
-                }
-                final a = unprojectView(v, d.localPosition.dx, d.localPosition.dy);
-                animateTo(yaw: a.az, pitch: a.el, live: false);
-              },
-              onScaleStart: (d) {
-                _stopMotion();
-                _dragging = true;
-                _hfovAtStart = cam.hfov;
-                _lastFocal = d.focalPoint;
-              },
-              onScaleUpdate: (d) {
-                if (d.pointerCount >= 2 && d.scale > 0) cam.set(hfov: _hfovAtStart / d.scale);
-                final delta = d.focalPoint - _lastFocal, k = cam.hfov / w;
-                _lastFocal = d.focalPoint;
-                // grab the world: dragging right turns left
-                cam.set(yaw: cam.yaw - delta.dx * k, pitch: cam.pitch + delta.dy * k);
-              },
-              onScaleEnd: (d) {
-                _dragging = false;
-                final v = d.velocity.pixelsPerSecond, k = cam.hfov / w;
-                if (_reduced || d.pointerCount > 0 || v.distance < 50) {
-                  _settled();
-                  return;
-                }
-                _vYaw = -v.dx * k;
-                _vPitch = v.dy * k;
-                _lastFling = Duration.zero;
-                _fling.start();
+              gestures: {
+                TapGestureRecognizer: GestureRecognizerFactoryWithHandlers<TapGestureRecognizer>(
+                  TapGestureRecognizer.new,
+                  (g) => g
+                    ..gestureSettings = touch
+                    ..onTapUp = (d) {
+                      _focus.requestFocus();
+                      final v = cam.view(Size(w, viewH));
+                      // a disc callout (48 dp target) turns to its body
+                      for (final (r, isSun) in LanderPainter.calloutTargets(v, sun, earth)) {
+                        if (r.contains(d.localPosition)) return isSun ? faceSun(live: false) : faceEarth(live: false);
+                      }
+                      final a = unprojectView(v, d.localPosition.dx, d.localPosition.dy);
+                      animateTo(yaw: a.az, pitch: a.el, live: false);
+                    },
+                ),
+                _ViewScaleRecognizer: GestureRecognizerFactoryWithHandlers<_ViewScaleRecognizer>(
+                  _ViewScaleRecognizer.new,
+                  (g) => g
+                    ..gestureSettings = touch
+                    // as GestureDetector: a pinch's scale counts from where it is claimed
+                    ..dragStartBehavior = DragStartBehavior.start
+                    ..onStart = (d) {
+                      _stopMotion();
+                      _dragging = true;
+                      _hfovAtStart = cam.hfov;
+                      _lastFocal = d.focalPoint;
+                    }
+                    ..onUpdate = (d) {
+                      if (d.pointerCount >= 2 && d.scale > 0) cam.set(hfov: _hfovAtStart / d.scale);
+                      final delta = d.focalPoint - _lastFocal, k = cam.hfov / w;
+                      _lastFocal = d.focalPoint;
+                      // grab the world: dragging right turns left
+                      cam.set(yaw: cam.yaw - delta.dx * k, pitch: cam.pitch + delta.dy * k);
+                    }
+                    ..onEnd = (d) {
+                      _dragging = false;
+                      final v = d.velocity.pixelsPerSecond, k = cam.hfov / w;
+                      if (_reduced || d.pointerCount > 0 || v.distance < 50) {
+                        _settled();
+                        return;
+                      }
+                      _vYaw = -v.dx * k;
+                      _vPitch = v.dy * k;
+                      _lastFling = Duration.zero;
+                      _fling.start();
+                    },
+                ),
               },
               child: Stack(children: [
                 RepaintBoundary(child: CustomPaint(size: Size(w, viewH), painter: painter)),
@@ -896,6 +927,46 @@ class LanderViewPanelState extends State<LanderViewPanel> with TickerProviderSta
           ...below,
       ]),
     );
+  }
+}
+
+/// The view's drag and pinch (§7.4): it claims a drag, in any direction, as
+/// soon as it passes the touch slop, the same moment the page's own scroll
+/// would, and wins because it sees the move first (as the map's
+/// `_MapScaleRecognizer`). A plain scale recognizer waits for its pan slop,
+/// twice the touch slop, so a vertical drag on the view scrolled the page and
+/// never turned the pitch (1.9.2).
+class _ViewScaleRecognizer extends ScaleGestureRecognizer {
+  final _downAt = <int, Offset>{};
+
+  @override
+  void addAllowedPointer(PointerDownEvent event) {
+    super.addAllowedPointer(event);
+    _downAt[event.pointer] = event.position;
+  }
+
+  @override
+  void handleEvent(PointerEvent event) {
+    super.handleEvent(event);
+    final from = _downAt[event.pointer];
+    if (event is PointerMoveEvent &&
+        from != null &&
+        (event.position - from).distance > computeHitSlop(event.kind, gestureSettings)) {
+      resolve(GestureDisposition.accepted);
+    }
+    if (event is PointerUpEvent || event is PointerCancelEvent) _downAt.remove(event.pointer);
+  }
+
+  @override
+  void rejectGesture(int pointer) {
+    _downAt.remove(pointer);
+    super.rejectGesture(pointer);
+  }
+
+  @override
+  void didStopTrackingLastPointer(int pointer) {
+    _downAt.clear();
+    super.didStopTrackingLastPointer(pointer);
   }
 }
 
@@ -1107,8 +1178,9 @@ class LanderPainter extends CustomPainter {
   }
 
   /// The compass strip's 12 x 12 azimuth markers drawn (rect, body): one for
-  /// each body whose azimuth is in view, left out over a disc in the strip
-  /// (its callout names it under the strip).
+  /// each body whose azimuth is in view (at the strip's foot, over the ticks,
+  /// where its place at the top is under an edge chevron's words row), left
+  /// out over a disc in the strip (its callout names it under the strip).
   static List<(Rect, bool)> compassMarkers(LanderView v, SkyBody? sun, SkyBody? earth) => _markers(
       v, sun, earth, sun == null ? null : calloutAnchor(v, sun), earth == null ? null : calloutAnchor(v, earth));
 
@@ -1118,11 +1190,23 @@ class LanderPainter extends CustomPainter {
       for (final a in [?sunA, ?earthA])
         if (a.disc.dy - a.rPx - 2 < compassH) Rect.fromCircle(center: a.disc, radius: a.rPx + 2)
     ];
+    // under the other body's edge chevron: down at the strip's foot, so neither covers the
+    // other (1.9.2: the chevron's band and words painted over the marker); left out there
+    // over a disc in the strip or its leader down to the foot
+    final rows = [for (final (r, _, _, _) in chevrons(v, sun, earth)) Rect.fromLTWH(r.left, 0, r.width, chevronRowH)];
+    Rect? place(double x) {
+      final top = Rect.fromLTWH(x - 6, 2, 12, 12);
+      if (discs.any(top.overlaps)) return null;
+      if (!rows.any(top.overlaps)) return top;
+      final foot = top.translate(0, compassH - 16);
+      return discs.any((d) => foot.overlaps(Rect.fromLTRB(d.left, d.top, d.right, compassH))) ? null : foot;
+    }
+
     return [
       for (final (b, isSun) in [(sun, true), (earth, false)])
         if (b != null && turnDelta(v.yawDeg, b.az).abs() < 89)
           if (at(v, b.az, v.pitchDeg) case final p? when p.dx >= 0 && p.dx <= v.w)
-            if (Rect.fromLTWH(p.dx - 6, 2, 12, 12) case final r when !discs.any(r.overlaps)) (r, isSun)
+            if (place(p.dx) case final r?) (r, isSun)
     ];
   }
 
@@ -1903,7 +1987,9 @@ class LanderPainter extends CustomPainter {
     }
     final (sunCallout, earthCallout) = placed;
     final sunBox = sunCallout?.box, earthBox = earthCallout?.box;
-    final boxes = [?sunBox, ?earthBox, ?strip.legend, ?strip.readout, ...demLabels];
+    // (the glyphs too: a callout's glyph sits outside its box and is painted over a label under it;
+    // 1.9.2: Earth's over '+5°')
+    final boxes = [?sunBox, ?earthBox, ?sunGlyph, ?earthGlyph, ?strip.legend, ?strip.readout, ...demLabels];
     _scaleShown.clear();
     _elevationScale(canvas, v, size, boxes);
     if (debugRecord) {
@@ -1923,11 +2009,20 @@ class LanderPainter extends CustomPainter {
     }
     if (level != null) {
       final t = _text('0° (level)', size: 10, color: PH.muted, mono: true);
+      // clear of the discs too (painted first, so its box would hide the part under it): zoomed in, a
+      // disc is bigger than its glyph, which moves off it (W28)
+      final discs = [
+        for (final b in [?sun, ?earth])
+          if (at(v, b.az, b.el) case final p?) Rect.fromCircle(center: p, radius: b.rhoDeg / v.hfovDeg * v.w + 2)
+      ];
       // at the left by the scale, else at the right end, else left out
       for (final x in [44.0, size.width - t.width - 44]) {
-        final r = Rect.fromLTWH(x, level.y0 + level.k * x - t.height - 1, t.width, t.height);
-        if (labelFits(r, size, boxes)) {
-          t.paint(canvas, r.topLeft);
+        final r = Rect.fromLTWH(x - 2, level.y0 + level.k * x - t.height - 1, t.width + 4, t.height);
+        if (labelFits(r, size, [...boxes, ...discs])) {
+          // near opaque, as the scale's labels: the dashed mask line, the hatch and the
+          // ground must not strike through it (1.9.2: bare text over them)
+          canvas.drawRect(r, Paint()..color = PH.bg.withValues(alpha: 0.85));
+          t.paint(canvas, Offset(x, r.top));
           break;
         }
       }

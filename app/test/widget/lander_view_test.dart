@@ -1204,6 +1204,163 @@ void main() {
     expect(fails, isEmpty, reason: fails.join('\n'));
   });
 
+  testWidgets('W25 the "0° (level)" label sits on a near-opaque box: the dashed mask line never strikes through it',
+      (tester) async {
+    // 1.9.2 emulator (Face the Sun, MP1): bare muted text over the ground, the mask's dashes and the
+    // hatch across it (about 1.3:1); the scale's labels had their box
+    final cam = LanderCameraController()..set(yaw: 0, pitch: 0, hfov: 45);
+    const size = Size(400, 300);
+    final v = cam.view(size);
+    final t = TextPainter(
+        text: TextSpan(text: '0° (level)', style: numStyle(size: 10, color: PH.muted)), textDirection: TextDirection.ltr)
+      ..layout();
+    // at the left by the scale (x 44), just over the level line
+    final label = Rect.fromLTWH(44, LanderPainter.at(v, 0, 0)!.dy - t.height - 1, t.width, t.height);
+    // the mask's dashes through the label's middle
+    final e = unprojectView(v, label.center.dx, label.center.dy).el;
+    final bytes = await _paintBytes(
+        tester,
+        LanderPainter(
+            cam: cam,
+            mesh: null,
+            proj: LanderProjection(),
+            colors: null,
+            maskDeg: Float64List(720)..fillRange(0, 720, e),
+            maskLabel: landerMaskLabel(custom: false)),
+        size);
+    var dash = 0, ink = 0;
+    for (var y = label.top.ceil(); y < label.bottom.floor(); y++) {
+      for (var x = label.left.ceil(); x < label.right.floor(); x++) {
+        final o = 4 * (y * 400 + x), r = bytes.getUint8(o), b = bytes.getUint8(o + 2);
+        if (r > 90 && b - r < 30) dash++; // the mask's near white (over half the pixel)
+        if (b > 100 && b - r >= 30) ink++; // the label's muted blue
+      }
+    }
+    expect(ink, greaterThan(0), reason: 'the label is drawn');
+    expect(dash, 0, reason: 'no mask dash shows through the label');
+  });
+
+  testWidgets("W26 a marker under an edge chevron's words goes to the strip's foot: both stay readable", (tester) async {
+    // 1.9.2 emulator (370 dp wide, hfov 45): the Sun's marker under 'EARTH 005°' (yaw 284.3), Earth's
+    // under 'SUN 299°' (yaw 25.7), each a faint ghost under the chevron's band and words
+    const size = Size(370, 300);
+    const SkyBody sun = (az: 299.3, el: 3.0, rhoDeg: 0.27, state: SkyState.up),
+        earth = (az: 5.0, el: 9.0, rhoDeg: 0.95, state: SkyState.up);
+    for (final (yaw, isSun) in [(284.3, true), (25.7, false)]) {
+      final cam = LanderCameraController()..set(yaw: yaw, pitch: 0, hfov: 45);
+      final v = cam.view(size);
+      final rows = [
+        for (final (r, _, _, _) in LanderPainter.chevrons(v, sun, earth))
+          Rect.fromLTWH(r.left, 0, r.width, LanderPainter.chevronRowH)
+      ];
+      expect(rows, hasLength(1));
+      final (m, s) = LanderPainter.compassMarkers(v, sun, earth).single;
+      expect(s, isSun);
+      final x = LanderPainter.at(v, isSun ? sun.az : earth.az, 0)!.dx;
+      expect(x >= rows.single.left && x <= rows.single.right, isTrue, reason: "$yaw: in the chevron's band");
+      expect(m.center.dx, closeTo(x, 1e-9), reason: '$yaw: still at its azimuth');
+      expect(m.overlaps(rows.single), isFalse, reason: "$yaw: $m under the chevron's words ${rows.single}");
+      expect(m.top >= 0 && m.bottom <= LanderPainter.compassH, isTrue, reason: '$yaw: $m in the strip');
+      final bytes = await _paintBytes(
+          tester, LanderPainter(cam: cam, mesh: null, proj: LanderProjection(), colors: null, sun: sun, earth: earth), size);
+      expect(LanderPainter.paintedMarkers, [m]);
+      if (isSun) {
+        // the Sun glyph's solid centre in full amber, not dimmed by the chevron's band nor under its words
+        final o = 4 * (m.center.dy.floor() * 370 + m.center.dx.floor());
+        expect([bytes.getUint8(o), bytes.getUint8(o + 1), bytes.getUint8(o + 2)],
+            [greaterThan(0xE0), greaterThan(0x90), lessThan(0x50)]);
+      }
+    }
+  });
+
+  test("W27 the elevation scale's labels keep off a callout's glyph, not only its box", () {
+    // 1.9.2 emulator (yaw 25.7, hfov 46): Earth's glyph under the compass strip at (13, 61) dp, painted
+    // over the '+5°' label (its box beside the glyph, clear of the label)
+    const size = Size(392, 300);
+    final v = (LanderCameraController()..set(yaw: 0, pitch: 0, hfov: 46)).view(size);
+    final step = LanderPainter.elevationStep(46, size.width);
+    var onlyGlyph = 0;
+    for (var e = step; e <= 30; e += step) {
+      final p = LanderPainter.at(v, 0, e.toDouble());
+      if (p == null || p.dy < LanderPainter.compassH + 6) continue;
+      final t = TextPainter(text: TextSpan(text: '+$e°', style: numStyle(size: 10, color: PH.muted)), textDirection: TextDirection.ltr)
+        ..layout();
+      // as [LanderPainter.labelFits] is asked: from the edge to the label's box's right
+      final label = Rect.fromLTRB(0, p.dy - t.height / 2, 8 + t.width + 4, p.dy + t.height / 2);
+      for (var x = 4.0; x <= 48; x += 4) {
+        for (final isSun in [true, false]) {
+          final b = _gateBody(v, Offset(x, p.dy), isSun ? 0.27 : 0.95, SkyState.up);
+          _paintFrame(size, 46, 0, 0, sun: isSun ? b : null, earth: isSun ? null : b);
+          final glyph = Rect.fromCircle(center: LanderPainter.calloutAnchor(v, b)!.glyph, radius: LanderPainter.glyphR);
+          if (!glyph.overlaps(label)) continue;
+          expect(LanderPainter.paintedSky!.scale, isNot(contains(e.toDouble())),
+              reason: '+$e° at x $x: its label under the glyph $glyph');
+          if (!LanderPainter.paintedSky!.callouts.any(label.overlaps)) onlyGlyph++;
+        }
+      }
+    }
+    expect(onlyGlyph, greaterThan(0), reason: 'frames where the glyph alone is over a label (1.9.2 drew it)');
+  });
+
+  testWidgets("W28 the level label's box keeps off a disc bigger than its glyph: the body at the level line stays seen",
+      (tester) async {
+    // review of W25: zoomed in, a disc is bigger than its glyph (moved up off it), only the glyph was kept
+    // clear, and the label's near-opaque box hid the disc's middle, where it meets the level line
+    const size = Size(370, 300);
+    final t = TextPainter(
+        text: TextSpan(text: '0° (level)', style: numStyle(size: 10, color: PH.muted)), textDirection: TextDirection.ltr)
+      ..layout();
+    for (final (isSun, hfov, rho, color) in [(false, 20.0, 0.95, PH.earth), (true, 8.0, 0.27, PH.sun)]) {
+      final cam = LanderCameraController()..set(yaw: 0, pitch: 0, hfov: hfov);
+      final v = cam.view(size);
+      final y0 = LanderPainter.at(v, 0, 0)!.dy;
+      // the disc centred 6 px over the level line at x 80, under the label's place at the left
+      final b = _gateBody(v, Offset(80, y0 - 6), rho, SkyState.up);
+      final a = LanderPainter.calloutAnchor(v, b)!;
+      expect(a.rPx, greaterThan(LanderPainter.glyphR), reason: '$hfov: the glyph moves off the disc');
+      // the label's box at the left (x 44) and at the right end
+      final left = Rect.fromLTWH(42, y0 - t.height - 1, t.width + 4, t.height),
+          right = left.translate(size.width - t.width - 88, 0);
+      final bytes = await _paintBytes(
+          tester,
+          LanderPainter(
+              cam: cam,
+              mesh: null,
+              proj: LanderProjection(),
+              colors: null,
+              sun: isSun ? b : null,
+              earth: isSun ? null : b),
+          size);
+      // (W25's fix put it there: clear of the callout's box and glyph, the only boxes in this frame)
+      final glyph = Rect.fromCircle(center: a.glyph, radius: LanderPainter.glyphR + 1);
+      expect(LanderPainter.labelFits(left, size, [...LanderPainter.paintedSky!.callouts, glyph]), isTrue,
+          reason: '$hfov: the left place is clear of the boxes');
+      final c = color.toARGB32(), want = [(c >> 16) & 0xFF, (c >> 8) & 0xFF, c & 0xFF];
+      var seen = 0;
+      final fails = <String>[];
+      for (var y = left.top.ceil(); y < left.bottom.floor(); y++) {
+        for (var x = left.left.ceil(); x < left.right.floor(); x++) {
+          if ((Offset(x + 0.5, y + 0.5) - a.disc).distance > a.rPx - 2) continue;
+          final o = 4 * (y * 370 + x), got = [bytes.getUint8(o), bytes.getUint8(o + 1), bytes.getUint8(o + 2)];
+          seen++;
+          if ([for (var i = 0; i < 3; i++) (got[i] - want[i]).abs()].any((d) => d > 6)) fails.add('($x, $y) $got');
+        }
+      }
+      expect(seen, greaterThan(50), reason: '$hfov: the disc under the left place');
+      expect(fails, isEmpty,
+          reason: '$hfov: the disc under the label, not in full ${isSun ? 'amber' : 'blue'}: ${fails.take(5)}');
+      // the label at the right end instead (its muted blue)
+      var ink = 0;
+      for (var y = right.top.ceil(); y < right.bottom.floor(); y++) {
+        for (var x = right.left.ceil(); x < right.right.floor(); x++) {
+          final o = 4 * (y * 370 + x), r = bytes.getUint8(o), bl = bytes.getUint8(o + 2);
+          if (bl > 100 && bl - r >= 30) ink++;
+        }
+      }
+      expect(ink, greaterThan(0), reason: '$hfov: the label at the right end');
+    }
+  });
+
   testWidgets('W11 pattern pass: nearer plain triangle hides farther striped one', (tester) async {
     final mesh = _twoTriangles(skyline: Float64List(720));
     final colors = Int32List.fromList([for (var i = 0; i < 6; i++) i < 3 ? 0xFF505A64 : 0xFF283040]);
@@ -1234,6 +1391,128 @@ void main() {
 
     expect(whites(-150, 1000, -60), greaterThan(40), reason: 'stripes on the far-only part');
     expect(whites(300, 1000, -60), 0, reason: 'the near plain triangle hides the far stripes');
+  });
+
+  testWidgets('W29 a one-finger vertical drag on the view turns the pitch; the page scrolls only outside it',
+      (tester) async {
+    size(tester, const Size(360, 800));
+    await nearPole(tester);
+    final page = ScrollController();
+    addTearDown(page.dispose);
+    await tester.pumpWidget(MaterialApp(
+      theme: buildTheme(),
+      home: Scaffold(
+        body: SingleChildScrollView(
+          controller: page,
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            LanderViewPanel(state: state, near: nearFrame(), layer: LightLayer.sun, width: 360),
+            const SizedBox(height: 1200),
+          ]),
+        ),
+      ),
+    ));
+    await meshReady(tester);
+    final p = panelState(tester), view = tester.getRect(find.byKey(const ValueKey('lander-view')));
+    // in small steps, as a finger: past the touch slop (where the page's scroll takes a
+    // drag) but under the scale's pan slop (twice it); 1.9.2: the page scrolled
+    var g = await tester.startGesture(view.center + const Offset(0, 30));
+    await g.moveBy(const Offset(0, -20));
+    await tester.pump();
+    final pitch = p.cam.pitch, hfov = p.cam.hfov;
+    await g.moveBy(const Offset(0, -40));
+    await tester.pump();
+    expect(page.offset, 0);
+    // grab the world (dragging up looks down): 1 px = hfov/width degrees of pitch
+    expect(p.cam.pitch - pitch, closeTo(-40 * hfov / 360, 1e-6));
+    await g.up();
+    await tester.pumpAndSettle();
+    // under the panel the same drag scrolls the page, and the view keeps its pitch
+    final pitch2 = p.cam.pitch;
+    g = await tester.startGesture(Offset(180, view.bottom + 500));
+    await g.moveBy(const Offset(0, -20));
+    await tester.pump();
+    await g.moveBy(const Offset(0, -40));
+    await tester.pump();
+    expect(page.offset, greaterThan(30));
+    expect(p.cam.pitch, pitch2);
+    await g.up();
+    await tester.pumpAndSettle();
+  });
+
+  testWidgets('W30 phone landscape: two lines of the notes stay in view under the buttons; the caption scrolls there',
+      (tester) async {
+    size(tester, const Size(800, 400));
+    addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+    await nearPole(tester);
+    // the spec's 781 x 393 dp example (a 409 x 211 dp view over one button row; 1.9.2:
+    // the notes 0 dp tall, the caption never seen), a taller box at text x1.5, a wider strip
+    for (final (box, scale) in const [(Size(409, 263), 1.0), (Size(409, 300), 1.5), (Size(560, 300), 1.0)]) {
+      tester.platformDispatcher.textScaleFactorTestValue = scale;
+      await tester.pumpWidget(MaterialApp(
+        theme: buildTheme(),
+        home: Scaffold(
+          body: Align(
+            alignment: Alignment.topLeft,
+            child: SizedBox.fromSize(
+              size: box,
+              child: LanderViewPanel(
+                  state: state, near: nearFrame(), layer: LightLayer.sun, width: box.width, maxHeight: box.height),
+            ),
+          ),
+        ),
+      ));
+      await meshReady(tester);
+      expect(tester.takeException(), isNull, reason: '$box x$scale');
+      final card = tester.getRect(find.byType(LanderViewPanel));
+      final notes = find.descendant(of: find.byType(LanderViewPanel), matching: find.byType(SingleChildScrollView));
+      expect(notes, findsOneWidget, reason: '$box x$scale');
+      final line = TextPainter(
+          text: const TextSpan(text: 'X', style: PHText.small),
+          textDirection: TextDirection.ltr,
+          textScaler: TextScaler.linear(scale));
+      final r = tester.getRect(notes), lineH = line.preferredLineHeight;
+      line.dispose();
+      expect(r.height, greaterThanOrEqualTo(2 * lineH - 0.5), reason: '$box x$scale: $r');
+      expect(r.bottom, lessThanOrEqualTo(card.bottom + 0.5), reason: '$box x$scale: $r in $card');
+      // the view keeps 120 dp of scene under the compass strip, the buttons stay on screen above the notes
+      expect(tester.getSize(find.byKey(const ValueKey('lander-view'))).height,
+          greaterThanOrEqualTo(LanderPainter.compassH + 120 - 0.5), reason: '$box x$scale');
+      expect(tester.getRect(find.byTooltip('Face the Sun')).bottom, lessThanOrEqualTo(r.top + 0.5));
+      // the first note starts in view; the caption (last) is reached by scrolling there
+      final first = tester.getRect(find.descendant(of: notes, matching: find.byType(Text)).first);
+      expect(first.top, closeTo(r.top, 0.5), reason: '$box x$scale');
+      await tester.drag(notes, const Offset(0, -600));
+      await tester.pumpAndSettle();
+      final caption = tester.getRect(find.textContaining('From the lander:'));
+      expect(caption.bottom, closeTo(r.bottom, 0.5), reason: '$box x$scale: $caption in $r');
+      // back to the top for the next size (the panel's state, and its scroll, carry over)
+      await tester.drag(notes, const Offset(0, 600));
+      await tester.pumpAndSettle();
+    }
+  });
+
+  test('W31 the grey ground note says "not computed while playing" only on the web', () {
+    expect(landerGreyNote(playing: false, web: true), 'Grey ground: light not computed (beyond 64 km).');
+    expect(landerGreyNote(playing: true, web: false), 'Grey ground: light not computed (beyond 64 km).');
+    expect(landerGreyNote(playing: true, web: true),
+        'Grey ground: light not computed (beyond 64 km, not computed while playing on the web).');
+  });
+
+  testWidgets('W31b playing off the web (Android): the grey ground note never says "on the web"', (tester) async {
+    size(tester, const Size(360, 800));
+    await nearPole(tester);
+    state.lightEngineForTest = _StallFullFarEngine();
+    state.playing = true;
+    await tester.pumpWidget(panel(near: nearFrame()));
+    await meshReady(tester);
+    for (var i = 0; i < 5; i++) {
+      await tester.pump();
+    }
+    // a native engine still asks for the far frame while playing (it never lands here)
+    expect(panelState(tester).farRequests, isNotEmpty);
+    expect(find.text('Grey ground: light not computed (beyond 64 km).'), findsOneWidget);
+    expect(find.textContaining('on the web'), findsNothing);
+    state.playing = false;
   });
 }
 

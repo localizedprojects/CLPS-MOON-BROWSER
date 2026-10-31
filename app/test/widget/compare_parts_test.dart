@@ -347,6 +347,14 @@ void main() {
       expect(find.bySemanticsLabel('Bravo, whole period: 20 good days of 42'), findsOneWidget);
     });
 
+    testWidgets('one good day reads "1 good day", not "1 good days"', (tester) async {
+      final c = months((m, day) => m == 9 && day == 20 ? 0.9 : 0.1); // Sep 1 good, Oct 0 good
+      await pump(tester, CalendarRace(sites: [('Charlie', c)]));
+      expect(find.bySemanticsLabel('Charlie, Sep 2027: 1 good day of 11, the most this month'), findsOneWidget);
+      expect(find.bySemanticsLabel('Charlie, whole period: 1 good day of 42'), findsOneWidget);
+      expect(find.bySemanticsLabel('Charlie, Oct 2027: 0 good days of 31'), findsOneWidget);
+    });
+
     testWidgets('320 px at 2x text: no overflow', (tester) async {
       final a = months((m, day) => 0.6);
       await pump(

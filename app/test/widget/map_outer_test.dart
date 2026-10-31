@@ -2,14 +2,17 @@
 // 1x on 80-90°S; zooming out (to the base map's half-width over the ring's,
 // about 0.67) or dragging shows the ring, whose coarser images load only then,
 // once for every map, and again after a failure; taps there are refused with
-// the reason; the 80°S circle is labelled. Older data (no "outer") behaves as
-// before. Synthetic images, so this runs without the real ring's files.
+// the reason; the 80°S circle is labelled, and on a phone every graticule label
+// shows whole at 1x (off the zoom buttons, inside the map's corners). Older
+// data (no "outer") behaves as before. Synthetic images, so this runs without
+// the real ring's files.
 import 'dart:async';
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:polar_horizon/core/catalog.dart';
+import 'package:polar_horizon/core/map_labels.dart' show LabelBox;
 import 'package:polar_horizon/theme.dart';
 import 'package:polar_horizon/widgets/map_view.dart';
 
@@ -109,6 +112,17 @@ void main() {
   Future<void> press(WidgetTester tester, String label) async {
     await tester.tap(find.byTooltip(label).first);
     await tester.pumpAndSettle();
+  }
+
+  /// The text the map's painter draws: each paragraph's box, in the painter's
+  /// pixels (the base map's square at 1x). Measured as it is drawn: the
+  /// painter reuses one TextPainter, so a paragraph is disposed once the next
+  /// label is laid out, too late for the `paints` matcher, which reads its
+  /// recording only after the whole paint.
+  List<Rect> painted(WidgetTester tester) {
+    final recorder = _TextBoxCanvas();
+    tester.renderObject(canvas()).paint(TestRecordingPaintingContext(recorder), Offset.zero);
+    return recorder.boxes;
   }
 
   testWidgets('older data (no ring): zoom floor 1x, no drag past the edge, as before', (tester) async {
@@ -334,4 +348,111 @@ void main() {
     expect(shift(tester).dy, closeTo(0, 1e-6));
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets('a 411 dp phone\'s inline map shows every graticule label whole at 1x: 90°E clear of the four zoom '
+      'buttons, −76° inside the map\'s corner', (tester) async {
+    // Explore's map there: 379 dp (16 dp margins) with the full-screen button
+    // over the zoom buttons; no sites, so only the graticule's text is drawn
+    tester.view.physicalSize = const Size(411, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(MaterialApp(
+      theme: buildTheme(),
+      home: Scaffold(
+        body: SingleChildScrollView(
+          padding: const EdgeInsets.all(16),
+          child: MapView(
+              layers: layers().$1, sites: const [], selectedId: 'a', onSelect: (_) {}, onPlaceCustom: (_, _) {}, onExpand: () {}),
+        ),
+      ),
+    ));
+    await tester.pump();
+    const side = 379.0;
+    expect(tester.getSize(find.byKey(mapViewportKey)), const Size.square(side));
+    const map = Rect.fromLTWH(0, 0, side, side), buttons = Rect.fromLTWH(side - 54, 6, 48, 4 * 48.0);
+    final boxes = painted(tester);
+    expect(boxes, hasLength(10), reason: 'the four meridians, −88° to −84°, 80°S, −78° and −76°: none left out');
+    for (final (i, b) in boxes.indexed) {
+      expect(map.expandToInclude(b), map, reason: 'whole inside the map, not cut off at its edge: $b');
+      expect(b.overlaps(buttons), isFalse, reason: 'not under the zoom buttons: $b');
+      for (final o in boxes.take(i)) {
+        expect(b.overlaps(o), isFalse, reason: '$b covers $o');
+      }
+    }
+    // 90°E slides along its meridian (the pole's row) toward the pole
+    final east = boxes.where((b) => (b.center.dy - side / 2).abs() < 0.01 && b.center.dx > side / 2).single;
+    expect(east.right, lessThanOrEqualTo(buttons.left - 4 + 0.01), reason: '4 px clear of the buttons');
+    // the −76° ring meets the base map only at its corners: in the top-left one, 2 px in
+    expect(boxes.where((b) => (b.topLeft - const Offset(2, 2)).distance < 0.01), hasLength(1));
+  });
+
+  testWidgets('zoomed out over the ring every label stays on its point; full screen, 90°E stays on its meridian, '
+      'clear of the three buttons', (tester) async {
+    final (l, _) = layers();
+    await pump(tester, l);
+    await press(tester, 'Zoom out');
+    expect(scale(tester), closeTo(floor, 1e-9));
+    final points = [
+      for (final lon in const [0.0, 90.0, 180.0, -90.0]) mapFractionOf(l, -81.2, lon) * size,
+      for (final (_, lat, lon) in mapGraticule(outer: true).labels) mapFractionOf(l, lat, lon) * size,
+    ];
+    var boxes = painted(tester);
+    for (final p in points) {
+      expect(boxes.where((b) => (b.center - p).distance < 0.01), hasLength(1), reason: 'a label centred on $p');
+    }
+
+    // the full-screen map (no full-screen button) at 1x: the ring shows above
+    // and below the base map's square, which is 411 px and 144.5 px down
+    tester.view.physicalSize = const Size(411, 700);
+    await tester.pumpWidget(MaterialApp(
+      theme: buildTheme(),
+      home: Scaffold(
+        body: Column(children: [
+          Expanded(
+            child: MapView(
+                layers: l, sites: const [], selectedId: 'a', onSelect: (_) {}, onPlaceCustom: (_, _) {}, fill: true, showControls: false),
+          ),
+        ]),
+      ),
+    ));
+    await tester.pump();
+    const side = 411.0, down = 144.5, lo = (1 - outerHalf / half) / 2 * side;
+    expect((shift(tester) - const Offset(0, down)).distance, lessThan(1e-9));
+    const inView = Rect.fromLTRB(0, lo, side, side - lo), buttons = Rect.fromLTWH(side - 54, 6 - down, 48, 3 * 48.0);
+    boxes = painted(tester);
+    expect(boxes, hasLength(10));
+    for (final b in boxes) {
+      expect(inView.expandToInclude(b), inView, reason: 'whole in view: $b');
+      expect(b.overlaps(buttons), isFalse, reason: 'not under the zoom buttons: $b');
+    }
+    expect(boxes.where((b) => (b.center.dy - side / 2).abs() < 0.01 && b.center.dx > side / 2), hasLength(1),
+        reason: '90°E on the pole\'s row');
+  });
+
+  testWidgets('with large text, −76° pulled into the corner is left out rather than drawn over −78°', (tester) async {
+    const side = 379.0;
+    final labels = mapGridLabels(
+        halfWidthM: half,
+        side: side,
+        zoom: 1,
+        outer: true,
+        scaler: const TextScaler.linear(1.6),
+        view: const LabelBox(0, 0, side, side),
+        controls: const LabelBox(side - 54, 6, side - 6, 6 + 4 * 48.0));
+    expect(labels.map((l) => l.$1), isNot(contains('−76°')));
+    final b78 = labels.singleWhere((l) => l.$1 == '−78°').$3;
+    expect(labels.where((l) => l.$3.overlaps(b78)), hasLength(1), reason: 'nothing over −78°');
+  });
+}
+
+/// A recording canvas that keeps each paragraph's box as it is drawn, while the
+/// paragraph is still alive.
+class _TextBoxCanvas extends TestRecordingCanvas {
+  final boxes = <Rect>[];
+
+  @override
+  void drawParagraph(ui.Paragraph paragraph, Offset offset) {
+    boxes.add(offset & Size(paragraph.longestLine, paragraph.height));
+    super.drawParagraph(paragraph, offset);
+  }
 }

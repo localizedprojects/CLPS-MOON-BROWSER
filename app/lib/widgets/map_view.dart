@@ -272,6 +272,14 @@ TextStyle _labelStyle(bool selected, double z) => TextStyle(
 /// A stack's count at zoom [z]: numbers are Plex Mono with tabular figures.
 TextStyle _badgeStyle(double z) => numStyle(size: 11 / z, weight: FontWeight.w600);
 
+/// A graticule label at zoom [z] (the 80°S circle's [bold]).
+TextStyle _gridStyle(bool bold, double z) => TextStyle(
+    fontFamily: PH.sans,
+    color: PH.text,
+    fontSize: 13 / z,
+    fontWeight: bold ? FontWeight.w600 : null,
+    shadows: const [Shadow(blurRadius: 3, color: Colors.black)]);
+
 /// The site markers of a map [side] px wide at zoom [zoom], in screen pixels
 /// of the zoomed map (scene × zoom; panning moves them all alike): each
 /// marker's centre [at], the [stacks] of markers that overlap on screen
@@ -786,7 +794,7 @@ class _MapViewState extends State<MapView> with SingleTickerProviderStateMixin {
 
   /// The part of the map in view and the zoom buttons' panel over it, in
   /// pixels of the zoomed map (as [mapMarkerLayout] lays out): names stay
-  /// inside the one and off the other.
+  /// inside the one and off the other ([mapGridLabels] too).
   (LabelBox, LabelBox)? _labelFrame() {
     if (_side <= 0 || _vp.isEmpty) return null;
     final t = _shift, z = _scale;
@@ -1348,7 +1356,8 @@ class _MapPainter extends CustomPainter {
   final ValueChanged<String> onPick;
 
   /// The part of the map in view and the zoom buttons' panel over it, read
-  /// at paint time ([mapMarkerLayout]'s view and controls).
+  /// at paint time ([mapMarkerLayout]'s and [mapGridLabels]' view and
+  /// controls).
   final (LabelBox, LabelBox)? Function()? frame;
   _MapPainter(this.l, this.sites, this.selected, this.overlay, this.labels, this.zoom, this.scaler, this.pin, this.highlight,
       Listenable zoomChanges, this.semZoom, this.onPick, {this.frame})
@@ -1419,19 +1428,14 @@ class _MapPainter extends CustomPainter {
           ..strokeWidth = width / z);
       }
     }
+    // the graticule's labels, whole in view and off the zoom buttons
     final tp = TextPainter(textDirection: TextDirection.ltr, textScaler: scaler);
-    void text(String s, Offset at, {Color color = PH.text, double size = 13, bool bold = false}) {
-      tp.text = TextSpan(text: s, style: TextStyle(fontFamily: PH.sans, color: color, fontSize: size / z, fontWeight: bold ? FontWeight.w600 : null,
-          shadows: const [Shadow(blurRadius: 3, color: Colors.black)]));
+    final f = frame?.call();
+    for (final (s, bold, box) in mapGridLabels(
+        halfWidthM: h, side: w, zoom: z, outer: outer != null, scaler: scaler, view: f?.$1, controls: f?.$2)) {
+      tp.text = TextSpan(text: s, style: _gridStyle(bold, z));
       tp.layout();
-      tp.paint(canvas, at - Offset(tp.width / 2, tp.height / 2));
-    }
-
-    for (final (lon, s) in [(0.0, '0°'), (90.0, '90°E'), (180.0, '180°'), (-90.0, '90°W')]) {
-      text(s, px(-81.2, lon), color: PH.text);
-    }
-    for (final (s, lat, lon) in g.labels) {
-      text(s, px(lat, lon), color: PH.text, bold: lat == g.edge);
+      tp.paint(canvas, box.topLeft / z);
     }
 
     // sites (selected drawn last), always at their true positions
@@ -1464,7 +1468,6 @@ class _MapPainter extends CustomPainter {
 
     // markers that overlap on screen get a count beside them; names go where
     // they do not cover each other (merged as "Name +n" where nothing is free)
-    final f = frame?.call();
     final lay = mapMarkerLayout(
         halfWidthM: h, sites: sites, side: w, zoom: z, selected: selected, highlight: highlight, names: labels, scaler: scaler,
         view: f?.$1, controls: f?.$2);
@@ -1562,6 +1565,67 @@ class _MapPainter extends CustomPainter {
         if (outer) ...[('80°S', -80.0, -45.0), (_latLabel(-78), -78.0, -45.0), (_latLabel(-76), -76.0, -45.0)],
       ],
     );
+
+/// The graticule's text labels on a map [side] px wide at zoom [zoom], in
+/// screen pixels of the zoomed map (as [mapMarkerLayout]'s): each label's
+/// text, whether it is bold (the 80°S circle) and its box. The meridians are
+/// labelled on 81.2°S and the rings as [mapGraticule] says, each centred on
+/// its point, except: a label whose point is inside [view] (the part of the
+/// map on screen) stays 2 px inside it, clear of the map's rounded corners,
+/// and is left out if that puts it over a label before it (at 1x the −76°
+/// ring shows only in the map's corners); and a meridian's label under
+/// [controls] (the zoom buttons) slides along its meridian toward the pole
+/// until 4 px clear of them (on a phone, 90°E is under the inline map's four
+/// buttons).
+List<(String, bool, Rect)> mapGridLabels({
+  required double halfWidthM,
+  required double side,
+  required double zoom,
+  required bool outer,
+  TextScaler scaler = TextScaler.noScaling,
+  LabelBox? view,
+  LabelBox? controls,
+}) {
+  final z = zoom, g = mapGraticule(outer: outer);
+  Rect rect(LabelBox b) => Rect.fromLTRB(b.left, b.top, b.right, b.bottom);
+  final inside = view == null ? null : rect(view), keepOff = controls == null ? null : rect(controls).inflate(4);
+  final pole = Offset(side / 2, side / 2) * z;
+  final tp = TextPainter(textDirection: TextDirection.ltr, textScaler: scaler);
+  final placed = <(String, bool, Rect)>[];
+  for (final (s, lat, lon, meridian) in [
+    for (final (lon, s) in const [(0.0, '0°'), (90.0, '90°E'), (180.0, '180°'), (-90.0, '90°W')]) (s, -81.2, lon, true),
+    for (final (s, lat, lon) in g.labels) (s, lat, lon, false),
+  ]) {
+    final bold = lat == g.edge;
+    tp.text = TextSpan(text: s, style: _gridStyle(bold, z));
+    tp.layout();
+    final (x, y) = latLonToXY(lat, lon);
+    final at = Offset((x / halfWidthM * 0.5 + 0.5) * side * z, (0.5 - y / halfWidthM * 0.5) * side * z);
+    var box = Rect.fromCenter(center: at, width: tp.width * z, height: tp.height * z);
+    var pulled = false;
+    if (inside != null && inside.contains(at)) {
+      final v = inside.deflate(2);
+      double into(double lo, double hi, double min, double max) => lo < min ? min - lo : (hi > max ? max - hi : 0.0);
+      final d = Offset(into(box.left, box.right, v.left, v.right), into(box.top, box.bottom, v.top, v.bottom));
+      pulled = d != Offset.zero;
+      box = box.shift(d);
+    }
+    if (meridian && keepOff != null && box.overlaps(keepOff)) {
+      final to = pole - at, len = to.distance;
+      for (var t = 1.0; t <= len; t++) {
+        final b = box.shift(to * (t / len));
+        if (!b.overlaps(keepOff)) {
+          box = b;
+          break;
+        }
+      }
+    }
+    if (pulled && placed.any((p) => p.$3.overlaps(box))) continue;
+    placed.add((s, bold, box));
+  }
+  tp.dispose();
+  return placed;
+}
 
 /// A small scale bar: the longest round distance that fits in [maxPx].
 class _ScaleBar extends StatelessWidget {

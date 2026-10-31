@@ -2,7 +2,8 @@
 // opened, its major controls are lit one at a time with a card saying what
 // each does (Back, Next, Done); each guide shows once and is remembered;
 // Learn replays them. Also Android back, screen readers, a 320 px phone at
-// 2x text, and hosts that do not ask for guides.
+// 2x text, a control taller than its view, and hosts that do not ask for
+// guides.
 import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart' show SemanticsAction;
 import 'package:flutter_test/flutter_test.dart';
@@ -390,6 +391,70 @@ void main() {
     expect(pendingGuideSteps(state, 'explore'), isEmpty, reason: 'not tried again this session');
     state.replayGuides();
     expect(pendingGuideSteps(state, 'explore').map((s) => s.target), ['pill'], reason: 'a replay tries it again');
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('a control taller than its view keeps its top in view (and after Done); one that fits lines up as before',
+      (tester) async {
+    tester.view.physicalSize = const Size(400, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    // the light map in a phone's slot: 450 tall in a 300 view, then a
+    // control that fits, below the fold
+    Future<ScrollController> host(double start, Set<String> pending) async {
+      state
+        ..guidesSeen = keys('explore').difference(pending)
+        ..guidesPassed.clear()
+        ..activeGuide = 'explore';
+      final scroll = ScrollController(initialScrollOffset: start);
+      addTearDown(scroll.dispose);
+      await tester.pumpWidget(const SizedBox());
+      await tester.pumpWidget(MaterialApp(
+        theme: buildTheme(),
+        home: Stack(children: [
+          Positioned(
+            left: 0,
+            right: 0,
+            top: 100,
+            height: 300,
+            child: SingleChildScrollView(
+              controller: scroll,
+              child: const Column(children: [
+                GuideTarget(id: 'map', child: SizedBox(width: 400, height: 450)),
+                SizedBox(height: 200),
+                GuideTarget(id: 'map-layers', child: SizedBox(width: 400, height: 100)),
+                SizedBox(height: 300),
+              ]),
+            ),
+          ),
+          FeatureGuideLayer(state: state),
+        ]),
+      ));
+      await settle(tester);
+      return scroll;
+    }
+
+    // at the top of its slot: nothing scrolls (it used to line its bottom
+    // up with the view's, its top 150 out of sight)
+    var scroll = await host(0, {'explore:map', 'explore:map-layers'});
+    expect(state.activeGuide, 'explore');
+    expect(scroll.offset, 0, reason: 'the tall control\'s top stays in view');
+    // the next control fits: its bottom is lined up with the view's, as before
+    await tester.tap(find.byKey(_next));
+    await settle(tester);
+    expect(scroll.offset, 750 - 300);
+    await tester.tap(find.byKey(_next));
+    await settle(tester);
+    expect(state.activeGuide, isNull);
+
+    // scrolled past its top: the top comes back, and stays after Done
+    scroll = await host(100, {'explore:map'});
+    expect(state.activeGuide, 'explore');
+    expect(scroll.offset, 0);
+    await tester.tap(find.byKey(_next));
+    await settle(tester);
+    expect(state.activeGuide, isNull);
+    expect(scroll.offset, 0, reason: 'the map\'s top (pole badge, notes) still shows after Done');
     await tester.pumpWidget(const SizedBox());
   });
 

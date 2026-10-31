@@ -1,7 +1,8 @@
 // Light & shadow map: arrow wording under the stricter rules, the overlay
 // image keeper (per-layer reuse, no work off screen, the web cap), the phone
-// landscape layout, the reduced-motion spinner, no recompute on return, and
-// the device-shaded relief (and its note) past the base map's edge (IM-1).
+// landscape layout, the reduced-motion spinner, no recompute on return,
+// the device-shaded relief (and its note) past the base map's edge (IM-1),
+// and the lander legend's hatched see-through key.
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
@@ -20,6 +21,7 @@ import 'package:polar_horizon/core/visibility.dart';
 import 'package:polar_horizon/state/app_state.dart';
 import 'package:polar_horizon/state/light_engine.dart';
 import 'package:polar_horizon/theme.dart';
+import 'package:polar_horizon/widgets/lander_view.dart' show LanderPainter;
 import 'package:polar_horizon/widgets/light_map.dart';
 
 import 'light_test_fonts.dart';
@@ -982,6 +984,29 @@ void main() {
         }
       }
       expect(log, isEmpty);
+    });
+  });
+
+  group('lander legend', () {
+    testWidgets('"Near ground, see-through" is keyed by the view\'s hatch, not an amber band', (tester) async {
+      const key = ValueKey('swatch');
+      await tester.pumpWidget(Center(child: CustomPaint(key: key, size: const Size(22, 16), painter: landerSeeThroughSwatch())));
+      final lines = <(Offset, Offset)>[];
+      expect(
+          tester.renderObject(find.byKey(key)),
+          paints
+            ..everything((method, args) {
+              if (method == #drawLine && (args[2] as Paint).color.toARGB32() == LanderPainter.seeThroughColor.toARGB32()) {
+                lines.add((args[0] as Offset, args[1] as Offset));
+              }
+              return true;
+            }));
+      expect(lines.length, greaterThan(3), reason: 'hatched, as the view draws that ground');
+      for (final (a, b) in lines) {
+        expect(b.dx - a.dx, closeTo(b.dy - a.dy, 0.01), reason: 'hairlines falling to the right at 45°');
+        expect(b.dy, greaterThan(a.dy));
+      }
+      expect(tester.renderObject(find.byKey(key)), isNot(paints..rect(color: PH.sun)), reason: 'amber means the Sun');
     });
   });
 }

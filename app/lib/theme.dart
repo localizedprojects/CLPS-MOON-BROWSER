@@ -572,23 +572,29 @@ class _FidelityBadgeState extends State<FidelityBadge> {
     final short = FidelityBadge.summaryOf(full);
     final more = short.length < full.trim().length - 1;
     final style = PHText.small.copyWith(color: PH.muted);
-    final body = Container(
-      constraints: const BoxConstraints(minHeight: 48),
-      padding: const EdgeInsets.fromLTRB(12, 10, 14, 10),
-      decoration: BoxDecoration(color: PH.sunken, borderRadius: BorderRadius.circular(PH.radiusInner)),
-      child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        const Padding(
-          padding: EdgeInsets.only(top: 1),
-          child: Icon(Icons.info_outline, size: 18, color: PH.muted),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: Text.rich(TextSpan(children: [
-            TextSpan(text: _open || !more ? full : short),
-            if (more) TextSpan(text: _open ? '  Less' : '  More', style: const TextStyle(color: PH.ice, fontWeight: FontWeight.w600)),
-          ])),
-        ),
-      ]),
+    // The style is set inside the tap target: the InkWell's Material sets its
+    // own DefaultTextStyle (bodyMedium), which replaced a merge above it and
+    // drew every expandable note in large white body text.
+    final body = DefaultTextStyle.merge(
+      style: style,
+      child: Container(
+        constraints: const BoxConstraints(minHeight: 48),
+        padding: const EdgeInsets.fromLTRB(12, 10, 14, 10),
+        decoration: BoxDecoration(color: PH.sunken, borderRadius: BorderRadius.circular(PH.radiusInner)),
+        child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          const Padding(
+            padding: EdgeInsets.only(top: 1),
+            child: Icon(Icons.info_outline, size: 18, color: PH.muted),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text.rich(TextSpan(children: [
+              TextSpan(text: _open || !more ? full : short),
+              if (more) TextSpan(text: _open ? '  Less' : '  More', style: const TextStyle(color: PH.ice, fontWeight: FontWeight.w600)),
+            ])),
+          ),
+        ]),
+      ),
     );
     return Padding(
       padding: const EdgeInsets.only(top: 8),
@@ -597,19 +603,16 @@ class _FidelityBadgeState extends State<FidelityBadge> {
         excludeSemantics: true,
         button: more,
         onTap: more ? () => setState(() => _open = !_open) : null,
-        child: DefaultTextStyle.merge(
-          style: style,
-          child: more
-              ? Material(
-                  color: Colors.transparent,
-                  child: InkWell(
-                    borderRadius: BorderRadius.circular(PH.radiusInner),
-                    onTap: () => setState(() => _open = !_open),
-                    child: body,
-                  ),
-                )
-              : body,
-        ),
+        child: more
+            ? Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(PH.radiusInner),
+                  onTap: () => setState(() => _open = !_open),
+                  child: body,
+                ),
+              )
+            : body,
       ),
     );
   }

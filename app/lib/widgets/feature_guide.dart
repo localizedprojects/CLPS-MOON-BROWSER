@@ -172,11 +172,24 @@ class _FeatureGuideLayerState extends State<FeatureGuideLayer> with WidgetsBindi
       if (at == null) return _go(_i + 1);
     }
     if (at.rect.top < at.view.top || at.rect.bottom > at.view.bottom) {
-      await Scrollable.ensureVisible(at.target,
-          duration: wait,
-          alignmentPolicy: at.rect.bottom > at.view.bottom
-              ? ScrollPositionAlignmentPolicy.keepVisibleAtEnd
-              : ScrollPositionAlignmentPolicy.keepVisibleAtStart);
+      if (at.rect.height > at.view.height) {
+        // taller than its view (the light map in a phone's slot): its top
+        // is what shows, as much of it as fits; lining its bottom up with
+        // the view's would hide the top, and it would stay hidden after Done.
+        // Only its vertical scroll moves (not a Site tab's page across), and
+        // the scroll is awaited to its end: a fixed wait could measure it
+        // short of its place, a tall control below the view still out of it
+        // (At a glance, then More, on a 320 px phone at 2x text)
+        await Scrollable.maybeOf(at.target, axis: Axis.vertical)
+            ?.position
+            .ensureVisible(at.target.findRenderObject()!, duration: wait);
+      } else {
+        await Scrollable.ensureVisible(at.target,
+            duration: wait,
+            alignmentPolicy: at.rect.bottom > at.view.bottom
+                ? ScrollPositionAlignmentPolicy.keepVisibleAtEnd
+                : ScrollPositionAlignmentPolicy.keepVisibleAtStart);
+      }
       // a list's children move only at its next layout (with no motion the
       // scroll is a jump that returns at once)
       await WidgetsBinding.instance.endOfFrame;

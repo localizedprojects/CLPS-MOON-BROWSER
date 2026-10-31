@@ -117,7 +117,7 @@ void main() {
     expect(find.text('On the Site screen, when no button or slider has focus:'), findsOneWidget);
     expect(lander, findsOneWidget);
     for (final what in ['Turn left or right', 'Turn left or right in small steps', 'Look up or down', 'Zoom in or out',
-        'Face the Sun', 'Face Earth', 'Face north (away from the pole)', 'Level the view', 'Give the keys back to the page']) {
+        'Face the Sun', 'Face Earth', 'Face north (away from the pole)', 'Level the view', 'Open the view full screen (Esc closes it)', 'Give the keys back to the page']) {
       final row = find.text(what);
       expect(row, findsOneWidget, reason: what);
       expect(tester.getTopLeft(row).dy, greaterThan(tester.getTopLeft(lander).dy), reason: what);

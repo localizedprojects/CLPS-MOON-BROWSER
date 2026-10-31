@@ -19,13 +19,12 @@ import 'dart:math' as math;
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
-import 'package:flutter/foundation.dart' show kIsWeb, listEquals;
+import 'package:flutter/foundation.dart' show listEquals;
 import 'package:flutter/material.dart';
 
 import '../core/catalog.dart';
 import '../core/dem.dart';
 import '../core/eclipse.dart';
-import '../core/geo.dart' show Observer;
 import '../core/lander_view.dart' show LanderMesh, landerNearAlpha;
 import '../state/lander_light.dart' show landerAlbedo, landerNotComputedArgb;
 import '../core/relief.dart';
@@ -34,16 +33,19 @@ import '../core/visibility.dart' show EarthCriterion, SunCriterion, earthVisible
 import '../core/wording.dart';
 import '../state/app_state.dart';
 import '../state/light_engine.dart';
+import '../state/light_loop.dart';
 import '../theme.dart';
 import 'chart_bridge.dart' show nowAt, utcLabel;
 import 'glyphs.dart';
 import 'hide_on_scroll.dart';
 import 'time_bar.dart' show utcTwoLines;
 import 'feature_guide.dart';
+import 'lander_full_screen.dart';
 import 'lander_view.dart';
 
 export '../state/light_engine.dart' show LightClass, LightLayer, classify, lightOverlayPixels, lightPixel;
 export '../core/wording.dart' show eclipseSharePct;
+export '../state/light_loop.dart' show LightFrameLoop, lightFrameEclipse, lightFrameEclipsed, lightRequestFor;
 
 Future<ui.Image> _decode(Uint8List rgba, int w) {
   final c = Completer<ui.Image>();
@@ -70,35 +72,6 @@ const lightPastMapNote = 'This close-up reaches past the base map\'s edge (about
     '120 m map (LDEM_75S_120M) averaged to 400 m, the relief under the colours is shaded on this device from that '
     '400 m grid with the same artificial light as the map (a little smoother than the map\'s 320 m relief), and map '
     'distances run up to about 1% longer than true ones, so shadows cast from there are a little less exact.';
-
-/// Earth against the Sun at [f]'s moment, seen from the frame's site: its
-/// request's latitude and longitude at [terrainHeightM] + the request's
-/// observer height (as `AppState.observer`), so the share is the one `nowAt`
-/// gives the status line at that moment.
-SunEclipse lightFrameEclipse(LightFrame f, {double terrainHeightM = 0}) {
-  final q = f.request;
-  return sunEclipseAt(Observer(q.lat, q.lon, terrainHeightM + q.observerHeightM), q.sun, q.earth);
-}
-
-/// [f] as drawn during a lunar eclipse ([ecl], from [lightFrameEclipse]):
-/// while Earth hides the whole Sun no ground gets direct sunlight, so every
-/// pixel loses its Sun bits (the Sun and Both layers draw it as in shadow and
-/// the legend's Sun shares are 0); while Earth covers part of it the terrain
-/// shadows stay, but no ground sees the whole disk (the fullDisk rule needs
-/// no overlap, formula.md §6.5), so every pixel loses its full-Sun bit and
-/// sunlit ground is drawn as seeing part of the Sun (the note gives Earth's
-/// share); without an eclipse [f] itself. A copy of the flags only: no shadow
-/// is recomputed. One eclipse for the whole frame, the site's
-/// ([lightEclipseFidelity]).
-LightFrame lightFrameEclipsed(LightFrame f, SunEclipse ecl) {
-  if (ecl.fraction <= 0) return f;
-  final flags = Uint8List.fromList(f.flags);
-  final keep = (ecl.fraction >= 1 ? ~(lightSunAny | lightSunFull) : ~lightSunFull) & 0xFF;
-  for (var i = 0; i < flags.length; i++) {
-    flags[i] &= keep;
-  }
-  return LightFrame(f.request, f.size, f.pxM, f.x0M, f.y0M, flags, f.shade, f.computeMs);
-}
 
 /// The light map's note on a lunar eclipse at a frame's moment: null without
 /// one; for a total one, that no ground gets direct sunlight; for a partial
@@ -622,6 +595,13 @@ class LightMap extends StatefulWidget {
   /// the time bar on a slow phone (Android 7 emulator: the overlay build
   /// after the compute was not covered, and the map fell up to 40 h behind).
   static final framePending = ValueNotifier<bool>(false);
+
+  /// The PageStorage ids (in the route's bucket) of the chosen view and
+  /// layer; the full-screen Lander's view writes the layer there too.
+  static const viewStoreId = 'light-map-view', layerStoreId = 'light-map-layer';
+
+  /// In the Lander's view's place while it is open full screen.
+  static const landerFullOpenNote = "The Lander's view is open full screen.";
 }
 
 class _LightMapState extends State<LightMap> {
@@ -634,11 +614,53 @@ class _LightMapState extends State<LightMap> {
   // Light tab build the map under a different parent in portrait, phone
   // landscape and two panes, so rotating the phone makes a new State (qa-2).
   // They are kept in the route's PageStorage bucket under fixed ids.
-  static const _closeUpId = 'light-map-close-up', _viewId = 'light-map-view', _layerId = 'light-map-layer';
+  static const _closeUpId = 'light-map-close-up', _viewId = LightMap.viewStoreId, _layerId = LightMap.layerStoreId;
 
   void _remember(Object id, Object value) => PageStorage.maybeOf(context)?.writeState(context, value, identifier: id);
 
-  LightEngine? _engine;
+  /// The Lander's view is open full screen ([openLanderFullScreen]): this
+  /// map asks for no frames meanwhile (its [LightFrameLoop] is inactive; the
+  /// page runs its own) and shows a note in the view's place. See the spec's
+  /// "Full screen and site switching".
+  bool _fullOpen = false;
+
+  Future<void> _openFull() async {
+    // a second expand (two F presses in one frame) before the view inline goes away
+    if (_fullOpen) return;
+    final s = widget.state;
+    setState(() => _fullOpen = true);
+    _images.update(active: false);
+    LightMap.framePending.value = false;
+    await openLanderFullScreen(context, state: s, layer: layer, onLayer: (l) {
+      if (mounted) _setLayer(l);
+    });
+    if (!mounted) return;
+    final l = PageStorage.maybeOf(context)?.readState(context, identifier: _layerId);
+    setState(() {
+      _fullOpen = false;
+      if (l is LightLayer) layer = l;
+    });
+    _loop.retry();
+    _images.update(active: widget.active, layer: layer);
+    _reportPending();
+  }
+
+  void _setLayer(LightLayer l) {
+    setState(() => layer = l);
+    _remember(_layerId, layer);
+    _images.update(layer: l);
+    _reportPending();
+  }
+
+  late final _loop = LightFrameLoop(widget.state,
+      isActive: () => widget.active && !_fullOpen,
+      extent: () => closeUp ? LightExtent.closeUp : LightExtent.region,
+      onFrame: (engine, f) => _images.update(engine: engine, frame: f),
+      onPending: _reportPending,
+      onChange: () {
+        _reportPending();
+        if (mounted) setState(() {});
+      });
   late final _images = LightImageKeeper(onChange: () {
     if (!mounted) return;
     setState(() {});
@@ -647,15 +669,11 @@ class _LightMapState extends State<LightMap> {
   late final _relief = ReliefKeeper(onChange: () {
     if (mounted) setState(() {});
   });
-  LightRequest? _queued;
-  bool _busy = false;
-  String? _sentKey, _error;
 
   // the last nowAt() result and what it was computed from (see build)
   Object? _nowKey;
   Map<String, dynamic>? _now;
   List<Site>? _sites;
-  Timer? _debounce;
 
   // legend shares of the shown frame, computed once per frame
   final _labelMemory = ArrowLabelMemory();
@@ -667,24 +685,6 @@ class _LightMapState extends State<LightMap> {
   final _sideScroll = ScrollController();
   LightFrame? _sharesFrame;
   LightShares? _shares;
-
-  // each computed frame as drawn (a total lunar eclipse takes its sunlight
-  // away, a partial one its full sunlight: lightFrameEclipsed) and the
-  // eclipse of a drawn frame
-  final _asDrawn = Expando<LightFrame>();
-  final _eclipseOf = Expando<SunEclipse>();
-
-  /// [raw] as drawn, the same object for the same frame (the image keeper
-  /// compares frames by identity), its eclipse kept in [_eclipseOf].
-  LightFrame _drawn(LightFrame raw) {
-    final done = _asDrawn[raw];
-    if (done != null) return done;
-    final site = widget.state.site, q = raw.request;
-    final ecl = lightFrameEclipse(raw, terrainHeightM: site.lat == q.lat && site.lon == q.lon ? site.terrainHeightM : 0);
-    final f = lightFrameEclipsed(raw, ecl);
-    _eclipseOf[f] = ecl;
-    return _asDrawn[raw] = f;
-  }
 
   @override
   void initState() {
@@ -706,12 +706,12 @@ class _LightMapState extends State<LightMap> {
     super.didUpdateWidget(old);
     if (widget.active != old.active) {
       // shown again: an unchanged moment is not recomputed (a change is
-      // picked up by _maybeRequest); only a failed one is retried
-      if (widget.active && _error != null) _sentKey = null;
+      // picked up by _loop.request); only a failed one is retried
+      if (widget.active && _loop.error != null) _loop.retry();
       // leaving the tab or destination brings the bars back (HideOnScroll's
       // resetKey); coming back to the lander's view hides them again
       if (!widget.active) LightMap._landerHidFor = null;
-      _images.update(active: widget.active);
+      _images.update(active: widget.active && !_fullOpen);
       _reportPending();
     }
   }
@@ -721,79 +721,24 @@ class _LightMapState extends State<LightMap> {
   /// that only shows an error. A replaced map (rotation) leaves the flag to
   /// its successor; [dispose] clears it when the map goes away.
   void _reportPending() {
-    if (!mounted) return;
+    // while the Lander's view is full screen the page owns the flag (a frame
+    // of this map's still in flight when it opened must not clear it)
+    if (!mounted || _fullOpen) return;
     LightMap.framePending.value = widget.active &&
-        _error == null &&
+        _loop.error == null &&
         _images.error == null &&
-        (_busy || _queued != null || _images.catchingUp);
+        (_loop.busy || _loop.queued || _images.catchingUp);
   }
 
   @override
   void dispose() {
-    _debounce?.cancel();
+    _loop.dispose();
     _landerMesh.dispose();
     _sideScroll.dispose();
-    if (widget.active) LightMap.framePending.value = false;
+    if (widget.active && !_fullOpen) LightMap.framePending.value = false;
     _images.dispose();
     _relief.dispose();
     super.dispose();
-  }
-
-  void _maybeRequest() {
-    final s = widget.state, eph = s.eph;
-    if (!widget.active || eph == null || !mounted) return;
-    final q = lightRequestFor(s, extent: closeUp ? LightExtent.closeUp : LightExtent.region);
-    if (q.key == _sentKey) return;
-    _sentKey = q.key;
-    _queued = q;
-    _reportPending();
-    _debounce?.cancel();
-    // playback already paces itself; only scrubbing is debounced
-    _debounce = Timer(s.playing ? Duration.zero : const Duration(milliseconds: 60), _pump);
-  }
-
-  /// While playing, when the frame just finished ([q]) is still the
-  /// cursor's (no tick is waiting to be requested), start the next tick's
-  /// frame, so it is ready when the cursor gets there; the engine's cache
-  /// (and in-flight sharing) hands it over. Never ahead of a frame that is
-  /// actually needed (the single worker runs one frame at a time).
-  void _prefetch(LightEngine engine, LightRequest q) {
-    final s = widget.state, eph = s.eph;
-    if (!mounted || !widget.active || !s.playing || eph == null || _queued != null || !q.coarse) return;
-    if (s.cursorMs != q.tMs) return; // a newer tick is on its way
-    final t = q.tMs + s.playStepMs; // what _tick will set: the same sum
-    // _tick stops (and sets the last time itself) once a step would reach it
-    if (t < s.rangeStartMs || t >= s.lastCursorMs) return;
-    engine.compute(lightRequestFor(s, extent: closeUp ? LightExtent.closeUp : LightExtent.region, tMs: t, coarse: true)).ignore();
-  }
-
-  /// Latest request wins: while a frame computes, newer requests replace
-  /// each other and only the newest runs next (smooth scrubbing / playback).
-  /// Overlays are built by [_images] meanwhile, always for the newest frame.
-  Future<void> _pump() async {
-    if (_busy) return;
-    _busy = true;
-    _reportPending();
-    if (mounted) setState(() {});
-    try {
-      final engine = _engine ??= await widget.state.lightEngine();
-      LightRequest? last;
-      while (_queued != null && mounted) {
-        final q = last = _queued!;
-        _queued = null;
-        final f = await engine.compute(q);
-        if (!mounted) return;
-        _images.update(engine: engine, frame: _drawn(f));
-      }
-      if (last != null) _prefetch(engine, last);
-      _error = null;
-    } catch (e) {
-      _error = '$e';
-    } finally {
-      _busy = false;
-      _reportPending();
-      if (mounted) setState(() {});
-    }
   }
 
   LightShares _sharesOf(LightFrame f) {
@@ -824,7 +769,7 @@ class _LightMapState extends State<LightMap> {
 
   @override
   Widget build(BuildContext context) {
-    WidgetsBinding.instance.addPostFrameCallback((_) => _maybeRequest());
+    WidgetsBinding.instance.addPostFrameCallback((_) => _loop.request());
     final s = widget.state;
     final layers = s.mapLayers;
     if (layers == null || s.eph == null) {
@@ -862,9 +807,9 @@ class _LightMapState extends State<LightMap> {
     final shares = shownFrame == null ? null : _sharesOf(shownFrame);
     // a lunar eclipse at the shown frame's moment (its picture's, so while a
     // newer frame computes it may trail the status line by a step)
-    final eclipse = lightEclipseNote(shownFrame == null ? null : _eclipseOf[shownFrame]);
-    final failed = _error != null || _images.error != null;
-    final stale = _busy || (!failed && (_images.pending || shownFrame == null || shownFrame.request.key != _sentKey));
+    final eclipse = lightEclipseNote(shownFrame == null ? null : _loop.eclipseOf(shownFrame));
+    final failed = _loop.error != null || _images.error != null;
+    final stale = _loop.busy || (!failed && (_images.pending || shownFrame == null || shownFrame.request.key != _loop.sentKey));
     final fine = shownFrame?.request.closeUp ?? closeUp;
     final coarseShown = shownFrame?.request.coarse ?? false;
     final scope = fine ? 'within 64 km of ${s.site.short}' : 'of the region inside 80°S';
@@ -885,17 +830,8 @@ class _LightMapState extends State<LightMap> {
       // ("Both: Sun + Earth"), not in a Tooltip: on touch a tooltip shown by
       // a press could stay on screen over other screens once this tab went
       // off stage (its fade-out ticker is muted there; new-sun-earth-tooltip)
-      Widget segLabel(String text, String meaning) =>
-          fit.short ? Semantics(label: '$text: $meaning', excludeSemantics: true, child: Text(text)) : Text(text);
-      // segments are text buttons at least 64 dp wide; a horizontal density
-      // of -4 makes that 48 dp (still a full tap target, and 48 dp tall), so
-      // the short labels share one row on a 393 dp phone
-      final style = compact
-          ? ButtonStyle(
-              padding: WidgetStatePropertyAll(
-                  EdgeInsets.symmetric(horizontal: fit.short ? LightMap.shortSegmentPad : LightMap.segmentPad)),
-              visualDensity: const VisualDensity(horizontal: -4, vertical: 0))
-          : null;
+      Widget segLabel(String text, String meaning) => LightLayerSwitch.segmentLabel(text, meaning, short: fit.short);
+      final style = LightLayerSwitch.segmentStyle(compact: compact, short: fit.short);
       return Wrap(spacing: 12, runSpacing: 10, crossAxisAlignment: WrapCrossAlignment.center, children: [
       if (title) const Text('Light & shadow', style: PHText.subtitle),
       if (title) Text(utcLabel(tMap), style: numStyle(size: 13, color: PH.muted)),
@@ -922,39 +858,17 @@ class _LightMapState extends State<LightMap> {
         selected: {kind},
         onSelectionChanged: (v) => setState(() {
           kind = v.first;
-          _sentKey = null;
+          _loop.retry();
           _remember(_viewId, kind.name);
         }),
       )),
-      GuideTarget(id: 'light-layer', child: SegmentedButton<LightLayer>(
-        showSelectedIcon: false,
-        style: style,
-        segments: [
-          ButtonSegment(
-              value: LightLayer.sun,
-              label: segLabel(l.layer[0], 'Sunlight'),
-              icon: compact ? null : const Icon(Icons.wb_sunny_outlined, size: 18)),
-          ButtonSegment(
-              value: LightLayer.earth,
-              label: segLabel(l.layer[1], 'Earth in view'),
-              icon: compact ? null : const Icon(Icons.public, size: 18)),
-          ButtonSegment(
-              value: LightLayer.both,
-              label: segLabel(l.layer[2], 'Sun + Earth'),
-              icon: compact ? null : const Icon(Icons.join_inner, size: 18)),
-        ],
-        selected: {layer},
-        onSelectionChanged: (v) {
-          setState(() => layer = v.first);
-          _remember(_layerId, layer);
-          _images.update(layer: v.first);
-          _reportPending();
-        },
-      )),
+      GuideTarget(
+          id: 'light-layer',
+          child: LightLayerSwitch(selected: layer, onChanged: _setLayer, short: fit.short, icons: !compact)),
     ]);
     }
 
-    final legend = _Legend(
+    final legend = LightLegend(
         layer: img?.layer ?? layer,
         shares: shares,
         scope: scope,
@@ -977,23 +891,7 @@ class _LightMapState extends State<LightMap> {
     final pastMap = fine && viewBeyondBaseMap(_targetView, layers.halfWidthM);
     // agreement figures: test/core/shadow_test.dart (16 preset sites x 60 random moments, 2 m observer)
     final badge = kind == LightViewKind.lander
-        ? Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-            ValueListenableBuilder<LanderMesh?>(
-                valueListenable: _landerMesh,
-                builder: (context, m, _) {
-                  // the mesh of this site and eye height only
-                  final mine = m != null && m.cam.latDeg == s.site.lat && m.cam.lonDeg == s.site.lon && m.cam.eyeHeightM == h;
-                  return FidelityBadge(
-                      key: const ValueKey('lander-badge'),
-                      text: landerFidelityText(heightText,
-                          custom: s.site.custom,
-                          eyeOffsetM: mine && !s.site.custom ? m.cam.groundM - s.site.terrainHeightM : null,
-                          demEnds: mine ? m.demEnds : const [],
-                          eclipse: eclipse != null));
-                }),
-            if (s.playing) FidelityBadge(key: const ValueKey('lander-play-badge'), text: landerPlayFidelity(web: kIsWeb)),
-            if (s.site.custom) const FidelityBadge(text: FidelityBadge.customHorizon),
-          ])
+        ? LanderFidelityBadges(state: s, mesh: _landerMesh, eclipse: eclipse != null)
         : FidelityBadge(
       text: 'Shadows are computed on this device from the NASA LOLA elevation map at ${fine ? '400 m' : '800 m'} '
           'per pixel, for an observer $heightText above the ground, with the Sun\'s and Earth\'s directions from '
@@ -1008,7 +906,7 @@ class _LightMapState extends State<LightMap> {
           '${coarseShown ? ' While playing, the map uses a coarser ${shownFrame!.pxM.round()} m grid so it can keep up, and the '
               'legend\'s shares are from that grid; the agreement figures above are for the paused map. Pause for full detail.' : ''}',
     );
-    final error = failed ? Text(_error ?? '${_images.error}', style: PHText.small.copyWith(color: PH.warn)) : null;
+    final error = failed ? Text(_loop.error ?? '${_images.error}', style: PHText.small.copyWith(color: PH.warn)) : null;
 
     // [bottomMayHide]: the map's lower edge can sit under the pinned time bar
     // until the page is scrolled (a phone in portrait), so a note there would
@@ -1020,10 +918,24 @@ class _LightMapState extends State<LightMap> {
     // fit in (LanderViewPanel.fitHeight; null: the page scrolls)
     Widget mapBox(double side, {bool bottomMayHide = false, Size? landerSize, double? landerFit}) {
       _images.update(side: side, dpr: MediaQuery.devicePixelRatioOf(context));
+      if (kind == LightViewKind.lander && _fullOpen) {
+        // the full-screen view has the mesh and the camera meanwhile (never two
+        // panels building at once); a new panel takes both back on closing
+        final w = landerSize?.width ?? side, hh = bottomMayHide ? side : (landerSize?.height ?? side);
+        return GuideTarget(
+            id: 'light-map',
+            child: SizedBox(
+                width: w,
+                height: math.min(hh, 0.62 * w),
+                child: Center(
+                    child: Text(LightMap.landerFullOpenNote,
+                        textAlign: TextAlign.center, style: PHText.body.copyWith(color: PH.muted)))));
+      }
       if (kind == LightViewKind.lander) {
         return GuideTarget(
             id: 'light-map',
             child: LanderViewPanel(
+                onExpand: _openFull,
                 state: s,
                 near: shownFrame != null && shownFrame.request.closeUp ? shownFrame : null,
                 layer: img?.layer ?? layer,
@@ -1502,7 +1414,63 @@ class _StatusLine extends StatelessWidget {
   }
 }
 
-class _Legend extends StatelessWidget {
+/// The light layer switch (Sun / Earth / Both), on the map and in the
+/// full-screen Lander's view: text segments at least 48 dp wide and tall,
+/// [short] labels carrying their whole meaning in the accessible name.
+class LightLayerSwitch extends StatelessWidget {
+  final LightLayer selected;
+  final ValueChanged<LightLayer> onChanged;
+
+  /// Short labels ([LightMap.shortSwitchLabels]); [icons]: an icon on each segment.
+  final bool short, icons;
+  const LightLayerSwitch(
+      {super.key, required this.selected, required this.onChanged, this.short = false, this.icons = false});
+
+  /// A segment's label: the short labels carry their full meaning in the
+  /// accessible name ("Both: Sun + Earth"), not in a Tooltip: on touch a
+  /// tooltip shown by a press could stay on screen over other screens once
+  /// this tab went off stage (its fade-out ticker is muted there;
+  /// new-sun-earth-tooltip).
+  static Widget segmentLabel(String text, String meaning, {required bool short}) =>
+      short ? Semantics(label: '$text: $meaning', excludeSemantics: true, child: Text(text)) : Text(text);
+
+  /// Segments are text buttons at least 64 dp wide; a horizontal density of
+  /// -4 makes that 48 dp (still a full tap target, and 48 dp tall), so the
+  /// short labels share one row on a 393 dp phone ([compact]: no icons).
+  static ButtonStyle? segmentStyle({required bool compact, required bool short}) => compact
+      ? ButtonStyle(
+          padding: WidgetStatePropertyAll(
+              EdgeInsets.symmetric(horizontal: short ? LightMap.shortSegmentPad : LightMap.segmentPad)),
+          visualDensity: const VisualDensity(horizontal: -4, vertical: 0))
+      : null;
+
+  @override
+  Widget build(BuildContext context) {
+    final l = (short ? LightMap.shortSwitchLabels : LightMap.switchLabels).layer;
+    return SegmentedButton<LightLayer>(
+      showSelectedIcon: false,
+      style: segmentStyle(compact: !icons, short: short),
+      segments: [
+        ButtonSegment(
+            value: LightLayer.sun,
+            label: segmentLabel(l[0], 'Sunlight', short: short),
+            icon: icons ? const Icon(Icons.wb_sunny_outlined, size: 18) : null),
+        ButtonSegment(
+            value: LightLayer.earth,
+            label: segmentLabel(l[1], 'Earth in view', short: short),
+            icon: icons ? const Icon(Icons.public, size: 18) : null),
+        ButtonSegment(
+            value: LightLayer.both,
+            label: segmentLabel(l[2], 'Sun + Earth', short: short),
+            icon: icons ? const Icon(Icons.join_inner, size: 18) : null),
+      ],
+      selected: {selected},
+      onSelectionChanged: (v) => onChanged(v.first),
+    );
+  }
+}
+
+class LightLegend extends StatelessWidget {
   final LightLayer layer;
   final LightShares? shares;
   final String scope;
@@ -1520,8 +1488,9 @@ class _Legend extends StatelessWidget {
   /// The lander's view: three more keys (light not computed, the
   /// see-through near ground and the dashed horizon, §4.4).
   final bool lander;
-  const _Legend(
-      {required this.layer,
+  const LightLegend(
+      {super.key,
+      required this.layer,
       required this.shares,
       required this.scope,
       this.onMap,
@@ -2176,23 +2145,6 @@ class LightFramePainter extends CustomPainter {
 
 /// The Light tab's three views (docs/landers_view_spec.md §7.1).
 enum LightViewKind { closeUp, region, lander }
-
-/// The request for [s]'s site and moment ([tMs], default the cursor) at
-/// [extent]: the map, its prefetch and the lander's view all use it, so they
-/// share keys and cache entries (D2). [coarse] defaults to "playing".
-LightRequest lightRequestFor(AppState s, {required LightExtent extent, double? tMs, bool? coarse}) {
-  final t = tMs ?? s.cursorMs, eph = s.eph!;
-  return LightRequest(
-      closeUp: extent == LightExtent.closeUp,
-      far: extent == LightExtent.far,
-      lat: s.site.lat,
-      lon: s.site.lon,
-      sun: eph.sun(t),
-      earth: eph.earth(t),
-      tMs: t,
-      observerHeightM: s.observerHeightM,
-      coarse: coarse ?? s.playing);
-}
 
 /// The lander's view FidelityBadge text (§6): the main text, then (g) the
 /// eye's offset from a preset's 80 m height when over 5 m ([eyeOffsetM] =

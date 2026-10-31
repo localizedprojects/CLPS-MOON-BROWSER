@@ -10,7 +10,7 @@ import 'dart:math' as math;
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart' show ValueListenable, kIsWeb;
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
@@ -26,7 +26,8 @@ import '../theme.dart';
 import '../core/wording.dart' show bodyStateShort;
 import 'chart_bridge.dart' show nowAt, utcLabel;
 import 'glyphs.dart';
-import 'light_map.dart' show lightFrameEclipse, lightFrameEclipsed, lightRequestFor;
+import '../state/light_loop.dart' show lightFrameEclipse, lightFrameEclipsed, lightRequestFor;
+import 'light_map.dart' show landerFidelityText;
 import 'no_page_swipe.dart';
 
 typedef SkyBody = ({double az, double el, double rhoDeg, SkyState state});
@@ -205,9 +206,28 @@ class LanderViewPanel extends StatefulWidget {
   /// notes then scroll); null: no such limit. The view stays at least
   /// [minFitViewHeightFor] tall even where that leaves the buttons to scroll.
   final double? fitHeight;
+
+  /// Opens the view full screen (the expand button under the compass strip,
+  /// and the F key); null: no such button (the full-screen view itself).
+  final VoidCallback? onExpand;
+
+  /// The view takes all the height of [maxHeight] (finite) above its seven
+  /// buttons, in portrait and landscape alike, and the notes scroll under
+  /// them (the full-screen view).
+  final bool fill;
   const LanderViewPanel(
       {super.key, required this.state, required this.near, required this.layer, required this.width,
-      this.maxHeight = double.infinity, this.fitHeight, this.demForTest, this.meshOut});
+      this.maxHeight = double.infinity, this.fitHeight, this.demForTest, this.meshOut, this.onExpand,
+      this.fill = false});
+
+  /// The expand button's tooltip and accessible name.
+  static const expandLabel = "Open the Lander's view full screen";
+
+  /// The expand button's box in a view [w] wide: under the compass strip at
+  /// the right edge, clear of the strip's chevrons and of the seven buttons
+  /// (below the view); the callouts and scale labels keep off it
+  /// ([LanderPainter.reserve]).
+  static Rect expandRect(double w) => Rect.fromLTWH(w - 52, LanderPainter.compassH + 4, 48, 48);
 
   static const buttonsWidth = 7 * 48.0;
 
@@ -580,6 +600,27 @@ class LanderViewPanelState extends State<LanderViewPanel> with TickerProviderSta
     _refreshText(live: live);
   }
 
+  /// Keeps the camera as it is now under this site's id (`lander-camera-<id>`
+  /// in the route's PageStorage), for the next view of this site: the
+  /// full-screen view on opening, the inline one on closing, and before the
+  /// app's site changes. A turn under way stops first, so it never goes on
+  /// to write under another site's id.
+  void rememberCamera() {
+    if (!mounted) return;
+    _stopMotion();
+    if (_camKey != _s.site.id) return; // the camera is still the last site's
+    PageStorage.maybeOf(context)?.writeState(context, [cam.yaw, cam.pitch, cam.hfov], identifier: _storeId);
+  }
+
+  /// The expand button and the F key: only once the view is built (a build
+  /// in flight would be lost with this panel).
+  bool get _canExpand => widget.onExpand != null && _mesh != null;
+
+  void _expand() {
+    rememberCamera();
+    widget.onExpand?.call();
+  }
+
   bool get _reduced => MediaQuery.maybeDisableAnimationsOf(context) ?? false;
 
   void _stopMotion() {
@@ -667,6 +708,15 @@ class LanderViewPanelState extends State<LanderViewPanel> with TickerProviderSta
       animateTo(yaw: 0);
     } else if (k == LogicalKeyboardKey.home) {
       level();
+    } else if (k == LogicalKeyboardKey.keyF &&
+        _canExpand &&
+        // once per press (a held F repeats)
+        e is KeyDownEvent &&
+        // never the browser's or system's Ctrl/Cmd/Alt+F
+        !HardwareKeyboard.instance.isControlPressed &&
+        !HardwareKeyboard.instance.isMetaPressed &&
+        !HardwareKeyboard.instance.isAltPressed) {
+      _expand();
     } else {
       return KeyEventResult.ignored;
     }
@@ -727,14 +777,18 @@ class LanderViewPanelState extends State<LanderViewPanel> with TickerProviderSta
     // notes, kept in view to scroll there (1.9.2: 0 dp, so the caption and the
     // notes were never seen), never at the cost of 120 dp of scene under the
     // compass strip
-    final strip = widget.maxHeight.isFinite && w > widget.maxHeight;
+    // [LanderViewPanel.fill] (full screen): laid out as the strip, with no cap on the view's height
+    final fill = widget.fill && widget.maxHeight.isFinite;
+    final strip = fill || widget.maxHeight.isFinite && w > widget.maxHeight;
     final scroll = strip || widget.maxHeight.isFinite && viewH + 8 + 48.0 * rows + notesH > widget.maxHeight;
     if (scroll) {
-      final cap = strip ? math.max(0.62 * w, 220.0) : viewH;
+      final cap = fill ? double.infinity : strip ? math.max(0.62 * w, 220.0) : viewH;
       final room = widget.maxHeight - 4 - 48.0 * rows, keep = strip ? math.min(notesH, 2 * lineH) : 0.0;
       viewH = math.max(0.0, math.min(cap, math.max(math.min(LanderPainter.compassH + 120, room), room - keep)));
     }
     final status = _status;
+    // the expand button: once the view is built, in a view tall enough for it under the compass strip
+    final expand = _canExpand && viewH >= LanderPainter.compassH + 4 + 48 + 8;
     final painter = LanderPainter(
       cam: cam,
       mesh: _mesh,
@@ -754,6 +808,7 @@ class LanderViewPanelState extends State<LanderViewPanel> with TickerProviderSta
       status: status,
       focused: _focused,
       textScaler: scaler.clamp(maxScaleFactor: PH.maxCanvasTextScale),
+      reserve: expand ? LanderViewPanel.expandRect(w) : null,
     );
     void press(VoidCallback f) {
       _focus.requestFocus();
@@ -916,7 +971,29 @@ class LanderViewPanelState extends State<LanderViewPanel> with TickerProviderSta
       width: w,
       height: scroll ? widget.maxHeight : null,
       child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-        ClipRRect(borderRadius: BorderRadius.circular(PH.radiusInner), child: SizedBox(height: viewH, child: view)),
+        ClipRRect(
+            borderRadius: BorderRadius.circular(PH.radiusInner),
+            child: SizedBox(
+                height: viewH,
+                // the expand button over the view's corner, outside its gestures and its description
+                child: !expand
+                    ? view
+                    : Stack(fit: StackFit.expand, children: [
+                        view,
+                        Positioned.fromRect(
+                            rect: LanderViewPanel.expandRect(w),
+                            child: IconButton(
+                              key: const ValueKey('lander-expand'),
+                              tooltip: LanderViewPanel.expandLabel,
+                              onPressed: _expand,
+                              style: IconButton.styleFrom(
+                                backgroundColor: const Color(0xCC0C1528),
+                                foregroundColor: PH.text,
+                                minimumSize: const Size(48, 48),
+                              ),
+                              icon: const Icon(Icons.open_in_full, size: 20),
+                            )),
+                      ]))),
         const SizedBox(height: 4),
         if (scroll) buttons,
         if (scroll)
@@ -927,6 +1004,42 @@ class LanderViewPanelState extends State<LanderViewPanel> with TickerProviderSta
           ...below,
       ]),
     );
+  }
+}
+
+/// The Lander's view's approximation notes (§6), under the view inline and
+/// full screen: the main FidelityBadge ([landerFidelityText], with the eye's
+/// offset and where the terrain data ends once [mesh] holds this site's
+/// mesh), the playback note while playing, and a custom spot's horizon note.
+class LanderFidelityBadges extends StatelessWidget {
+  final AppState state;
+  final ValueListenable<LanderMesh?> mesh;
+
+  /// A lunar eclipse at the shown frame's moment.
+  final bool eclipse;
+  const LanderFidelityBadges({super.key, required this.state, required this.mesh, this.eclipse = false});
+
+  @override
+  Widget build(BuildContext context) {
+    final s = state, h = s.observerHeightM;
+    final heightText = '${h.toStringAsFixed(h == h.roundToDouble() ? 0 : 1)} m';
+    return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+      ValueListenableBuilder<LanderMesh?>(
+          valueListenable: mesh,
+          builder: (context, m, _) {
+            // the mesh of this site and eye height only
+            final mine = m != null && m.cam.latDeg == s.site.lat && m.cam.lonDeg == s.site.lon && m.cam.eyeHeightM == h;
+            return FidelityBadge(
+                key: const ValueKey('lander-badge'),
+                text: landerFidelityText(heightText,
+                    custom: s.site.custom,
+                    eyeOffsetM: mine && !s.site.custom ? m.cam.groundM - s.site.terrainHeightM : null,
+                    demEnds: mine ? m.demEnds : const [],
+                    eclipse: eclipse));
+          }),
+      if (s.playing) FidelityBadge(key: const ValueKey('lander-play-badge'), text: landerPlayFidelity(web: kIsWeb)),
+      if (s.site.custom) const FidelityBadge(text: FidelityBadge.customHorizon),
+    ]);
   }
 }
 
@@ -1000,11 +1113,16 @@ class LanderPainter extends CustomPainter {
   final bool focused;
   final TextScaler textScaler;
 
+  /// The expand button's box over the view ([LanderViewPanel.expandRect]):
+  /// the callouts keep off it where a place that fits does, and the
+  /// elevation scale's and level's labels always (null: no button).
+  final Rect? reserve;
+
   LanderPainter(
       {required this.cam, required this.mesh, required this.proj, required this.colors, this.patterns = const [],
       this.sun, this.earth, this.sunWord, this.earthWord, this.maskDeg, this.maskStepDeg = 0.5, this.maskLabel = '',
       this.probe, this.probeAt, this.seeThrough, this.status, this.focused = false,
-      this.textScaler = TextScaler.noScaling})
+      this.textScaler = TextScaler.noScaling, this.reserve})
       : super(repaint: cam);
 
   /// Height of the compass strip at the top (a 48 dp tap target).
@@ -1809,6 +1927,8 @@ class LanderPainter extends CustomPainter {
     // (its callout repeats the azimuth) or the heading pointer: [preferOf]
     final markers = _markers(v, sun, earth, sunA, earthA), pointer = headingPointer(size);
     final taps = [for (final (r, _, _, _) in chevrons(v, sun, earth)) r];
+    // the expand button's corner ([reserve]) is kept as a chevron's tap target is
+    final soft = [...taps, ?reserve];
     List<Rect> markerOf(bool isSun) => [
           for (final (r, s) in markers)
             if (s == isSun) r
@@ -1840,10 +1960,10 @@ class LanderPainter extends CustomPainter {
     List<List<Rect>> preferOf(List<Rect> spot, bool isSun) {
       final other = twin ? markerOf(!isSun) : const <Rect>[];
       return [
-        [...spot, ...taps, ...markerOf(isSun), pointer, ...other],
-        [...spot, ...taps, ...other],
+        [...spot, ...soft, ...markerOf(isSun), pointer, ...other],
+        [...spot, ...soft, ...other],
         [...spot, ...other],
-        [...taps, ...markerOf(isSun), pointer, ...other],
+        [...soft, ...markerOf(isSun), pointer, ...other],
         other,
       ];
     }
@@ -1989,7 +2109,7 @@ class LanderPainter extends CustomPainter {
     final sunBox = sunCallout?.box, earthBox = earthCallout?.box;
     // (the glyphs too: a callout's glyph sits outside its box and is painted over a label under it;
     // 1.9.2: Earth's over '+5°')
-    final boxes = [?sunBox, ?earthBox, ?sunGlyph, ?earthGlyph, ?strip.legend, ?strip.readout, ...demLabels];
+    final boxes = [?sunBox, ?earthBox, ?sunGlyph, ?earthGlyph, ?strip.legend, ?strip.readout, ...demLabels, ?reserve];
     _scaleShown.clear();
     _elevationScale(canvas, v, size, boxes);
     if (debugRecord) {
@@ -2280,5 +2400,6 @@ class LanderPainter extends CustomPainter {
       !identical(old.seeThrough, seeThrough) ||
       old.status != status ||
       old.focused != focused ||
-      old.textScaler != textScaler;
+      old.textScaler != textScaler ||
+      old.reserve != reserve;
 }

@@ -12,6 +12,7 @@ import 'package:polar_horizon/widgets/about_site.dart';
 import 'package:polar_horizon/widgets/best_window_card.dart';
 import 'package:polar_horizon/widgets/expert_numbers.dart';
 import 'package:polar_horizon/widgets/good_days_calendar.dart';
+import 'package:polar_horizon/widgets/lander_photos_card.dart';
 import 'package:polar_horizon/widgets/light_snapshot.dart';
 import 'package:polar_horizon/widgets/plan_for_dark_card.dart';
 import 'package:polar_horizon/widgets/stat_bar.dart';
@@ -168,6 +169,36 @@ void main() {
       expect(tester.widget<FidelityBadge>(badge).text, lightSnapshotFidelityFor(past), reason: id);
       expect(find.byWidgetPredicate((w) => w is FidelityBadge && w.text.contains('Past the base map\'s edge')),
           past ? findsOneWidget : findsNothing, reason: id);
+      await tester.pumpWidget(const SizedBox());
+      await tester.pump(const Duration(milliseconds: 100));
+    });
+  }
+
+  // "Real photos from this lander": right after About this site on the two
+  // landed landers only (links to NASA's pages; nothing is loaded)
+  for (final (id, shown) in [
+    ('im-1-odysseus-landed', true),
+    ('im-2-athena-landed', true),
+    ('derosa2012-mp1-malapert-peak', false),
+  ]) {
+    testWidgets('$id: the lander photos card is ${shown ? 'shown after About this site' : 'not shown'}', (tester) async {
+      final before = state.site.id;
+      addTearDown(() => tester.runAsync(() => state.selectSite(before)));
+      await tester.runAsync(() => state.selectSite(id));
+      // tall enough that About this site is still built when the card is in view
+      await pumpAt(tester, 390, height: 2000);
+      await scrollTo(tester, find.byType(AboutSite));
+      if (shown) {
+        await scrollTo(tester, find.byType(LanderPhotosCard));
+        expect(find.byType(LanderPhotosCard), findsOneWidget, reason: id);
+        expect(tester.getTopLeft(find.byType(LanderPhotosCard)).dy,
+            greaterThan(tester.getTopLeft(find.byType(AboutSite)).dy), reason: id);
+      } else {
+        await tester.drag(find.byType(Scrollable).first, const Offset(0, -3000));
+        await tester.pump();
+        expect(find.byType(LanderPhotosCard), findsNothing, reason: id);
+      }
+      expect(tester.takeException(), isNull);
       await tester.pumpWidget(const SizedBox());
       await tester.pump(const Duration(milliseconds: 100));
     });

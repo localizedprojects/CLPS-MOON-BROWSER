@@ -23,6 +23,7 @@ import '../../widgets/best_window_card.dart';
 import '../../widgets/expert_numbers.dart';
 import '../../widgets/glyphs.dart';
 import '../../widgets/good_days_calendar.dart';
+import '../../widgets/lander_photos_card.dart';
 import '../../widgets/landing_window_card.dart';
 import '../../widgets/light_snapshot.dart';
 import '../../widgets/plan_for_dark_card.dart';
@@ -265,6 +266,8 @@ class SiteOverview extends StatelessWidget {
                   child: Text(from, style: PHText.small.copyWith(color: PH.muted)),
                 ),
               AboutSite(key: ValueKey('about-${site.id}'), site: site),
+              // the two landed landers: links to their real photos on NASA's pages
+              ?LanderPhotosCard.forSite(site.id, key: ValueKey('lander-photos-${site.id}')),
               if (s.expert) ExpertNumbers(state: s),
               ],
             ],

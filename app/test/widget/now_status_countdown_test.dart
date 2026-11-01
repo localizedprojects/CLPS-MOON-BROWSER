@@ -2,6 +2,8 @@
 // the Sun's height on the default screen, its screen-reader text, the live
 // region quiet within a minute, power only with "Show exact numbers", and
 // Earth hiding the Sun during a lunar eclipse.
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:polar_horizon/core/countdown.dart';
@@ -10,6 +12,7 @@ import 'package:polar_horizon/state/app_state.dart';
 import 'package:polar_horizon/theme.dart';
 import 'package:polar_horizon/widgets/chart_bridge.dart' show nowAt;
 import 'package:polar_horizon/widgets/now_status.dart';
+import 'package:polar_horizon/widgets/site_glance_card.dart' show numSpans;
 
 import 'light_test_fonts.dart';
 
@@ -39,6 +42,53 @@ void main() {
   test('minuteOf floors to the whole minute', () {
     expect(minuteOf(1792800059999), 1792800000000);
     expect(minuteOf(1792800060000), 1792800060000);
+  });
+
+  testWidgets('the reserved samples hold a counted Sun under a partial eclipse, above or below level, Earth counted or not',
+      (tester) async {
+    // "above level" / "below level" (1.11.0 F4) read as wide as each other and
+    // narrower than the old "below the horizon", so "Earthrise" needs its own sample
+    await tester.runAsync(loadPlexFonts);
+    const day = 86400e3;
+    const farEcl = NextChange(10 * day, 10 * day + 1439 * 60e3, byEclipse: true, eclipseTotal: false);
+    final style = PHText.body.copyWith(color: PH.muted);
+    double height(String t, double w) {
+      final p = TextPainter(text: numSpans(t, style), textDirection: TextDirection.ltr)..layout(maxWidth: w);
+      final h = p.height;
+      p.dispose();
+      return h;
+    }
+
+    for (final dsn in [false, true]) {
+      for (final power in [false, true]) {
+        final samples = NowStatus.countdownSamples(requireDsn: dsn, power: power);
+        final lines = [
+          for (final el in [18.8, -18.8])
+            for (final clear in [18.8, -0.3])
+              for (final earthUp in [true, false])
+                countdownLine(
+                    Countdown(
+                        sunUp: true,
+                        earthUp: earthUp,
+                        sunElDeg: el,
+                        sunClearDeg: clear,
+                        eclipse: 0.99,
+                        eclipseHides: false,
+                        power: 1366,
+                        sun: farEcl,
+                        earth: const NextChange(day, 1439 * 60e3)),
+                    dateOf: (_) => '28 Oct 2027 23:59 UTC',
+                    requireDsn: dsn,
+                    power: power),
+        ];
+        for (var w = 200.0; w <= 1500; w++) {
+          final cap = samples.map((t) => height(t, w)).reduce(math.max);
+          for (final l in lines) {
+            expect(height(l, w), lessThanOrEqualTo(cap + 0.01), reason: 'dsn $dsn, power $power, width $w: $l');
+          }
+        }
+      }
+    }
   });
 
   group('with real data', () {
@@ -75,7 +125,9 @@ void main() {
         await pump(tester, w: 360);
         expect(tester.takeException(), isNull);
         final line = shown(tester);
-        expect(line, matches(RegExp(r'^(Sun \d+\.\d° (up|below the horizon) \(\d+\.\d° (above|below) the hills\)|Earth hides the Sun)')));
+        // the raw elevation against level, never the state words "up" / "below the horizon" (1.11.0 F4)
+        expect(line, matches(RegExp(r'^(Sun \d+\.\d° (above|below) level \(\d+\.\d° (above|below) the hills\)|Earth hides the Sun)')));
+        expect(line, isNot(contains('below the horizon')));
         expect(line, matches(RegExp(r'(sunset|sunrise|Earth hides the Sun) in \d|no (sunset|sunrise) in your dates')));
         expect(line, matches(RegExp(r'(Earthset|Earthrise) in \d|no (Earthset|Earthrise) in your dates')));
         seen.add(line.contains('sunset') ? 'sunset' : 'other');

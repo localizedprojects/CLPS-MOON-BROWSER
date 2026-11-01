@@ -3,6 +3,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:polar_horizon/core/lander_view.dart' show LanderViewpoint;
 import 'package:polar_horizon/core/ranking.dart';
 import 'package:polar_horizon/screens/how_calculated.dart';
 import 'package:polar_horizon/screens/learn.dart';
@@ -11,6 +12,8 @@ import 'package:polar_horizon/state/app_state.dart';
 import 'package:polar_horizon/theme.dart';
 import 'package:polar_horizon/version.dart';
 import 'package:polar_horizon/widgets/explain.dart';
+import 'package:polar_horizon/widgets/lander_full_screen.dart' show LanderFullScreenPage;
+import 'package:polar_horizon/widgets/lander_view.dart' show LanderViewPanel, landerViewpointHint, landerViewpointLabel;
 import 'package:provider/provider.dart';
 
 void main() {
@@ -108,6 +111,32 @@ void main() {
         'pinch', 'Face the Sun or Face Earth', 'see-through and hatched', 'approximate', '400 m']) {
       expect(explainLander.body, contains(words));
     }
+  });
+
+  testWidgets('the Lander\'s view card names the buttons on the view: full screen, relief shading, view height',
+      (tester) async {
+    // 1.11.1: the card (also the "Explain as I go" note beside the view) left
+    // out the full screen (1.10.0), the relief switch and the View height
+    // control (1.11.0); its words follow the buttons' own names and hints
+    final body = explainLander.body, lower = body.toLowerCase();
+    expect(LanderViewPanel.expandLabel, endsWith('full screen'));
+    expect(LanderFullScreenPage.closeLabel, endsWith('full screen'));
+    expect(body, contains('open it full screen (where you can also switch sites)'));
+    expect(lower, contains('turn ${LanderViewPanel.reliefLabel.toLowerCase()} on or off'));
+    expect(LanderViewPanel.reliefHint, endsWith('lit by a fixed drawing light, not the Sun'));
+    expect(body, contains('lit by a fixed drawing light, not the Sun'));
+    expect(landerViewpointLabel(LanderViewpoint.km1, 2), startsWith('View height: '));
+    expect(lower, contains('set the view height'));
+    final hint = landerViewpointHint(2);
+    expect(hint, contains('200 m, 1 km or 5 km'));
+    expect(body, contains('200 m, 1 km or 5 km'));
+    final stays = hint.substring(hint.indexOf('Only '));
+    expect(stays, 'Only the drawing viewpoint moves; the light and the Sun and Earth status stay the lander\'s.');
+    expect(body, contains(stays.replaceFirst('Only ', 'only ')));
+    // the see-through near ground is the lander's eye's only (raised eyes draw it solid)
+    expect(body, contains('At the lander\'s height, ground very close to it'));
+    await pumpLearn(tester, w: 1280, h: 4000);
+    expect(find.textContaining('turn relief shading on or off'), findsOneWidget);
   });
 
   testWidgets('shortcuts: the Site keys, then the Lander\'s view keys it handles; the version in the credits',

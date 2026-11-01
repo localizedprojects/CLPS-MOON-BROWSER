@@ -192,18 +192,20 @@ class NowStatus extends StatelessWidget {
                 eclipseHides: hides),
       ];
 
-  /// The longest countdown lines (for [reserve]): Sun up, down and hidden
-  /// by Earth, with the widest durations and a date with its year, and the
-  /// lunar-eclipse wordings (Earth's share of the Sun while it still counts
-  /// or is down, Earth stopping it counting next, and Earth's share while it
-  /// stops the Sun counting).
+  /// The longest countdown lines (for [reserve]): Sun up, down (both above
+  /// and below level, which read nearly as wide) and hidden by Earth, with
+  /// the widest durations and a date with its year, and the lunar-eclipse
+  /// wordings (Earth's share of the Sun while it still counts, with Earth
+  /// counted or not ("Earthrise" is the wider), or while the Sun is down,
+  /// Earth stopping it counting next, and Earth's share while it stops the
+  /// Sun counting).
   static List<String> countdownSamples({required bool requireDsn, required bool power}) {
     const day = 86400e3, far = NextChange(10 * day, 10 * day + 1439 * 60e3), near = NextChange(day, 1439 * 60e3);
     const farEcl = NextChange(10 * day, 10 * day + 1439 * 60e3, byEclipse: true, eclipseTotal: false);
-    String line(bool up, double el, bool hides, {double eclipse = 0, NextChange sun = far}) => countdownLine(
+    String line(bool up, double el, bool hides, {double eclipse = 0, NextChange sun = far, bool? earthUp}) => countdownLine(
         Countdown(
             sunUp: up,
-            earthUp: up,
+            earthUp: earthUp ?? up,
             sunElDeg: el,
             sunClearDeg: -el,
             eclipse: eclipse,
@@ -217,8 +219,10 @@ class NowStatus extends StatelessWidget {
     return [
       line(true, 18.8, false),
       line(false, -18.8, false),
+      line(false, 18.8, false),
       line(false, 1, true, eclipse: 0.99),
       line(true, -18.8, false, eclipse: 0.99, sun: farEcl),
+      line(true, -18.8, false, eclipse: 0.99, sun: farEcl, earthUp: false),
       line(false, -18.8, false, eclipse: 0.99),
     ];
   }

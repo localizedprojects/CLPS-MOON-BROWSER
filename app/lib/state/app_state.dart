@@ -11,6 +11,7 @@
 library;
 
 import 'dart:async';
+import 'dart:collection';
 import 'dart:convert';
 import 'dart:ui' as ui;
 
@@ -27,7 +28,7 @@ import '../core/ephemeris.dart';
 import '../core/geo.dart';
 import '../core/horizon.dart';
 import '../core/horizon_compute.dart';
-import '../core/lander_view.dart' show LanderMesh;
+import '../core/lander_view.dart' show LanderMesh, LanderViewpoint, LanderViewpointHeight;
 import '../core/landing.dart';
 import '../core/landing_wording.dart' show goalName;
 import '../core/metrics.dart';
@@ -197,6 +198,35 @@ class AppState extends ChangeNotifier {
     expert = v;
     notifyListeners();
   }
+
+  /// The Lander's view's relief shading (D21): the ground's slopes from the
+  /// mesh's own LOLA heights under a fixed drawing light (not the Sun). On by
+  /// default; one switch for the inline and the full-screen view, every site.
+  bool landerRelief = true;
+
+  void setLanderRelief(bool v) {
+    if (v == landerRelief) return;
+    landerRelief = v;
+    notifyListeners();
+  }
+
+  /// The Lander's view's drawing viewpoint (D22, user decision 2026-10-31):
+  /// the lander's eye (the observer height; the default) or a raised eye
+  /// 200 m, 1 km or 5 km above the ground under the site. Only the drawing
+  /// eye moves: the light, the Sun and Earth status and the map stay the
+  /// lander's. One choice for the inline and the full-screen view and every
+  /// site, kept for the session (like [landerRelief]).
+  LanderViewpoint landerViewpoint = LanderViewpoint.lander;
+
+  void setLanderViewpoint(LanderViewpoint v) {
+    if (v == landerViewpoint) return;
+    landerViewpoint = v;
+    notifyListeners();
+  }
+
+  /// The Lander's view's eye height above the ground under the site (m):
+  /// [observerHeightM] at the lander, else the raised viewpoint's.
+  double get landerEyeHeightM => landerViewpoint.eyeHeightM(observerHeightM);
 
   /// "Explain as I go": short explanation cards next to each view.
   bool explainInline = false;
@@ -1197,22 +1227,55 @@ class AppState extends ChangeNotifier {
   @visibleForTesting
   set demForTest(PolarGrid g) => _demJob = Future.value(g);
 
-  ({String key, LanderMesh mesh})? _landerMesh;
+  // the kept lander's view meshes, least recently used first (D22)
+  final LinkedHashMap<String, LanderMesh> _landerMeshes = LinkedHashMap();
 
-  /// What the lander's view mesh is built for: the site's position and the
-  /// observer height.
-  String get landerMeshKey => '${site.lat}|${site.lon}|$observerHeightM';
+  /// At most this many lander's view meshes are kept: one site's four
+  /// heights (the lander's eye and the three raised viewpoints, D22), so
+  /// 2 m, 200 m, 1 km, 5 km and back to 2 m builds none again.
+  static final int landerMeshCacheSize = LanderViewpoint.values.length;
 
-  /// The lander's view mesh last built for [key] ([landerMeshKey]), if it is
-  /// still the one kept. One mesh is kept here, not in its panel, so leaving
-  /// the view (Lander > Site > Lander) or turning the phone (a new panel under
-  /// another parent) does not build it again, which takes minutes on a slow
-  /// phone; it is about 6 MB (MP1: 77 k vertices, 142 k triangles). It is
-  /// dropped once the site or the observer height changes.
-  LanderMesh? landerMesh(String key) => _landerMesh?.key == key ? _landerMesh!.mesh : null;
+  /// What a lander's view mesh is built for: the site's position and the eye
+  /// height [eyeM] above the ground under it (the observer's, or a raised
+  /// viewpoint's, D22). A raised eye's key does not depend on the observer
+  /// height, so its mesh outlives a 2 <-> 10 m change.
+  String landerMeshKeyFor(double eyeM) => '${site.lat}|${site.lon}|$eyeM';
 
-  /// Keeps [mesh], built for [key] ([landerMeshKey]), in place of the last one.
-  void keepLanderMesh(String key, LanderMesh mesh) => _landerMesh = (key: key, mesh: mesh);
+  /// The key of the mesh the lander's view wants now: this site and [landerEyeHeightM].
+  String get landerMeshKey => landerMeshKeyFor(landerEyeHeightM);
+
+  /// The lander's view mesh built for [key] ([landerMeshKey]), if it is
+  /// still kept (and then the most recently used). The meshes are kept here,
+  /// not in the panel, so leaving the view (Lander > Site > Lander), turning
+  /// the phone (a new panel under another parent) or going back to a
+  /// viewpoint height (D22) does not build one again, which takes minutes on
+  /// a slow phone. Sizes (shipped DEM, §8): at 2 m 2-6 MB (Haworth 1.7 MB,
+  /// SR1 2.8 MB, MP1 about 6 MB); measured for SR1 / Haworth 5.6 / 3.0 MB
+  /// from 200 m, 9.8 / 10.9 MB from 1 km and 25 / 23 MB from 5 km, so one
+  /// site's four heights come to about 43 / 38 MB (about 45 MB at most). At
+  /// most [landerMeshCacheSize] are kept; they are dropped once the site
+  /// changes, and the lander's eye mesh once the observer height changes.
+  /// The panel adds at most the previous site's mesh at the lander's height
+  /// (2-6 MB; it keeps no raised mesh of another site).
+  LanderMesh? landerMesh(String key) {
+    final m = _landerMeshes.remove(key);
+    if (m != null) _landerMeshes[key] = m;
+    return m;
+  }
+
+  /// Keeps [mesh], built for [key] ([landerMeshKey]), as the most recently
+  /// used; the least recently used beyond [landerMeshCacheSize] goes.
+  void keepLanderMesh(String key, LanderMesh mesh) {
+    _landerMeshes.remove(key);
+    _landerMeshes[key] = mesh;
+    while (_landerMeshes.length > landerMeshCacheSize) {
+      _landerMeshes.remove(_landerMeshes.keys.first);
+    }
+  }
+
+  /// The keys of the kept lander's view meshes, least recently used first.
+  @visibleForTesting
+  List<String> get landerMeshKeys => List.unmodifiable(_landerMeshes.keys);
 
   /// Shadow engine behind the light & shadow map (started on first use; a
   /// failed start, e.g. the DEM fetch going offline, is tried again on the
@@ -1801,8 +1864,11 @@ class AppState extends ChangeNotifier {
 
   @override
   void notifyListeners() {
-    // another site or observer height: the kept lander mesh is not wanted any more
-    if (_landerMesh != null && _landerMesh!.key != landerMeshKey) _landerMesh = null;
+    // another site, or the lander's eye at another observer height: those kept meshes are not wanted any more
+    if (_landerMeshes.isNotEmpty) {
+      final wanted = {for (final v in LanderViewpoint.values) landerMeshKeyFor(v.eyeHeightM(observerHeightM))};
+      _landerMeshes.removeWhere((k, _) => !wanted.contains(k));
+    }
     if (!_disposed) super.notifyListeners();
   }
 

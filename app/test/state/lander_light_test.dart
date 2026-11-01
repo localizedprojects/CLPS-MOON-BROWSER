@@ -175,6 +175,45 @@ void main() {
     expect(landerNotComputedArgb, beyondMapGround.toARGB32());
   });
 
+  test('S13 raised viewpoint (D22): all ground solid; split cells coloured as Σ w · their pixels', () {
+    final m = buildLanderMesh(dem.heights, dem.size, dem.scaleM, latDeg: sr1.lat, lonDeg: sr1.lon, observerHeightM: 1000);
+    expect(m.raisedEye, isTrue);
+    final w = _win(fine, dem.scaleM, sr1.lat, sr1.lon, closeUpPx);
+    final rnd = math.Random(13);
+    const bytes = [0, 1, 3, 4, 5, 7];
+    final n = closeUpPx * closeUpPx;
+    final flags = Uint8List.fromList([for (var i = 0; i < n; i++) bytes[rnd.nextInt(bytes.length)]]);
+    final shade = Uint8List.fromList([for (var i = 0; i < n; i++) rnd.nextInt(256)]);
+    final f = LightFrame(LightRequest(closeUp: true, lat: sr1.lat, lon: sr1.lon, sun: V3(1, 0, 0), earth: V3(1, 0, 0), tMs: 0),
+        closeUpPx, dem.scaleM, (w.c0 - half) * dem.scaleM, (half - w.r0) * dem.scaleM, flags, shade, 0);
+    final idx = landerFrameIndex(m, f, far: false);
+    int own(int k) => (k ~/ fine - w.r0) * closeUpPx + (k % fine - w.c0);
+    final bad = _Fails();
+    var split = 0;
+    for (final layer in LightLayer.values) {
+      final col = landerVertexColors(m, f, idx, null, null, layer);
+      for (var v = 0; v < m.vertexCount; v++) {
+        bad.check(_channels(col[v])[0] == 255, () => '$layer vertex $v not solid');
+        if (m.part[v] != 0) continue;
+        final want = [0.0, 0.0, 0.0];
+        for (var q = 0; q < 4; q++) {
+          final k = own(m.src[4 * v + q]);
+          final c = _rgb(classify(flags[k], layer), shade[k], 2, 0);
+          want[0] += m.w[4 * v + q] * c.$1;
+          want[1] += m.w[4 * v + q] * c.$2;
+          want[2] += m.w[4 * v + q] * c.$3;
+        }
+        final got = _channels(col[v]);
+        for (var i = 0; i < 3; i++) {
+          bad.check((got[i + 1] - want[i] * 255).abs() <= 0.5 + 1e-6, () => '$layer split vertex $v channel $i');
+        }
+        split++;
+      }
+    }
+    bad.expectNone();
+    expect(split, greaterThan(3 * 100));
+  });
+
   test('S2 real close-up frame: vertex classes equal the 2D classification', () {
     final m = meshes['sr1']!;
     final f = computeLightFrame(grids, req(sr1.lat, sr1.lon, t2));
@@ -259,12 +298,17 @@ void main() {
       final ni = landerFrameIndex(m, near, far: false), fi = landerFrameIndex(m, far, far: true);
       for (final (f, i) in [(null, null), (far, fi)]) {
         for (final layer in LightLayer.values) {
-          final pats = LightPattern.values;
-          final (base, passes) = landerColors(m, near, ni, f, i, layer, pats);
-          expect(base, landerVertexColors(m, near, ni, f, i, layer), reason: '$layer coarse $coarse far ${f != null}');
-          for (var p = 0; p < pats.length; p++) {
-            expect(passes[p], landerPatternColors(m, near, ni, f, i, layer, pats[p]),
-                reason: '$layer ${pats[p]} coarse $coarse far ${f != null}');
+          for (final relief in [false, true]) {
+            final pats = LightPattern.values, why = '$layer coarse $coarse far ${f != null} relief $relief';
+            final (base, passes) = landerColors(m, near, ni, f, i, layer, pats, relief: relief);
+            expect(base, landerVertexColors(m, near, ni, f, i, layer, relief: relief), reason: why);
+            for (var p = 0; p < pats.length; p++) {
+              expect(passes[p], landerPatternColors(m, near, ni, f, i, layer, pats[p], relief: relief),
+                  reason: '$why ${pats[p]}');
+              // the pattern alpha is not shaded
+              expect([for (final c in passes[p]) (c >> 24) & 0xFF],
+                  landerPatternAlpha(m, near, ni, f, i, layer, pats[p]), reason: '$why ${pats[p]} alpha');
+            }
           }
         }
       }
@@ -273,6 +317,147 @@ void main() {
     final (base, passes) = landerColors(m, null, null, null, null, LightLayer.both, LightPattern.values);
     expect(base, landerVertexColors(m, null, null, null, null, LightLayer.both));
     expect(passes.every((p) => p.every((c) => c == 0)), isTrue);
+    // relief shading leaves "not computed" flat
+    expect(landerColors(m, null, null, null, null, LightLayer.both, LightPattern.values, relief: true).$1, base);
+  });
+
+  test('S9 landerReliefFactor: 1 on flat ground (exactly), 0.7 to 1.3 in steps of 0.005, monotonic', () {
+    expect(landerReliefFlat, closeTo(0.573576436, 1e-9));
+    expect(landerReliefFactor(landerReliefFlat), 1.0);
+    // the float32 the mesh stores for flat ground
+    expect(landerReliefFactor((Float32List(1)..[0] = landerReliefFlat)[0]), 1.0);
+    expect(landerReliefFactor(0), landerReliefMin);
+    expect(landerReliefFactor(1), landerReliefMax);
+    expect(landerReliefMin, 0.7);
+    expect(landerReliefMax, 1.3);
+    var last = 0.0;
+    for (var i = 0; i <= 1000; i++) {
+      final f = landerReliefFactor(i / 1000);
+      expect(f, greaterThanOrEqualTo(last));
+      expect(f, inInclusiveRange(0.7, 1.3));
+      // in steps of 1/200 (the recolour's per-step tables, §8), within half a step of the exact clamp
+      expect(f, (f * landerReliefSteps).round() / landerReliefSteps);
+      final exact = (1 + landerReliefGain * (i / 1000 - landerReliefFlat)).clamp(0.7, 1.3);
+      expect(f, closeTo(exact, 0.5 / landerReliefSteps + 1e-12));
+      last = f;
+    }
+    // a step changes a colour channel by under 1/255 (multiply part ≤ 1)
+    expect(landerAlbedo * 1.0 / landerReliefSteps, lessThan(1 / 255));
+    // about ±20 % for a mid slope: hs 0.8 (lit) and 0.35 (away)
+    expect(landerReliefFactor(0.8), closeTo(1.18, 0.01));
+    expect(landerReliefFactor(0.35), closeTo(0.82, 0.01));
+  });
+
+  test('S10 relief off is bit for bit the colours without relief; flat or missing relief changes nothing', () {
+    final m = meshes['sr1']!;
+    final near = computeLightFrame(grids, req(sr1.lat, sr1.lon, t2));
+    final far = computeLightFrame(grids, req(sr1.lat, sr1.lon, t2, closeUp: false, far: true));
+    final ni = landerFrameIndex(m, near, far: false), fi = landerFrameIndex(m, far, far: true);
+    final flat = Float32List(m.vertexCount)..fillRange(0, m.vertexCount, landerReliefFlat);
+    for (final layer in LightLayer.values) {
+      final pats = LightPattern.values;
+      final (base, passes) = landerColors(m, near, ni, far, fi, layer, pats);
+      final off = landerColors(m, near, ni, far, fi, layer, pats, relief: false);
+      expect(off.$1, base);
+      for (final r in [null, flat]) {
+        final (b2, p2) = landerColors(_withRelief(m, r), near, ni, far, fi, layer, pats, relief: true);
+        expect(b2, base, reason: '$layer relief ${r == null ? 'null' : 'flat'}');
+        for (var i = 0; i < pats.length; i++) {
+          expect(p2[i], passes[i]);
+          expect(off.$2[i], passes[i]);
+        }
+      }
+      // on: the real slopes shade the ground
+      final on = landerColors(m, near, ni, far, fi, layer, pats, relief: true).$1;
+      var changed = 0;
+      for (var v = 0; v < m.vertexCount; v++) {
+        if (on[v] != base[v]) changed++;
+      }
+      expect(changed, greaterThan(m.vertexCount ~/ 4), reason: '$layer');
+    }
+  });
+
+  // one vertex per pixel of a 6 x 6 grid (part 1, weight 1), each pixel a
+  // (flags, shade) case, under a frame covering the grid
+  const cases = [0, lightSunAny, lightSunAny | lightSunFull, lightEarth, lightSunAny | lightEarth,
+      lightSunAny | lightSunFull | lightEarth];
+  const shades = [0, 32, 64, 128, 200, 255];
+  LightFrame synthFrame() {
+    final flags = Uint8List(36), shade = Uint8List(36);
+    for (var i = 0; i < 6; i++) {
+      for (var j = 0; j < 6; j++) {
+        flags[i * 6 + j] = cases[i];
+        shade[i * 6 + j] = shades[j];
+      }
+    }
+    return LightFrame(LightRequest(closeUp: true, lat: -89.9, lon: 0, sun: V3(1, 0, 0), earth: V3(1, 0, 0), tMs: 0), 6,
+        400, -1200, 1200, flags, shade, 0);
+  }
+
+  test('S11 a shaded pixel is clamp(0.55 · m · f + s); "not computed" stays #6E737B', () {
+    final fr = synthFrame();
+    for (final hs in [0.0, landerReliefFlat, 1.0, 0.3, 0.75]) {
+      final m = _gridMesh(6, hs), idx = landerFrameIndex(m, fr, far: false);
+      final f = landerReliefFactor((Float32List(1)..[0] = hs)[0]);
+      for (final layer in LightLayer.values) {
+        final pats = LightPattern.values;
+        final (base, passes) = landerColors(m, fr, idx, null, null, layer, pats, relief: true);
+        for (var v = 0; v < 36; v++) {
+          final k = classify(fr.flags[v], layer), sh = fr.shade[v] / 255;
+          (double, double, double) rgb(int x) {
+            final c = lightPixel(k, sh, x, 0, 1);
+            double ch(double mm, double ss) => (landerAlbedo * mm * f + ss).clamp(0.0, 1.0);
+            return (ch(c.mr, c.sr), ch(c.mg, c.sg), ch(c.mb, c.sb));
+          }
+
+          expect(base[v], _argb(1, rgb(2)), reason: 'hs $hs $layer $k shade ${fr.shade[v]}');
+          final p = lightPatternOf(k);
+          if (p != null) expect(passes[pats.indexOf(p)][v], _argb(1, rgb(0)), reason: 'hs $hs $layer $k pattern');
+        }
+        final none = landerColors(m, null, null, null, null, layer, pats, relief: true).$1;
+        expect(none.every((c) => c == landerNotComputedArgb.toSigned(32)), isTrue, reason: 'hs $hs $layer');
+      }
+    }
+  });
+
+  test('S12 shaded ground keeps the light classes apart: dark stays dark, hues hold, patterns show', () {
+    final fr = synthFrame();
+    double lum(int c) => (0.2126 * ((c >> 16) & 0xFF) + 0.7152 * ((c >> 8) & 0xFF) + 0.0722 * (c & 0xFF)) / 255;
+    const dark = {LightClass.shadow, LightClass.earthHidden, LightClass.neither};
+    var darkMax = 0.0, litMin = 1.0;
+    for (final hs in [0.0, landerReliefFlat, 1.0]) {
+      final m = _gridMesh(6, hs), idx = landerFrameIndex(m, fr, far: false);
+      for (final layer in LightLayer.values) {
+        final pats = LightPattern.values;
+        final (base, passes) = landerColors(m, fr, idx, null, null, layer, pats, relief: true);
+        for (var v = 0; v < 36; v++) {
+          final k = classify(fr.flags[v], layer), c = base[v], why = 'hs $hs $layer $k shade ${fr.shade[v]}';
+          final r = (c >> 16) & 0xFF, g = (c >> 8) & 0xFF, b = c & 0xFF;
+          if (dark.contains(k)) {
+            darkMax = math.max(darkMax, lum(c));
+            expect(b, greaterThan(r), reason: why);
+          } else {
+            litMin = math.min(litMin, lum(c));
+          }
+          switch (k) {
+            case LightClass.fullSun || LightClass.partSun || LightClass.sunOnly:
+              // the brightest full-Sun slopes facing the drawing light may reach white (the Lambert
+              // term saturates first: true Sun shading dominates), never a cold hue
+              if (!(k == LightClass.fullSun && r == 255 && b == 255)) expect(r, greaterThan(b), reason: why);
+            case LightClass.earthSeen || LightClass.earthOnly:
+              expect(b, greaterThan(r), reason: why);
+            case LightClass.both:
+              expect(g > r && b > r, isTrue, reason: why);
+            default:
+          }
+          final p = lightPatternOf(k);
+          if (p != null) {
+            expect(lum(passes[pats.indexOf(p)][v]) - lum(c), greaterThanOrEqualTo(0.3), reason: '$why pattern');
+          }
+        }
+      }
+    }
+    expect(darkMax, lessThan(0.5 * litMin), reason: 'dark max $darkMax, lit min $litMin');
   });
 
   test('S4 far frame equals the region frame where they overlap', () {
@@ -410,4 +595,32 @@ void main() {
       }
     }
   });
+}
+
+/// [m] with [relief] in place of its own.
+LanderMesh _withRelief(LanderMesh m, Float32List? relief) => LanderMesh(m.cam, m.e, m.n, m.u, m.alpha, m.part, m.src,
+    m.w, m.tri, m.sectors, m.skyline, m.demEnds, m.gridVerticesBeforeCull, m.demSize, m.demPxM,
+    relief: relief);
+
+/// One part-1 vertex on each pixel of an [n] x [n] grid of 400 m (weight 1,
+/// opaque), every one with hillshade [hs].
+LanderMesh _gridMesh(int n, double hs) {
+  final nv = n * n;
+  return LanderMesh(
+      LanderCamera(-89.9, 0, 0, 2, Enu.at(-89.9, 0), const V3(0, 0, 1737402)),
+      Float32List(nv),
+      Float32List(nv),
+      Float32List(nv),
+      Float32List(nv)..fillRange(0, nv, 1),
+      Uint8List(nv)..fillRange(0, nv, 1),
+      Int32List.fromList([for (var v = 0; v < nv; v++) ...[v, v, v, v]]),
+      Float32List.fromList([for (var v = 0; v < nv; v++) ...[1, 0, 0, 0]]),
+      Uint32List(0),
+      [for (var i = 0; i < 36; i++) Int32List(0)],
+      Float64List(720),
+      const [],
+      nv,
+      n,
+      400,
+      relief: Float32List(nv)..fillRange(0, nv, hs));
 }

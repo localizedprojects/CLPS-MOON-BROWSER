@@ -228,9 +228,12 @@ class NowStatus extends StatelessWidget {
     final s = state, eph = s.eph;
     if (eph == null) return const SizedBox.shrink();
     final o = s.options;
-    final now = nowAt(eph, s.observer, s.mask, s.cursorMs, o);
+    // the words are worked out at the whole minute shown, like the countdown,
+    // so the live region changes at most once a minute while playing
+    final tMin = minuteOf(s.cursorMs);
+    final now = nowAt(eph, s.observer, s.mask, tMin, o);
     final lines = nowStatusLines(now,
-        requireDsn: o.requireDsn, dsnInView: eph.dsnMask(s.cursorMs) != 0, sunRule: o.sunCriterion, earthRule: o.earthCriterion);
+        requireDsn: o.requireDsn, dsnInView: eph.dsnMask(tMin) != 0, sunRule: o.sunCriterion, earthRule: o.earthCriterion);
     // the glyph beside the first line of its words, which may wrap
     Widget line(GlyphKind g, String text, {Key? key}) => Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Padding(padding: const EdgeInsets.only(top: 2, right: 8), child: MeaningGlyph(g, size: 18, semantic: false)),
@@ -251,9 +254,7 @@ class NowStatus extends StatelessWidget {
     final series = s.series;
     String? cd;
     if (series != null && !s.loading) {
-      final tMin = minuteOf(s.cursorMs);
-      final nowMin = tMin == s.cursorMs ? now : nowAt(eph, s.observer, s.mask, tMin, o);
-      cd = countdownLine(countdownAt(series, tMin, now: countdownNowOf(nowMin)),
+      cd = countdownLine(countdownAt(series, tMin, now: countdownNowOf(now)),
           dateOf: (ms) => shownTimeLabel(ms, refMs: s.rangeStartMs), requireDsn: o.requireDsn, power: s.expert);
     }
     if (cd != null) {

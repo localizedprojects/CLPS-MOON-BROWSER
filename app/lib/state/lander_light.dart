@@ -10,6 +10,7 @@
 /// light is ever drawn.
 library;
 
+import 'dart:math' as math;
 import 'dart:typed_data';
 
 import '../core/lander_view.dart';
@@ -20,9 +21,128 @@ import 'light_engine.dart';
 const int landerNotComputedArgb = 0xFF6E737B;
 
 /// The constant neutral albedo the view multiplies the map's colours by (no
-/// texture, no relief shading: the only shading is the frame's own Lambert
-/// term).
+/// texture, no noise). The only true light shading is the frame's own Lambert
+/// term; the switchable relief shading (D21, [landerReliefFactor]) scales this
+/// albedo per vertex as a labelled drawing aid, never as sunlight.
 const double landerAlbedo = 0.55;
+
+/// Relief shading (D21): an ambient plus diffuse drawing light on the
+/// hillshade hs of the mesh's own heights ([LanderMesh.relief]), normalised so
+/// flat ground (hs = sin 35°) keeps exactly [landerAlbedo]:
+/// f = round(200 · clamp(1 + gain · (hs - sin 35°), min, max)) / 200, i.e. in
+/// steps of 0.005 (under 1/255 of colour a step: 0.55 · m · 0.005 ≤ 0.0028),
+/// so a recolour reads packed colour tables per step (§8).
+const double landerReliefGain = 0.8, landerReliefMin = 0.7, landerReliefMax = 1.3;
+
+/// Relief factor steps per unit: f = n / 200 for an integer n in 140..260.
+const int landerReliefSteps = 200;
+
+/// The hillshade of flat ground: sin of the drawing light's altitude.
+final double landerReliefFlat = math.sin(landerReliefAltitudeDeg * math.pi / 180);
+
+/// The factor relief shading multiplies [landerAlbedo] by at hillshade [hs]:
+/// exactly 1 on flat ground (and within about 0.003 of its hillshade, the
+/// float32 the mesh stores included), 0.7 to 1.3 in steps of 0.005 on slopes
+/// (about ±20-30 % on crater walls).
+double landerReliefFactor(double hs) {
+  final f = (1 + landerReliefGain * (hs - landerReliefFlat)).clamp(landerReliefMin, landerReliefMax);
+  return (f * landerReliefSteps).round() / landerReliefSteps;
+}
+
+// Relief level L of a factor f = (140 + L) / 200: 0..120 (flat ground 60).
+const int _lvBase = 140, _lvCount = 121;
+
+/// The factor of each relief level.
+final Float64List _lvF = Float64List.fromList([for (var l = 0; l < _lvCount; l++) (_lvBase + l) / landerReliefSteps]);
+
+/// Per mesh, each vertex's relief level L as its row in the shaded tables
+/// (L · [_ReliefTables.n]): computed once per mesh (D21), never per frame, so
+/// a recolour only reads it.
+final Expando<Int32List> _meshLevels = Expando('landerReliefLevels');
+
+/// Each vertex's relief level row (L · n) of [m], or null when [relief] is
+/// off or the mesh has no relief (every factor 1: today's colours).
+Int32List? _levels(LanderMesh m, bool relief) {
+  final rl = m.relief;
+  if (!relief || rl == null) return null;
+  final cached = _meshLevels[m];
+  if (cached != null) return cached;
+  final n = _reliefTables().n, lv = Int32List(rl.length);
+  for (var v = 0; v < rl.length; v++) {
+    lv[v] = ((landerReliefFactor(rl[v]) * landerReliefSteps).round() - _lvBase) * n;
+  }
+  return _meshLevels[m] = lv;
+}
+
+/// The relief factor of level row [row] (L · n).
+double _rowF(int row) => _lvF[row ~/ _reliefTables().n];
+
+/// The shaded colour tables of every relief level, built once. Only fullSun
+/// colours depend on the shade byte, so the (class, shade) entries hold few
+/// distinct (multiply, screen) values: [cx] maps an entry (class index * 256
+/// + shade) to its distinct colour, and per level L and distinct colour c,
+/// `off` / `on` hold clamp(0.55 · m · f + s) of the off- and on-pattern
+/// colours (3 doubles at (L · n + c) · 3, exactly [_ch] of [_msTable]) and
+/// `offP` / `onP` their packed RGB bytes (at L · n + c).
+typedef _ReliefTables = ({Int32List cx, int n, Float64List off, Float64List on, Int32List offP, Int32List onP});
+_ReliefTables? _relief;
+
+_ReliefTables _reliefTables() {
+  final r = _relief;
+  if (r != null) return r;
+  final offMs = _offMs ??= _msTable(2, 0), onMs = _onMs ??= _msTable(0, 0);
+  final ne = offMs.length ~/ 6, cx = Int32List(ne), first = <String, int>{}, rep = <int>[];
+  for (var e = 0; e < ne; e++) {
+    final key = [for (var j = 0; j < 6; j++) ...[offMs[6 * e + j], onMs[6 * e + j]]].join(',');
+    cx[e] = first.putIfAbsent(key, () {
+      rep.add(e);
+      return rep.length - 1;
+    });
+  }
+  final n = rep.length, off = Float64List(_lvCount * n * 3), on = Float64List(_lvCount * n * 3);
+  final offP = Int32List(_lvCount * n), onP = Int32List(_lvCount * n);
+  for (var l = 0; l < _lvCount; l++) {
+    final f = _lvF[l];
+    for (var c = 0; c < n; c++) {
+      final o = 6 * rep[c], t = l * n + c;
+      for (var j = 0; j < 3; j++) {
+        off[3 * t + j] = _ch(offMs[o + j], f, offMs[o + 3 + j]);
+        on[3 * t + j] = _ch(onMs[o + j], f, onMs[o + 3 + j]);
+      }
+      offP[t] = _byte(off[3 * t]) << 16 | _byte(off[3 * t + 1]) << 8 | _byte(off[3 * t + 2]);
+      onP[t] = _byte(on[3 * t]) << 16 | _byte(on[3 * t + 1]) << 8 | _byte(on[3 * t + 2]);
+    }
+  }
+  return _relief = (cx: cx, n: n, off: off, on: on, offP: offP, onP: onP);
+}
+
+/// Multiply and screen parts of every (class, shade byte) at pattern position
+/// (x, y): 6 doubles at `(class.index * 256 + shade) * 6`, (0.55 · m, s) per
+/// channel, so a source pixel's colour at relief factor f is
+/// clamp(0.55 · m · f + s): only the albedo is shaded, the class tint s stays.
+Float64List _msTable(int x, int y) {
+  final t = Float64List(LightClass.values.length * 256 * 6);
+  for (final k in LightClass.values) {
+    for (var s = 0; s < 256; s++) {
+      final c = lightPixel(k, s / 255, x, y, 1);
+      final o = (k.index * 256 + s) * 6;
+      t[o] = landerAlbedo * c.mr;
+      t[o + 1] = landerAlbedo * c.mg;
+      t[o + 2] = landerAlbedo * c.mb;
+      t[o + 3] = c.sr;
+      t[o + 4] = c.sg;
+      t[o + 5] = c.sb;
+    }
+  }
+  return t;
+}
+
+Float64List? _offMs, _onMs;
+
+double _ch(double m, double f, double s) {
+  final x = m * f + s;
+  return x <= 0 ? 0 : (x >= 1 ? 1 : x);
+}
 
 /// Every vertex's 4 source pixels as indices into [f] (row-major, f.size
 /// px a side), 4 per vertex; -1 for a pixel outside [f] and for every vertex
@@ -97,8 +217,8 @@ int _argb(double a, double r, double g, double b) =>
 /// shade / 255, 2, 0, 1)`, the base (off-pattern) colour; a source pixel that
 /// is not computed contributes [landerNotComputedArgb].
 Int32List landerVertexColors(LanderMesh m, LightFrame? near, Int32List? nearIdx, LightFrame? far, Int32List? farIdx,
-    LightLayer layer) {
-  final t = _offPattern ??= _rgbTable(2, 0);
+    LightLayer layer, {bool relief = false}) {
+  final t = _offPattern ??= _rgbTable(2, 0), ms = _offMs ??= _msTable(2, 0), lv = _levels(m, relief);
   // class index * 256 * 3 of each flag byte, then + shade * 3
   final cls = Int32List.fromList([for (final k in _classTable(layer)) k.index * 768]);
   const nr = 0x6E / 255, ng = 0x73 / 255, nb = 0x7B / 255;
@@ -108,6 +228,7 @@ Int32List landerVertexColors(LanderMesh m, LightFrame? near, Int32List? nearIdx,
   for (var v = 0; v < nv; v++) {
     final isFar = part[v] == 2, ok = isFar ? fOk : nOk;
     final idx = isFar ? farIdx : nearIdx, flags = isFar ? fFlags : nFlags, shade = isFar ? fShade : nShade;
+    final f = lv == null ? 1.0 : _rowF(lv[v]);
     var r = 0.0, g = 0.0, b = 0.0;
     for (var q = 4 * v; q < 4 * v + 4; q++) {
       final w = wt[q];
@@ -120,9 +241,15 @@ Int32List landerVertexColors(LanderMesh m, LightFrame? near, Int32List? nearIdx,
         continue;
       }
       final o = cls[flags![k] & 7] + shade![k] * 3;
-      r += w * t[o];
-      g += w * t[o + 1];
-      b += w * t[o + 2];
+      if (f == 1.0) {
+        r += w * t[o];
+        g += w * t[o + 1];
+        b += w * t[o + 2];
+      } else {
+        r += w * _ch(ms[2 * o], f, ms[2 * o + 3]);
+        g += w * _ch(ms[2 * o + 1], f, ms[2 * o + 4]);
+        b += w * _ch(ms[2 * o + 2], f, ms[2 * o + 5]);
+      }
     }
     out[v] = _argb(al[v], r, g, b);
   }
@@ -154,8 +281,9 @@ Uint8List landerPatternAlpha(LanderMesh m, LightFrame? near, Int32List? nearIdx,
 /// both on), averaged over the vertex's source pixels drawn with [p] by
 /// weight (black where none is); alpha is [landerPatternAlpha].
 Int32List landerPatternColors(LanderMesh m, LightFrame? near, Int32List? nearIdx, LightFrame? far, Int32List? farIdx,
-    LightLayer layer, LightPattern p) {
+    LightLayer layer, LightPattern p, {bool relief = false}) {
   final t = _onPattern ??= _rgbTable(0, 0), cls = _classTable(layer);
+  final ms = _onMs ??= _msTable(0, 0), lv = _levels(m, relief);
   final alpha = landerPatternAlpha(m, near, nearIdx, far, farIdx, layer, p);
   final nv = m.vertexCount, out = Int32List(nv);
   for (var v = 0; v < nv; v++) {
@@ -167,10 +295,16 @@ Int32List landerPatternColors(LanderMesh m, LightFrame? near, Int32List? nearIdx
       if (k < 0) continue;
       final c = cls[s.$1.flags[k] & 7];
       if (lightPatternOf(c) != p) continue;
-      final w = m.w[4 * v + q], o = (c.index * 256 + s.$1.shade[k]) * 3;
-      r += w * t[o];
-      g += w * t[o + 1];
-      b += w * t[o + 2];
+      final w = m.w[4 * v + q], o = (c.index * 256 + s.$1.shade[k]) * 3, f = lv == null ? 1.0 : _rowF(lv[v]);
+      if (f == 1.0) {
+        r += w * t[o];
+        g += w * t[o + 1];
+        b += w * t[o + 2];
+      } else {
+        r += w * _ch(ms[2 * o], f, ms[2 * o + 3]);
+        g += w * _ch(ms[2 * o + 1], f, ms[2 * o + 4]);
+        b += w * _ch(ms[2 * o + 2], f, ms[2 * o + 5]);
+      }
       sw += w;
     }
     out[v] = _argb(alpha[v] / 255, r / sw, g / sw, b / sw);
@@ -193,14 +327,30 @@ Int32List _packRgb(Float64List t) {
 /// duplicates) in one loop over the vertices, value for value the same:
 /// (the base ARGB, one ARGB buffer per pattern). The recolour on a new frame
 /// or layer (§8); a vertex on one source pixel at full weight (the patch
-/// pixels) reads the packed colour tables directly.
+/// pixels) reads the packed colour tables directly. With [relief] (D21) and a
+/// mesh that has [LanderMesh.relief], each vertex's albedo is scaled by its
+/// [landerReliefFactor] (clamp(0.55 · m · f + s) per source pixel) at the
+/// same cost: the vertex's relief level is computed once per mesh, and the
+/// colours of every level are precomputed once ([_reliefTables]), so a vertex
+/// reads that level's table where it would read the unshaded one. Off (or a
+/// mesh without relief) is bit for bit the colours without relief, and flat
+/// ground's level holds exactly the unshaded values.
 (Int32List, List<Int32List>) landerColors(LanderMesh m, LightFrame? near, Int32List? nearIdx, LightFrame? far,
-    Int32List? farIdx, LightLayer layer, List<LightPattern> patterns) {
+    Int32List? farIdx, LightLayer layer, List<LightPattern> patterns, {bool relief = false}) {
   final off = _offPattern ??= _rgbTable(2, 0), on = _onPattern ??= _rgbTable(0, 0);
   final offP = _offPacked ??= _packRgb(off), onP = _onPacked ??= _packRgb(on);
+  final lv = _levels(m, relief), rt = lv == null ? null : _reliefTables();
+  // the relief tables, empty when relief is off (non-nullable locals: no null check per read)
+  final rOff = rt?.off ?? Float64List(0), rOn = rt?.on ?? Float64List(0);
+  final rOffP = rt?.offP ?? Int32List(0), rOnP = rt?.onP ?? Int32List(0);
   final classes = _classTable(layer);
   // class index * 256 * 3 of each flag byte (then + shade * 3), and its pattern slot (-1: none)
   final cls = Int32List.fromList([for (final k in classes) k.index * 768]);
+  final cls1 = Int32List.fromList([for (final k in classes) k.index * 256]); // the same, entry index (no * 3)
+  // relief: the distinct colour of each (flag byte << 8 | shade) on this layer
+  final cxl = rt == null
+      ? Int32List(0)
+      : Int32List.fromList([for (var i = 0; i < 2048; i++) rt.cx[cls1[i >> 8] + (i & 255)]]);
   final pat = Int32List.fromList(
       [for (final k in classes) lightPatternOf(k) == null ? -1 : patterns.indexOf(lightPatternOf(k)!)]);
   const nr = 0x6E / 255, ng = 0x73 / 255, nb = 0x7B / 255;
@@ -216,12 +366,14 @@ Int32List _packRgb(Float64List t) {
     if (ok && wt[q0] == 1 && wt[q0 + 1] == 0 && wt[q0 + 2] == 0 && wt[q0 + 3] == 0) {
       final k = idx![q0];
       if (k >= 0) {
-        final f = flags![k] & 7, ci = cls[f] ~/ 3 + shade![k];
-        out[v] = (_byte(al[v]) << 24 | offP[ci]).toSigned(32);
+        final f = flags![k] & 7, ci = cls1[f] + shade![k];
+        // relief: the vertex level's packed bytes of the entry's distinct colour
+        final t = lv == null ? -1 : lv[v] + cxl[f << 8 | shade[k]];
+        out[v] = (_byte(al[v]) << 24 | (t < 0 ? offP[ci] : rOffP[t])).toSigned(32);
         final i = pat[f];
         if (i >= 0) {
           final a = (al[v] * 255).round().clamp(0, 255);
-          if (a > 0) pout[i][v] = (_byte(a / 255) << 24 | onP[ci]).toSigned(32);
+          if (a > 0) pout[i][v] = (_byte(a / 255) << 24 | (t < 0 ? onP[ci] : rOnP[t])).toSigned(32);
         }
         continue;
       }
@@ -233,26 +385,54 @@ Int32List _packRgb(Float64List t) {
       pg[i] = 0;
       pb[i] = 0;
     }
-    for (var q = q0; q < q0 + 4; q++) {
-      final w = wt[q];
-      if (w == 0) continue;
-      final k = ok ? idx![q] : -1;
-      if (k < 0) {
-        r += w * nr;
-        g += w * ng;
-        b += w * nb;
-        continue;
+    if (lv == null) {
+      for (var q = q0; q < q0 + 4; q++) {
+        final w = wt[q];
+        if (w == 0) continue;
+        final k = ok ? idx![q] : -1;
+        if (k < 0) {
+          r += w * nr;
+          g += w * ng;
+          b += w * nb;
+          continue;
+        }
+        final f = flags![k] & 7, o = cls[f] + shade![k] * 3;
+        r += w * off[o];
+        g += w * off[o + 1];
+        b += w * off[o + 2];
+        final i = pat[f];
+        if (i >= 0) {
+          pa[i] += w;
+          pr[i] += w * on[o];
+          pg[i] += w * on[o + 1];
+          pb[i] += w * on[o + 2];
+        }
       }
-      final f = flags![k] & 7, o = cls[f] + shade![k] * 3;
-      r += w * off[o];
-      g += w * off[o + 1];
-      b += w * off[o + 2];
-      final i = pat[f];
-      if (i >= 0) {
-        pa[i] += w;
-        pr[i] += w * on[o];
-        pg[i] += w * on[o + 1];
-        pb[i] += w * on[o + 2];
+    } else {
+      // relief: clamp(0.55 · m · f + s) from the vertex level's table of distinct colours (flat ground's
+      // level holds exactly the values of `off` / `on`)
+      final lb = lv[v];
+      for (var q = q0; q < q0 + 4; q++) {
+        final w = wt[q];
+        if (w == 0) continue;
+        final k = ok ? idx![q] : -1;
+        if (k < 0) {
+          r += w * nr;
+          g += w * ng;
+          b += w * nb;
+          continue;
+        }
+        final f = flags![k] & 7, o = 3 * (lb + cxl[f << 8 | shade![k]]);
+        r += w * rOff[o];
+        g += w * rOff[o + 1];
+        b += w * rOff[o + 2];
+        final i = pat[f];
+        if (i >= 0) {
+          pa[i] += w;
+          pr[i] += w * rOn[o];
+          pg[i] += w * rOn[o + 1];
+          pb[i] += w * rOn[o + 2];
+        }
       }
     }
     out[v] = _argb(al[v], r, g, b);

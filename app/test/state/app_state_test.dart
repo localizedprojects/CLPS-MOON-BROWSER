@@ -1,6 +1,9 @@
 // AppState against the real bundled data: the incremental ranking of every
 // site, goals, the shortlist rules, navigation and the shared metrics cache.
+import 'dart:typed_data';
+
 import 'package:flutter_test/flutter_test.dart';
+import 'package:polar_horizon/core/lander_view.dart';
 import 'package:polar_horizon/core/metrics.dart';
 import 'package:polar_horizon/core/ranking.dart';
 import 'package:polar_horizon/core/score.dart';
@@ -40,6 +43,74 @@ void main() {
     expect(s.seriesFor(s.selectedId), same(s.series));
     expect(s.customRules, isFalse);
     expect(s.goal, Goal.balanced);
+  });
+
+  test('lander viewpoint (D22): the lander by default, notifies only on a change, eye height and mesh key', () {
+    expect(s.landerViewpoint, LanderViewpoint.lander);
+    var calls = 0;
+    void count() => calls++;
+    s.addListener(count);
+    s.setLanderViewpoint(LanderViewpoint.lander);
+    expect(calls, 0);
+    final h = s.observerHeightM;
+    expect(s.landerEyeHeightM, h);
+    // the lander's eye key is the one before D22: site and observer height
+    expect(s.landerMeshKey, '${s.site.lat}|${s.site.lon}|$h');
+    for (final (v, eye) in [(LanderViewpoint.m200, 200.0), (LanderViewpoint.km1, 1000.0), (LanderViewpoint.km5, 5000.0)]) {
+      s.setLanderViewpoint(v);
+      expect(s.landerViewpoint, v);
+      expect(s.landerEyeHeightM, eye);
+      expect(s.landerMeshKey, s.landerMeshKeyFor(eye));
+      expect(s.landerMeshKey, isNot(s.landerMeshKeyFor(h)));
+    }
+    expect(calls, 3);
+    s.setLanderViewpoint(LanderViewpoint.km5);
+    expect(calls, 3, reason: 'no change, no notification');
+    s.setLanderViewpoint(LanderViewpoint.lander);
+    expect(calls, 4);
+    s.removeListener(count);
+  });
+
+  test('lander mesh cache (D22): one site\'s four heights, least recently used out beyond; a site change drops all, '
+      'an observer height change only the lander\'s eye', () async {
+    final site0 = s.selectedId, h0 = s.observerHeightM, other = h0 == 2 ? 10.0 : 2.0;
+    LanderMesh mesh(double eye) =>
+        buildLanderMesh(Int16List(40 * 40), 40, 400, latDeg: -89.95, lonDeg: 0, observerHeightM: eye, cull: false);
+    final m2 = mesh(h0), m200 = mesh(200), m1k = mesh(1000), m5k = mesh(5000);
+    final kL = s.landerMeshKeyFor(h0), k200 = s.landerMeshKeyFor(200), k1 = s.landerMeshKeyFor(1000);
+    final k5 = s.landerMeshKeyFor(5000), kO = s.landerMeshKeyFor(other);
+    expect(AppState.landerMeshCacheSize, LanderViewpoint.values.length);
+    // 2 m, 200 m, 1 km, 5 km, then back to 2 m: the lander's mesh is still kept
+    s.keepLanderMesh(kL, m2);
+    s.keepLanderMesh(k200, m200);
+    s.keepLanderMesh(k1, m1k);
+    s.keepLanderMesh(k5, m5k);
+    expect(s.landerMeshKeys, [kL, k200, k1, k5]);
+    expect(identical(s.landerMesh(kL), m2), isTrue, reason: 'back to the lander\'s height: no build');
+    expect(s.landerMeshKeys, [k200, k1, k5, kL]);
+    expect(identical(s.landerMesh(k1), m1k), isTrue);
+    expect(identical(s.landerMesh(k5), m5k), isTrue);
+    expect(identical(s.landerMesh(k200), m200), isTrue);
+    expect(s.landerMeshKeys, [kL, k1, k5, k200]);
+    // a fifth (the other observer height's lander eye, kept before its change notifies): the least recently used goes
+    s.keepLanderMesh(kO, mesh(other));
+    expect(s.landerMeshKeys, [k1, k5, k200, kO], reason: 'the least recently used (2 m) went');
+    expect(s.landerMesh(kL), isNull);
+    // another observer height: the old lander's eye mesh goes, the raised ones stay
+    s.keepLanderMesh(kL, m2);
+    await s.setObserverHeight(other);
+    expect(s.landerMeshKeys, [k5, k200, kO]);
+    expect(identical(s.landerMesh(k200), m200), isTrue);
+    await s.setObserverHeight(h0);
+    expect(s.landerMeshKeys, [k5, k200]);
+    // another site: all go; the viewpoint is one choice for every site (session-only)
+    s.setLanderViewpoint(LanderViewpoint.km1);
+    expect(s.landerMeshKeys, [k5, k200], reason: 'a viewpoint change keeps every height of this site');
+    await s.selectSite(s.allSites.firstWhere((x) => x.id != site0).id);
+    expect(s.landerMeshKeys, isEmpty);
+    expect(s.landerViewpoint, LanderViewpoint.km1);
+    await s.selectSite(site0);
+    s.setLanderViewpoint(LanderViewpoint.lander);
   });
 
   test('rankedAll is best first and every site has metrics and daily summaries', () {

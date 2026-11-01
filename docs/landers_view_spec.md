@@ -30,6 +30,8 @@ Every disagreement is resolved in the table in §0, with the reason. Anything th
 | D18 | "Light not computed" ground | Neutral grey | `#2A3346` with a 45° hatch | **Neutral grey `beyondMapGround` (`#6E737B`, already in `light_map.dart`), no hatch**, plus an on-view text label and the probe text. A diagonal hatch would read as the partSun stripes. |
 | D19 | Fling inertia | No | Yes | **Kept.** It is about 20 lines and is off under reduced motion. |
 | D20 | Main-thread slice length | (isolate) | 20 ms | **4 ms, one unit per step** (`runSliced(..., rows: 1, sliceMs: 4)`), because the mesh is built on the UI thread on native too. Every unit is short (rows, 2048-triangle chunks, at most 16,384 elements of a sort or compaction pass), so a slice is at most 4 ms plus one unit, within the 8 ms of §8 (changed 2026-10-30 from rows 8 / 8 ms, review §14). |
+| D21 | Relief shading (user decision 2026-10-31, 1.11.0) | No | No | **Added.** The user found the Lander's view "hard to understand" and asked for texture; real-data relief shading was chosen over a cosmetic texture. The neutral 0.55 albedo is scaled per vertex by the hillshade of the mesh's own 400 m / 800 m heights under a fixed drawing light (the base map's: azimuth 315° from image up, altitude 35°, heights ×2), never the Sun. It is labelled (legend key and badge sentence) and switchable (on by default; off gives exactly the 1.10 colours). Textures and noise stay forbidden. See [Relief shading](#relief-shading-1110-user-decision-2026-10-31). |
+| D22 | Viewpoint height (user decision 2026-10-31, 1.11.0) | No | No | **Added.** The Lander's view is hard to read from 2 m; the user chose "View from higher". Choices: the lander (the observer height, 2 m or the 10 m mast; the default), 200 m, 1 km and 5 km above the ground under the site. Only the drawing eye moves: the mesh is built for that eye and cached per (site, eye height); the light frames, the Sun and Earth directions and the status words stay the lander's. It is labelled (an on-view chip, a legend line, a badge sentence, the caption, the mask label, callout line 3 and the Semantics description) and remembered for the session like the relief switch. See [Raised viewpoint](#raised-viewpoint-1110-user-decision-2026-10-31). |
 
 ## 1. Goal
 
@@ -41,7 +43,7 @@ The view is built from three sources only:
 - **Sky:** the Sun and Earth at the same apparent az/el as the sky plot, at true angular size.
 
 The 3D view therefore always agrees with the Light tab's 2D map. Some sources are deliberately excluded:
-- No shape-from-shadow, no other height source, no texture, no stars, no fill light.
+- No shape-from-shadow, no other height source, no texture, no stars, no fill light. (Relief shading from the mesh's own heights is allowed as a labelled, switchable drawing aid, D21; it is not a texture and not a light on the scene.)
 - The precise horizon mask appears only as a labelled dashed reference line.
 
 ## 2. Data path (exact functions and files)
@@ -54,7 +56,7 @@ The 3D view therefore always agrees with the Light tab's 2D map. Some sources ar
    - Both windows use the pure functions `gridPixelOf` and `gridWindowAround`, extracted from `ShadowGrid.pixelOf` and `ShadowGrid.windowAround` so the mesh and `_work` share one implementation.
 2. **Mesh.** `LanderMeshWork` (core) runs on the main thread through `runSliced(work.step, pause: <next frame>, rows: 1, sliceMs: 4)` (`app/lib/state/light_engine.dart`), and stops at its next slice when the site changes or the panel is disposed.
    - It is started by the lander widget once `s.dem()` resolves.
-   - It is cached in an LRU of 2 meshes keyed `'${site.lat}|${site.lon}|$observerHeightM'`, held by the lander widget's state and dropped when the light view leaves lander mode.
+   - It is cached in an LRU of 2 meshes keyed `'${site.lat}|${site.lon}|$observerHeightM'`, held by the lander widget's state and dropped when the light view leaves lander mode. (Since 1.10 the app state also keeps the current site's meshes; D22: one per viewpoint height, see [Raised viewpoint](#raised-viewpoint-1110-user-decision-2026-10-31).)
 3. **Near light frame.** The close-up frame `_LightMapState` already requests: `LightRequest(closeUp: true, ...)`, coarse while playing, debounced 60 ms, prefetched.
    - It is built through `lightRequestFor(s, extent: LightExtent.closeUp)` (D2).
    - Apply `lightFrameEclipsed(raw, lightFrameEclipse(raw, terrainHeightM: site.terrainHeightM))` (`app/lib/widgets/light_map.dart:74/89`), exactly as `_eclipsed` does today.
@@ -118,6 +120,8 @@ This is `Observer.look`'s formula. In the plane of a great circle it reduces to 
 
 The eye stays on the 400 m grid while playing; only the colours go coarse.
 
+D22: `observerHeightM` here is the eye's height, the observer's (2 m or the 10 m mast) or a raised viewpoint's (200 m, 1 km, 5 km above the same `hGrid`). Only u and el change with it; e, n, az and the horizontal distances do not. See [Raised viewpoint](#raised-viewpoint-1110-user-decision-2026-10-31).
+
 ### 3.4 Cells
 
 - **Cell.** Adjacent pixel centres (r, c), (r, c+1), (r+1, c), (r+1, c+1) form a cell. It is drawn as **4 triangles** fanned around a centre vertex. The centre's height is the mean of the 4 corners, i.e. the bilinear centre. The fan surface is the only surface; `patchFanHeightAt(x, y)` evaluates it anywhere.
@@ -155,9 +159,11 @@ The argument: ground is a continuous radial height profile from the nadir, so ev
 
 A measured on the shipped DEM that about 10–12 % of vertices within 300 km survive (50–63k of 520k).
 
+D22: the argument holds for any eye height (the profile starts at −90° at the eye's foot). From raised eyes the split near cells (part 0) are always kept and never occlude, and far fewer triangles are culled (everything to the geometric horizon is visible); see [Raised viewpoint](#raised-viewpoint-1110-user-decision-2026-10-31) for the kept counts and the few kept triangles beyond the horizon.
+
 ### 3.7 Sectors and batches
 
-- Kept triangles go into 36 sectors of 10° by centroid azimuth, each list in global draw order.
+- Kept triangles go into 36 sectors of 10°: each triangle into every sector its azimuth span touches (all 36 when the span is over 90°, e.g. ground around the eye's foot), each list in global draw order. (Until D22 it was the centroid's sector only; from a raised eye the cells near the foot span tens of degrees and show at a steep frame's lower corners, so the centroid rule left slivers there.)
 - A paint uses the sectors overlapping `yaw ± (hfov/2 + 10°)`, merged in global order.
 - The index list is rebuilt only when that sector set changes.
 - `Canvas.drawVertices` takes Uint16 indices, so emit batches of ≤ 65 535 vertices. Each batch is a contiguous slice of the far-to-near order, drawn in order.
@@ -175,13 +181,14 @@ x  = w/2 + F·(v·r)/(v·f)       y = h/2 − F·(v·up')/(v·f)
 - Facing az 0, az 90 lands on the right.
 - Pitch is clamped to [−30°, +30°] and hfov to [10°, 90°].
 - Near-plane guard: drop a triangle if any vertex has `v·f ≤ 0.01·|v|`. Within these limits only off-screen margin triangles hit the guard.
+- D9 amendment (D22): from a raised eye, ground behind and below the eye crosses the camera plane. It is off screen, in sectors outside `visibleSectors`, and dropped by the guard; the near cells are split (see [Raised viewpoint](#raised-viewpoint-1110-user-decision-2026-10-31)) so no on-screen triangle is dropped, which a core test asserts for 200 m and 5 km over pitch −30°…30°, hfov 45° and 90°, aspect 0.6 and 1.6.
 
 ### 3.9 Skyline and DEM end
 
 - `meshSkyline(m, azStepDeg: 0.5, minDistM)` is exact. For each azimuth it takes the max elevation over intersections of triangle edges with the vertical half-plane at that azimuth (the edge intersection is linear in 3-D), over triangles with `dmin ≥ minDistM`. Elevation along a segment in a vertical plane through the eye is monotonic, so edges suffice.
-  - It is stored in the mesh with minDist 800 m (parts 1–2): the "far skyline".
+  - It is stored in the mesh with minDist 800 m (parts 1–2): the "far skyline". From a raised eye (D22) it is stored with minDist 0 over parts 0–2, the skyline of all drawn ground.
   - The test compares it with minDist 600 m (`coarseMinM`) against `computeCoarseHorizon` (T5).
-- Near-field alpha: a part 0 vertex, or a part 1 vertex under 800 m, gets alpha 1 when its el ≤ the far skyline at its azimuth, else `landerNearAlpha` = 0.35. Every other vertex gets alpha 1. (Part 1 keeps the 400 m cells that straddle the 800 m ring; their vertices under 800 m are near ground and are never in the far skyline, so they follow the lattice's rule. Vertices at 800 m or more stay opaque, so far peaks are not made translucent by skyline sampling between 0.5° steps.)
+- Near-field alpha: a part 0 vertex, or a part 1 vertex under 800 m, gets alpha 1 when its el ≤ the far skyline at its azimuth, else `landerNearAlpha` = 0.35. Every other vertex gets alpha 1. (Part 1 keeps the 400 m cells that straddle the 800 m ring; their vertices under 800 m are near ground and are never in the far skyline, so they follow the lattice's rule. Vertices at 800 m or more stay opaque, so far peaks are not made translucent by skyline sampling between 0.5° steps.) From raised eyes (≥ 200 m, D22) every vertex has alpha 1.
 - `demEnds`:
   - For each 0.5° azimuth, step the great circle at `coarseDistances()` (`horizon_compute.dart`) and record the first distance outside the DEM grid.
   - Merge consecutive azimuths into ranges `(az0, az1, distM)`. `distM` is the minimum in the range.
@@ -194,7 +201,7 @@ x  = w/2 + F·(v·r)/(v·f)       y = h/2 − F·(v·up')/(v·f)
 - For each source pixel k: `cls = classify(flags[k], layer)` and `(m, s) = lightPixel(cls, shade[k]/255, 2, 0, 1)`.
   - (x = 2, y = 0) is a position where neither the stripe nor the dot predicate is on, so this is the base colour of patterned classes.
   - The `fullSun` Lambert normalisation `(shade/0.25)` is the map's own.
-- Vertex RGB = Σᵢ wᵢ·clamp(0.55·mᵢ + sᵢ), i.e. a constant neutral albedo of 0.55: no texture, no relief shading.
+- Vertex RGB = Σᵢ wᵢ·clamp(0.55·f_v·mᵢ + sᵢ), i.e. a neutral albedo of 0.55 with no texture. f_v is the vertex's relief factor (0.7–1.3 in steps of 0.005, D21, [Relief shading](#relief-shading-1110-user-decision-2026-10-31)); with the switch off f_v = 1, which is exactly the 1.10 colours. "Light not computed" (`#6E737B`) is never shaded.
 - `canvas.drawVertices(v, BlendMode.dst, paint)`, i.e. the vertex colours are used. Interpolation runs between pixel centres, as `LightOverlayWork` blends neighbours.
 
 ### 4.2 Which frame
@@ -225,7 +232,7 @@ With `src`, nearer triangles overwrite farther ones, so occlusion is preserved.
 **Fallback.** This applies if test W11 shows a renderer that does not keep triangle order with `src` inside one `drawVertices` call. Issue one `drawVertices` per sector batch in order. If that also fails, drop the pattern passes and keep the probe text and legend. Then FidelityBadge text gains: "Stripes and dots of the map are not drawn here; read classes with the centre probe."
 
 **Legend and probe.**
-- The legend reuses the map's `_Legend` swatches. It adds: "Light not computed" (grey), "Near ground, see-through" and "Horizon (dashed)".
+- The legend reuses the map's `_Legend` swatches. It adds: "Light not computed" (grey), "Near ground, see-through" and "Horizon (dashed)". From a raised viewpoint (D22) "Near ground, see-through" is replaced by "Sun/Earth status: at the lander, 2 m" (the raised-eye glyph as its key), and "Horizon (dashed)" reads "Lander's horizon, 2 m (dashed)" (`landerHorizonLegend`): the dashed line is the lander's mask, not the viewpoint's horizon.
 - The centre probe text (Plex Mono tabular) reads, for example: `Centre: full Sun · Earth hidden · 12.4 km · az 131.0° el +0.8°`. Sky reads `Centre: sky · az … el …`.
 
 ### 4.5 Sun down
@@ -298,12 +305,13 @@ The first sentence is the ≤ 110-character summary (`FidelityBadge.summaryOf`).
 
 **Main badge** (always shown). Sentence 1 is exactly 100 characters:
 
-> Approximate: the light map's own 400 m LOLA terrain and light; Sun and Earth at true size and place. Terrain is the grid the light map uses (400 m within 64 km, 800 m out to 300 km), block-averaged the same way, so rims and peaks are smoothed and the drawn skyline can differ from {preset: "this site's 80 m horizon mask (dashed) by about 1° and up to 5°" | custom: "80 m horizons by 0.5–1.4° (up to about 6° on sharp rims); it matches this spot's 400 m horizon (dashed) within about 0.4°"}. Ground within 800 m is not resolved by the 400 m grid: where it would rise above the distant skyline it is drawn see-through, because the light map leaves it out. Light and shadow are the Light tab's computed frame for this moment, pixel for pixel; Earth's direction there is taken from the Moon's centre, up to 0.3° higher than seen from the ground. Shadowed ground is drawn dark: Earthshine is not computed, and the ground colour is a flat grey, not a photo. The Sun and Earth are drawn in their meaning colours at true size and position (DE440, apparent, no refraction); glyphs, labels, the 0° line, the compass and the stripe and dot patterns are visual aids.
+> Approximate: the light map's own 400 m LOLA terrain and light; Sun and Earth at true size and place. Terrain is the grid the light map uses (400 m within 64 km, 800 m out to 300 km), block-averaged the same way, so rims and peaks are smoothed and the drawn skyline can differ from {preset: "this site's 80 m horizon mask (dashed) by about 1° and up to 5°" | custom: "80 m horizons by 0.5–1.4° (up to about 6° on sharp rims); it matches this spot's 400 m horizon (dashed) within about 0.4°"}. Ground within 800 m is not resolved by the 400 m grid: where it would rise above the distant skyline it is drawn see-through, because the light map leaves it out. Light and shadow are the Light tab's computed frame for this moment, pixel for pixel; Earth's direction there is taken from the Moon's centre, up to 0.3° higher than seen from the ground. Shadowed ground is drawn dark: Earthshine is not computed, and the ground colour is {relief off: "a flat" | relief on: "a neutral"} grey, not a photo. {relief on (D21): "Relief shading (the Relief shading switch, on by default) brightens or darkens lit and shadowed ground alike by up to 30% with the slopes of the same LOLA heights, under a fixed drawing light from the map's upper left (heights 2x): a visual aid, not sunlight."} The Sun and Earth are drawn in their meaning colours at true size and position (DE440, apparent, no refraction); glyphs, labels, the 0° line, the compass and the stripe and dot patterns are visual aids.
 
 **Dynamic sentences**, appended to the main badge:
 - (g) Presets only, when `|hGrid − site.terrainHeightM| > 5 m`: "The eye is 2 m above the 400 m surface, {N} m {below|above} this site's 80 m height." For SR1 that is about 29 m below.
 - (h) When `demEnds` is non-empty: "Terrain data ends {N} km away toward azimuth {A0}–{A1}° (edge of the LOLA map)."
 - During an eclipse: `lightEclipseFidelity`.
+- From a raised viewpoint (D22): the skyline clause gains "at the lander's height", `landerViewpointFidelity` replaces the see-through sentence, and (g) names the eye's height and says that the offset is the surface's ("The eye is 1 km above the 400 m surface, which is 29 m below this site's 80 m height."). Exact texts in [Raised viewpoint](#raised-viewpoint-1110-user-decision-2026-10-31).
 
 **Play badge** (a separate short `FidelityBadge` while `s.playing`), exactly 100 characters:
 
@@ -313,13 +321,13 @@ On the web while playing, the second sentence is "Light beyond 64 km waits until
 
 Build (1.9.1): in the stacked (portrait) layouts the main badge comes first under the view, followed by the play badge while playing; the 2D map's one-line short note and its play note are not shown with the Lander's view.
 
-**Caption** (under the view): "From the lander: {observerHeight} above the ground at {site}, {UTC}. Terrain and light come from the same 400 m LOLA grid and the same computed frame as the map; the Sun and Earth are at their exact positions."
+**Caption** (under the view): "From the lander: {observerHeight} above the ground at {site}, {UTC}. Terrain and light come from the same 400 m LOLA grid and the same computed frame as the map; the Sun and Earth are at their exact positions." From a raised viewpoint (D22): "From a raised viewpoint: {eye} above the ground at {site} (the lander's eye is {observerHeight}), {UTC}. …", and the view shows the chip "Viewpoint {eye} up, not the lander's".
 
 **Guide and Learn.**
 - Guide step (`content/guides.dart`, `site.light`, target `light-lander` on the third segment): `GuideStep('light-lander', 'Stand on the lander', 'See the horizon from 2 m up. Drag to look around; the light is the map\'s own.')`
 - Learn › How it's calculated: a "Lander's view" entry covering the mesh source, eye height, light frames, culling, the see-through near ground, and what is not drawn.
 
-**Never.** No stars, no textures, no Earthshine, no fill light, no smoothing of shadow edges beyond vertex interpolation, no use of `horizons.json` to shape the mesh, no other height source.
+**Never.** No stars, no textures, no noise, no Earthshine, no fill light, no smoothing of shadow edges beyond vertex interpolation, no use of `horizons.json` to shape the mesh, no other height source. (Amended 2026-10-31, D21: relief shading from the mesh's own heights is allowed as a labelled, switchable drawing aid under a fixed drawing light that never follows the Sun; textures and noise stay forbidden.)
 
 ## 7. Placement and interaction
 
@@ -338,13 +346,14 @@ Build (1.9.1): in the stacked (portrait) layouts the main badge comes first unde
   - Build (1.9.1, 2026-10-30, after an Android 7 emulator run with a Pixel 4 profile, where the view was 410 x 99 dp and the side column cut the view switch in half): the view takes all the height above one row of buttons and only the notes scroll under them; the app's top bars hide while it is shown (as for Play; they come back with any other view or layout, or with a pull down in the side column), so at 781 x 393 dp the view is about 409 x 211 dp; the side column shows its scroll bar, so switches cut at its foot are seen to scroll.
 - **Phone portrait** (Build, 1.9.1): the view always takes the full card width (never the 2D map's square side), with 8 dp of the card's padding each side so the seven buttons fit on one row from a 376 dp wide screen. Its height keeps the view and all its buttons above the pinned time bar, never under `max(160 dp, half the width)` (`LanderViewPanel.minFitViewHeightFor`); the notes scroll. Where the slot is too short to pin the time bar (360 x 640), the view scrolls with the page and one scroll shows it and all its buttons. The built mesh is kept by the app state for the current site and observer height, so Lander > Site > Lander and turning the phone do not build it again.
 - **Tablet and web (≥ 600 wide).** The same row with text labels ('Face the Sun', 'Face Earth', 'Level').
+- **Controls over the view** (top right, under the compass strip, 48 dp each): inline, from the right, the expand button, the relief switch under it (D21) and the viewpoint height control left of the expand button (D22); full screen, the relief switch in the expand slot and the viewpoint control left of it. The viewpoint control shows also while the view builds. The row of seven buttons under the view does not change.
 
 ### 7.3 Camera
 
 - `LanderCameraController extends ChangeNotifier { yaw, pitch, hfov }`.
-- Defaults: pitch 0; hfov 60° when the view is ≥ 600 wide, else 45°.
+- Defaults: pitch 0 at the lander's height, and from a raised viewpoint `landerDefaultPitchDeg`: the target −8° / −15° / −25° (200 m / 1 km / 5 km), no lower than keeps the Sun's and Earth's band clear of the compass strip and no higher than keeps the eye's horizon in view (D22; formula and numbers per layout in [Raised viewpoint](#raised-viewpoint-1110-user-decision-2026-10-31)); hfov 60° when the view is ≥ 600 wide, else 45°.
 - Initial yaw: the Sun if its el > −5°, else Earth if its el > −5°, else 0 (N).
-- Yaw, pitch and hfov are remembered per site in PageStorage (`lander-camera-<siteId>`).
+- Yaw, pitch, hfov and the viewpoint are remembered per site in PageStorage (`lander-camera-<siteId>` = `[yaw, pitch, hfov, viewpoint]`; a 1.10 store of three numbers reads as the lander's height). A stored pitch is used only at its own viewpoint. Changing the viewpoint keeps yaw and hfov and turns to the default pitch.
 
 ### 7.4 Gestures
 
@@ -372,9 +381,10 @@ Build (1.9.1): in the stacked (portrait) layouts the main badge comes first unde
 | Patches + mesh build + cull + sort | Once per (site, observerHeightM), main thread, `runSliced` rows 1 / 4 ms (D20) | Native ≤ 250 ms CPU total, web ≤ 1.2 s total. No slice > 8 ms of work. A "Building the view…" text shows until it is done (no placeholder terrain). **As built (2026-10-30):** the slice rule holds (longest unit about 7 ms in the test VM on the shipped DEM; test 'built one unit at a time'), but the total does not: about 2-3 s of CPU in the VM at SR1, spread over 4 ms slices, so the UI keeps running while the view builds. Most of it is the 750 × 750 far patch (about 2.2M triangles, about 97 % culled). Meeting the total needs a smaller or decimated far patch, or the build in an isolate on native (D6 keeps it on the main thread). |
 | Mesh before culling | Transient | About 660k grid vertices (0.1M near + 0.56M far) + 2.3k lattice. Typed arrays only, freed after culling, ≤ 25 MB peak. |
 | Kept mesh | Cached, LRU of 2, dropped when leaving lander mode | ≤ 150k vertices and ≤ 8 MB. T10 asserts this for the 4 test sites; if exceeded, the builder reports it rather than silently thinning. |
+| Kept mesh, raised viewpoint (D22) | Cached per (site, eye height): app LRU of 4 (one site's four heights), panel LRU of 2 (another site only at the lander's height) | Measured (SR1 / Haworth): 200 m 68k / 37k vertices, 5.6 / 3.0 MB; 1 km 118k / 131k, 9.8 / 10.9 MB; 5 km 300k / 270k, 25.1 / 22.7 MB; one site's four heights 43 / 38 MB, at most about 45 MB plus the panel's 2–6 MB. **Over the 2 m budget at 5 km** (accepted, not thinned); builds 1.3–1.8 s in about 8,700–8,900 units, 4 ms slices. Measured alone (desktop test VM, JIT) the longest unit is 3.7–5.8 ms at every height, with single GC pauses to 8.5 ms; under parallel test load a few units reach 20–30 ms (GC, scheduling), so the test checks the 99.5th percentile (1.1–2.1 ms measured) against 16 ms and the longest against 100 ms. Paint at 5 km estimated at about 2× the 80k-triangle budget; to be measured on the emulator. |
 | Index rebuild | Sector set changes | ≤ 2 ms native. The merged ids are cached in `LanderProjection` per (mesh, sector set) (`mergeLanderSectors`: one marking pass and one linear pass, no sort); other repaints reuse them. |
 | Projection | yaw/pitch/hfov/size change | Into reused `Float32List`s; ≤ 2 ms native / 6 ms web for ≤ 40k vertices |
-| Recolour (gather) | New frame or layer | ≤ 3 ms native / 8 ms web. One pass for the base and every pattern buffer (`landerColors`); a vertex on one full-weight source pixel reads packed colour tables. The far frame landing after the near one still recolours once more. |
+| Recolour (gather) | New frame or layer | ≤ 3 ms native / 8 ms web. One pass for the base and every pattern buffer (`landerColors`); a vertex on one full-weight source pixel reads packed colour tables. The far frame landing after the near one still recolours once more. Relief shading (D21) on: the vertex's relief level row of tables precomputed once, its level cached per mesh; measured (flutter test, JIT, desktop, real frames) SR1 layer both 1.22–1.54 ms off vs 1.32–1.67 ms on, layer sun 1.14–1.26 vs 1.39–1.42 ms; Haworth +10–17 %. |
 | Paint | Per frame | ≤ 80k triangles at the default hfov. 1 base pass + ≤ 2 pattern passes. `CustomPainter(repaint: controller)` inside a `RepaintBoundary`. `TextPainter`s cached by string. |
 | Far light frame | Per moment, lander mode only | One region-sized frame (562k px; 141k px coarse). Requested after the near frame; never ahead of a pending near request. Skipped on the web while playing. Cache cost about 1.1 MB per far frame. |
 | Probe and Semantics text | Gesture end, button press, frame change | Not per frame |
@@ -388,6 +398,7 @@ Build (1.9.1): in the stacked (portrait) layouts the main badge comes first unde
   - While the view is not ready, the label starts with the canvas status line: 'Building the view…', 'Computing light…' or 'The view could not be built: …'.
   - `liveRegion` is set only after a button or key press.
 - **customSemanticsActions:** Turn left 15°, Turn right 15°, Look up, Look down, Face the Sun, Face Earth, Level, Zoom in, Zoom out.
+- **Viewpoint (D22).** From a raised viewpoint the description says, after the status line and before the view, "Viewpoint 1 km above the site, not the lander's; Sun and Earth status is at the lander, 2 m." The control is a button labelled "View height: 1 km above the site" (at the lander "View height: at the lander, 2 m above the site"), hint "Choose 2 m, 200 m, 1 km or 5 km. Only the drawing viewpoint moves; the light and the Sun and Earth status stay the lander's."; menu items are 48 dp, the current one `selected` and checked.
 - **Focus:** the view is focusable, with a 2 px `PH.ice` focus ring.
 - **Buttons:** every button is ≥ 48 dp, with a tooltip and a Semantics label. The compass strip is 48 dp tall. Disc callouts have 48 dp tap targets.
 - **Motion:** reduced motion means no fling and no animated turns.
@@ -503,6 +514,9 @@ Ties in the dominant weight go to the first class in `LightClass` order, "not co
 
 - `lightRequestFor(AppState s, {required LightExtent extent, double? tMs, bool? coarse})` lives in `app/lib/widgets/light_map.dart`, next to `lightFrameEclipse`.
 - `app/lib/widgets/lander_view.dart`: `LanderViewPanel`, `LanderCameraController`, `LanderPainter`, `_CompassStrip`, `_LanderButtons`.
+- D22 (core): `enum LanderViewpoint { lander, m200, km1, km5 }`, `extension LanderViewpointHeight { double eyeHeightM(double observerHeightM); bool get raised; double get targetPitchDeg; }`, `const double landerRaisedEyeMinM = 200`, `double landerDefaultPitchDeg(LanderViewpoint v, {required double hfovDeg, required double aspect, double topClearFrac = 0})`, `const double landerBodyBandDeg = 2`, `double landerHorizonDipDeg(double eyeHeightM)`, `const double landerSubAngle = 0.25; const int landerSubMaxK = 8;`, `LanderCamera.eyeHeightM`, `LanderMesh.raisedEye`.
+- D22 (state): `AppState.landerViewpoint`, `setLanderViewpoint(LanderViewpoint)`, `landerEyeHeightM`, `landerMeshKeyFor(double eyeM)`, `landerMeshKey`, `landerMesh(key)`, `keepLanderMesh(key, mesh)`, `landerMeshKeys`.
+- D22 (widgets): `LanderViewPanel.viewpointRect(double w)`, `LanderPainter.reserve` (`List<Rect>`) and `.viewpoint` (`String?`), `LanderPainter.bodyClearPx`, `LanderPainter.chipKeepOff(anchors)`, `landerHorizonLegend([lander])`, `landerHeightText(double)`, `landerViewpointLabel(v, observerHeightM)`, `landerViewpointHint(observerHeightM)`, `landerViewpointItem(v, observerHeightM)`, `landerViewpointChip(eye)`, `landerViewpointSemantic(eye, lander)`, `landerStatusAtLegend(lander)`, `paintLanderViewpointGlyph(canvas, rect, color)`, `landerCaption({…, String? lander})`, `landerMaskLabel({…, String? lander})`; `light_map.dart`: `landerFidelityText(…, {String? viewpoint})`, `landerViewpointFidelity(eye, lander)`, `LightLegend.landerStatusAt`.
 - `formula.md` gets a new §12.11 "Lander's view" (§3–§5 formulas and the T5 figures).
 
 ## 11. Tests (each named)
@@ -574,6 +588,7 @@ These use the fake engine (`AppState.lightEngineForTest`) on a 64-px synthetic D
 - **W9 `eclipse note and badge are shown`.**
 - **W10 `custom spot: coarse-horizon label and customHorizon badge`.**
 - **W11 `pattern pass: nearer plain triangle hides farther striped one`.** Paint two overlapping triangles via `LanderPainter` into `toImage`. No stripe pixels may appear in the overlap; stripes must appear in the far-only part (D13 fallback check).
+- **W-V1–W-V9 (D22).** The viewpoint control (48 dp, labelled, shown while building, four 48 dp items, the current one checked); 1 km builds the mesh for that eye with the default pitch and the yaw kept, 2 m again takes the kept mesh at once and levels, the status words never change; the chip, mask label, caption, Semantics prefix and callout line 3; the camera store with the viewpoint (and a 1.10 store); the badge and legend raised and byte for byte at 2 m; the texts. W-V2b: 2 m, 200 m, 1 km, 5 km, then 2 m, 200 m and 5 km again with no build. W-V7: phone inline 360 × 223 facing the Sun at 200 m, 1 km and 5 km: the band under the strip, the disc below it, the chip off every glyph and disc. W-V8: the chip moves off a Sun and Earth placed at its spot, at three sizes. W-V9: keyboard focus shows the 2 px ice ring on the viewpoint control and the relief switch (on and off). Full screen F-V1–F-V2: placement at three sizes, Semantics, the 5 km mesh and camera carried back inline, the Legend sheet's status line, next and previous keep the viewpoint.
 - **W12 `tap targets and labels meet guidelines`.** `androidTapTargetGuideline`, `labeledTapTargetGuideline`, `textContrastGuideline`.
 
 Run only these files (never the full suite). Order: `flutter test test/core/lander_view_test.dart`, then `test/state/lander_light_test.dart`, then `test/widget/lander_view_test.dart`, then the existing `test/core/shadow_test.dart`, `test/state/light_engine_test.dart`, `test/state/light_engine_cache_test.dart`, `test/widget/light_map_test.dart` and `test/widget/light_eclipse_test.dart` (regressions from the refactors). Then `flutter analyze`.
@@ -609,7 +624,7 @@ The lead visually checks the shots for:
 - The height stretch (D11) and ridge outlines (D14). (The full-screen view, D15, was cut here and added in 1.10.0 by user request: see "Full screen and site switching" below.)
 - Building the mesh in the isolate (D6), and a `FragmentProgram` / WebGL renderer (only the D13 fallback chain).
 - Shape-from-shadow, any height source other than the 400 m DEM block means, `horizons.json` shaping the mesh, and the 80 m / 240 m DEMs in the mesh.
-- Earthshine, fill light, relief shading, albedo maps, textures, stars, atmosphere, Earth's phase or night side on its disc, and the Sun's corona.
+- Earthshine, fill light, ~~relief shading~~ (added in 1.11.0 as a labelled drawing aid, D21), albedo maps, textures, stars, atmosphere, Earth's phase or night side on its disc, and the Sun's corona.
 - Changing formula.md §12.2 (Earth cast along the Moon-centre direction, about 0.26° optimistic). It is badged here and needs the user's OK first.
 - Unifying the 600 m (`computeCoarseHorizon`) and 800 m (light engine) near-field cuts. That is a separate decision.
 - Eclipses in the pipeline's 18.6-year averages.
@@ -658,7 +673,7 @@ D15 is revisited by user request: the user wants to expand the Lander's view for
   - Next site ("Next site: <short name>").
 - Previous and next step through `AppState.allSites`: the presets in catalogue order, then the user's own spots. They wrap around at both ends (`core/site_order.dart`, `siteNeighbours`) and are left out when there is no other site.
 - A switch first keeps the current camera under the current site's id. Then it calls `AppState.openSite(id, tab: siteTab)`, the same call as "Change site". The app's selected site changes, the Site screen behind follows (one web history entry per switch), and the page stays open on the Lander's view.
-- The new site's mesh then builds, showing "Building the view…", unless the panel's LRU of two meshes still holds it. After that the view takes the new site's remembered camera; without one it faces the Sun if its elevation is above −5°, else Earth if that is above −5°, else north. Switching back to the last site is therefore instant, with its camera as it was left.
+- The new site's mesh then builds, showing "Building the view…", unless the panel's LRU of two meshes still holds it. After that the view takes the new site's remembered camera; without one it faces the Sun if its elevation is above −5°, else Earth if that is above −5°, else north. Switching back to the last site is therefore instant, with its camera as it was left. D22: from a raised viewpoint the last site's mesh (up to 25 MB) is not kept for this, so switching back builds it again; at the lander's height it stays instant.
 - Until the new site's light frame arrives, the page shows no light shares or eclipse note for it: the legend and the badges use a frame only when it is the selected site's, never the previous site's under the new name.
 - On close, the Light & shadow screen shows the new site in the Lander view, with the mesh adopted rather than rebuilt and the camera carried back.
 
@@ -666,6 +681,93 @@ D15 is revisited by user request: the user wants to expand the Lander's view for
 - Closing or switching while a mesh is building drops that build, and the next view starts it again (slow on an Android 7 phone). The expand button is hidden mid-build to soften this. Moving build ownership into `AppState` is out of scope.
 - Callouts avoid the expand button only when another placement fits. In a very short view, one may still fall under it.
 - Tests: FS1–FS16 in `test/widget/lander_full_screen_test.dart`, plus `test/state/light_loop_test.dart` and `test/core/site_order_test.dart`.
+
+## Relief shading (1.11.0, user decision 2026-10-31)
+
+**Why.** The user found the Lander's view hard to understand ("Add textures to it"). A flat 0.55 grey in shadow and a near-uniform class colour in sunlight hide the shape of the ground. A cosmetic texture would be fake data (§6 "Never"), so the shape comes from the real terrain instead: the same LOLA heights the view is built from, shaded as the Explore map's labelled shaded relief is. Decision row D21.
+
+**Formula** (pure core, once per mesh, `core/relief.dart` `hillshadeRow`, `core/lander_view.dart`):
+- Per patch pixel, from the patch's own block means (near 400 m patch for parts 0 and 1, far 800 m patch for part 2; no other height source): numpy.gradient in the map plane, central differences inside and one-sided at the patch edge; `gx = ex·∂h/∂x`, `gy = ex·∂h/∂row`.
+- `hs = clamp((sin alt + cos alt·(cos az·gy − sin az·gx)) / sqrt(1 + gx² + gy²), 0, 1)`, which is `reliefGrey`'s `sin alt·cos slope + cos alt·sin slope·cos(az − aspect)`, trig-free. The light is the base map's (`landerReliefAzimuthDeg` 315° clockwise from image up, i.e. lon 0; `landerReliefAltitudeDeg` 35°; `landerReliefExaggeration` 2). It is fixed in the map frame: it never follows the Sun, the time, the camera or the site, so a pixel shared by two sites' meshes gets the same value.
+- The map-plane gradient is relative to each point's own vertical (3D triangle normals in the site's ENU would read the sphere's curvature, about 9.9° at 300 km, as a slope). The stereographic scale error is under 2% within 300 km of the pole sites.
+- Per vertex, `LanderMesh.relief[v] = Σ wᵢ·hs(srcᵢ)`, the same rule as its height (pixel vertex: its pixel; cell centre: mean of 4; lattice: the fan weights). Two row-sliced build phases after the patch rows (§8: every unit stays short); about 4 B per kept vertex.
+- Colour (`state/lander_light.dart`): `f_v = round(200·clamp(1 + 0.8·(hs − sin 35°), 0.7, 1.3)) / 200` (an ambient-plus-diffuse light normalised so flat ground is exactly 1, in steps of 0.005: a step changes a colour channel by at most 0.55·0.005 = 0.0028, under 1/255; within about 0.003 of flat's hillshade, the stored float32 included, it is exactly 1) and per source pixel `clamp(0.55·f_v·mᵢ + sᵢ)`. Only the albedo (multiply) part is shaded; the class tint `sᵢ` is untouched, so hues hold, and the stripe/dot pattern pass gets the same `f_v`. Pattern alpha is unchanged. "Light not computed" stays flat `#6E737B` (a status colour, as `beyondMapGround` on the map).
+- Recolouring stays one pass at about the 1.10 cost. Each vertex's relief level (one of the 121 steps of `f_v`) is computed once per mesh and cached with it (never per frame). The shaded colours `clamp(0.55·f·m + s)` of every level are computed once, as doubles and packed bytes, for the distinct (multiply, screen) values only (the off- and on-pattern colours depend on the shade byte only for full Sun, so the 2,304 (class, shade) entries hold 70 distinct colours: about 0.5 MB for all levels): a recolour reads the vertex's level row where it would read the 1.10 table, the packed fast path for a vertex on one full-weight pixel included, with no per-frame multiply or clamp. Flat ground's level holds exactly the 1.10 values, and with the switch off the 1.10 path runs unchanged, so off is bit for bit the 1.10 colours. `landerVertexColors` / `landerPatternColors` compute the same formula directly and S3b checks `landerColors` against them value for value. Measured (flutter test, JIT, desktop; real near and far frames on the shipped DEM; median of 300 interleaved runs), off vs on: SR1 (34,367 vertices) layer both 1.22–1.54 vs 1.32–1.67 ms (+8–10 %), layer sun 1.14–1.26 vs 1.39–1.42 ms (+13–22 %); Haworth (20,480) both 0.87–0.88 vs 0.96–0.99 ms (+10–12 %), sun 0.79–0.83 vs 0.92–0.96 ms (+16–17 %). The first 1.11 build (a factor and multiply-adds per vertex and frame) took 2.9–3.1 ms on SR1, layer both.
+
+**Slope response** (true slope, heights ×2; facing toward / away from the light): 5°: +11% / −12%; 10°: +19% / −24%; 15°: +26% / −30% (clamped); ≥ 20°: about +30% / −30%. A flank side-on to the light changes by a few %. Plains stay subtle; crater walls reach ±20–30%.
+
+**Classes stay apart** (Rec. 709 luminance of the drawn colour at f = 0.7 / 1.0 / 1.3):
+
+| Class | f = 0.7 | f = 1.0 (1.10) | f = 1.3 |
+|---|---|---|---|
+| shadow / earthHidden / neither | 0.073 | 0.104 | 0.135 |
+| fullSun, Lambert b = 0 | 0.363 | 0.481 | 0.600 |
+| fullSun, b = 0.5 | 0.630 | 0.772 | 0.914 |
+| fullSun, b = 1 | 0.897 | 0.992 | 1.000 (white: the Lambert term saturates first) |
+| partSun / sunOnly, base | 0.345 | 0.439 | 0.532 |
+| partSun / sunOnly, stripe | 0.775 | 0.847 | 0.919 |
+| earthSeen | 0.529 | 0.668 | 0.804 |
+| both | 0.683 | 0.825 | 0.939 |
+| earthOnly, base | 0.322 | 0.425 | 0.528 |
+| earthOnly, dots | 0.671 | 0.766 | 0.861 |
+| not computed | 0.449 (flat, unchanged) | | |
+
+Shadow stays under half of the dimmest lit or seen class, and its shape still shows faintly (the blue channel moves about 28/41/53 levels). Hue families hold (amber r > b except the saturated white top of full Sun; Earth b > r; both g, b > r; shadow b > r), and the pattern on−off luminance stays ≥ 0.3, so D13's non-colour encoding is unaffected.
+
+**Switch.** `AppState.landerRelief` (on by default; in memory; one state for the inline and the full-screen view, every site and camera). A 48 dp toggle over the view's right edge (`LanderViewPanel.reliefRect`): under the expand button inline, in the expand button's slot full screen (which has no expand button); shown once the mesh is built and the view is tall enough (160 dp inline, `minFitViewHeight`). Off: `terrain_outlined` struck through on the translucent panel colour; on: filled `terrain` on raised navy with a hairline (neutral navy, never amber; the icon shape, not colour, tells the state). Tooltip "Relief shading: on/off"; Semantics: a toggled button, label "Relief shading", hint "slopes from LOLA heights, lit by a fixed drawing light, not the Sun". The painter's `reserve` covers both corner buttons, so callouts and scale labels keep off them. Turning it in one view recolours the other on its next build.
+
+**Labels.** Legend key (light map legend in the Lander view, the full-screen side column and Legend sheet): a two-faced grey ridge swatch (0.55 × 1.3 and 0.55 × 0.7) with "Relief shading: slopes from LOLA heights, lit by a fixed drawing light (not the Sun)"; off: a flat 0.55 swatch with "Relief shading off: flat ground colour". The main FidelityBadge gains the sentence quoted in §6 while it is on (its 100-character summary is unchanged). The in-view bottom strip is unchanged (no squeezing of the callouts). Learn › How it's calculated › Lander's view says the same.
+
+**Tests.** `test/core/relief_test.dart` R1–R3 (closed form on planes, edges included; same light as `reliefGrey`; constants are the base map's). `test/core/lander_view_test.dart` L1–L3 (ridge flanks, flat = sin 35°, Σ w·hs for all three parts, view independence) and `expectSameMesh` / sliced build compare `relief`. `test/state/lander_light_test.dart` S3b with relief on and off, S9–S12 (factor; off and flat bit for bit; per-pixel formula and flat "not computed"; class distinctness). `test/widget/lander_view_test.dart` W-R1–W-R3, W-R6; `test/widget/lander_full_screen_test.dart` F-R1–F-R3 and FS1/FS10 (reserve covers both corner buttons).
+
+## Raised viewpoint (1.11.0, user decision 2026-10-31)
+
+**Why.** Seen from 2 m the 400 m ground is a thin band along the horizon, and the user found the view hard to understand. Of the options offered, the user chose "View from higher": the same terrain and light, drawn from an eye raised above the site. It is a drawing aid, never the lander's view, and it is labelled as such everywhere it shows.
+
+**Choices** (`enum LanderViewpoint { lander, m200, km1, km5 }`, core): the eye's height above the 400 m ground under the site is `eyeHeightM(observerHeightM)` = the observer height (2 m, or the 10 m mast) / 200 / 1000 / 5000 m. `raised` is true for the last three. `landerRaisedEyeMinM = 200`: eyes at or above it follow the raised rules below, so the 10 m mast keeps the lander's rules.
+
+**Eye.** As §3.3 with the viewpoint's height: `eye = (R + hGrid + eyeHeightM)·unitUp(lat, lon)`. `buildLanderMesh` / `LanderMeshWork` keep their parameter `observerHeightM`, documented as the eye's height (the observer's or a raised viewpoint's), so a mesh stays a pure function of (DEM, site, eye height, cull). `LanderCamera.eyeHeightM` keeps it; `LanderMesh.raisedEye` is `eyeHeightM >= 200`.
+
+**What moves with the eye and what does not.** The eye moves only along the site's up axis, and E and N are perpendicular to it, so for every grid vertex e, n, the horizontal distance, the azimuth and `dmin` are unchanged, and so are the far cells and `demEnds`. Only u, el, the skyline, the cull, the draw-order keys and the near-field alpha change; they all read the eye, so threading the height through makes them eye-relative.
+
+**Near field from raised eyes** (differs from the lander's; checked by the core tests):
+- **No lattice.** At 200 m and above the polar lattice (§3.4, part 0) is not built, and every 400 m cell is drawn, including the cell under the eye. Seen from above, the lattice's straight triangles between its rings would overlap the cells that cross 800 m and cut through them.
+- **Cells near the eye are split.** Each fan triangle of a cell within about 1.6 km is cut into k × k flat pieces on its own plane, k = clamp(ceil(px / (`landerSubAngle` · d)), 1, `landerSubMaxK`) with `landerSubAngle = 0.25` rad, `landerSubMaxK = 8`, px = 400 m and d the distance from the eye. The pieces are part 0, read the cell's 4 corner pixels with the fan's weights (so their light and relief are the cell's, interpolated), are always kept and never occlude anything in the cull. Without the split, the big triangles under a raised eye cross the camera plane and the near-plane guard (§3.8) drops them while they are on screen.
+- **All ground solid.** From ≥ 200 m, ground within 800 m is seen from above, at −14° or lower. D7's reasons (the light engine's 800 m cut and the 400 m grid not resolving ground at grazing angles from 2 m) are about the lander's eye, so every vertex has alpha 1 and nothing is hatched. Under 200 m (2 m and the 10 m mast) D7 holds unchanged.
+- **Skyline.** From raised eyes `LanderMesh.skyline` is the skyline of all drawn ground (parts 0–2 from 0 m), so the disc occlusion and the callouts' "drawn from … up" line match the solid drawing. At the lander's height it stays the far skyline (parts 1–2 from 800 m).
+
+**Cull and order stay valid.** Along any azimuth the drawn heightfield's elevation profile starts at −90° at the eye's foot and is continuous out to any occluder, so a ray under an occluder's `lo − β` meets nearer ground first: the sweep and the elevation envelope (§3.6) never used "2 m". From above it removes less: everything up to the geometric horizon (√(2RH): 26 km at 200 m, 59 km at 1 km, 132 km at 5 km) and the peaks beyond stays. A few triangles beyond the horizon stay kept (under 1 % of the kept ones, the farthest within 1.5 × the horizon distance), in narrow wedges where the grid's diagonals point straight out from the eye and no single nearer triangle spans those culling bins; this keeps extra ground and never hides visible ground. The 3-D distance keys of §3.5 are occlusion-consistent at any height (if X hides Y along a ray, X is nearer). Painter order against a ray-cast id buffer, synthetic DEMs: 100 % of pixels at 200 m, ≥ 99.98 % at 1 km, 99.79–99.83 % at 5 km (test threshold 99.5 %; the rest are cell-level ties, as at 2 m).
+
+**What does not change.** The light frames (near and far) and the colours; the Sun's and Earth's directions, which stay the lander's (from 5 km up Earth's parallax is 5 / 384,400 rad = 0.00075°, the Sun's about 3e-8 rad: both under 0.001°); the status words (`landerPreciseWord`: the site's precise mask, or a custom spot's coarse horizon, at the lander's height); the map, the masks and the sky plot. Disc occlusion uses the drawn terrain as at 2 m; from higher up the drawn skyline is lower, so a disc can be drawn in view while the lander's words say it is hidden, which the badge sentence says.
+
+**Labels** (exact texts; `lander` = the lander's height text, `eye` the viewpoint's: "2 m", "10 m", "200 m", "1 km", "5 km", `landerHeightText`). At the lander's height every text below is byte for byte the 1.11 lander text.
+- **Chip** on the view (`LanderPainter.viewpoint`), top-left under the compass strip at (8, compassH + 6), the raised-eye glyph then, in at most 2 lines, `landerViewpointChip(eye)`: "Viewpoint 1 km up, not the lander's" (the height in Plex Mono). Panel fill, `lineStrong` hairline. Callouts, scale labels and DEM-end labels keep off it. It never covers a body: where the Sun's or Earth's glyph or disc (`LanderPainter.chipKeepOff`) meets that spot, it goes just under the body (or bodies) in the way, else just right of them, never under the bottom strip (`size.height − 48`); if no spot is clear (a tiny view) it stays top-left. It is painted before the callouts, so a glyph and its leader always draw over it.
+- **Legend** (`LightLegend.landerStatusAt`, inline, full-screen side column and Legend sheet): the row "Sun/Earth status: at the lander, 2 m" with the raised-eye glyph as its key, in place of "Near ground, see-through" (nothing is see-through from up there); the dashed row reads "Lander's horizon, 2 m (dashed)" (`landerHorizonLegend`), since from 1 km up the lander's mask floats above the lower drawn skyline.
+- **Badge** (`landerFidelityText(…, viewpoint: eye)`): the skyline clause reads "…so rims and peaks are smoothed and, at the lander's height, the drawn skyline can differ from …"; the see-through sentence (D7) is replaced by `landerViewpointFidelity(eye, lander)`: "Viewpoint raised to 1 km above the site as a drawing aid: the same 400 m terrain and the same light frame, seen from higher (the lander's eye is 2 m). The Sun and Earth words, the dashed horizon mask and the map stay the lander's; the Sun and Earth are drawn in the lander's directions, and the drawn terrain, lower from up here, can leave a disc in view that is hidden at the lander. Ground within 800 m is seen from above and drawn solid." (the directions differ by under 0.001° from 5 km up; see What does not change); (g) reads "The eye is 1 km above the 400 m surface, which is 29 m below this site's 80 m height." (the offset is the surface's, not the eye's; at the lander's height (g) is unchanged).
+- **Caption**: "From a raised viewpoint: 1 km above the ground at {site} (the lander's eye is 2 m), {UTC}. Terrain and light come from the same 400 m LOLA grid and the same computed frame as the map; the Sun and Earth are at their exact positions."
+- **Mask label**: "Lander's horizon mask, 2 m (LOLA 80 m/240 m)"; custom spots "Lander's coarse horizon, 2 m (400 m, this device)".
+- **Callout line 3** (only where the drawn verdict differs from the word, as at 2 m): "drawn from 1 km up: {word} (skyline ±x.x°)".
+- **Semantics description**, after the status line and before the view: "Viewpoint 1 km above the site, not the lander's; Sun and Earth status is at the lander, 2 m."
+
+**Control.** A 48 × 48 dp `PopupMenuButton<LanderViewpoint>` over the view (`LanderViewPanel.viewpointRect(w)` = (w − 104, compassH + 4, 48, 48)): left of the expand button inline, left of the relief switch full screen. Its face is the raised-eye glyph (an up chevron over a dashed stem on a ground line) over the eye height in Plex Mono 11 ("2 m", "1 km"): raised navy (`panelHi`) with a `lineStrong` hairline when raised, the translucent panel at the lander's height; never amber. With keyboard focus the edge is the 2 px `ice` ring (CLAUDE.md); the relief switch (D21) resolves its side per state too, so its "on" hairline no longer hides the theme's ring. It is shown whenever the view is tall enough (`viewH ≥ rect.bottom + 8`), also while the view builds, so a kept height can be chosen again at once. Menu items are 48 dp tall: "Lander, 2 m" (or "10 m"), "200 m up", "1 km up", "5 km up", the current one with a check icon (shape, not colour) and `Semantics(selected: true)`. Semantics: a button labelled `landerViewpointLabel` ("View height: 1 km above the site"; at the lander "View height: at the lander, 2 m above the site"), hint "Choose 2 m, 200 m, 1 km or 5 km. Only the drawing viewpoint moves; the light and the Sun and Earth status stay the lander's."; the tooltip is the label. The painter's `reserve` is a list of the controls' boxes (not their union), so the empty corner stays usable.
+
+**State.** `AppState.landerViewpoint` (default `lander`; in memory; one choice for both views and every site), `setLanderViewpoint` (notifies only on a change), `landerEyeHeightM`. `landerMeshKey` = `lat|lon|eyeHeightM`, so the panel's existing key logic builds or adopts on a change. The app keeps an LRU of 4 meshes (`AppState.landerMeshCacheSize` = the number of viewpoints), so one site's four heights all stay: 2 m → 200 m → 1 km → 5 km → 2 m builds nothing the second time. A site change drops all, an observer height change drops only the lander-eye mesh (raised keys do not depend on it). The panel keeps its own LRU of 2 for switching sites in full screen, but keeps a raised mesh only while it is the current one, so another site adds at most its lander-height mesh. Memory: one site's four heights come to 43 MB (SR1) / 38 MB (Haworth), at most about 45 MB, plus 2–6 MB in the panel.
+
+**Camera.** On a change the yaw and zoom stay, and the camera turns (400 ms) to the viewpoint's default pitch, `landerDefaultPitchDeg(v, hfov, aspect, topClearFrac)`: 0 at the lander's height; raised, `clampPitch(min(max(target, floor), ceiling))` with target −8° / −15° / −25° (200 m / 1 km / 5 km) and t = tan(vfov/2) = tan(hfov/2)·h/w:
+- floor = max(3° − vfov/2, 2° − atan((1 − 2·topClearFrac)·t)): the 0° line at least 3° under the top, and the +2° line (the polar Sun and Earth stay within about ±1.6° of 0° at the lander; `landerBodyBandDeg`) under the top `topClearFrac` of the view. The panel passes `LanderPainter.bodyClearPx` / h, with `bodyClearPx` = compassH + glyphR + 7 = 64 px: the 48 dp compass strip, a glyph's radius and a margin, so neither the strip nor a glyph lifted under it covers a body at the default pitch. (Until this review the floor was 3° − vfov/2 only, which on a phone put 0° inside the 48 dp strip.)
+- ceiling = −dip + vfov/2 − min(1°, vfov/8), dip = acos(R / (R + h)) (`landerHorizonDipDeg`: 0.87° / 1.94° / 4.35°): the eye's geometric horizon at least that margin over the bottom edge. When both cannot hold (a narrow view, zoomed in), the ceiling wins: the ground stays in view, and a body under the compass strip keeps its callout below it on a leader (§5) and its compass marker.
+- Resulting defaults (200 m / 1 km / 5 km): phone inline 360 × 223, hfov 45°: −4.24 / −4.24 / −4.24 (the strip is a fifth of the view); full screen portrait 360 × 560: −8 / −15 / −24.43; desktop 900 × 560, hfov 60°: −8 / −13.49 / −13.49; phone landscape strip 780 × 281: −2.65 for all three; zoomed in to hfov 10° at 360 × 223: 0.68 / 0.38 / −2.02 (the horizon wins at 1 and 5 km), at 360 × 560: −3.99. The ±30° clamp (D9) stays. The camera store is `[yaw, pitch, hfov, viewpoint]`; a 1.10 store of three numbers is read as the lander's height; a stored pitch is used only at its own viewpoint, else the default.
+
+**Cost** (shipped DEM, desktop test VM; kept vertices / triangles, memory):
+
+| Site | 2 m | 200 m | 1 km | 5 km |
+|---|---|---|---|---|
+| SR1 | 34k / 62k, 2.8 MB | 68k / 122k, 5.6 MB | 118k / 217k, 9.8 MB | 300k / 567k, 25.1 MB |
+| Haworth | 20k / 37k, 1.7 MB | 37k / 65k, 3.0 MB | 131k / 243k, 10.9 MB | 270k / 516k, 22.7 MB |
+
+Builds at raised heights take 1.3–1.8 s (desktop test VM, JIT) in about 8,700–8,900 units run in 4 ms slices. The work that grows with the kept mesh (about 9× the 2 m mesh at 5 km) is one array, chunk or sector per unit: the compaction's work arrays (3 units), the vertex renumbering's fill (16k-vertex chunks), the output arrays (8 units) and the sectors' typed lists (36 units); before this split single units reached about 11 ms at 5 km. Measured alone, the longest unit is 3.7–5.8 ms at every height, with single GC pauses up to 8.5 ms; under parallel test load a few units reach 20–30 ms (GC and scheduling), so the test checks the 99.5th percentile (1.1–2.1 ms) against 16 ms and the longest unit against 100 ms. The cache keeps one site's four meshes (State). The raised rows exceed the 2 m budget of §8 (≤ 150k vertices, ≤ 8 MB); that is accepted for the drawing aid and not thinned (no decimation, which would be another approximation). Paint at 5 km is estimated at roughly 2× the §8 triangle budget at the default camera; it is to be measured on the Android 7 emulator in the walkthrough, and reported before anything is added if it is unusable.
+
+**Tests.** Core: raised eye moves only the eye; flat sphere from 200 m and 1 km culled beyond the horizon; culling is conservative from raised eyes; near ground solid from raised eyes; painter order against the ray-cast id buffer from above; no on-screen triangle lost to the near-plane guard; every on-screen triangle in a visible sector; viewpoint heights and default pitch (floor, ceiling, the per-layout table, zoomed in); sliced build equals one-shot at 1 km; shipped-DEM sizes, memory and unit times at 200 m, 1 km and 5 km. State: viewpoint default, notify only on change, keys, LRU of 4 (2 m → 200 m → 1 km → 5 km → 2 m keeps the 2 m mesh), drops. Light: S13 (raised meshes opaque; split vertices coloured as Σ w · their pixels). Widget: W-V1–W-V9 and W-V2b (`lander_view_test.dart`), F-V1–F-V2 (`lander_full_screen_test.dart`).
 
 ## Build split (two builders, about 300k tokens)
 

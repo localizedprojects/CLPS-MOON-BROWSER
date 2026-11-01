@@ -10,7 +10,7 @@ import 'dart:math' as math;
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
-import 'package:flutter/foundation.dart' show ValueListenable, kIsWeb;
+import 'package:flutter/foundation.dart' show ValueListenable, kIsWeb, listEquals;
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
@@ -135,15 +135,98 @@ String landerPlayFidelity({required bool web}) =>
 String landerGreyNote({required bool playing, required bool web}) =>
     'Grey ground: light not computed (beyond 64 km${playing && web ? ', not computed while playing on the web' : ''}).';
 
-/// The caption under the view (§6).
-String landerCaption({required String height, required String site, required String utc}) =>
-    'From the lander: $height above the ground at $site, $utc. Terrain and light come from the same 400 m LOLA '
+/// The caption under the view (§6). From a raised viewpoint (D22, [lander]
+/// = the lander's height text) it says so and names the lander's eye;
+/// [height] is then the viewpoint's height.
+String landerCaption({required String height, required String site, required String utc, String? lander}) =>
+    '${lander == null ? 'From the lander: $height above the ground at $site' : 'From a raised viewpoint: $height above '
+              'the ground at $site (the lander\'s eye is $lander)'}, $utc. Terrain and light come from the same 400 m LOLA '
     'grid and the same computed frame as the map; the Sun and Earth are at their exact positions.';
 
 /// The reference line's label (§5): the precise mask for presets, the
-/// on-device coarse horizon for custom spots.
-String landerMaskLabel({required bool custom}) =>
-    custom ? 'Coarse horizon (400 m, this device)' : 'Horizon mask (LOLA 80 m/240 m)';
+/// on-device coarse horizon for custom spots; from a raised viewpoint (D22)
+/// it names them the lander's, at the lander's height [lander].
+String landerMaskLabel({required bool custom, String? lander}) => lander == null
+    ? (custom ? 'Coarse horizon (400 m, this device)' : 'Horizon mask (LOLA 80 m/240 m)')
+    : (custom
+          ? 'Lander\'s coarse horizon, $lander (400 m, this device)'
+          : 'Lander\'s horizon mask, $lander (LOLA 80 m/240 m)');
+
+/// A height for the Lander's view's words (D22): "2 m", "10 m", "2.5 m",
+/// "200 m", "1 km", "5 km".
+String landerHeightText(double h) {
+  String n(double x) => x == x.roundToDouble() ? x.toStringAsFixed(0) : x.toStringAsFixed(1);
+  return h >= 1000 ? '${n(h / 1000)} km' : '${n(h)} m';
+}
+
+/// The viewpoint control's accessible name and tooltip (D22, §9).
+String landerViewpointLabel(LanderViewpoint v, double observerHeightM) => v.raised
+    ? 'View height: ${landerHeightText(v.eyeHeightM(observerHeightM))} above the site'
+    : 'View height: at the lander, ${landerHeightText(observerHeightM)} above the site';
+
+/// The viewpoint control's accessible hint (D22, §9).
+String landerViewpointHint(double observerHeightM) =>
+    'Choose ${landerHeightText(observerHeightM)}, 200 m, 1 km or 5 km. Only the drawing viewpoint moves; the light '
+    'and the Sun and Earth status stay the lander\'s.';
+
+/// A viewpoint's line in the control's menu (D22).
+String landerViewpointItem(LanderViewpoint v, double observerHeightM) =>
+    v.raised ? '${landerHeightText(v.eyeHeightM(observerHeightM))} up' : 'Lander, ${landerHeightText(observerHeightM)}';
+
+/// The chip on the view from a raised viewpoint [eye] (D22, §6).
+String landerViewpointChip(String eye) => 'Viewpoint $eye up, not the lander\'s';
+
+/// What the view's description says first from a raised viewpoint [eye]
+/// (D22, §9); [lander] is the lander's height.
+String landerViewpointSemantic(String eye, String lander) =>
+    'Viewpoint $eye above the site, not the lander\'s; Sun and Earth status is at the lander, $lander.';
+
+/// The legend's line from a raised viewpoint (D22, §4.4): the Sun's and
+/// Earth's words are the lander's, at its height [lander].
+String landerStatusAtLegend(String lander) => 'Sun/Earth status: at the lander, $lander';
+
+/// The legend's dashed-line row (§6): "Horizon (dashed)"; from a raised
+/// viewpoint (D22, [lander] the lander's height) "Lander's horizon, 2 m
+/// (dashed)", since the dashed mask is the lander's, not the viewpoint's.
+String landerHorizonLegend([String? lander]) =>
+    lander == null ? 'Horizon (dashed)' : "Lander's horizon, $lander (dashed)";
+
+/// The raised viewpoint's glyph (D22): an up chevron over a dashed stem on
+/// a ground line, in [r] (the control's face, the chip, the legend's key).
+void paintLanderViewpointGlyph(Canvas canvas, Rect r, Color color) {
+  final p = Paint()
+    ..color = color
+    ..strokeWidth = 1.5
+    ..style = PaintingStyle.stroke
+    ..strokeCap = StrokeCap.round;
+  final cx = r.center.dx, w = r.width, h = r.height;
+  // the ground line
+  canvas.drawLine(Offset(r.left + 0.1 * w, r.bottom - 0.1 * h), Offset(r.right - 0.1 * w, r.bottom - 0.1 * h), p);
+  // the dashed stem
+  for (var y = r.bottom - 0.22 * h; y > r.top + 0.38 * h; y -= 0.2 * h) {
+    canvas.drawLine(Offset(cx, y), Offset(cx, math.max(r.top + 0.38 * h, y - 0.1 * h)), p);
+  }
+  // the chevron (the eye, raised)
+  canvas.drawPath(
+    Path()
+      ..moveTo(cx - 0.28 * w, r.top + 0.4 * h)
+      ..lineTo(cx, r.top + 0.12 * h)
+      ..lineTo(cx + 0.28 * w, r.top + 0.4 * h),
+    p
+  );
+}
+
+class _ViewpointGlyph extends CustomPainter {
+  final Color color;
+  const _ViewpointGlyph(this.color);
+  @override
+  void paint(Canvas canvas, Size size) => paintLanderViewpointGlyph(canvas, Offset.zero & size, color);
+  @override
+  bool shouldRepaint(_ViewpointGlyph old) => old.color != color;
+}
+
+/// The raised viewpoint's glyph as a painter (the legend's key, D22).
+CustomPainter landerViewpointGlyphPainter(Color color) => _ViewpointGlyph(color);
 
 /// The compass strip's tooltip and accessible name (§5).
 const landerCompassLabel = 'Compass: N is away from the pole';
@@ -229,6 +312,21 @@ class LanderViewPanel extends StatefulWidget {
   /// ([LanderPainter.reserve]).
   static Rect expandRect(double w) => Rect.fromLTWH(w - 52, LanderPainter.compassH + 4, 48, 48);
 
+  /// The relief shading switch's box (D21): under the expand button inline
+  /// ([expand]: the view has one), in its slot full screen.
+  static Rect reliefRect(double w, {required bool expand}) =>
+      Rect.fromLTWH(w - 52, LanderPainter.compassH + (expand ? 56 : 4), 48, 48);
+
+  /// The viewpoint height control's box (D22): under the compass strip, left
+  /// of the expand button inline and of the relief switch full screen.
+  static Rect viewpointRect(double w) => Rect.fromLTWH(w - 104, LanderPainter.compassH + 4, 48, 48);
+
+  /// The relief shading switch's accessible name; its state is the toggle.
+  static const reliefLabel = 'Relief shading';
+
+  /// The relief shading switch's accessible hint.
+  static const reliefHint = 'slopes from LOLA heights, lit by a fixed drawing light, not the Sun';
+
   static const buttonsWidth = 7 * 48.0;
 
   /// The least height of the view in a [fitHeight] (and at least half its
@@ -259,8 +357,11 @@ class LanderViewPanelState extends State<LanderViewPanel> with TickerProviderSta
   Duration _lastFling = Duration.zero;
   Offset _lastFocal = Offset.zero;
 
-  // LRU of 2 for switching between two sites here; the current site's mesh is
-  // also kept by the app state (AppState.landerMesh), so it outlives this panel
+  // LRU of 2 for switching between two sites here; the current site's meshes
+  // are also kept by the app state (AppState.landerMesh), so they outlive this
+  // panel. A raised viewpoint's mesh (D22, up to 25 MB) is kept here only while
+  // it is the current one (_keepInPanel), so another site adds at most its
+  // lander-height mesh (2-6 MB) to the app's four.
   final _meshes = <String, LanderMesh>{};
   String? _meshKey, _camKey, _farSent;
   // bumped by each mesh build or adoption and by dispose: a build in flight
@@ -273,6 +374,8 @@ class LanderViewPanelState extends State<LanderViewPanel> with TickerProviderSta
   final _idx = <String, Int32List>{};
   LightFrame? _far;
   Int32List? _colors;
+  // the relief shading the colours were made with (D21)
+  bool? _reliefShown;
   List<(LightPattern, Int32List)> _patterns = const [];
   bool _focused = false, _live = false;
   String _semantic = "Lander's view.";
@@ -280,6 +383,12 @@ class LanderViewPanelState extends State<LanderViewPanel> with TickerProviderSta
   // the camera [_probe] was found for (a probe of another camera is not shown, §5)
   ({double yaw, double pitch})? _probeAt;
   bool _camRefresh = false, _dragging = false;
+  // the viewpoint the camera was set for (D22) and the view's last laid-out height
+  LanderViewpoint? _camViewpoint;
+  double _viewH = 0;
+  final _viewpointMenu = GlobalKey<PopupMenuButtonState<LanderViewpoint>>();
+  // whether the viewpoint control has keyboard focus (its 2 px ice ring)
+  final _viewpointFocused = ValueNotifier(false);
   // per vertex: the hatch colour on the see-through near ground (D7), else 0
   Int32List? _seeThrough;
   static final _flatSky = Float64List(720);
@@ -288,6 +397,10 @@ class LanderViewPanelState extends State<LanderViewPanel> with TickerProviderSta
   final List<LightRequest> farRequests = [];
   LanderMesh? get mesh => _mesh;
   Object? get meshError => _meshError;
+
+  /// The base vertex colours drawn now (tests).
+  @visibleForTesting
+  Int32List? get colors => _colors;
   bool get turning => _turn.isAnimating || _fling.isActive;
 
   AppState get _s => widget.state;
@@ -329,6 +442,9 @@ class LanderViewPanelState extends State<LanderViewPanel> with TickerProviderSta
     if (!adopted && (!identical(old.near, widget.near) || old.layer != widget.layer)) {
       _recolor();
       _syncFar();
+    } else if (!adopted && _reliefShown != null && _reliefShown != _s.landerRelief) {
+      // the relief switch was turned in the other view (inline / full screen)
+      _recolor(text: false);
     }
   }
 
@@ -337,6 +453,7 @@ class LanderViewPanelState extends State<LanderViewPanel> with TickerProviderSta
     _turn.dispose();
     _fling.dispose();
     _focus.dispose();
+    _viewpointFocused.dispose();
     cam.dispose();
     _meshes.clear();
     _meshGen++; // a build in flight (_ensureMesh) stops at its next slice
@@ -361,7 +478,7 @@ class LanderViewPanelState extends State<LanderViewPanel> with TickerProviderSta
     _farSent = null;
     _colors = null;
     _refreshText(); // the new site's camera (_initCamera ran in build) and 'Building the view…'
-    final s = _s, lat = s.site.lat, lon = s.site.lon, h = s.observerHeightM;
+    final s = _s, lat = s.site.lat, lon = s.site.lon, h = s.landerEyeHeightM; // the eye the key names (D22)
     try {
       final g = await (widget.demForTest ?? s.dem)();
       if (!mounted || gen != _meshGen) return;
@@ -371,17 +488,27 @@ class LanderViewPanelState extends State<LanderViewPanel> with TickerProviderSta
       await runSliced((r) => !mounted || gen != _meshGen || w.step(r),
           pause: () => Future<void>.delayed(Duration.zero), rows: 1, sliceMs: 4);
       if (!mounted || gen != _meshGen) return;
-      _meshes[key] = w.mesh;
+      _keepInPanel(key, w.mesh);
       _s.keepLanderMesh(key, w.mesh);
-      while (_meshes.length > 2) {
-        _meshes.remove(_meshes.keys.first);
-      }
       _setMesh(w.mesh);
     } catch (e) {
       if (mounted && gen == _meshGen) {
         setState(() => _meshError = e);
         _refreshText();
       }
+    }
+  }
+
+  /// Keeps [mesh], built for [key], as this panel's most recent: at most one
+  /// other, and that one only at the lander's height (D22: raised meshes of
+  /// other keys go; the app keeps this site's).
+  void _keepInPanel(String key, LanderMesh mesh) {
+    _meshes
+      ..remove(key)
+      ..removeWhere((_, m) => m.raisedEye)
+      ..[key] = mesh;
+    while (_meshes.length > 2) {
+      _meshes.remove(_meshes.keys.first);
     }
   }
 
@@ -392,12 +519,9 @@ class LanderViewPanelState extends State<LanderViewPanel> with TickerProviderSta
   /// follow after that frame (the camera is set in build). False on a miss,
   /// which [_ensureMesh] then builds.
   bool _adoptCached(String key) {
-    final hit = _meshes.remove(key) ?? _s.landerMesh(key);
+    final hit = _meshes[key] ?? _s.landerMesh(key);
     if (hit == null) return false;
-    _meshes[key] = hit;
-    while (_meshes.length > 2) {
-      _meshes.remove(_meshes.keys.first);
-    }
+    _keepInPanel(key, hit);
     _s.keepLanderMesh(key, hit);
     _meshGen++; // a build in flight (_ensureMesh) stops at its next slice
     _meshKey = key;
@@ -456,8 +580,10 @@ class LanderViewPanelState extends State<LanderViewPanel> with TickerProviderSta
     final ni = near == null ? null : _indexFor(m, near, false), fi = far == null ? null : _indexFor(m, far, true);
     // the base colours and every pattern pass in one loop over the vertices (§8)
     final pats = landerPatternsOf(widget.layer);
-    final (base, passes) = landerColors(m, near, ni, far, fi, widget.layer, pats);
+    final relief = _s.landerRelief;
+    final (base, passes) = landerColors(m, near, ni, far, fi, widget.layer, pats, relief: relief);
     _colors = base;
+    _reliefShown = relief;
     _patterns = [for (var i = 0; i < pats.length; i++) (pats[i], passes[i])];
     if (_seeThrough == null) {
       final st = _seeThrough = Int32List(m.vertexCount), on = LanderPainter.seeThroughColor.toARGB32();
@@ -524,9 +650,12 @@ class LanderViewPanelState extends State<LanderViewPanel> with TickerProviderSta
 
     final sm = _now!['sun'] as Map<String, dynamic>;
     return (
-      sun: landerSunEclipseWord(word('sun'),
-          eclipse: (sm['eclipse'] as num?)?.toDouble() ?? 0, hides: sm['eclipseHides'] == true),
-      earth: word('earth'),
+      sun: landerSunEclipseWord(
+        word('sun'),
+        eclipse: (sm['eclipse'] as num?)?.toDouble() ?? 0,
+        hides: sm['eclipseHides'] == true
+      ),
+      earth: word('earth')
     );
   }
 
@@ -567,9 +696,13 @@ class LanderViewPanelState extends State<LanderViewPanel> with TickerProviderSta
         earth: (az: earth.az, el: earth.el, state: _precise.earth),
         centre: centre);
     if (!mounted) return;
-    final st = _status;
+    final st = _status, vp = _s.landerViewpoint;
+    // from a raised viewpoint (D22): said after the status, before the view
+    final pre = vp.raised
+        ? landerViewpointSemantic(landerHeightText(_s.landerEyeHeightM), landerHeightText(_s.observerHeightM))
+        : null;
     setState(() {
-      _semantic = st == null ? text : '$st $text';
+      _semantic = [?st, ?pre, text].join(' ');
       _probe = probe;
       _probeAt = (yaw: cam.yaw, pitch: cam.pitch);
       _live = live;
@@ -580,23 +713,70 @@ class LanderViewPanelState extends State<LanderViewPanel> with TickerProviderSta
 
   String get _storeId => 'lander-camera-${_s.site.id}';
 
-  void _initCamera() {
-    if (_camKey == _s.site.id || _s.eph == null) return;
-    _camKey = _s.site.id;
+  /// The default pitch for [v] in this view (D22, §7.3), at [hfov] (the
+  /// camera's) and the view's last laid-out size: the Sun's and Earth's band
+  /// clears the compass strip and a glyph ([LanderPainter.bodyClearPx]).
+  double _defaultPitch(LanderViewpoint v, {double? hfov}) {
+    final h = _viewH > 0 && widget.width > 0 ? _viewH : 0.62 * widget.width;
+    return landerDefaultPitchDeg(
+      v,
+      hfovDeg: hfov ?? cam.hfov,
+      aspect: widget.width > 0 ? h / widget.width : 0.62,
+      topClearFrac: h > 0 ? LanderPainter.bodyClearPx / h : 0
+    );
+  }
+
+  /// The camera kept for this site: `[yaw, pitch, hfov, viewpoint]` (D22;
+  /// 1.10's `[yaw, pitch, hfov]` was at the lander's height), or null.
+  ({double yaw, double pitch, double hfov, LanderViewpoint? viewpoint})? get _stored {
     final saved = PageStorage.maybeOf(context)?.readState(context, identifier: _storeId);
-    if (saved is List && saved.length == 3) {
-      cam.set(yaw: saved[0] as double, pitch: saved[1] as double, hfov: saved[2] as double);
-    } else {
-      final sun = _body(true), earth = _body(false);
+    if (saved is! List || (saved.length != 3 && saved.length != 4)) return null;
+    return (
+      yaw: saved[0] as double,
+      pitch: saved[1] as double,
+      hfov: saved[2] as double,
+      viewpoint: saved.length == 3 ? LanderViewpoint.lander : LanderViewpoint.values.asNameMap()[saved[3]]
+    );
+  }
+
+  /// The camera for this site and viewpoint: the kept one (its pitch only if
+  /// it was kept at this viewpoint, else [_defaultPitch]), else facing the
+  /// Sun or Earth at the default pitch. A viewpoint chosen in the other view
+  /// (inline / full screen) keeps this camera's yaw and zoom.
+  void _initCamera() {
+    final vp = _s.landerViewpoint;
+    if ((_camKey == _s.site.id && _camViewpoint == vp) || _s.eph == null) return;
+    final again = _camKey == _s.site.id;
+    _camKey = _s.site.id;
+    _camViewpoint = vp;
+    final saved = _stored;
+    if (again) {
+      cam.set(pitch: saved?.viewpoint == vp ? saved!.pitch : _defaultPitch(vp));
+    } else if (saved != null) {
       cam.set(
-          yaw: sun.el > -5 ? sun.az : (earth.el > -5 ? earth.az : 0),
-          pitch: 0,
-          hfov: widget.width >= 600 ? 60 : 45);
+        yaw: saved.yaw,
+        pitch: saved.viewpoint == vp ? saved.pitch : _defaultPitch(vp, hfov: saved.hfov),
+        hfov: saved.hfov
+      );
+    } else {
+      final sun = _body(true), earth = _body(false), hfov = widget.width >= 600 ? 60.0 : 45.0;
+      cam.set(
+        yaw: sun.el > -5 ? sun.az : (earth.el > -5 ? earth.az : 0),
+        pitch: _defaultPitch(vp, hfov: hfov),
+        hfov: hfov
+      );
     }
   }
 
+  void _keepCamera() => PageStorage.maybeOf(context)?.writeState(context, [
+    cam.yaw,
+    cam.pitch,
+    cam.hfov,
+    (_camViewpoint ?? _s.landerViewpoint).name
+  ], identifier: _storeId);
+
   void _settled({bool live = false}) {
-    PageStorage.maybeOf(context)?.writeState(context, [cam.yaw, cam.pitch, cam.hfov], identifier: _storeId);
+    _keepCamera();
     _refreshText(live: live);
   }
 
@@ -609,7 +789,7 @@ class LanderViewPanelState extends State<LanderViewPanel> with TickerProviderSta
     if (!mounted) return;
     _stopMotion();
     if (_camKey != _s.site.id) return; // the camera is still the last site's
-    PageStorage.maybeOf(context)?.writeState(context, [cam.yaw, cam.pitch, cam.hfov], identifier: _storeId);
+    _keepCamera();
   }
 
   /// The expand button and the F key: only once the view is built (a build
@@ -619,6 +799,25 @@ class LanderViewPanelState extends State<LanderViewPanel> with TickerProviderSta
   void _expand() {
     rememberCamera();
     widget.onExpand?.call();
+  }
+
+  /// The viewpoint height (D22): one choice for both views and every site.
+  /// Only the drawing eye moves (the mesh for it is built or taken from the
+  /// cache by the key, [AppState.landerMeshKey]); the camera keeps its yaw and
+  /// zoom and tilts to the viewpoint's default pitch.
+  void _setViewpoint(LanderViewpoint v) {
+    if (v == _s.landerViewpoint) return;
+    _camViewpoint = v;
+    _s.setLanderViewpoint(v);
+    // a kept mesh at once (no 'Building the view…'); else build starts one (_ensureMesh)
+    setState(() => _adoptCached(_siteKey));
+    animateTo(pitch: _defaultPitch(v), live: true);
+  }
+
+  /// The relief shading switch (D21): one state for both views and every site.
+  void _toggleRelief() {
+    _s.setLanderRelief(!_s.landerRelief);
+    setState(() => _recolor(text: false));
   }
 
   bool get _reduced => MediaQuery.maybeDisableAnimationsOf(context) ?? false;
@@ -734,24 +933,162 @@ class LanderViewPanelState extends State<LanderViewPanel> with TickerProviderSta
 
   // ---- build ------------------------------------------------------------
 
+  /// The relief shading switch: a 48 dp toggle; on is a raised navy box with
+  /// a filled terrain icon, off an outlined one struck through (shape, not
+  /// colour alone; never amber).
+  Widget _reliefButton() {
+    final on = _s.landerRelief;
+    return Semantics(
+      container: true,
+      button: true,
+      toggled: on,
+      label: LanderViewPanel.reliefLabel,
+      hint: LanderViewPanel.reliefHint,
+      onTap: _toggleRelief,
+      excludeSemantics: true,
+      child: IconButton(
+        key: const ValueKey('lander-relief'),
+        tooltip: on ? 'Relief shading: on' : 'Relief shading: off',
+        onPressed: _toggleRelief,
+        style:
+            IconButton.styleFrom(
+              backgroundColor: on ? PH.panelHi : const Color(0xCC0C1528),
+              foregroundColor: PH.text,
+              minimumSize: const Size(48, 48)
+            ).copyWith(
+              // the theme's 2 px ice focus ring wins over the "on" hairline (a constant side would hide it)
+              side: WidgetStateProperty.resolveWith(
+                (st) => st.contains(WidgetState.focused)
+                    ? const BorderSide(color: PH.ice, width: 2)
+                    : on
+                    ? const BorderSide(color: PH.lineStrong)
+                    : BorderSide.none
+              )
+            ),
+        icon: on
+            ? const Icon(Icons.terrain, size: 20)
+            : const CustomPaint(
+                foregroundPainter: _SlashPainter(PH.text),
+                child: Icon(Icons.terrain_outlined, size: 20)
+              )
+      )
+    );
+  }
+
+  /// The viewpoint height control (D22): a 48 dp menu button on the view,
+  /// its face the raised-eye glyph over the height in Plex Mono; a raised
+  /// navy box when raised, the translucent panel at the lander's height
+  /// (never amber). Its menu's items are 48 dp tall, the current one checked.
+  Widget _viewpointButton() {
+    final s = _s, vp = s.landerViewpoint, obs = s.observerHeightM;
+    final label = landerViewpointLabel(vp, obs);
+    return Semantics(
+      container: true,
+      button: true,
+      label: label,
+      hint: landerViewpointHint(obs),
+      onTap: () => _viewpointMenu.currentState?.showButtonMenu(),
+      excludeSemantics: true,
+      child: Tooltip(
+        message: label,
+        // a 2 px ice ring while the button has keyboard focus (CLAUDE.md), else the raised hairline
+        child: Focus(
+          canRequestFocus: false,
+          skipTraversal: true,
+          onFocusChange: (f) => _viewpointFocused.value = f,
+          child: ValueListenableBuilder<bool>(
+            valueListenable: _viewpointFocused,
+            builder: (context, focused, child) => Material(
+              color: vp.raised ? PH.panelHi : const Color(0xCC0C1528),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(PH.radius),
+                side: focused
+                    ? const BorderSide(color: PH.ice, width: 2)
+                    : vp.raised
+                    ? const BorderSide(color: PH.lineStrong)
+                    : BorderSide.none
+              ),
+              clipBehavior: Clip.antiAlias,
+              child: child
+            ),
+            child: PopupMenuButton<LanderViewpoint>(
+              key: _viewpointMenu,
+              tooltip: '',
+              initialValue: vp,
+              color: PH.panelHi,
+              onSelected: _setViewpoint,
+              itemBuilder: (context) => [
+                for (final v in LanderViewpoint.values)
+                  PopupMenuItem<LanderViewpoint>(
+                    key: ValueKey('lander-viewpoint-${v.name}'),
+                    value: v,
+                    height: 48,
+                    child: Semantics(
+                      selected: v == vp,
+                      label: landerViewpointLabel(v, obs),
+                      excludeSemantics: true,
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          SizedBox(
+                            width: 24,
+                            child: v == vp ? const Icon(Icons.check, size: 18, color: PH.text) : null
+                          ),
+                          const SizedBox(width: 8),
+                          Text(landerViewpointItem(v, obs), style: numStyle(size: 14))
+                        ]
+                      )
+                    )
+                  )
+              ],
+              child: SizedBox(
+                key: const ValueKey('lander-viewpoint'),
+                width: 48,
+                height: 48,
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(4, 5, 4, 4),
+                  child: FittedBox(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const CustomPaint(size: Size(18, 18), painter: _ViewpointGlyph(PH.text)),
+                        const SizedBox(height: 1),
+                        Text(landerHeightText(s.landerEyeHeightM), style: numStyle(size: 11))
+                      ]
+                    )
+                  )
+                )
+              )
+            )
+          )
+        )
+      )
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final s = _s;
     if (s.eph == null) return const SizedBox.shrink();
     if (_siteKey != _meshKey) WidgetsBinding.instance.addPostFrameCallback((_) => mounted ? _ensureMesh() : null);
-    _initCamera();
     final w = widget.width, rows = LanderViewPanel.buttonRows(w);
     final scaler = MediaQuery.textScalerOf(context);
     final wide = w >= 600 && scaler.scale(14) <= 18;
     final sun = _body(true), earth = _body(false), words = _precise;
     final near = _nearFrame, far = _farFrame != null;
-    final h = s.observerHeightM;
+    final h = s.observerHeightM, vp = s.landerViewpoint;
+    // the lander's height and, raised (D22), the viewpoint's
+    final landerH = landerHeightText(h), eye = vp.raised ? landerHeightText(s.landerEyeHeightM) : null;
     final notes = <String>[
       if (widget.layer != LightLayer.earth && !words.sun.startsWith('in view') && !words.sun.startsWith('partly hidden'))
         'No direct sunlight here now. Ground in shadow is drawn dark; Earthshine is not computed.',
       if (near != null && !far) landerGreyNote(playing: s.playing, web: kIsWeb),
       landerCaption(
-          height: '${h.toStringAsFixed(h == h.roundToDouble() ? 0 : 1)} m', site: s.site.short, utc: utcLabel(_tMs)),
+        height: eye ?? landerH,
+        site: s.site.short,
+        utc: utcLabel(_tMs),
+        lander: eye == null ? null : landerH
+      )
     ];
     // the notes' measured height, so the panel fits [widget.maxHeight]; capped at
     // 4 lines only in a box of finite height (a scrolling page shows them whole)
@@ -786,9 +1123,18 @@ class LanderViewPanelState extends State<LanderViewPanel> with TickerProviderSta
       final room = widget.maxHeight - 4 - 48.0 * rows, keep = strip ? math.min(notesH, 2 * lineH) : 0.0;
       viewH = math.max(0.0, math.min(cap, math.max(math.min(LanderPainter.compassH + 120, room), room - keep)));
     }
+    _viewH = viewH;
+    _initCamera();
     final status = _status;
     // the expand button: once the view is built, in a view tall enough for it under the compass strip
     final expand = _canExpand && viewH >= LanderPainter.compassH + 4 + 48 + 8;
+    // the relief switch (D21): once the view is built, under the expand button's slot
+    final reliefBox = LanderViewPanel.reliefRect(w, expand: widget.onExpand != null);
+    final relief = _mesh != null && viewH >= reliefBox.bottom + 8;
+    // the viewpoint height control (D22): also while building (back to a kept height at once)
+    final viewpointBox = LanderViewPanel.viewpointRect(w);
+    final viewpoint = viewH >= viewpointBox.bottom + 8 && viewpointBox.left >= 0;
+    final reserve = [if (viewpoint) viewpointBox, if (expand) LanderViewPanel.expandRect(w), if (relief) reliefBox];
     final painter = LanderPainter(
       cam: cam,
       mesh: _mesh,
@@ -801,14 +1147,15 @@ class LanderViewPanelState extends State<LanderViewPanel> with TickerProviderSta
       earthWord: words.earth,
       maskDeg: s.mask.elevDeg,
       maskStepDeg: s.mask.azStepDeg,
-      maskLabel: landerMaskLabel(custom: s.site.custom),
+      maskLabel: landerMaskLabel(custom: s.site.custom, lander: eye == null ? null : landerH),
       probe: _probe,
       probeAt: _probeAt,
       seeThrough: near == null ? null : _seeThrough,
       status: status,
       focused: _focused,
       textScaler: scaler.clamp(maxScaleFactor: PH.maxCanvasTextScale),
-      reserve: expand ? LanderViewPanel.expandRect(w) : null,
+      reserve: reserve,
+      viewpoint: eye
     );
     void press(VoidCallback f) {
       _focus.requestFocus();
@@ -830,7 +1177,7 @@ class LanderViewPanelState extends State<LanderViewPanel> with TickerProviderSta
         const CustomSemanticsAction(label: 'Face Earth'): faceEarth,
         const CustomSemanticsAction(label: 'Level'): level,
         const CustomSemanticsAction(label: 'Zoom in'): () => zoom(1 / 1.25),
-        const CustomSemanticsAction(label: 'Zoom out'): () => zoom(1.25),
+        const CustomSemanticsAction(label: 'Zoom out'): () => zoom(1.25)
       },
       child: Focus(
         focusNode: _focus,
@@ -858,7 +1205,7 @@ class LanderViewPanelState extends State<LanderViewPanel> with TickerProviderSta
                       }
                       final a = unprojectView(v, d.localPosition.dx, d.localPosition.dy);
                       animateTo(yaw: a.az, pitch: a.el, live: false);
-                    },
+                    }
                 ),
                 _ViewScaleRecognizer: GestureRecognizerFactoryWithHandlers<_ViewScaleRecognizer>(
                   _ViewScaleRecognizer.new,
@@ -890,53 +1237,57 @@ class LanderViewPanelState extends State<LanderViewPanel> with TickerProviderSta
                       _vPitch = v.dy * k;
                       _lastFling = Duration.zero;
                       _fling.start();
-                    },
-                ),
+                    }
+                )
               },
-              child: Stack(children: [
-                RepaintBoundary(child: CustomPaint(size: Size(w, viewH), painter: painter)),
-                // the compass strip (48 dp, drawn by the painter): tap turns to
-                // that azimuth (an edge chevron: to its body), drag turns
-                Positioned(
-                  left: 0,
-                  right: 0,
-                  top: 0,
-                  height: LanderPainter.compassH,
-                  // its own node (container), so the label is not merged into the
-                  // view's description
-                  child: Semantics(
-                    container: true,
-                    label: landerCompassLabel,
-                    child: Tooltip(
-                      message: landerCompassLabel,
-                      excludeFromSemantics: true,
-                      child: GestureDetector(
-                        key: const ValueKey('lander-compass'),
-                        behavior: HitTestBehavior.opaque,
-                        excludeFromSemantics: true,
-                        onTapUp: (d) {
-                          _focus.requestFocus();
-                          final v = cam.view(Size(w, viewH));
-                          final chev = LanderPainter.chevronAt(v, sun, earth, d.localPosition);
-                          if (chev != null) return chev ? faceSun(live: false) : faceEarth(live: false);
-                          final a = unprojectView(v, d.localPosition.dx, v.h / 2);
-                          animateTo(yaw: a.az, live: false);
-                        },
-                        onHorizontalDragStart: (_) => _dragging = true,
-                        onHorizontalDragUpdate: (d) => cam.set(yaw: cam.yaw - d.delta.dx * cam.hfov / w),
-                        onHorizontalDragEnd: (_) {
-                          _dragging = false;
-                          _settled();
-                        },
-                      ),
-                    ),
+              child: Stack(
+                children: [
+                  RepaintBoundary(
+                    child: CustomPaint(size: Size(w, viewH), painter: painter)
                   ),
-                ),
-              ]),
-            ),
-          ),
-        ),
-      ),
+                  // the compass strip (48 dp, drawn by the painter): tap turns to
+                  // that azimuth (an edge chevron: to its body), drag turns
+                  Positioned(
+                    left: 0,
+                    right: 0,
+                    top: 0,
+                    height: LanderPainter.compassH,
+                    // its own node (container), so the label is not merged into the
+                    // view's description
+                    child: Semantics(
+                      container: true,
+                      label: landerCompassLabel,
+                      child: Tooltip(
+                        message: landerCompassLabel,
+                        excludeFromSemantics: true,
+                        child: GestureDetector(
+                          key: const ValueKey('lander-compass'),
+                          behavior: HitTestBehavior.opaque,
+                          excludeFromSemantics: true,
+                          onTapUp: (d) {
+                            _focus.requestFocus();
+                            final v = cam.view(Size(w, viewH));
+                            final chev = LanderPainter.chevronAt(v, sun, earth, d.localPosition);
+                            if (chev != null) return chev ? faceSun(live: false) : faceEarth(live: false);
+                            final a = unprojectView(v, d.localPosition.dx, v.h / 2);
+                            animateTo(yaw: a.az, live: false);
+                          },
+                          onHorizontalDragStart: (_) => _dragging = true,
+                          onHorizontalDragUpdate: (d) => cam.set(yaw: cam.yaw - d.delta.dx * cam.hfov / w),
+                          onHorizontalDragEnd: (_) {
+                            _dragging = false;
+                            _settled();
+                          }
+                        )
+                      )
+                    )
+                  )
+                ]
+              )
+            )
+          )
+        )
+      )
     );
 
     Widget btn(IconData icon, String label, VoidCallback f, {bool text = false}) => text
@@ -953,7 +1304,7 @@ class LanderViewPanelState extends State<LanderViewPanel> with TickerProviderSta
       btn(Icons.horizontal_rule, 'Level', level, text: wide),
       btn(Icons.zoom_out, 'Zoom out', () => zoom(1.25)),
       btn(Icons.zoom_in, 'Zoom in', () => zoom(1 / 1.25)),
-      btn(Icons.rotate_right, 'Turn right 15°', () => turnBy(15)),
+      btn(Icons.rotate_right, 'Turn right 15°', () => turnBy(15))
     ];
     // all seven on [rows] rows (never clipped); in a short box they stay on
     // screen under the view and only the notes scroll
@@ -962,10 +1313,12 @@ class LanderViewPanelState extends State<LanderViewPanel> with TickerProviderSta
     final below = [
       if (!scroll) buttons,
       for (final n in notes)
-        Text(n,
-            style: PHText.small.copyWith(color: PH.muted),
-            maxLines: noteLines,
-            overflow: noteLines == null ? null : TextOverflow.ellipsis),
+        Text(
+          n,
+          style: PHText.small.copyWith(color: PH.muted),
+          maxLines: noteLines,
+          overflow: noteLines == null ? null : TextOverflow.ellipsis
+        )
     ];
     return SizedBox(
       width: w,
@@ -974,13 +1327,19 @@ class LanderViewPanelState extends State<LanderViewPanel> with TickerProviderSta
         ClipRRect(
             borderRadius: BorderRadius.circular(PH.radiusInner),
             child: SizedBox(
-                height: viewH,
-                // the expand button over the view's corner, outside its gestures and its description
-                child: !expand
-                    ? view
-                    : Stack(fit: StackFit.expand, children: [
+              height: viewH,
+              // the expand button and the relief switch over the view's corner, outside its
+              // gestures and its description
+              child: !expand && !relief && !viewpoint
+                  ? view
+                  : Stack(
+                      fit: StackFit.expand,
+                      children: [
                         view,
-                        Positioned.fromRect(
+                        if (viewpoint) Positioned.fromRect(rect: viewpointBox, child: _viewpointButton()),
+                        if (relief) Positioned.fromRect(rect: reliefBox, child: _reliefButton()),
+                        if (expand)
+                          Positioned.fromRect(
                             rect: LanderViewPanel.expandRect(w),
                             child: IconButton(
                               key: const ValueKey('lander-expand'),
@@ -989,7 +1348,7 @@ class LanderViewPanelState extends State<LanderViewPanel> with TickerProviderSta
                               style: IconButton.styleFrom(
                                 backgroundColor: const Color(0xCC0C1528),
                                 foregroundColor: PH.text,
-                                minimumSize: const Size(48, 48),
+                                minimumSize: const Size(48, 48)
                               ),
                               icon: const Icon(Icons.open_in_full, size: 20),
                             )),
@@ -999,13 +1358,20 @@ class LanderViewPanelState extends State<LanderViewPanel> with TickerProviderSta
         if (scroll)
           Expanded(
               child: SingleChildScrollView(
-                  child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: below)))
-        else
-          ...below,
-      ]),
+                child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: below)
+              )
+            )
+          else
+            ...below
+        ]
+      )
     );
   }
 }
+
+/// The legend key of the relief shading (D21), on and off.
+const landerReliefLegend = 'Relief shading: slopes from LOLA heights, lit by a fixed drawing light (not the Sun)';
+const landerReliefOffLegend = 'Relief shading off: flat ground colour';
 
 /// The Lander's view's approximation notes (§6), under the view inline and
 /// full screen: the main FidelityBadge ([landerFidelityText], with the eye's
@@ -1021,25 +1387,43 @@ class LanderFidelityBadges extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final s = state, h = s.observerHeightM;
-    final heightText = '${h.toStringAsFixed(h == h.roundToDouble() ? 0 : 1)} m';
-    return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-      ValueListenableBuilder<LanderMesh?>(
+    final s = state, heightText = landerHeightText(s.observerHeightM);
+    // from a raised viewpoint (D22): its sentence in place of the see-through one
+    final viewpoint = s.landerViewpoint.raised ? landerHeightText(s.landerEyeHeightM) : null;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        ValueListenableBuilder<LanderMesh?>(
           valueListenable: mesh,
           builder: (context, m, _) {
             // the mesh of this site and eye height only
-            final mine = m != null && m.cam.latDeg == s.site.lat && m.cam.lonDeg == s.site.lon && m.cam.eyeHeightM == h;
+            final mine =
+                m != null &&
+                m.cam.latDeg == s.site.lat &&
+                m.cam.lonDeg == s.site.lon &&
+                m.cam.eyeHeightM == s.landerEyeHeightM;
             return FidelityBadge(
-                key: const ValueKey('lander-badge'),
-                text: landerFidelityText(heightText,
-                    custom: s.site.custom,
-                    eyeOffsetM: mine && !s.site.custom ? m.cam.groundM - s.site.terrainHeightM : null,
-                    demEnds: mine ? m.demEnds : const [],
-                    eclipse: eclipse));
-          }),
-      if (s.playing) FidelityBadge(key: const ValueKey('lander-play-badge'), text: landerPlayFidelity(web: kIsWeb)),
-      if (s.site.custom) const FidelityBadge(text: FidelityBadge.customHorizon),
-    ]);
+              key: const ValueKey('lander-badge'),
+              text: landerFidelityText(
+                heightText,
+                custom: s.site.custom,
+                eyeOffsetM: mine && !s.site.custom ? m.cam.groundM - s.site.terrainHeightM : null,
+                demEnds: mine ? m.demEnds : const [],
+                eclipse: eclipse,
+                relief: s.landerRelief,
+                viewpoint: viewpoint
+              )
+            );
+          }
+        ),
+        if (s.playing)
+          FidelityBadge(
+            key: const ValueKey('lander-play-badge'),
+            text: landerPlayFidelity(web: kIsWeb)
+          ),
+        if (s.site.custom) const FidelityBadge(text: FidelityBadge.customHorizon)
+      ]
+    );
   }
 }
 
@@ -1113,17 +1497,40 @@ class LanderPainter extends CustomPainter {
   final bool focused;
   final TextScaler textScaler;
 
-  /// The expand button's box over the view ([LanderViewPanel.expandRect]):
-  /// the callouts keep off it where a place that fits does, and the
-  /// elevation scale's and level's labels always (null: no button).
-  final Rect? reserve;
+  /// The boxes of the controls over the view (the viewpoint control, the
+  /// expand button, the relief switch: [LanderViewPanel.viewpointRect],
+  /// [LanderViewPanel.expandRect], [LanderViewPanel.reliefRect]): the
+  /// callouts keep off them where a place that fits does, and the elevation
+  /// scale's and level's labels always.
+  final List<Rect> reserve;
 
-  LanderPainter(
-      {required this.cam, required this.mesh, required this.proj, required this.colors, this.patterns = const [],
-      this.sun, this.earth, this.sunWord, this.earthWord, this.maskDeg, this.maskStepDeg = 0.5, this.maskLabel = '',
-      this.probe, this.probeAt, this.seeThrough, this.status, this.focused = false,
-      this.textScaler = TextScaler.noScaling, this.reserve})
-      : super(repaint: cam);
+  /// The raised viewpoint's height text ("1 km", D22), null at the lander's
+  /// height: the chip on the view ([landerViewpointChip]) and the callouts'
+  /// drawn-terrain line say it.
+  final String? viewpoint;
+
+  LanderPainter({
+    required this.cam,
+    required this.mesh,
+    required this.proj,
+    required this.colors,
+    this.patterns = const [],
+    this.sun,
+    this.earth,
+    this.sunWord,
+    this.earthWord,
+    this.maskDeg,
+    this.maskStepDeg = 0.5,
+    this.maskLabel = '',
+    this.probe,
+    this.probeAt,
+    this.seeThrough,
+    this.status,
+    this.focused = false,
+    this.textScaler = TextScaler.noScaling,
+    this.reserve = const [],
+    this.viewpoint
+  }) : super(repaint: cam);
 
   /// Height of the compass strip at the top (a 48 dp tap target).
   static const compassH = 48.0;
@@ -1168,6 +1575,63 @@ class LanderPainter extends CustomPainter {
   @visibleForTesting
   static List<String>? paintedOrder;
   static final _scaleShown = <double>[];
+
+  /// Tests: the raised viewpoint's chip (D22) as last painted by any
+  /// LanderPainter with [debugRecord] on (null: none).
+  @visibleForTesting
+  static ({String text, Rect box})? paintedChip;
+
+  /// The raised viewpoint's chip in a view of [size] (D22, §6): the glyph,
+  /// then "Viewpoint 1 km up, not the lander's" (the height in Plex Mono)
+  /// in at most 2 lines, as wide as the view less the controls at its right
+  /// ([reserve]). It goes at (8, [compassH] + 6) unless that covers a body
+  /// ([bodies]: the Sun's and Earth's glyphs and discs): then just under the
+  /// body (or bodies) in the way, else just right of them, above the bottom
+  /// strip. If nowhere is clear (a tiny view) it stays at the top left; it is
+  /// painted under the callouts, so a glyph still shows over it.
+  ({TextPainter text, Rect box}) _chip(String eye, Size size, List<Rect> bodies) {
+    final right = reserve.isEmpty ? size.width : reserve.map((r) => r.left).reduce(math.min);
+    final maxW = math.max(40.0, right - 16 - 24);
+    final key = 'chip|$eye|${textScaler.scale(10)}|$maxW';
+    final t = _texts[key] ??= TextPainter(
+      text: TextSpan(
+        style: const TextStyle(fontFamily: PH.sans, fontSize: 11, color: PH.text, fontWeight: FontWeight.w500),
+        children: [
+          const TextSpan(text: 'Viewpoint '),
+          TextSpan(text: eye, style: numStyle(size: 11)),
+          const TextSpan(text: ' up, not the lander\'s')
+        ]
+      ),
+      textDirection: TextDirection.ltr,
+      textScaler: textScaler,
+      maxLines: 2,
+      ellipsis: '…'
+    )..layout(maxWidth: maxW);
+    final w = t.width + 24, h = math.max(18.0, t.height + 4), home = Rect.fromLTWH(8, compassH + 6, w, h);
+    if (!bodies.any(home.overlaps)) return (text: t, box: home);
+    // clear of the controls at the right and of the bottom strip (two lines of 10 px text and the readout)
+    final maxRight = right - 8, maxBottom = size.height - 48;
+    final tops = [compassH + 6, for (final r in bodies) r.bottom + 4]..sort();
+    final lefts = [8.0, for (final r in bodies) r.right + 4]..sort();
+    for (final x in lefts) {
+      for (final y in tops) {
+        final box = Rect.fromLTWH(x, y, w, h);
+        if (y < compassH + 6 || box.bottom > maxBottom || (x > 8 && box.right > maxRight)) continue;
+        if (!bodies.any(box.overlaps)) return (text: t, box: box);
+      }
+    }
+    return (text: t, box: home);
+  }
+
+  /// What the viewpoint's chip keeps off (D22): each body's glyph and, where
+  /// it shows apart from the glyph, its disc ([calloutAnchor]s [anchors]).
+  static List<Rect> chipKeepOff(Iterable<CalloutAnchor?> anchors) => [
+    for (final a in anchors)
+      if (a != null) ...[
+        Rect.fromCircle(center: a.glyph, radius: glyphR + 2),
+        if (a.rPx > glyphR || a.glyph != a.disc) Rect.fromCircle(center: a.disc, radius: math.max(a.rPx, 2) + 2)
+      ]
+  ];
 
   static final _tiles = <LightPattern, ui.Image>{};
 
@@ -1231,6 +1695,12 @@ class LanderPainter extends CustomPainter {
   /// Radius (px) of the callout glyph's body; a disc this small or smaller
   /// is drawn under its glyph.
   static const double glyphR = 9;
+
+  /// The top of the view a raised viewpoint's default pitch keeps the Sun's
+  /// and Earth's band under (D22, [landerDefaultPitchDeg]): the compass
+  /// strip, a glyph's radius and a margin, so neither the strip nor the
+  /// glyph's own clearance covers a body.
+  static const double bodyClearPx = compassH + glyphR + 7;
 
   /// The disc centre, the glyph and the disc radius in px, or null when the
   /// body is off the view. While the disc is no bigger than the glyph, the
@@ -1403,8 +1873,12 @@ class LanderPainter extends CustomPainter {
       word,
       // (an eclipse's share after the comma is not a terrain word)
       // the skyline of the solid ground from 800 m (the light map's); nearer ground is see-through
-      // above it, drawn hatched (the legend's landerSeeThroughLabel)
-      if (mesh != word.split(',').first && sky != null) 'drawn terrain: $mesh (skyline ${sgn(sky)} from 800 m out)',
+      // above it, drawn hatched (the legend's landerSeeThroughLabel). From a raised viewpoint (D22):
+      // the skyline of all the drawn ground, seen from up there
+      if (mesh != word.split(',').first && sky != null)
+        viewpoint == null
+            ? 'drawn terrain: $mesh (skyline ${sgn(sky)} from 800 m out)'
+            : 'drawn from $viewpoint up: $mesh (skyline ${sgn(sky)})'
     ];
   }
 
@@ -1512,7 +1986,7 @@ class LanderPainter extends CustomPainter {
         at(o.right + 4, o.top),
         at(o.left - 4 - w, o.top),
         at(inX(o.left), o.bottom + 4),
-        at(inX(o.left), o.top - 4 - h),
+        at(inX(o.left), o.top - 4 - h)
       ],
       if (reticle != null) ...[...row(reticle.bottom + 2), ...row(reticle.top - 2 - h)],
       // above the disc (over the compass strip's sky where the disc is under
@@ -1523,21 +1997,21 @@ class LanderPainter extends CustomPainter {
       for (final x in [a.glyph.dx + side, a.glyph.dx - side - w]) ...[
         if (reticle != null) at(x, math.min(top, reticle.top - 2 - h)),
         at(x, a.disc.dy - a.rPx),
-        at(x, a.disc.dy - a.rPx - h),
+        at(x, a.disc.dy - a.rPx - h)
       ],
       if (reticle != null)
         for (final o in avoid) ...[at(o.right + 4, reticle.bottom + 2), at(o.left - 4 - w, reticle.bottom + 2)],
       // beside each [avoid] in the row above the disc, and around each [prefer]
       for (final o in avoid) ...[
         at(o.left - 4 - w, a.disc.dy - a.rPx - 6 - h),
-        at(o.right + 4, a.disc.dy - a.rPx - 6 - h),
+        at(o.right + 4, a.disc.dy - a.rPx - 6 - h)
       ],
       for (final o in soft) ...[
         at(o.right + 1, top),
         at(o.left - 1 - w, top),
         ...row(o.bottom + 1),
-        ...row(o.top - 1 - h),
-      ],
+        ...row(o.top - 1 - h)
+      ]
     ];
     bool inside(Rect r) => r.left >= 0 && r.right <= v.w && r.top >= compassH + 1 && r.bottom <= floorAt(r.left);
     bool off(Rect r) => !avoid.any(r.overlaps);
@@ -1593,7 +2067,12 @@ class LanderPainter extends CustomPainter {
       return [
         // (each place once; one clear of every keep stays as it is)
         for (final r in into(0))
-          if (done.add(r)) ...known[r] ??= all.any(r.overlaps) ? [...{for (final ks in keeps) ?under(r, ks)}] : [r],
+          if (done.add(r))
+            ...known[r] ??= all.any(r.overlaps)
+                ? [
+                    ...{for (final ks in keeps) ?under(r, ks)}
+                  ]
+                : [r]
       ];
     }();
     final tiers = [
@@ -1607,7 +2086,7 @@ class LanderPainter extends CustomPainter {
       (() => high, (Rect r) => edge(r) && off(r)),
       // within the disc's 3 px margin, clear of the disc itself
       (() => cands, (Rect r) => inside(r) && near(r) && off(r)),
-      (() => shifted, (Rect r) => near(r) && off(r)),
+      (() => shifted, (Rect r) => near(r) && off(r))
     ];
     // the distinct placements that fit, in order: clear of each [prefer] set in turn, then any
     // (each tier's places that pass its test, kept from the first set's pass for the others;
@@ -1640,7 +2119,7 @@ class LanderPainter extends CustomPainter {
         (cands, (Rect r) => inside(r) && clear(r)),
         (shifted, clear),
         (high, clear),
-        (high, edge),
+        (high, edge)
       ]) {
         for (final r in list) {
           if (ok(r)) return (box: r, fits: off(r), cost: prefer.length);
@@ -1741,7 +2220,8 @@ class LanderPainter extends CustomPainter {
     final ts = [
       for (final (i, l) in (word && lines == 1 ? ['${all[0]} · ${all[1]}'] : all.take(lines ?? all.length)).indexed)
         _text(l, size: 11, color: i == 0 ? color : PH.text, mono: i == 0, maxWidth: v.w - 6),
-      if (merged != null) _text(calloutLines(merged, false).first, size: 11, color: PH.earth, mono: true, maxWidth: v.w - 6),
+      if (merged != null)
+        _text(calloutLines(merged, false).first, size: 11, color: PH.earth, mono: true, maxWidth: v.w - 6)
     ];
     final tw = ts.map((t) => t.width).reduce(math.max), th = ts.fold(0.0, (s, t) => s + t.height);
     // (over the bottom strip under the box: [calloutPlace])
@@ -1773,7 +2253,7 @@ class LanderPainter extends CustomPainter {
             y += t.height;
           }
         },
-        nth: at,
+        nth: at
       );
     }
 
@@ -1832,6 +2312,13 @@ class LanderPainter extends CustomPainter {
             ..strokeWidth = 1);
       level = (y0: y0, k: k); // its label goes on after the boxes, clear of them
     }
+    // the raised viewpoint's chip (D22), under the compass strip at the left, or under or beside a body
+    // there (it never covers a glyph or disc): the callouts, the scale's labels and the DEM ends' labels
+    // keep off it
+    // where each body's callout hangs (found once a paint)
+    final sunA = sun == null ? null : calloutAnchor(v, sun!), earthA = earth == null ? null : calloutAnchor(v, earth!);
+    final chip = viewpoint == null ? null : _chip(viewpoint!, size, chipKeepOff([sunA, earthA]));
+    if (debugRecord) paintedChip = chip == null ? null : (text: landerViewpointChip(viewpoint!), box: chip.box);
     // DEM ends (§3.9): dotted on the drawn skyline where the LOLA map stops
     final demLabels = <Rect>[];
     if (m != null) {
@@ -1858,7 +2345,13 @@ class LanderPainter extends CustomPainter {
         if (mid != null) {
           final t = _text('terrain data ends at ${(e.distM / 1000).round()} km', size: 10, color: PH.warn);
           final x = mid.dx.clamp(2.0, math.max(2.0, size.width - t.width - 2)).toDouble();
-          final y = (mid.dy - t.height - 4).clamp(compassH + 2, math.max(compassH + 2, size.height - t.height)).toDouble();
+          var y = (mid.dy - t.height - 4)
+              .clamp(compassH + 2, math.max(compassH + 2, size.height - t.height))
+              .toDouble();
+          // under the viewpoint's chip, never over it (a skyline above the view's top, looking down)
+          if (chip != null && Rect.fromLTWH(x - 2, y, t.width + 4, t.height).overlaps(chip.box)) {
+            y = chip.box.bottom + 2;
+          }
           final r = Rect.fromLTWH(x - 2, y, t.width + 4, t.height);
           demLabels.add(r);
           canvas.drawRect(r, Paint()..color = PH.bg.withValues(alpha: 0.7));
@@ -1900,8 +2393,6 @@ class LanderPainter extends CustomPainter {
     var read = msg == null ? null : _readout(msg, mono: status == null, maxWidth: size.width - 20);
     Size? sz(TextPainter? t) => t == null ? null : Size(t.width, t.height);
     var strip = bottomStrip(size, legendSize, sz(read));
-    // where each body's callout hangs (found once a paint)
-    final sunA = sun == null ? null : calloutAnchor(v, sun!), earthA = earth == null ? null : calloutAnchor(v, earth!);
     if (status == null && strip.readout != null) {
       // the probe is secondary: left out where it would cover the crosshair or a body's glyph
       final r = strip.readout!;
@@ -1928,7 +2419,7 @@ class LanderPainter extends CustomPainter {
     final markers = _markers(v, sun, earth, sunA, earthA), pointer = headingPointer(size);
     final taps = [for (final (r, _, _, _) in chevrons(v, sun, earth)) r];
     // the expand button's corner ([reserve]) is kept as a chevron's tap target is
-    final soft = [...taps, ?reserve];
+    final soft = [...taps, ...reserve, ?chip?.box];
     List<Rect> markerOf(bool isSun) => [
           for (final (r, s) in markers)
             if (s == isSun) r
@@ -1948,7 +2439,7 @@ class LanderPainter extends CustomPainter {
       final l = leaderOf(a);
       return [
         if (always || a.rPx > glyphR || a.glyph != a.disc) Rect.fromCircle(center: a.disc, radius: a.rPx + 3),
-        if (l != null) Rect.fromPoints(l.$1, l.$2).inflate(1),
+        if (l != null) Rect.fromPoints(l.$1, l.$2).inflate(1)
       ];
     }
 
@@ -1964,7 +2455,7 @@ class LanderPainter extends CustomPainter {
         [...spot, ...soft, ...other],
         [...spot, ...other],
         [...soft, ...markerOf(isSun), pointer, ...other],
-        other,
+        other
       ];
     }
 
@@ -2109,7 +2600,17 @@ class LanderPainter extends CustomPainter {
     final sunBox = sunCallout?.box, earthBox = earthCallout?.box;
     // (the glyphs too: a callout's glyph sits outside its box and is painted over a label under it;
     // 1.9.2: Earth's over '+5°')
-    final boxes = [?sunBox, ?earthBox, ?sunGlyph, ?earthGlyph, ?strip.legend, ?strip.readout, ...demLabels, ?reserve];
+    final boxes = [
+      ?sunBox,
+      ?earthBox,
+      ?sunGlyph,
+      ?earthGlyph,
+      ?strip.legend,
+      ?strip.readout,
+      ...demLabels,
+      ...reserve,
+      ?chip?.box
+    ];
     _scaleShown.clear();
     _elevationScale(canvas, v, size, boxes);
     if (debugRecord) {
@@ -2124,7 +2625,7 @@ class LanderPainter extends CustomPainter {
           };
       paintedWords = (
         sun: code(sunCallout),
-        earth: earthCallout != null && sunCallout?.words == _Words.merged ? 'm' : code(earthCallout),
+        earth: earthCallout != null && sunCallout?.words == _Words.merged ? 'm' : code(earthCallout)
       );
     }
     if (level != null) {
@@ -2155,6 +2656,21 @@ class LanderPainter extends CustomPainter {
       paintedLeaders = [];
       paintedOrder = [];
     }
+    // the viewpoint's chip, under the callouts: their glyphs and leaders are never hidden by it (D22)
+    if (chip != null) {
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(chip.box, const Radius.circular(3)),
+        Paint()..color = PH.panel.withValues(alpha: 0.92)
+      );
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(chip.box.deflate(0.5), const Radius.circular(3)),
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..color = PH.lineStrong
+      );
+      paintLanderViewpointGlyph(canvas, Rect.fromLTWH(chip.box.left + 4, chip.box.top + 3, 12, 12), PH.text);
+      chip.text.paint(canvas, chip.box.topLeft + const Offset(20, 2));
+    }
     sunCallout?.leader();
     earthCallout?.leader();
     sunCallout?.paint();
@@ -2167,7 +2683,7 @@ class LanderPainter extends CustomPainter {
       (Offset(cx - 9, cy), Offset(cx - 3, cy)),
       (Offset(cx + 3, cy), Offset(cx + 9, cy)),
       (Offset(cx, cy - 9), Offset(cx, cy - 3)),
-      (Offset(cx, cy + 3), Offset(cx, cy + 9)),
+      (Offset(cx, cy + 3), Offset(cx, cy + 9))
     ]) {
       final arm = Rect.fromPoints(p0, p1).inflate(0.5);
       if (![?sunBox, ?earthBox].any(arm.overlaps)) canvas.drawLine(p0, p1, cross);
@@ -2401,5 +2917,24 @@ class LanderPainter extends CustomPainter {
       old.status != status ||
       old.focused != focused ||
       old.textScaler != textScaler ||
-      old.reserve != reserve;
+      !listEquals(old.reserve, reserve) ||
+      old.viewpoint != viewpoint;
+}
+
+/// A diagonal stroke over an icon: the "off" state of the relief switch.
+class _SlashPainter extends CustomPainter {
+  final Color color;
+  const _SlashPainter(this.color);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final p = Paint()
+      ..color = color
+      ..strokeWidth = 2
+      ..strokeCap = StrokeCap.round;
+    canvas.drawLine(Offset(1, 1), Offset(size.width - 1, size.height - 1), p);
+  }
+
+  @override
+  bool shouldRepaint(_SlashPainter old) => old.color != color;
 }

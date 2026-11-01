@@ -7,7 +7,7 @@ captions**, and runs 30 s or less. Record it from the web build
 
 ## Before recording
 
-- Use the release web build (1.9.2 or later) in a desktop browser window about 1440 × 900,
+- Use the release web build (1.11.0 or later) in a desktop browser window about 1440 × 900,
   with the default settings: next 12 months, 2 m lander, goal **Balanced**.
 - Rehearse once in the same browser profile, opening Explore, Site (each tab) and Learn, so
   the first-visit feature guides have been seen and do not cover the controls on the take.
@@ -41,6 +41,9 @@ Total: 29.9 s (30 s or less). Captions are 9 to 11 words each.
   of the Sun and Earth checks in `app/assets/data/validation.json`, `app_vs_horizons`). If
   the page shows a different value, use that value.
 - Shot 5: the Lander's view uses the light map's own 400 m terrain and computed light; it
-  is approximate and labelled so in the app. The caption says so too.
+  is approximate and labelled so in the app. The caption says so too. Keep the height button
+  at **2 m** (the lander's own eye): from 200 m, 1 km or 5 km the view says "Viewpoint … up,
+  not the lander's", and the caption would no longer hold. The README's Lander shots are from
+  1 km.
 - Put the title, links and credits in the video description (see
   [submission.md](submission.md)), not in the 30 s.

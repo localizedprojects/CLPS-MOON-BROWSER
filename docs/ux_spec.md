@@ -1,11 +1,14 @@
 # Lunar Horizon UX redesign: concept scores, final spec and build plan
 
-> **Status note (2026-10-30).** This is the original design record. Its Blender-render parts (the
+> **Status note (2026-11-01).** This is the original design record. Its Blender-render parts (the
 > rendered PanoHero, the *Look around* tab and the 360 view, the turntable and the render thumbnails)
 > were superseded on 2026-10-10 by the computed light & shadow map (`app/lib/core/shadow.dart`) and the
 > *Light & shadow* tab; the renders are kept only as a skyline cross-check in `validation.json`. The
 > *Lander's view*, a 3D view from the lander built from the light map's own terrain and light, was
-> added in 1.9.0 ([landers_view_spec.md](landers_view_spec.md)). Read the README for the app as it is.
+> added in 1.9.0 ([landers_view_spec.md](landers_view_spec.md)); 1.10.0 opens it full screen with site
+> switching inside it, and 1.11.0 adds two labelled drawing aids, relief shading and a view from
+> higher (200 m, 1 km, 5 km). The IM-1 and IM-2 site pages link to real photos from each lander
+> (1.11.0). Read the README for the app as it is.
 
 ## Scores
 

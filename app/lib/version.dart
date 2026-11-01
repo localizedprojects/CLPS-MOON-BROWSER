@@ -3,4 +3,4 @@
 /// `version:` before the `+` (test/core/version_test.dart checks it).
 library;
 
-const appVersion = '1.11.0';
+const appVersion = '1.11.1';

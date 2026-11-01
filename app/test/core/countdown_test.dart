@@ -139,13 +139,32 @@ void main() {
     test('Sun up: elevation, clearance, sunset with its time, Earthset', () {
       final s = series(1000, (i) => i < 460, (i) => i < 68, el: 1.2, hz: 0.6);
       final c = countdownAt(s, t0);
-      expect(countdownLine(c, dateOf: date), 'Sun 1.2° up (0.6° above the hills) · sunset in 3 d 4 h (D460) · Earthset in 11 h 20 min');
+      expect(countdownLine(c, dateOf: date), 'Sun 1.2° above level (0.6° above the hills) · sunset in 3 d 4 h (D460) · Earthset in 11 h 20 min');
     });
 
-    test('Sun down: sunrise and Earthrise; below the horizon and the hills', () {
+    test('Sun down: sunrise and Earthrise; below level and below the hills', () {
       final s = series(1000, (i) => i >= 317, (i) => i >= 6, el: -1.5, hz: 0.6);
       final line = countdownLine(countdownAt(s, t0), dateOf: date);
-      expect(line, 'Sun 1.5° below the horizon (2.1° below the hills) · sunrise in 2 d 4 h (D317) · Earthrise in 1 h');
+      expect(line, 'Sun 1.5° below level (2.1° below the hills) · sunrise in 2 d 4 h (D317) · Earthrise in 1 h');
+    });
+
+    test('a counted Sun below level (a peak whose skyline dips lower) never reads "below the horizon"', () {
+      // emulator 1.11.0 F4: "Power now ... Sun up" over "Sun 1.5° below the horizon (2.5° above the hills)"
+      final s = series(1000, (i) => i < 460, (i) => true, el: -1.5, hz: -4.0);
+      final c = countdownAt(s, t0);
+      expect(c.sunUp, isTrue);
+      final line = countdownLine(c, dateOf: date);
+      expect(line, startsWith('Sun 1.5° below level (2.5° above the hills) · sunset in 3 d 4 h (D460) · '));
+      expect(line, isNot(contains('below the horizon')));
+    });
+
+    test('an uncounted Sun above level, behind higher hills, never reads "up"', () {
+      final s = series(1000, (i) => i >= 317, (i) => true, el: 2.0, hz: 3.0);
+      final c = countdownAt(s, t0);
+      expect(c.sunUp, isFalse);
+      final line = countdownLine(c, dateOf: date);
+      expect(line, startsWith('Sun 2.0° above level (1.0° below the hills) · sunrise in 2 d 4 h (D317) · '));
+      expect(line, isNot(matches(RegExp(r'\bup\b'))));
     });
 
     test('to the end of the chosen dates', () {
@@ -165,7 +184,7 @@ void main() {
           sun: NextChange(t0 + 6 * step, 6 * step, byEclipse: true),
           earth: NextChange.beyond());
       expect(countdownLine(c, dateOf: date),
-          'Sun 2.0° up (1.0° above the hills), Earth covers 30% of it (lunar eclipse) · Earth hides the Sun in 1 h (D6) · no Earthset in your dates');
+          'Sun 2.0° above level (1.0° above the hills), Earth covers 30% of it (lunar eclipse) · Earth hides the Sun in 1 h (D6) · no Earthset in your dates');
     });
 
     test('power only on request, labelled as the Sun-facing panel proxy', () {
@@ -176,8 +195,8 @@ void main() {
   });
 
   test('spokenCountdown: no abbreviations', () {
-    expect(spokenCountdown('Sun 1.2° up (1° above the hills) · sunset in 3 d 1 h (21 Oct 18:00 UTC) · Earthset in 11 h 20 min · 1300 W/m²'),
-        'Sun 1.2 degrees up (1 degree above the hills), sunset in 3 days 1 hour (21 October 18:00 UTC), '
+    expect(spokenCountdown('Sun 1.2° above level (1° above the hills) · sunset in 3 d 1 h (21 Oct 18:00 UTC) · Earthset in 11 h 20 min · 1300 W/m²'),
+        'Sun 1.2 degrees above level (1 degree above the hills), sunset in 3 days 1 hour (21 October 18:00 UTC), '
         'Earthset in 11 hours 20 minutes, 1300 watts per square metre');
   });
 }

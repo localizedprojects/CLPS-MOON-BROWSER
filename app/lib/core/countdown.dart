@@ -146,9 +146,12 @@ CountdownNow _fromSeries(SiteSeries s, double tMs) {
 
 String _deg(double v) => '${v.abs().toStringAsFixed(1)}°';
 
-/// The status line: "Sun 1.2° up (0.6° above the hills) · sunset in 3 d 4 h
-/// (21 Oct 18:00 UTC) · Earthset in 11 h". [dateOf] writes a time (the
-/// status line's own date format). With [requireDsn] Earth's half is about
+/// The status line: "Sun 1.2° above level (0.6° above the hills) · sunset in
+/// 3 d 4 h (21 Oct 18:00 UTC) · Earthset in 11 h". The Sun's raw elevation is
+/// worded against level ("above level" / "below level", as in site_glance),
+/// never with the state words "up" or "below the horizon": a counted Sun on a
+/// peak can sit below level, and a hidden one above it. [dateOf] writes a time
+/// (the status line's own date format). With [requireDsn] Earth's half is about
 /// Earth contact. [power] adds the power proxy ("Show exact numbers").
 String countdownLine(Countdown c, {required String Function(double ms) dateOf, bool requireDsn = false, bool power = false}) {
   String inT(NextChange n) => 'in ${fmtDuration(n.inMs)} (${dateOf(n.atMs!)})';
@@ -157,7 +160,7 @@ String countdownLine(Countdown c, {required String Function(double ms) dateOf, b
     head = eclipseHidesText(c.eclipse);
     sunNext = c.sun.beyondPeriod ? 'until after your dates' : '${c.eclipse >= 1 ? 'ends' : 'counted again'} ${inT(c.sun)}';
   } else {
-    final where = c.sunElDeg >= 0 ? '${_deg(c.sunElDeg)} up' : '${_deg(c.sunElDeg)} below the horizon';
+    final where = '${_deg(c.sunElDeg)} ${c.sunElDeg >= 0 ? 'above' : 'below'} level';
     final hills = '${_deg(c.sunClearDeg)} ${c.sunClearDeg >= 0 ? 'above' : 'below'} the hills';
     final pct = (100 * c.eclipse).round().clamp(1, 99);
     final covered = c.eclipse > 0 ? ', Earth covers $pct% of it (lunar eclipse)' : '';

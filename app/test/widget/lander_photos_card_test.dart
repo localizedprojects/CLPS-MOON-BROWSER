@@ -3,6 +3,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart' show DebugSemanticsDumpOrder, SemanticsAction, SemanticsNode;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:polar_horizon/content/lander_photos.dart';
 import 'package:polar_horizon/core/catalog.dart';
@@ -128,6 +129,90 @@ void main() {
         expect(find.bySemanticsLabel(RegExp(RegExp.escape(landerPhotoUrlSemantics(l)))), findsOneWidget, reason: l.title);
         final box = find.ancestor(of: _url(l.url), matching: find.byType(ConstrainedBox)).first;
         expect(tester.getSize(box).height, greaterThanOrEqualTo(48), reason: l.title);
+      }
+      await expectLater(tester, meetsGuideline(androidTapTargetGuideline));
+      await expectLater(tester, meetsGuideline(labeledTapTargetGuideline));
+      handle.dispose();
+    });
+
+    // Emulator run of 1.11.0 (Android 7): the Card merged the note, the fact
+    // and every link's text into one node read before the headings, and the
+    // address label sat on the text field's node, of which Android below
+    // API 28 reads only the value (the bare URL).
+    for (final id in _landers) {
+      testWidgets('$id semantics order: title, note, fact, each heading and its links, each with its address',
+          (tester) async {
+        final handle = tester.ensureSemantics();
+        final p = landerPhotos[id]!;
+        await _pump(tester, LanderPhotosCard(photos: p));
+        String plain(String s) => s.replaceAll('\u00A0', ' ');
+        String linkText(LanderPhotoLink l) => '${l.title}\n${l.shows}\n${l.date} · ${landerPhotoCredit(l)}';
+        List<SemanticsNode> children(SemanticsNode n) => n.debugListChildrenInOrder(DebugSemanticsDumpOrder.traversalOrder);
+        final nodes = children(tester.getSemantics(find.text(landerPhotosTitle)).parent!);
+        final datas = [for (final n in nodes) n.getSemanticsData()];
+        // one node each, in reading order: nothing merged into a card-level node
+        expect(datas.map((d) => plain(d.label)).toList(), [
+          landerPhotosTitle,
+          landerPhotosNote,
+          p.fact,
+          landerPhotosSurfaceHeading,
+          for (final l in p.surface) linkText(l),
+          landerPhotosOrbitHeading,
+          for (final l in p.orbit) linkText(l),
+        ]);
+        final headers = {0, 3, 4 + p.surface.length};
+        for (final (i, d) in datas.indexed) {
+          expect(d.flagsCollection.isHeader, headers.contains(i), reason: d.label);
+          expect(d.flagsCollection.isTextField, isFalse, reason: d.label);
+        }
+        final links = [...p.surface, ...p.orbit];
+        final linkNodes = [for (final (i, n) in nodes.indexed) if (!headers.contains(i) && i > 2) n];
+        expect(linkNodes, hasLength(links.length));
+        for (final (i, l) in links.indexed) {
+          // under each link: its address, a labelled node that is not a text field ...
+          final address = children(linkNodes[i]);
+          expect(address, hasLength(1), reason: l.title);
+          final a = address.single.getSemanticsData();
+          expect(a.label, landerPhotoUrlSemantics(l), reason: l.title);
+          expect(a.flagsCollection.isTextField, isFalse, reason: 'label not on the text field: ${l.title}');
+          expect(a.value, isEmpty, reason: l.title);
+          expect(a.rect.height, greaterThanOrEqualTo(48), reason: l.title);
+          // ... around the selectable URL's own text field node (value, no label), 48 dp tall
+          final field = children(address.single);
+          expect(field, hasLength(1), reason: l.title);
+          final f = field.single.getSemanticsData();
+          expect(f.flagsCollection.isTextField, isTrue, reason: l.title);
+          expect(f.flagsCollection.isReadOnly, isTrue, reason: l.title);
+          expect(f.value, l.url, reason: l.title);
+          expect(f.label, isEmpty, reason: l.title);
+          expect(f.hasAction(SemanticsAction.longPress), isTrue, reason: l.title);
+          expect(f.rect.height, greaterThanOrEqualTo(48), reason: l.title);
+          expect(children(field.single), isEmpty, reason: l.title);
+        }
+        handle.dispose();
+      });
+    }
+
+    testWidgets('on the web each address is one text field named by its label (an input takes it as its name)',
+        (tester) async {
+      final handle = tester.ensureSemantics();
+      final p = landerPhotos['im-1-odysseus-landed']!;
+      await _pump(tester, LanderPhotosCard(photos: p, web: true));
+      List<SemanticsNode> children(SemanticsNode n) => n.debugListChildrenInOrder(DebugSemanticsDumpOrder.traversalOrder);
+      final nodes = children(tester.getSemantics(find.text(landerPhotosTitle)).parent!);
+      final links = [...p.surface, ...p.orbit];
+      final linkNodes = [for (final (i, n) in nodes.indexed) if (i > 3 && i != 4 + p.surface.length) n];
+      expect([for (final n in linkNodes) n.getSemanticsData().label.split('\n').first], [for (final l in links) l.title]);
+      for (final (i, l) in links.indexed) {
+        final field = children(linkNodes[i]);
+        expect(field, hasLength(1), reason: l.title);
+        final f = field.single.getSemanticsData();
+        expect(f.flagsCollection.isTextField, isTrue, reason: l.title);
+        expect(f.label, landerPhotoUrlSemantics(l), reason: l.title);
+        expect(f.value, l.url, reason: l.title);
+        expect(f.hasAction(SemanticsAction.longPress), isTrue, reason: l.title);
+        expect(f.rect.height, greaterThanOrEqualTo(48), reason: l.title);
+        expect(children(field.single), isEmpty, reason: l.title);
       }
       await expectLater(tester, meetsGuideline(androidTapTargetGuideline));
       await expectLater(tester, meetsGuideline(labeledTapTargetGuideline));

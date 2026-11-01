@@ -158,9 +158,13 @@ const explainLander = ExplainCard(
   body: 'This is the ground around the site as a lander would see it, from 2 m (or the mast height set in Mission '
       'settings) above the terrain. Each piece of ground is lit by the same computed light and shadow as the map, for '
       'the moment on the time bar, and the Sun and Earth are drawn at their true size and direction. Drag to look '
-      'around, pinch or use the buttons to zoom, and tap Face the Sun or Face Earth to turn toward them. Ground very '
-      'close to the lander, which the terrain map cannot resolve, is drawn see-through and hatched. It is approximate: '
-      'the terrain is a 400 m grid, so the skyline can differ from a preset site\'s sharper horizon by about a degree.',
+      'around, pinch or use the buttons to zoom, and tap Face the Sun or Face Earth to turn toward them. At the '
+      'lander\'s height, ground very close to it, which the terrain map cannot resolve, is drawn see-through and '
+      'hatched. The buttons at the view\'s top right open it full screen (where you can also switch sites), turn '
+      'relief shading on or off (the slopes of the same terrain, lit by a fixed drawing light, not the Sun) and set '
+      'the view height: from 200 m, 1 km or 5 km up, the shape of the ground is easier to read, but only the drawing '
+      'viewpoint moves; the light and the Sun and Earth status stay the lander\'s. It is approximate: the terrain is '
+      'a 400 m grid, so the skyline can differ from a preset site\'s sharper horizon by about a degree.',
   terms: ['Terrain horizon', 'Upper limb', 'DTE'],
 );
 

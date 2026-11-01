@@ -1874,6 +1874,101 @@ void main() {
       }
     });
 
+    test('W-V10 full screen landscape, raised, the Sun under the compass strip with the chip and the controls '
+        'beside its glyph: its words go right under the glyph, not down by the crosshair', () {
+      // 1.11.0 Android 7 emulator (720 x 1520 at 280 dpi, landscape, full screen, MP1, 200 m, facing the
+      // Sun at el +2.6 with pitch -8): the glyph hung under the strip, the chip took the place left of it
+      // and the viewpoint control the one right of it, the row under the disc was in the strip, and the
+      // words went to the row under the crosshair, (159.5, 158.7)-(337.2, 188.4), 97 dp under the glyph
+      const sz = Size(496.6, 291.4);
+      final cam = LanderCameraController()..set(yaw: 287.1, pitch: -8, hfov: 45);
+      final v = cam.view(sz);
+      final SkyBody sun = (az: 287.1, el: 2.6, rhoDeg: 0.27, state: SkyState.up);
+      final a = LanderPainter.calloutAnchor(v, sun)!;
+      expect(a.disc.dy, lessThan(LanderPainter.compassH), reason: 'the disc is under the compass strip');
+      expect(a.glyph.dy, LanderPainter.compassH + 14, reason: 'the glyph hangs below the strip');
+      // full screen: the viewpoint control and the relief switch (no expand button)
+      final reserve = [LanderViewPanel.viewpointRect(sz.width), LanderViewPanel.reliefRect(sz.width, expand: false)];
+      for (final eye in ['200 m', '1 km', '5 km']) {
+        LanderPainter.paintedChip = null;
+        LanderPainter(
+                cam: cam,
+                mesh: null,
+                proj: LanderProjection(),
+                colors: null,
+                sun: sun,
+                maskDeg: Float64List(720),
+                maskLabel: landerMaskLabel(custom: false, lander: '2 m'),
+                probe: 'Centre: regolith · 1.2 km · az 287.1° el -8.0°',
+                reserve: reserve,
+                viewpoint: eye)
+            .paint(Canvas(ui.PictureRecorder()), sz);
+        final box = LanderPainter.paintedSky!.callouts.single, chip = LanderPainter.paintedChip!.box;
+        expect(box.top, inInclusiveRange(a.glyph.dy + LanderPainter.glyphR, a.glyph.dy + LanderPainter.glyphR + 4),
+            reason: '$eye: $box, right under the glyph at ${a.glyph}');
+        expect(box.left <= a.glyph.dx && box.right >= a.glyph.dx, isTrue, reason: '$eye: $box, under the glyph');
+        for (final (what, r) in [
+          ('the chip', chip),
+          ('the viewpoint control', reserve[0]),
+          ('the relief switch', reserve[1]),
+          ('the crosshair', LanderPainter.reticleBox(sz)),
+          ('the glyph', Rect.fromCircle(center: a.glyph, radius: LanderPainter.glyphR - 2)),
+          ('the disc', Rect.fromCircle(center: a.disc, radius: a.rPx + 3)),
+        ]) {
+          expect(box.overlaps(r), isFalse, reason: '$eye: $box over $what $r');
+        }
+      }
+    });
+
+    test('W-V11 the chip\'s height: number and unit in Plex Mono, the words\' Plex Sans space between them (no '
+        'double gap)', () {
+      // 1.11.0 emulator: "Viewpoint 200  m up, not the lander's", the whole height in Mono, whose space
+      // (0.6 em, 6.6 px at 11) is over twice the words' Sans one
+      const sans = TextStyle(fontFamily: PH.sans, fontSize: 11, color: PH.text, fontWeight: FontWeight.w500);
+      final mono = numStyle(size: 11);
+      double x(TextPainter t, int i) => t.getOffsetForCaret(TextPosition(offset: i), Rect.zero).dx;
+      for (final eye in ['200 m', '1 km', '5 km', '2 m', '10 m']) {
+        final span = landerViewpointChipSpan(eye);
+        expect(span.toPlainText(), landerViewpointChip(eye), reason: eye);
+        final parts = <(String, String?)>[];
+        span.visitChildren((s) {
+          if (s is TextSpan && s.text != null) parts.add((s.text!, s.style?.fontFamily));
+          return true;
+        });
+        for (final (text, family) in parts) {
+          if (text.contains(RegExp(r'[0-9]'))) expect(family, PH.mono, reason: '$eye: "$text" in Plex Mono');
+          if (family == PH.mono) expect(text.contains(' '), isFalse, reason: '$eye: no Mono space in "$text"');
+        }
+        final unit = eye.split(' ').last;
+        expect(parts.where((p) => p.$1 == unit).single.$2, PH.mono, reason: '$eye: the unit in Plex Mono');
+        final t = TextPainter(text: span, textDirection: TextDirection.ltr)..layout();
+        final k = 'Viewpoint '.length + eye.lastIndexOf(' ');
+        expect(x(t, k + 1) - x(t, k), closeTo(x(t, 10) - x(t, 9), 0.01),
+            reason: '$eye: the gap in the height is the words\' space (after "Viewpoint")');
+        // the chip as painted: as wide as these words (one line in a wide view), plus its glyph and margins
+        final ref = TextPainter(
+            text: TextSpan(style: sans, children: [
+              const TextSpan(text: 'Viewpoint '),
+              TextSpan(text: eye.substring(0, eye.lastIndexOf(' ')), style: mono),
+              const TextSpan(text: ' '),
+              TextSpan(text: unit, style: mono),
+              const TextSpan(text: ' up, not the lander\'s')
+            ]),
+            textDirection: TextDirection.ltr)
+          ..layout();
+        LanderPainter.paintedChip = null;
+        LanderPainter(
+                cam: LanderCameraController()..set(yaw: 0, pitch: -8, hfov: 45),
+                mesh: null,
+                proj: LanderProjection(),
+                colors: null,
+                viewpoint: eye)
+            .paint(Canvas(ui.PictureRecorder()), const Size(900, 560));
+        expect(LanderPainter.paintedChip!.text, landerViewpointChip(eye));
+        expect(LanderPainter.paintedChip!.box.width, closeTo(ref.width + 24, 0.01), reason: '$eye: the chip as painted');
+      }
+    });
+
     testWidgets('W-V9 keyboard focus shows a 2 px ice ring on the viewpoint control and on the relief switch (on and off)',
         (tester) async {
       size(tester, const Size(360, 1000));

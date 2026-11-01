@@ -176,6 +176,27 @@ String landerViewpointItem(LanderViewpoint v, double observerHeightM) =>
 /// The chip on the view from a raised viewpoint [eye] (D22, §6).
 String landerViewpointChip(String eye) => 'Viewpoint $eye up, not the lander\'s';
 
+/// [landerViewpointChip] as the chip paints it: the words in Plex Sans 11,
+/// the height's number and unit in Plex Mono; the space between them is the
+/// words' (1.11.0: a Mono space, 0.6 em, read as a double gap, "200  m").
+TextSpan landerViewpointChipSpan(String eye) {
+  final i = eye.lastIndexOf(' '), n = numStyle(size: 11);
+  return TextSpan(
+    style: const TextStyle(fontFamily: PH.sans, fontSize: 11, color: PH.text, fontWeight: FontWeight.w500),
+    children: [
+      const TextSpan(text: 'Viewpoint '),
+      if (i < 0)
+        TextSpan(text: eye, style: n)
+      else ...[
+        TextSpan(text: eye.substring(0, i), style: n),
+        TextSpan(text: eye.substring(i, i + 1)),
+        TextSpan(text: eye.substring(i + 1), style: n)
+      ],
+      const TextSpan(text: ' up, not the lander\'s')
+    ]
+  );
+}
+
 /// What the view's description says first from a raised viewpoint [eye]
 /// (D22, §9); [lander] is the lander's height.
 String landerViewpointSemantic(String eye, String lander) =>
@@ -1582,8 +1603,9 @@ class LanderPainter extends CustomPainter {
   static ({String text, Rect box})? paintedChip;
 
   /// The raised viewpoint's chip in a view of [size] (D22, §6): the glyph,
-  /// then "Viewpoint 1 km up, not the lander's" (the height in Plex Mono)
-  /// in at most 2 lines, as wide as the view less the controls at its right
+  /// then "Viewpoint 1 km up, not the lander's" ([landerViewpointChipSpan]:
+  /// the height's number and unit in Plex Mono, the space between them the
+  /// words' Plex Sans) in at most 2 lines, as wide as the view less the controls at its right
   /// ([reserve]). It goes at (8, [compassH] + 6) unless that covers a body
   /// ([bodies]: the Sun's and Earth's glyphs and discs): then just under the
   /// body (or bodies) in the way, else just right of them, above the bottom
@@ -1594,14 +1616,7 @@ class LanderPainter extends CustomPainter {
     final maxW = math.max(40.0, right - 16 - 24);
     final key = 'chip|$eye|${textScaler.scale(10)}|$maxW';
     final t = _texts[key] ??= TextPainter(
-      text: TextSpan(
-        style: const TextStyle(fontFamily: PH.sans, fontSize: 11, color: PH.text, fontWeight: FontWeight.w500),
-        children: [
-          const TextSpan(text: 'Viewpoint '),
-          TextSpan(text: eye, style: numStyle(size: 11)),
-          const TextSpan(text: ' up, not the lander\'s')
-        ]
-      ),
+      text: landerViewpointChipSpan(eye),
       textDirection: TextDirection.ltr,
       textScaler: textScaler,
       maxLines: 2,
@@ -1978,6 +1993,12 @@ class LanderPainter extends CustomPainter {
       beside(a.glyph.dx + side),
       beside(a.glyph.dx - side - w),
       ...row(a.disc.dy + a.rPx + 6),
+      // under the glyph where it hangs below its disc (a body under the
+      // compass strip, or a hidden one zoomed in): the row under the disc is
+      // then in the strip or over the glyph (1.11.0: with the viewpoint's
+      // chip and control beside the glyph, the words went to the crosshair,
+      // far from it)
+      if (a.glyph.dy > a.disc.dy + a.rPx) ...row(a.glyph.dy + glyphR + 2),
       if (!up) ...above,
       for (final o in avoid) ...[
         ...row(o.bottom + 4),

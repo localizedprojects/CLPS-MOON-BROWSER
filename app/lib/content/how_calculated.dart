@@ -194,11 +194,19 @@ const calcSections = <CalcSection>[
         'takes its light and shadow from the light map\'s own computed frame for the moment on the time bar. Ground '
         'hidden behind nearer ground is skipped before drawing. Ground nearer than 800 m is not resolved by the 400 m '
         'grid; where it would rise above the distant skyline it is drawn see-through, because the light map leaves it '
-        'out. Not drawn: stars, textures, Earthshine and any fill light.',
+        'out. Relief shading (a switch, on by default) brightens or darkens the ground, sunlit or in shadow, by up to '
+        '30% with its slopes from the same heights, lit by a fixed drawing light from the map\'s upper left as on the '
+        'map\'s shaded relief: a visual aid to read the shape of the ground, not the Sun. A View height control can '
+        'raise the drawing eye to 200 m, 1 km or 5 km above the site to read the ground more easily; that is a '
+        'drawing aid over the same terrain and light, labelled on the view: the Sun and Earth words, the light and '
+        'the map stay the lander\'s, and from up there the near ground is seen from above and drawn solid. Not '
+        'drawn: stars, textures, Earthshine and any fill light.',
     maths: [
       'mesh = light-map height grids (400 m < 64 km, 800 m < 300 km); no other height source',
-      'eye = site on the 400 m surface + observer height, local ENU on the sphere normal',
-      'ground colour = light class of the map frame x Lambert shade (flat grey albedo)',
+      'eye = site on the 400 m surface + observer height (or a raised viewpoint: 200 m, 1 km, 5 km), local ENU on '
+          'the sphere normal',
+      'ground colour = light class of the map frame x Lambert shade x (0.55 albedo x relief factor 0.7–1.3 from '
+          'the hillshade of the same heights; 1 when switched off)',
       'Sun and Earth discs: true angular radius, apparent (LT+S) directions, no refraction',
     ],
     accuracy: 'The drawn skyline follows the 400 m terrain, so it can differ from a preset site\'s 80 m horizon mask '

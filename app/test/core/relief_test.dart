@@ -8,6 +8,8 @@ import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:polar_horizon/core/dem.dart';
+import 'package:polar_horizon/core/lander_view.dart'
+    show landerReliefAzimuthDeg, landerReliefAltitudeDeg, landerReliefExaggeration;
 import 'package:polar_horizon/core/relief.dart';
 
 void main() {
@@ -142,6 +144,71 @@ void main() {
       // hillshade.webp (320 m) over the same inside strip measures 172.04 (pipeline, PIL): the
       // device's relief past the edge sits within 1 grey level of the base map's tone at the edge
       expect((outside - 172.04).abs(), lessThan(1.0));
+    });
+  });
+
+  group('hillshadeRow / hillshadeBlock (the Lander view\'s relief shading, D21)', () {
+    // closed form on a plane h = a * row + b * col (m per px): numpy.gradient
+    // is exact on it, one-sided edges included
+    double planeHs(double a, double b, double pxM, {double az = 315, double alt = 35, double ex = 2}) {
+      final gy = ex * a / pxM, gx = ex * b / pxM;
+      final slope = math.atan(math.sqrt(gx * gx + gy * gy)), aspect = math.atan2(-gx, gy);
+      final azR = az * math.pi / 180, altR = alt * math.pi / 180;
+      return (math.sin(altR) * math.cos(slope) + math.cos(altR) * math.sin(slope) * math.cos(azR - aspect))
+          .clamp(0.0, 1.0);
+    }
+
+    Float64List plane(int side, double a, double b) =>
+        Float64List.fromList([for (var r = 0; r < side; r++) for (var c = 0; c < side; c++) a * r + b * c + 100]);
+
+    test('R1 a tilted plane: every pixel, edges included, is the closed form; flat is sin 35°', () {
+      const side = 7, pxM = 400.0;
+      final flat = math.sin(35 * math.pi / 180);
+      for (final (a, b) in [(0.0, 0.0), (20.0, 0.0), (0.0, -35.0), (12.0, 30.0), (-60.0, 45.0), (300.0, -500.0)]) {
+        final hs = hillshadeBlock(plane(side, a, b), side, pxM);
+        final want = planeHs(a, b, pxM);
+        for (var k = 0; k < side * side; k++) {
+          expect(hs[k], closeTo(want, 1e-6), reason: 'a $a b $b pixel $k');
+        }
+        if (a == 0 && b == 0) expect(want, closeTo(flat, 1e-12));
+      }
+      // the light comes from the map's upper left: ground rising to the lower right faces it
+      expect(hillshadeBlock(plane(side, 20, 20), side, pxM)[24], greaterThan(flat + 0.05));
+      expect(hillshadeBlock(plane(side, -20, -20), side, pxM)[24], lessThan(flat - 0.05));
+      // a slope side-on to the light (rising to the upper right) stays near flat
+      expect(hillshadeBlock(plane(side, -20, 20), side, pxM)[24], closeTo(flat, 0.05));
+      // a row is written alone (the mesh builds it row by row, §8)
+      final out = Float32List(side * side);
+      hillshadeRow(plane(side, 12, 30), side, pxM, 3, out);
+      expect(out.sublist(0, 3 * side).every((v) => v == 0), isTrue);
+      expect(out[3 * side + 2], closeTo(planeHs(12, 30, pxM), 1e-6));
+      expect(() => hillshadeBlock(Float64List(5), 2, pxM), throwsArgumentError);
+    });
+
+    test('R2 the same light as reliefGrey: floor(255 hs) is its grey with tint (0, 1, 0)', () {
+      const n = 24, pxM = 400.0;
+      final z = Int16List(n * n);
+      for (var r = 0; r < n; r++) {
+        for (var c = 0; c < n; c++) {
+          z[r * n + c] = (900 * math.sin(r / 4) * math.cos(c / 5) + 30 * r).round();
+        }
+      }
+      const p = ReliefRecipe(base: 0, shade: 1, elevation: 0, zLowM: -5000, zHighM: 4000);
+      final grey = reliefGrey(z, n, pxM, (r0: 0, c0: 0, rows: n, cols: n), p);
+      final hs = hillshadeBlock(Float64List.fromList([for (final v in z) v.toDouble()]), n, pxM);
+      var spread = 0.0;
+      for (var k = 0; k < n * n; k++) {
+        expect(((255 * hs[k]).floor() - grey[k]).abs(), lessThanOrEqualTo(1), reason: 'pixel $k');
+        spread = math.max(spread, (hs[k] - hs[0]).abs());
+      }
+      expect(spread, greaterThan(0.2), reason: 'the test grid has real slopes');
+    });
+
+    test("R3 the Lander view's drawing light is the base map's shaded-relief light", () {
+      const p = ReliefRecipe(zLowM: 0, zHighM: 1);
+      expect(landerReliefAzimuthDeg, p.azimuthDeg);
+      expect(landerReliefAltitudeDeg, p.altitudeDeg);
+      expect(landerReliefExaggeration, p.exaggeration);
     });
   });
 }

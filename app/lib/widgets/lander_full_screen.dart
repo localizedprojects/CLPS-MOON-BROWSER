@@ -23,7 +23,7 @@ import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 
 import '../core/catalog.dart' show Site;
-import '../core/lander_view.dart' show LanderMesh;
+import '../core/lander_view.dart' show LanderMesh, LanderViewpointHeight;
 import '../core/shadow.dart' show LightShares;
 import '../core/site_order.dart';
 import '../state/app_state.dart';
@@ -222,6 +222,8 @@ class LanderFullScreenPageState extends State<LanderFullScreenPage> {
     approx: near?.request.coarse ?? false,
     eclipse: lightEclipseNote(near == null ? null : _loop.eclipseOf(near))?.sentence,
     lander: true,
+    relief: state.landerRelief,
+    landerStatusAt: state.landerViewpoint.raised ? landerHeightText(state.observerHeightM) : null,
   );
   }
 

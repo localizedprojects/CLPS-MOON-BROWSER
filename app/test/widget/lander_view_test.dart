@@ -16,6 +16,7 @@ import 'package:polar_horizon/core/lander_view.dart';
 import 'package:polar_horizon/core/shadow.dart' show lightEarth, lightSunAny, lightSunFull;
 import 'package:polar_horizon/screens/site/light_tab.dart';
 import 'package:polar_horizon/state/app_state.dart';
+import 'package:polar_horizon/state/lander_light.dart' show landerColors, landerFrameIndex;
 import 'package:polar_horizon/state/light_engine.dart';
 import 'package:polar_horizon/theme.dart';
 import 'package:polar_horizon/widgets/lander_view.dart';
@@ -112,7 +113,8 @@ void main() {
           LightFrame? near,
           bool reduced = false,
           LightLayer layer = LightLayer.sun,
-          Future<PolarGrid> Function()? dem}) =>
+          Future<PolarGrid> Function()? dem,
+          bool show = true}) =>
       MaterialApp(
         theme: buildTheme(),
         home: Builder(
@@ -122,7 +124,9 @@ void main() {
               body: SingleChildScrollView(
                 child: Align(
                   alignment: Alignment.topLeft,
-                  child: LanderViewPanel(state: state, near: near, layer: layer, width: width, demForTest: dem),
+                  child: show
+                      ? LanderViewPanel(state: state, near: near, layer: layer, width: width, demForTest: dem)
+                      : const SizedBox(),
                 ),
               ),
             ),
@@ -1513,6 +1517,554 @@ void main() {
     expect(find.text('Grey ground: light not computed (beyond 64 km).'), findsOneWidget);
     expect(find.textContaining('on the web'), findsNothing);
     state.playing = false;
+  });
+
+  group('relief shading switch (D21)', () {
+    const relief = ValueKey('lander-relief');
+    Int32List colorsOf(LanderViewPanelState p, LightFrame near, LightLayer layer, {required bool on}) => landerColors(
+            p.mesh!, near, landerFrameIndex(p.mesh!, near, far: false), null, null, layer, landerPatternsOf(layer),
+            relief: on)
+        .$1;
+
+    testWidgets('W-R1 a 48 dp toggle in the expand slot (no expand button), labelled, on by default; tap targets',
+        (tester) async {
+      size(tester, const Size(360, 1000));
+      final handle = tester.ensureSemantics();
+      await nearPole(tester);
+      await tester.pumpWidget(panel(width: 360, near: nearFrame(), layer: LightLayer.both));
+      expect(find.byKey(relief), findsNothing, reason: 'not before the view is built');
+      await meshReady(tester);
+      expect(state.landerRelief, isTrue);
+      final b = find.byKey(relief);
+      expect(b, findsOneWidget);
+      final view = tester.getRect(find.byKey(const ValueKey('lander-view')));
+      expect(tester.getRect(b), LanderViewPanel.reliefRect(view.width, expand: false).shift(view.topLeft));
+      expect(tester.getSize(b), const Size(48, 48));
+      expect(LanderViewPanel.reliefRect(360, expand: false), LanderViewPanel.expandRect(360));
+      expect(
+          tester.getSemantics(b),
+          isSemantics(
+              label: LanderViewPanel.reliefLabel,
+              hint: LanderViewPanel.reliefHint,
+              isButton: true,
+              hasToggledState: true,
+              isToggled: true,
+              hasTapAction: true));
+      expect(find.byTooltip('Relief shading: on'), findsOneWidget);
+      // W-R5 the painter keeps its callouts and labels off it; it is inside the view, above the buttons
+      final p = tester.widget<CustomPaint>(
+          find.byWidgetPredicate((w) => w is CustomPaint && w.painter is LanderPainter));
+      expect((p.painter! as LanderPainter).reserve,
+          [LanderViewPanel.viewpointRect(view.width), LanderViewPanel.reliefRect(view.width, expand: false)]);
+      expect(tester.getRect(b).bottom, lessThanOrEqualTo(view.bottom));
+      expect(tester.getRect(b).overlaps(tester.getRect(find.byTooltip('Turn right 15°'))), isFalse);
+      await expectLater(tester, meetsGuideline(androidTapTargetGuideline));
+      await expectLater(tester, meetsGuideline(labeledTapTargetGuideline));
+      handle.dispose();
+    });
+
+    testWidgets('W-R2 a tap turns it off (today\'s colours exactly) and back on; the other view\'s switch recolours; '
+        'a new view colours with the switch',
+        (tester) async {
+      size(tester, const Size(360, 1000));
+      final handle = tester.ensureSemantics();
+      await nearPole(tester);
+      final near = nearFrame();
+      await tester.pumpWidget(panel(width: 360, near: near, layer: LightLayer.sun));
+      await meshReady(tester);
+      final p = panelState(tester);
+      final on = colorsOf(p, near, LightLayer.sun, on: true), off = colorsOf(p, near, LightLayer.sun, on: false);
+      expect(p.colors, on);
+      expect(on, isNot(off), reason: 'the synthetic terrain has slopes');
+      await tester.tap(find.byKey(relief));
+      await tester.pump();
+      expect(state.landerRelief, isFalse);
+      expect(p.colors, off);
+      expect(tester.getSemantics(find.byKey(relief)),
+          isSemantics(label: LanderViewPanel.reliefLabel, isButton: true, hasToggledState: true, isToggled: false));
+      expect(find.byTooltip('Relief shading: off'), findsOneWidget);
+      await tester.tap(find.byKey(relief));
+      await tester.pump();
+      expect(state.landerRelief, isTrue);
+      expect(p.colors, on);
+      // turned elsewhere (the full-screen view): this panel recolours on its next build
+      state.setLanderRelief(false);
+      await tester.pumpWidget(panel(width: 360, near: near, layer: LightLayer.sun));
+      expect(p.colors, off);
+      // a new view (as the inline view is rebuilt on closing full screen: initState adopts the cached
+      // mesh) colours with the switch as it stands, off and on
+      for (final rel in [false, true, false]) {
+        state.setLanderRelief(rel);
+        await tester.pumpWidget(const SizedBox());
+        await tester.pumpWidget(panel(width: 360, near: near, layer: LightLayer.sun));
+        final q = panelState(tester);
+        expect(identical(q, p), isFalse, reason: 'a new view');
+        expect(identical(q.mesh, p.mesh), isTrue, reason: 'the cached mesh, adopted in initState');
+        expect(q.colors, rel ? on : off, reason: 'relief $rel');
+      }
+      handle.dispose();
+    });
+
+    testWidgets('W-R3 the badge and the legend name the relief shading while it is on', (tester) async {
+      final mesh = ValueNotifier<LanderMesh?>(null);
+      addTearDown(mesh.dispose);
+      Widget host() => MaterialApp(
+          theme: buildTheme(),
+          home: Scaffold(
+              body: ListenableBuilder(
+                  listenable: state,
+                  builder: (context, _) => SingleChildScrollView(
+                      child: Column(children: [
+                        LanderFidelityBadges(state: state, mesh: mesh),
+                        LightLegend(
+                            layer: LightLayer.sun, shares: null, scope: 'x', lander: true, relief: state.landerRelief),
+                      ])))));
+      await tester.pumpWidget(host());
+      String badge() => tester.widget<FidelityBadge>(find.byKey(const ValueKey('lander-badge'))).text;
+      expect(badge(), contains(landerReliefFidelity));
+      expect(find.text(landerReliefLegend), findsOneWidget);
+      state.setLanderRelief(false);
+      await tester.pump();
+      expect(badge(), isNot(contains('Relief shading')));
+      expect(find.text(landerReliefLegend), findsNothing);
+      expect(find.text(landerReliefOffLegend), findsOneWidget);
+      // the map's own legend has no relief key
+      await tester.pumpWidget(MaterialApp(
+          theme: buildTheme(),
+          home: const Scaffold(
+              body: LightLegend(layer: LightLayer.both, shares: null, scope: 'x', relief: true))));
+      expect(find.textContaining('Relief shading'), findsNothing);
+    });
+
+    test('W-R6 the badge gains one sentence after "not a photo." (relief on; the grey is then neutral, not flat); '
+        'off is the 1.10 text', () {
+      for (final custom in [false, true]) {
+        final off = landerFidelityText('2 m', custom: custom), on = landerFidelityText('2 m', custom: custom, relief: true);
+        expect(off, isNot(contains('Relief shading')));
+        expect(off, contains('the ground colour is a flat grey, not a photo.'));
+        expect(on, off.replaceFirst('a flat grey, not a photo.', 'a neutral grey, not a photo. $landerReliefFidelity'));
+        expect(on, isNot(contains('flat grey')), reason: 'the badge does not contradict itself');
+        expect(on.substring(0, 100), off.substring(0, 100), reason: 'the summary does not change');
+      }
+      // it names the control as the UI does, says it shades lit and shadowed ground, and is short
+      expect(landerReliefFidelity, contains(LanderViewPanel.reliefLabel));
+      expect(landerReliefFidelity, contains('lit and shadowed ground alike'));
+      expect(landerReliefFidelity, isNot(contains('terrain button')));
+      expect(landerReliefFidelity, contains('not sunlight'));
+      expect(landerReliefFidelity.length, lessThan(260));
+      expect(landerReliefLegend, contains('(not the Sun)'));
+    });
+  });
+
+  group('viewpoint height (D22)', () {
+    const control = ValueKey('lander-viewpoint');
+    LanderPainter painterOf(WidgetTester tester) => tester
+        .widget<CustomPaint>(find.byWidgetPredicate((w) => w is CustomPaint && w.painter is LanderPainter))
+        .painter! as LanderPainter;
+
+    Future<void> choose(WidgetTester tester, LanderViewpoint v) async {
+      await tester.tap(find.byKey(control));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+      await tester.tap(find.byKey(ValueKey('lander-viewpoint-${v.name}')));
+      await tester.pump();
+      await tester.pump();
+    }
+
+    testWidgets('W-V1 a 48 dp menu button on the view, also while building; labelled; four 48 dp items, the current '
+        'one checked; tap targets', (tester) async {
+      size(tester, const Size(360, 1000));
+      final handle = tester.ensureSemantics();
+      await nearPole(tester);
+      await tester.pumpWidget(panel(width: 360, near: nearFrame(), layer: LightLayer.both));
+      await tester.pump();
+      expect(panelState(tester).mesh, isNull, reason: 'building');
+      expect(find.byKey(control), findsOneWidget, reason: 'shown while building');
+      await meshReady(tester);
+      final view = tester.getRect(find.byKey(const ValueKey('lander-view')));
+      final b = find.byKey(control);
+      expect(tester.getRect(b), LanderViewPanel.viewpointRect(view.width).shift(view.topLeft));
+      expect(tester.getSize(b), const Size(48, 48));
+      expect(tester.getRect(b).overlaps(tester.getRect(find.byKey(const ValueKey('lander-relief')))), isFalse);
+      expect(tester.getRect(b).top, greaterThanOrEqualTo(view.top + LanderPainter.compassH));
+      expect(
+          tester.getSemantics(find.ancestor(of: b, matching: find.byType(Semantics)).first),
+          isSemantics(
+              label: 'View height: at the lander, 2 m above the site',
+              hint: landerViewpointHint(2),
+              isButton: true,
+              hasTapAction: true));
+      expect(landerViewpointHint(2), startsWith('Choose 2 m, 200 m, 1 km or 5 km.'));
+      expect(find.byTooltip('View height: at the lander, 2 m above the site'), findsOneWidget);
+      await expectLater(tester, meetsGuideline(androidTapTargetGuideline));
+      await expectLater(tester, meetsGuideline(labeledTapTargetGuideline));
+      await tester.tap(b);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+      for (final v in LanderViewpoint.values) {
+        final item = find.byKey(ValueKey('lander-viewpoint-${v.name}'));
+        expect(item, findsOneWidget, reason: v.name);
+        expect(tester.getSize(item).height, greaterThanOrEqualTo(48), reason: v.name);
+        expect(find.descendant(of: item, matching: find.byIcon(Icons.check)), v == LanderViewpoint.lander ? findsOneWidget : findsNothing,
+            reason: v.name);
+      }
+      expect(find.text('Lander, 2 m'), findsOneWidget);
+      expect(find.text('200 m up'), findsOneWidget);
+      expect(find.text('1 km up'), findsOneWidget);
+      expect(find.text('5 km up'), findsOneWidget);
+      expect(
+          find.bySemanticsLabel('View height: at the lander, 2 m above the site'), findsWidgets);
+      handle.dispose();
+    });
+
+    testWidgets('W-V2 1 km: the mesh for that eye, the default pitch, the yaw kept; 2 m again at once (the kept '
+        'mesh), level; the status words never change', (tester) async {
+      size(tester, const Size(360, 1000));
+      await nearPole(tester);
+      final near = nearFrame();
+      await tester.pumpWidget(panel(width: 360, near: near, layer: LightLayer.both));
+      await meshReady(tester);
+      final p = panelState(tester), low = p.mesh!;
+      expect(low.cam.eyeHeightM, 2);
+      expect(p.cam.pitch, 0);
+      p.cam.set(yaw: 77);
+      await tester.pump();
+      final words = (painterOf(tester).sunWord, painterOf(tester).earthWord);
+      expect(LanderPainter.paintedChip, isNull, reason: 'no chip at the lander');
+      await choose(tester, LanderViewpoint.km1);
+      expect(state.landerViewpoint, LanderViewpoint.km1);
+      expect(state.landerEyeHeightM, 1000);
+      expect(painterOf(tester).status, contains('Building the view'));
+      expect(find.byKey(control), findsOneWidget, reason: 'shown while building');
+      await meshReady(tester);
+      await tester.pump(const Duration(milliseconds: 500));
+      final high = p.mesh!;
+      expect(high.cam.eyeHeightM, 1000);
+      expect(high.raisedEye, isTrue);
+      final view = tester.getRect(find.byKey(const ValueKey('lander-view')));
+      expect(p.cam.pitch,
+          closeTo(
+              landerDefaultPitchDeg(LanderViewpoint.km1,
+                  hfovDeg: p.cam.hfov,
+                  aspect: view.height / view.width,
+                  topClearFrac: LanderPainter.bodyClearPx / view.height),
+              1e-9));
+      expect(p.cam.pitch, lessThan(-4), reason: 'phone inline: the band under the compass strip, about -4.25');
+      expect(p.cam.yaw, closeTo(77, 1e-9), reason: 'the yaw is kept');
+      expect((painterOf(tester).sunWord, painterOf(tester).earthWord), words, reason: "the lander's status words");
+      expect(painterOf(tester).viewpoint, '1 km');
+      expect(LanderPainter.paintedChip?.text, "Viewpoint 1 km up, not the lander's");
+      final chip = LanderPainter.paintedChip!.box;
+      expect(chip.top, greaterThanOrEqualTo(LanderPainter.compassH));
+      for (final r in painterOf(tester).reserve) {
+        expect(chip.overlaps(r), isFalse, reason: 'clear of the controls');
+      }
+      for (final c in LanderPainter.paintedSky!.callouts) {
+        expect(chip.overlaps(c), isFalse, reason: 'the callouts keep off it');
+      }
+      expect(painterOf(tester).maskLabel, "Lander's horizon mask, 2 m (LOLA 80 m/240 m)");
+      expect(find.textContaining('From a raised viewpoint: 1 km above the ground at'), findsOneWidget);
+      expect(find.textContaining("(the lander's eye is 2 m)"), findsOneWidget);
+      expect(find.byTooltip('View height: 1 km above the site'), findsOneWidget);
+      // back to 2 m: the kept mesh at once, level again
+      await tester.tap(find.byKey(control));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+      await tester.tap(find.byKey(const ValueKey('lander-viewpoint-lander')));
+      await tester.pump();
+      expect(painterOf(tester).status, isNot(contains('Building')));
+      expect(identical(p.mesh, low), isTrue, reason: 'the kept 2 m mesh');
+      await tester.pump(const Duration(milliseconds: 500));
+      expect(p.cam.pitch, 0);
+      expect(p.cam.yaw, closeTo(77, 1e-9));
+      expect(painterOf(tester).maskLabel, 'Horizon mask (LOLA 80 m/240 m)');
+      expect(painterOf(tester).viewpoint, isNull);
+      await tester.pump();
+      expect(LanderPainter.paintedChip, isNull);
+      // and 1 km again: kept too
+      await choose(tester, LanderViewpoint.km1);
+      expect(identical(p.mesh, high), isTrue);
+    });
+
+    testWidgets('W-V2b 2 m, 200 m, 1 km, 5 km, then 2 m and 200 m again: every height kept, no build (app LRU of 4)',
+        (tester) async {
+      size(tester, const Size(360, 1000));
+      await nearPole(tester);
+      await tester.pumpWidget(panel(width: 360, near: nearFrame(), layer: LightLayer.both));
+      await meshReady(tester);
+      final p = panelState(tester), built = <LanderViewpoint, LanderMesh>{LanderViewpoint.lander: p.mesh!};
+      for (final v in [LanderViewpoint.m200, LanderViewpoint.km1, LanderViewpoint.km5]) {
+        await choose(tester, v);
+        expect(painterOf(tester).status, contains('Building the view'), reason: '${v.name}: first time');
+        await meshReady(tester);
+        built[v] = p.mesh!;
+        expect(p.mesh!.cam.eyeHeightM, v.eyeHeightM(2));
+      }
+      expect(state.landerMeshKeys, hasLength(4));
+      for (final v in [LanderViewpoint.lander, LanderViewpoint.m200, LanderViewpoint.km5]) {
+        await choose(tester, v);
+        expect(painterOf(tester).status, isNot(contains('Building')), reason: '${v.name}: kept');
+        expect(identical(p.mesh, built[v]), isTrue, reason: '${v.name}: the kept mesh');
+      }
+      await choose(tester, LanderViewpoint.lander);
+    });
+
+    testWidgets('W-V7 phone inline 360 x 223 facing the Sun at 200 m, 1 km and 5 km: the Sun\'s and Earth\'s band '
+        'under the compass strip and a glyph; the chip covers no glyph or disc', (tester) async {
+      size(tester, const Size(360, 1000));
+      await nearPole(tester);
+      await tester.pumpWidget(panel(width: 360, near: nearFrame(), layer: LightLayer.both));
+      await meshReady(tester);
+      final p = panelState(tester);
+      p.cam.set(yaw: painterOf(tester).sun!.az); // facing the Sun: the yaw is kept on a height change
+      await tester.pump();
+      var seen = 0;
+      for (final vp in [LanderViewpoint.m200, LanderViewpoint.km1, LanderViewpoint.km5]) {
+        await choose(tester, vp);
+        await meshReady(tester);
+        await tester.pump(const Duration(milliseconds: 500));
+        await tester.pump();
+        final pt = painterOf(tester), view = tester.getRect(find.byKey(const ValueKey('lander-view')));
+        expect(view.width, 360);
+        expect(view.height, closeTo(223, 0.5));
+        final v = pt.cam.view(view.size);
+        expect(p.cam.pitch, lessThan(-2), reason: '${vp.name}: looking down');
+        expect(LanderPainter.at(v, p.cam.yaw, 0)!.dy, greaterThan(LanderPainter.compassH), reason: '${vp.name}: 0° line');
+        expect(LanderPainter.at(v, p.cam.yaw, landerBodyBandDeg)!.dy, greaterThanOrEqualTo(LanderPainter.bodyClearPx - 1e-6));
+        final chip = LanderPainter.paintedChip!.box;
+        for (final b in [pt.sun, pt.earth]) {
+          final a = b == null ? null : LanderPainter.calloutAnchor(v, b);
+          if (a == null) continue;
+          seen++;
+          expect(a.disc.dy, greaterThan(LanderPainter.compassH), reason: '${vp.name}: the disc is not under the strip');
+          for (final r in LanderPainter.chipKeepOff([a])) {
+            expect(chip.overlaps(r), isFalse, reason: '${vp.name}: the chip covers no glyph or disc');
+          }
+        }
+      }
+      expect(seen, greaterThanOrEqualTo(3), reason: 'the Sun in view at every height');
+      await choose(tester, LanderViewpoint.lander);
+    });
+
+    testWidgets('W-V8 the chip moves off a body at its spot (under it, else beside it), at three sizes; painted under '
+        'the glyphs', (tester) async {
+      for (final (sz, hfov) in [(const Size(360, 223), 45.0), (const Size(900, 560), 60.0), (const Size(360, 560), 45.0)]) {
+        final pitch = landerDefaultPitchDeg(LanderViewpoint.km1,
+            hfovDeg: hfov, aspect: sz.height / sz.width, topClearFrac: LanderPainter.bodyClearPx / sz.height);
+        final cam = LanderCameraController()..set(yaw: 0, pitch: pitch, hfov: hfov);
+        final v = cam.view(sz);
+        // the Sun at the chip's usual spot (left, just under the strip), Earth just under it
+        final s0 = unprojectView(v, 40, LanderPainter.compassH + 16), e0 = unprojectView(v, 70, LanderPainter.compassH + 34);
+        final SkyBody sun = (az: s0.az, el: s0.el, rhoDeg: 0.27, state: SkyState.up);
+        final SkyBody earth = (az: e0.az, el: e0.el, rhoDeg: 0.95, state: SkyState.up);
+        LanderPainter.paintedChip = null;
+        await _paintBytes(
+            tester,
+            LanderPainter(
+                cam: cam, mesh: null, proj: LanderProjection(), colors: null, sun: sun, earth: earth, viewpoint: '1 km'),
+            sz);
+        final chip = LanderPainter.paintedChip!.box;
+        final keep = LanderPainter.chipKeepOff([LanderPainter.calloutAnchor(v, sun), LanderPainter.calloutAnchor(v, earth)]);
+        expect(keep, isNotEmpty);
+        for (final r in keep) {
+          expect(chip.overlaps(r), isFalse, reason: '$sz: $chip over $r');
+        }
+        expect(chip.top, greaterThanOrEqualTo(LanderPainter.compassH + 6));
+        expect(chip.bottom, lessThanOrEqualTo(sz.height - 48), reason: '$sz: above the bottom strip');
+      }
+    });
+
+    testWidgets('W-V9 keyboard focus shows a 2 px ice ring on the viewpoint control and on the relief switch (on and off)',
+        (tester) async {
+      size(tester, const Size(360, 1000));
+      await nearPole(tester);
+      await tester.pumpWidget(panel(width: 360, near: nearFrame(), layer: LightLayer.both));
+      await meshReady(tester);
+      BorderSide sideOf(Finder button) =>
+          (tester.widget<Material>(find.ancestor(of: button, matching: find.byType(Material)).first).shape!
+                  as OutlinedBorder)
+              .side;
+      final vpFace = find.byKey(control);
+      expect(sideOf(vpFace).width, isNot(2));
+      Focus.of(tester.element(vpFace)).requestFocus();
+      await tester.pump();
+      await tester.pump(); // the focus change applies in a microtask after the frame
+      expect(sideOf(vpFace), const BorderSide(color: PH.ice, width: 2), reason: 'the viewpoint control, focused');
+      FocusManager.instance.primaryFocus?.unfocus();
+      await tester.pump();
+      await tester.pump();
+      expect(sideOf(vpFace).color, isNot(PH.ice));
+      final relief = find.byKey(const ValueKey('lander-relief'));
+      final icon = find.descendant(of: relief, matching: find.byType(Icon)).first;
+      for (final on in [state.landerRelief, !state.landerRelief]) {
+        if (state.landerRelief != on) {
+          await tester.tap(relief);
+          await tester.pump();
+        }
+        Focus.of(tester.element(icon)).requestFocus();
+        await tester.pump();
+        await tester.pump();
+        expect(sideOf(icon), const BorderSide(color: PH.ice, width: 2), reason: 'the relief switch, focused, on: $on');
+        FocusManager.instance.primaryFocus?.unfocus();
+        await tester.pump();
+        await tester.pump();
+        expect(sideOf(icon).color, isNot(PH.ice), reason: 'on: $on');
+      }
+      await tester.tap(relief);
+      await tester.pump();
+    });
+
+    testWidgets('W-V3 raised: the view\'s description says so after the status; callout line 3 names the height',
+        (tester) async {
+      size(tester, const Size(360, 1000));
+      final handle = tester.ensureSemantics();
+      await nearPole(tester);
+      state.setLanderViewpoint(LanderViewpoint.m200);
+      await tester.pumpWidget(panel(width: 360, near: nearFrame(), layer: LightLayer.both));
+      await meshReady(tester);
+      await tester.pump(const Duration(milliseconds: 500));
+      expect(panelState(tester).mesh!.cam.eyeHeightM, 200);
+      // phone inline (360 x 223): the Sun's and Earth's band under the compass strip and a glyph
+      expect(panelState(tester).cam.pitch, closeTo(-4.25, 0.01), reason: 'the default pitch at 200 m');
+      expect(find.bySemanticsLabel(RegExp("^Viewpoint 200 m above the site, not the lander's; Sun and Earth status is "
+          'at the lander, 2 m\\. ')), findsOneWidget);
+      final pt = painterOf(tester);
+      const sky = (az: 10.0, el: 0.5, rhoDeg: 0.27, state: SkyState.behindTerrain);
+      final lines = LanderPainter(
+              cam: pt.cam, mesh: pt.mesh, proj: LanderProjection(), colors: null, sunWord: 'in view', viewpoint: '200 m')
+          .calloutLines(sky, true);
+      expect(lines.last, startsWith('drawn from 200 m up: '));
+      expect(lines.last, isNot(contains('800 m')));
+      handle.dispose();
+    });
+
+    testWidgets('W-V4 the camera store carries the viewpoint; a 1.10 store (3 numbers) is read at the lander\'s '
+        'height; the viewpoint is kept across sites', (tester) async {
+      size(tester, const Size(360, 1000));
+      await nearPole(tester);
+      await tester.pumpWidget(panel(width: 360, near: nearFrame(), layer: LightLayer.both));
+      await meshReady(tester);
+      final ctx = tester.element(find.byType(Align).first);
+      final id = 'lander-camera-${state.site.id}';
+      await choose(tester, LanderViewpoint.km5);
+      await meshReady(tester);
+      await tester.pump(const Duration(milliseconds: 500));
+      final stored = PageStorage.of(ctx).readState(ctx, identifier: id) as List;
+      expect(stored.length, 4);
+      expect(stored[3], 'km5');
+      expect(stored[1], panelState(tester).cam.pitch);
+      // a new view reads it whole
+      panelState(tester).cam.set(pitch: -21);
+      panelState(tester).rememberCamera();
+      // a new view in the same route (its PageStorage) reads it whole
+      Future<void> again() async {
+        await tester.pumpWidget(panel(width: 360, near: nearFrame(), layer: LightLayer.both, show: false));
+        await tester.pumpWidget(panel(width: 360, near: nearFrame(), layer: LightLayer.both));
+        await tester.pump();
+      }
+
+      await again();
+      expect(panelState(tester).cam.pitch, -21);
+      // a 1.10 store at the lander's height: its pitch only there
+      state.setLanderViewpoint(LanderViewpoint.lander);
+      PageStorage.of(ctx).writeState(ctx, [33.0, 6.0, 50.0], identifier: id);
+      await again();
+      expect((panelState(tester).cam.yaw, panelState(tester).cam.pitch, panelState(tester).cam.hfov), (33.0, 6.0, 50.0));
+      // at 1 km the same store gives the yaw and zoom with the default pitch
+      state.setLanderViewpoint(LanderViewpoint.km1);
+      PageStorage.of(ctx).writeState(ctx, [33.0, 6.0, 50.0], identifier: id);
+      await again();
+      final view = tester.getRect(find.byKey(const ValueKey('lander-view')));
+      expect(panelState(tester).cam.yaw, 33.0);
+      expect(panelState(tester).cam.pitch,
+          closeTo(
+              landerDefaultPitchDeg(LanderViewpoint.km1,
+                  hfovDeg: 50, aspect: view.height / view.width, topClearFrac: LanderPainter.bodyClearPx / view.height),
+              1e-9));
+      // another site keeps the viewpoint (one choice for every site)
+      final other = state.allSites.firstWhere((x) => x.id != state.site.id && !x.custom);
+      await tester.runAsync(() => state.selectSite(other.id));
+      await tester.pump();
+      expect(state.landerViewpoint, LanderViewpoint.km1);
+      expect(state.landerMeshKey, endsWith('|1000.0'));
+      // (the other site's build stops with the view)
+      await tester.pumpWidget(const SizedBox());
+      await tester.pump(const Duration(milliseconds: 100));
+    });
+
+    testWidgets('W-V5 the Light tab: raised, the badge has the viewpoint sentence (no see-through one), the legend '
+        'the status line (no see-through key); at 2 m both as before', (tester) async {
+      size(tester, const Size(800, 1400));
+      await nearPole(tester);
+      await tester.pumpWidget(MaterialApp(
+          theme: buildTheme(),
+          // the app rebuilds on the state (main.dart's provider)
+          home: Scaffold(
+              body: SingleChildScrollView(
+                  child: ListenableBuilder(
+                      listenable: state,
+                      builder: (context, _) => LightMap(state: state, active: true, onSelect: (_) {}))))));
+      await tester.tap(find.text('Lander').first);
+      await tester.pump();
+      await meshReady(tester);
+      await tester.pump();
+      String badge() => tester.widget<FidelityBadge>(find.byKey(const ValueKey('lander-badge'))).text;
+      final before = badge();
+      expect(before, contains('drawn see-through'));
+      expect(find.text('Near ground, see-through'), findsOneWidget);
+      expect(find.text('Sun/Earth status: at the lander, 2 m'), findsNothing);
+      expect(find.text('Horizon (dashed)'), findsOneWidget);
+      state.setLanderViewpoint(LanderViewpoint.km1);
+      await tester.pump();
+      await meshReady(tester);
+      await tester.pump();
+      final raised = badge();
+      expect(raised, contains(landerViewpointFidelity('1 km', '2 m')));
+      expect(raised, isNot(contains('see-through')));
+      expect(raised, contains("smoothed and, at the lander's height, the drawn skyline"));
+      expect(find.text('Sun/Earth status: at the lander, 2 m'), findsOneWidget);
+      expect(find.text('Near ground, see-through'), findsNothing);
+      expect(find.text("Lander's horizon, 2 m (dashed)"), findsOneWidget, reason: 'the dashed mask is the lander\'s');
+      expect(find.text('Horizon (dashed)'), findsNothing);
+      expect(find.textContaining('From a raised viewpoint: 1 km above the ground at'), findsOneWidget);
+      state.setLanderViewpoint(LanderViewpoint.lander);
+      await tester.pump();
+      await tester.pump();
+      expect(badge(), before, reason: 'at 2 m byte for byte as before');
+      expect(find.text('Near ground, see-through'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+
+    test('W-V6 texts: heights, labels, the badge at 2 m byte for byte, the mask label and caption', () {
+      expect([for (final h in [2.0, 10.0, 2.5, 200.0, 1000.0, 5000.0]) landerHeightText(h)],
+          ['2 m', '10 m', '2.5 m', '200 m', '1 km', '5 km']);
+      expect(landerViewpointLabel(LanderViewpoint.km1, 2), 'View height: 1 km above the site');
+      expect(landerViewpointLabel(LanderViewpoint.lander, 10), 'View height: at the lander, 10 m above the site');
+      expect(landerViewpointItem(LanderViewpoint.lander, 10), 'Lander, 10 m');
+      expect(landerViewpointItem(LanderViewpoint.km5, 10), '5 km up');
+      expect(landerViewpointChip('1 km'), "Viewpoint 1 km up, not the lander's");
+      expect(landerStatusAtLegend('2 m'), 'Sun/Earth status: at the lander, 2 m');
+      expect(landerHorizonLegend(), 'Horizon (dashed)');
+      expect(landerHorizonLegend('2 m'), "Lander's horizon, 2 m (dashed)");
+      for (final custom in [false, true]) {
+        expect(landerFidelityText('2 m', custom: custom, viewpoint: null), landerFidelityText('2 m', custom: custom));
+        final up = landerFidelityText('2 m', custom: custom, viewpoint: '5 km', eyeOffsetM: -30);
+        expect(up, contains(landerViewpointFidelity('5 km', '2 m')));
+        expect(up, isNot(contains('see-through')));
+        expect(up, contains("The eye is 5 km above the 400 m surface, which is 30 m below this site's 80 m height."));
+      }
+      expect(landerFidelityText('2 m', custom: false, eyeOffsetM: -30),
+          contains("The eye is 2 m above the 400 m surface, 30 m below this site's 80 m height."),
+          reason: 'at the lander byte for byte as before');
+      expect(landerViewpointFidelity('1 km', '2 m'), contains("drawn in the lander's directions"));
+      expect(landerViewpointFidelity('1 km', '2 m'), contains('drawn solid'));
+      expect(landerMaskLabel(custom: false), 'Horizon mask (LOLA 80 m/240 m)');
+      expect(landerMaskLabel(custom: true, lander: '10 m'), "Lander's coarse horizon, 10 m (400 m, this device)");
+      final today = landerCaption(height: '2 m', site: 'SR1', utc: 'U');
+      expect(today, startsWith('From the lander: 2 m above the ground at SR1, U. Terrain'));
+      expect(landerCaption(height: '5 km', site: 'SR1', utc: 'U', lander: '2 m'),
+          startsWith("From a raised viewpoint: 5 km above the ground at SR1 (the lander's eye is 2 m), U. Terrain"));
+    });
   });
 }
 

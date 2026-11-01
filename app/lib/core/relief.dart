@@ -123,3 +123,42 @@ double greyMean(Uint8List grey, int cols, int r0, int r1, int c0, int c1) {
   }
   return n == 0 ? double.nan : s / n;
 }
+
+/// Row [i] of the hillshade (0..1) of the heights [h] ([side] x [side], row
+/// 0 at +y, [pxM] m a pixel) into `out[i * side .. (i + 1) * side)`: the
+/// light of [reliefGrey] (azimuth clockwise from image up, altitude,
+/// exaggeration) without its tint, written trig-free. numpy.gradient on the
+/// block alone: central differences inside, one-sided at the block's edge;
+/// gx = d(ex h)/dx along a row, gy = d(ex h)/d(row), and
+/// hs = clamp((sin alt + cos alt (cos az gy - sin az gx)) / sqrt(1 + gx² + gy²), 0, 1),
+/// which is sin alt cos(slope) + cos alt sin(slope) cos(az - aspect) with
+/// aspect = atan2(-gx, gy). Flat ground gives sin alt. The light is a fixed
+/// drawing light in the map frame, never the Sun.
+void hillshadeRow(Float64List h, int side, double pxM, int i, Float32List out,
+    {double azimuthDeg = 315, double altitudeDeg = 35, double exaggeration = 2}) {
+  if (side < 2 || h.length != side * side || out.length != side * side) {
+    throw ArgumentError('hillshade: ${h.length} heights, ${out.length} outputs for a $side x $side block');
+  }
+  final az = azimuthDeg * math.pi / 180, alt = altitudeDeg * math.pi / 180;
+  final sinAlt = math.sin(alt), cosAlt = math.cos(alt), cosAz = math.cos(az), sinAz = math.sin(az);
+  final rA = i == 0 ? 0 : i - 1, rB = i == side - 1 ? i : i + 1;
+  final fy = exaggeration / ((rB - rA) * pxM), fxIn = exaggeration / (2 * pxM), fxEdge = exaggeration / pxM;
+  final row = i * side, a = rA * side, b = rB * side;
+  for (var c = 0; c < side; c++) {
+    final cA = c == 0 ? 0 : c - 1, cB = c == side - 1 ? c : c + 1;
+    final gx = (h[row + cB] - h[row + cA]) * (cB - cA == 2 ? fxIn : fxEdge);
+    final gy = (h[b + c] - h[a + c]) * fy;
+    final v = (sinAlt + cosAlt * (cosAz * gy - sinAz * gx)) / math.sqrt(1 + gx * gx + gy * gy);
+    out[row + c] = v <= 0 ? 0 : (v >= 1 ? 1 : v);
+  }
+}
+
+/// [hillshadeRow] over every row of the block (tests and one-shot use).
+Float32List hillshadeBlock(Float64List h, int side, double pxM,
+    {double azimuthDeg = 315, double altitudeDeg = 35, double exaggeration = 2}) {
+  final out = Float32List(side * side);
+  for (var i = 0; i < side; i++) {
+    hillshadeRow(h, side, pxM, i, out, azimuthDeg: azimuthDeg, altitudeDeg: altitudeDeg, exaggeration: exaggeration);
+  }
+  return out;
+}

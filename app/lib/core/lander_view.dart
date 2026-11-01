@@ -1,13 +1,16 @@
 /// Lander's view: the terrain around a site seen from the observer's eye
-/// (2 m above the ground by default), built from the very height grid the
+/// (2 m above the ground by default; or from a raised drawing viewpoint,
+/// [LanderViewpoint], D22), built from the very height grid the
 /// light & shadow engine uses (the shipped 400 m LOLA DEM, block-averaged
 /// with [blockMeanRow], so heights are bit-identical to [ShadowGrid]), with
 /// vertices at their true positions on the sphere (no map-scale shortcut).
 /// Light comes from the engine's own frames by pixel index (state/
 /// lander_light.dart); nothing here invents terrain or light.
 ///
-/// Parts: 0 = near field (polar lattice cut from the same fan surface, under
-/// [landerNearFieldM]), 1 = 400 m grid (close-up window), 2 = 800 m grid out
+/// Parts: 0 = near field (at the lander's eye a polar lattice cut from the
+/// same fan surface, under [landerNearFieldM]; from a raised eye, D22, the
+/// 400 m cells near the eye's foot split into coplanar pieces), 1 = 400 m
+/// grid (close-up window), 2 = 800 m grid out
 /// to [coarseMaxM]. Frame: local ENU at the site (spherical normal); azimuth
 /// clockwise from north, north = increasing latitude (away from the pole).
 /// See formula.md §12.11.
@@ -20,12 +23,96 @@ import 'constants.dart';
 import 'dem.dart' show rM, latLonToXY;
 import 'geo.dart';
 import 'horizon_compute.dart' show coarseMaxM, coarseDistances;
+import 'relief.dart' show hillshadeRow;
 import 'shadow.dart' show GridWindow, blockMeanRow, gridPixelOf, gridWindowAround;
 
 const double landerNearFieldM = 800, landerNearAlpha = 0.35, landerBinDeg = 0.05, landerNearPlane = 0.01;
 const List<double> landerNearRingsM = [0.5, 1, 2, 3, 5, 10, 20, 40, 80, 160, 320, 560, 800];
 const int landerNearSpokes = 180, landerSectorCount = 36;
 const double landerPitchMax = 30, landerHfovMin = 10, landerHfovMax = 90;
+
+/// The relief shading's drawing light (D21): the base map's shaded-relief
+/// light (map.json["hillshade"], `ReliefRecipe`'s defaults): azimuth 315°
+/// clockwise from image up (the lon 0 direction), altitude 35°, heights
+/// exaggerated 2x. Fixed in the map frame: never the Sun, and independent of
+/// time, site and camera.
+const double landerReliefAzimuthDeg = 315.0, landerReliefAltitudeDeg = 35.0, landerReliefExaggeration = 2.0;
+
+/// The Lander view's drawing viewpoint (D22, user decision 2026-10-31): the
+/// lander's eye (the observer height: 2 m, or the 10 m mast; the default) or
+/// a raised eye 200 m, 1 km or 5 km above the ground under the site. Only the
+/// drawing eye moves: the mesh is built for it (culling, draw order and the
+/// near-field rules are eye-relative), while the light frames, the Sun and
+/// Earth directions and the status words stay the lander's.
+enum LanderViewpoint { lander, m200, km1, km5 }
+
+/// Eyes at or above this height (m) follow the raised-eye rules (D22): the
+/// 400 m cells everywhere (no near-field lattice), no see-through near
+/// ground, and the skyline of all drawn ground.
+const double landerRaisedEyeMinM = 200;
+
+extension LanderViewpointHeight on LanderViewpoint {
+  /// The eye's height above the ground under the site (m).
+  double eyeHeightM(double observerHeightM) => switch (this) {
+        LanderViewpoint.lander => observerHeightM,
+        LanderViewpoint.m200 => 200,
+        LanderViewpoint.km1 => 1000,
+        LanderViewpoint.km5 => 5000,
+      };
+
+  bool get raised => this != LanderViewpoint.lander;
+
+  /// The camera pitch this viewpoint aims for (degrees, before the floor of
+  /// [landerDefaultPitchDeg]).
+  double get targetPitchDeg => switch (this) {
+        LanderViewpoint.lander => 0,
+        LanderViewpoint.m200 => -8,
+        LanderViewpoint.km1 => -15,
+        LanderViewpoint.km5 => -25,
+      };
+}
+
+/// The band of elevations (°, above the 0° line) the default pitch keeps in
+/// view: the polar Sun and Earth stay within about ±1.6° of 0° at the lander.
+const double landerBodyBandDeg = 2;
+
+/// How far (°) the 0° line lies above the geometric horizon of an eye
+/// [eyeHeightM] above the reference sphere: acos(R / (R + h)); 0.87° at
+/// 200 m, 1.94° at 1 km, 4.35° at 5 km.
+double landerHorizonDipDeg(double eyeHeightM) => math.acos(rM / (rM + math.max(0.0, eyeHeightM))) * rad;
+
+/// The default camera pitch for [v] (D22, §7.3): 0 at the lander's height;
+/// raised, the target pitch but no lower than the floor, and no higher than
+/// the ceiling, inside the ±[landerPitchMax] clamp.
+/// - Floor: the 0° line at least 3° under the frame's top, and the
+///   [landerBodyBandDeg] line (the Sun's and Earth's band) under the top
+///   [topClearFrac] of the view height (the panel passes its compass strip
+///   and a glyph, so neither covers a body): with t = tan(vfov/2) =
+///   tan(hfov/2)·[aspect] ([aspect] = height / width),
+///   max(3 − vfov/2, 2 − atan((1 − 2·topClearFrac)·t)).
+/// - Ceiling: the eye's geometric horizon ([landerHorizonDipDeg]) at least
+///   min(1°, vfov/8) over the bottom edge: −dip + vfov/2 − margin.
+/// When both cannot hold (a narrow view, zoomed in), the ceiling wins: the
+/// ground stays in view and the Sun and Earth may sit under the strip, where
+/// their glyphs hang below it on leaders and the strip's markers show them.
+double landerDefaultPitchDeg(LanderViewpoint v,
+    {required double hfovDeg, required double aspect, double topClearFrac = 0}) {
+  if (!v.raised) return 0;
+  final t = math.tan(hfovDeg * deg / 2) * aspect, half = math.atan(t) * rad;
+  final floor = math.max(3 - half, landerBodyBandDeg - math.atan((1 - 2 * topClearFrac) * t) * rad);
+  final ceiling = -landerHorizonDipDeg(v.eyeHeightM(0)) + half - math.min(1.0, half / 4);
+  return clampPitch(math.min(math.max(v.targetPitchDeg, floor), ceiling));
+}
+
+/// A raised eye's (D22) 400 m cells near it are drawn split into k x k
+/// coplanar pieces per fan triangle (the same planes, so the same surface)
+/// with k = clamp(ceil(px / ([landerSubAngle] · d)), 1, [landerSubMaxK]),
+/// d a lower bound of the cell's distance from the eye: no piece is wider
+/// than about [landerSubAngle] rad as seen from the eye, so none that shows
+/// on screen reaches behind the camera plane (D9). Only cells close under a
+/// 200 m or 1 km eye are split (k is 1 from about 4 px away).
+const double landerSubAngle = 0.25;
+const int landerSubMaxK = 8;
 
 /// Side of the near patch (400 m px): the light engine's close-up window.
 const int landerNearPx = 320;
@@ -138,7 +225,8 @@ double patchFanHeightAt(TerrainPatch p, double xM, double yM) {
   return a * p.at(r, c) + b * p.at(r, c + 1) + d * p.at(r + 1, c) + e * p.at(r + 1, c + 1);
 }
 
-/// The eye: [observerHeightM] above the near patch's bilinear ground at the site.
+/// The eye: [observerHeightM] above the near patch's bilinear ground at the
+/// site (the observer's 2 or 10 m, or a raised viewpoint, D22).
 class LanderCamera {
   final double latDeg, lonDeg, groundM, eyeHeightM;
   final Enu enu;
@@ -174,25 +262,40 @@ double _wrap180(double d) {
 }
 
 /// The built view: vertices in ENU metres from the eye, kept triangles in
-/// draw order (far to near), 10° sectors, and the far skyline.
+/// draw order (far to near), 10° sectors, and the far skyline (raised eye:
+/// the skyline of all drawn ground).
 class LanderMesh {
   final LanderCamera cam;
   final Float32List e, n, u, alpha;
-  final Uint8List part; // 0 near field, 1 near grid (400 m), 2 far grid (800 m)
+  final Uint8List part; // 0 near field (the lattice; from a raised eye the split cells, D22), 1 near grid (400 m), 2 far grid (800 m)
   final Int32List src; // 4 per vertex: pixel index in its grid (DEM grid for 0/1, half-resolution grid for 2)
   final Float32List w; // 4 per vertex, sum 1
   final Uint32List tri; // 3 per kept triangle, far -> near
-  final List<Int32List> sectors; // triangle ids per 10° sector (centroid azimuth), ascending
-  final Float64List skyline; // far skyline (parts 1-2, from 800 m), 0.5° steps, computed before culling
+  final List<Int32List> sectors; // triangle ids per 10° sector (each sector its azimuth span touches, all if over 90°), ascending
+  // the skyline, 0.5° steps, computed before culling: at the lander's eye (under [landerRaisedEyeMinM])
+  // the far skyline (parts 1-2, from 800 m); from a raised eye (D22) that of all drawn ground (parts 0-2,
+  // from 0 m; part 0 is then the split cells near the eye's foot)
+  final Float64List skyline;
   final List<({double az0, double az1, double distM})> demEnds;
   final int gridVerticesBeforeCull;
   final int demSize; // the fine (400 m) grid; part 2 uses demSize ~/ 2 at 2 x demPxM
   final double demPxM;
+
+  /// Per vertex: the hillshade (0..1) of its patch's own heights under the
+  /// fixed drawing light (D21), Σ wᵢ · hs(srcᵢ) as its height; null = none.
+  final Float32List? relief;
   const LanderMesh(this.cam, this.e, this.n, this.u, this.alpha, this.part, this.src, this.w, this.tri, this.sectors,
-      this.skyline, this.demEnds, this.gridVerticesBeforeCull, this.demSize, this.demPxM);
+      this.skyline, this.demEnds, this.gridVerticesBeforeCull, this.demSize, this.demPxM,
+      {this.relief});
 
   int get vertexCount => e.length;
   int get triangleCount => tri.length ~/ 3;
+
+  /// Built for a raised drawing eye (D22): no near-field lattice (every 400 m
+  /// cell is drawn, the eye's foot included; those near it split into
+  /// coplanar pieces, part 0, see [landerSubAngle]), all ground solid, and
+  /// the skyline of all drawn ground.
+  bool get raisedEye => cam.eyeHeightM >= landerRaisedEyeMinM;
 
   /// Grid (size, pxM) that [src] indices of part [p] refer to.
   (int, double) gridOf(int p) => p == 2 ? (demSize ~/ 2, demPxM * 2) : (demSize, demPxM);
@@ -399,8 +502,15 @@ int _dm(double m) => m >= 429496729 ? 0xFFFFFFFF : (m * 10).floor();
 class LanderMeshWork {
   final Int16List heights;
   final int demSize;
-  final double demPxM, latDeg, lonDeg, observerHeightM;
+  final double demPxM, latDeg, lonDeg;
+
+  /// The eye's height above the ground under the site (m): the observer's
+  /// (2 or 10 m) or a raised viewpoint (D22, [LanderViewpoint]). The mesh is
+  /// a pure function of (DEM, site, this height, [cull]).
+  final double observerHeightM;
   final bool cull;
+  // a raised eye (D22): no lattice (400 m cells everywhere), every drawn triangle in the skyline, all solid
+  late final bool _raised = observerHeightM >= landerRaisedEyeMinM;
   late final TerrainPatch near, far;
   late final LanderCamera cam;
   late final int _nL, _bNP, _bNC, _bFP, _bFC, _nV;
@@ -408,10 +518,17 @@ class LanderMeshWork {
   late final Float64List _az, _el, _dh;
   late final Int32List _latSrc;
   late final Float32List _latW;
+  // the hillshade of the near and far patches (D21), freed with the work buffers
+  late Float32List _hsN, _hsF;
   late final Int32List _tv;
   late final Uint8List _tp;
   late final Uint32List _tk;
   int _nT = 0;
+  // a raised eye's split cells (D22): their vertices from _bSub on (part 0: 4 near-grid sources each)
+  late final int _bSub, _capSub;
+  int _nSub = 0;
+  late final Int32List _subSrc;
+  late final Float32List _subW;
   final Float64List _sky = Float64List(720)..fillRange(0, 720, -90.0);
   late final Float64List _sinA, _cosA;
   final List<double> _endDist = List.filled(720, double.nan);
@@ -425,9 +542,11 @@ class LanderMeshWork {
   Uint32List _k1 = Uint32List(0), _k2 = Uint32List(0), _tri = Uint32List(0);
   Int32List _asc = Int32List(0), _remap = Int32List(0), _src = Int32List(0);
   Float32List _oe = Float32List(0), _on = Float32List(0), _ou = Float32List(0), _oal = Float32List(0);
-  Float32List _ow = Float32List(0);
+  Float32List _ow = Float32List(0), _orl = Float32List(0);
   Uint8List _part = Uint8List(0);
   List<List<int>> _sec = const [];
+  // the sectors as typed lists, one per unit before _finishEnd
+  final List<Int32List> _secOut = List.filled(landerSectorCount, Int32List(0));
   late final Float64List _occ = Float64List(7200)..fillRange(0, 7200, double.negativeInfinity);
   Float64List _hk = Float64List(1024);
   Int32List _hi = Int32List(1024);
@@ -450,7 +569,13 @@ class LanderMeshWork {
     _bNC = _bNP + sN * sN;
     _bFP = _bNC + (sN - 1) * (sN - 1);
     _bFC = _bFP + sF * sF;
-    _nV = _bFC + (sF - 1) * (sF - 1);
+    _bSub = _bFC + (sF - 1) * (sF - 1);
+    // cells with k >= 2 lie within (1 / landerSubAngle) px of the eye's foot: at most (2 · 4 + 3)² of them
+    final subCells = _raised ? math.pow(2 * (1 / landerSubAngle).ceil() + 3, 2).toInt() : 0;
+    _capSub = subCells * 4 * (landerSubMaxK + 1) * (landerSubMaxK + 2) ~/ 2;
+    _nV = _bSub + _capSub;
+    _subSrc = Int32List(4 * _capSub);
+    _subW = Float32List(4 * _capSub);
     _e = Float32List(_nV);
     _n = Float32List(_nV);
     _u = Float32List(_nV);
@@ -459,7 +584,10 @@ class LanderMeshWork {
     _dh = Float64List(_nV);
     _latSrc = Int32List(4 * _nL);
     _latW = Float32List(4 * _nL);
-    final cap = 4 * (sN - 1) * (sN - 1) + 4 * (sF - 1) * (sF - 1) + landerNearSpokes * (2 * landerNearRingsM.length - 1);
+    _hsN = Float32List(sN * sN);
+    _hsF = Float32List(sF * sF);
+    final cap = 4 * (sN - 1) * (sN - 1) + 4 * (sF - 1) * (sF - 1) + landerNearSpokes * (2 * landerNearRingsM.length - 1) +
+        subCells * 4 * landerSubMaxK * landerSubMaxK;
     _tv = Int32List(3 * cap);
     _tp = Uint8List(cap);
     _tk = Uint32List(cap);
@@ -469,6 +597,8 @@ class LanderMeshWork {
     _phases = [
       (() => sN, (i) => _patchRow(near, heights, demSize, i)),
       (() => sF, (i) => _patchRow(far, heights, demSize, i)),
+      (() => sN, (i) => _hillshadeRow(near, i, _hsN)),
+      (() => sF, (i) => _hillshadeRow(far, i, _hsF)),
       (() => 1, (_) => cam = landerCamera(near, latDeg, lonDeg, observerHeightM)),
       (() => sN, (i) => _pixelRow(near, _bNP, i)),
       (() => sN - 1, (i) => _centreRow(near, _bNC, i)),
@@ -490,8 +620,9 @@ class LanderMeshWork {
       (() => cull ? _radixCount() : 0, (_) => _radixUnit()),
       (() => cull ? 1 : 0, (_) => _sweep = _rx!.src),
       (() => cull ? (_sweep!.length + 2047) ~/ 2048 : 0, _cullChunk),
-      // the final compaction (_finish in units)
-      (() => 1, (_) => _finishStart()),
+      // the final compaction (_finish in units). Work that grows with the kept mesh (about 9x the
+      // lander's at 5 km, D22) is one array or one chunk per unit, so no unit holds it all (§8).
+      (() => 3, _finishStart),
       (() => _chunks(_nT), _keyChunk),
       (() => 1, (_) => _rx = _Radix(Int32List.sublistView(_buf, 0, _m), _k2)),
       (() => _radixCount(), (_) => _radixUnit()),
@@ -500,17 +631,25 @@ class LanderMeshWork {
       (() => 1, (_) {
         _asc = _rx!.src;
         _rx = null;
-        _remap = Int32List(_nV)..fillRange(0, _nV, -1);
+        _remap = Int32List(_nV);
       }),
+      (() => _chunks(_nV), (k) => _remap.fillRange(k * _chunk, math.min(_nV, (k + 1) * _chunk), -1)),
       (() => _chunks(_asc.length), _markChunk),
       (() => _chunks(_nV), _numberChunk),
-      (() => 1, (_) => _allocOut()),
+      (() => 8, _allocOut),
       (() => _chunks(_nV), _compactChunk),
-      (() => 1, (_) {
-        _tri = Uint32List(3 * _asc.length);
-        _sec = List.generate(landerSectorCount, (_) => <int>[]);
+      (() => 2, (i) {
+        if (i == 0) {
+          _tri = Uint32List(3 * _asc.length);
+        } else {
+          _sec = List.generate(landerSectorCount, (_) => <int>[]);
+        }
       }),
       (() => _chunks(_asc.length), _triChunk),
+      (() => landerSectorCount, (s) {
+        _secOut[s] = Int32List.fromList(_sec[s]);
+        _sec[s] = const <int>[];
+      }),
       (() => 1, (_) => _finishEnd()),
     ];
 
@@ -539,9 +678,13 @@ class LanderMeshWork {
 
   void _setVertex(int id, V3 p) {
     final v = p - cam.eyeM;
-    _e[id] = v.dot(cam.enu.east);
-    _n[id] = v.dot(cam.enu.north);
-    _u[id] = v.dot(cam.enu.up);
+    _setEnu(id, v.dot(cam.enu.east), v.dot(cam.enu.north), v.dot(cam.enu.up));
+  }
+
+  void _setEnu(int id, double ve, double vn, double vu) {
+    _e[id] = ve;
+    _n[id] = vn;
+    _u[id] = vu;
     final e = _e[id], n = _n[id], u = _u[id], dh = math.sqrt(e * e + n * n);
     _az[id] = _azOf(e, n);
     _el[id] = math.atan2(u, dh) * rad;
@@ -612,8 +755,11 @@ class LanderMeshWork {
     for (var j = 0; j < s - 1; j++) {
       final tl = bP + i * s + j, tr = tl + 1, bl = tl + s, br = bl + 1, m = bC + i * (s - 1) + j;
       if (part == 1) {
+        // at the lander's eye the near field (cells wholly within 800 m) is the lattice's; from a raised
+        // eye (D22) every 400 m cell is drawn, the eye's foot included
         final r = landerNearFieldM;
-        if (_dh[tl] <= r && _dh[tr] <= r && _dh[bl] <= r && _dh[br] <= r) continue;
+        if (!_raised && _dh[tl] <= r && _dh[tr] <= r && _dh[bl] <= r && _dh[br] <= r) continue;
+        if (_raised && _splitCell(p, i, j, tl, tr, bl, br, m)) continue;
       } else {
         if (_dh[m] > coarseMaxM) continue;
         final fr = 2.0 * (p.r0 + i), fc = 2.0 * (p.c0 + j);
@@ -626,7 +772,63 @@ class LanderMeshWork {
     }
   }
 
+  /// A raised eye's near cell (D22), split when its k (see [landerSubAngle])
+  /// is 2 or more: each fan triangle (corner, corner, centre) into k x k
+  /// pieces on its own plane, vertices from [_bSub] on with the 4 corner
+  /// pixels as sources (the fan's weights: the centre is their mean). False
+  /// when not split (k = 1, or no room left: then drawn whole, as before).
+  bool _splitCell(TerrainPatch p, int i, int j, int tl, int tr, int bl, int br, int m) {
+    // the cell's least 2-D distance from the eye's axis (its 4 fan triangles tile it) and least depth under the eye
+    var d2 = _triDmin(_e, _n, tl, tr, m);
+    for (final (a, b) in [(tr, br), (br, bl), (bl, tl)]) {
+      d2 = math.min(d2, _triDmin(_e, _n, a, b, m));
+    }
+    final gap = -[_u[tl], _u[tr], _u[bl], _u[br], _u[m]].reduce(math.max);
+    final d = math.sqrt(d2 * d2 + (gap > 0 ? gap * gap : 0));
+    final k = d <= 0 ? landerSubMaxK : math.min(landerSubMaxK, (p.pxM / (landerSubAngle * d)).ceil());
+    final nv = 4 * (k + 1) * (k + 2) ~/ 2;
+    if (k < 2 || _nSub + nv > _capSub || _nT + 4 * k * k > _tp.length) return false;
+    final gs = p.gridSize, k0 = (p.r0 + i) * gs + p.c0 + j;
+    final px = [k0, k0 + 1, k0 + gs, k0 + gs + 1]; // the pixels of tl, tr, bl, br
+    final corner = {tl: 0, tr: 1, bl: 2, br: 3};
+    for (final (a, b) in [(tl, tr), (tr, br), (br, bl), (bl, tl)]) {
+      // vertex (x, y): a + (b - a) x / k + (m - a) y / k, x + y <= k
+      final base = _bSub + _nSub;
+      int vid(int x, int y) => base + y * (k + 1) - y * (y - 1) ~/ 2 + x;
+      for (var y = 0; y <= k; y++) {
+        for (var x = 0; x + y <= k; x++) {
+          final lb = x / k, lm = y / k, la = 1 - lb - lm;
+          final id = vid(x, y);
+          _setEnu(id, la * _e[a] + lb * _e[b] + lm * _e[m], la * _n[a] + lb * _n[b] + lm * _n[m],
+              la * _u[a] + lb * _u[b] + lm * _u[m]);
+          final o = 4 * (id - _bSub);
+          for (var q = 0; q < 4; q++) {
+            _subSrc[o + q] = px[q];
+            _subW[o + q] = lm / 4;
+          }
+          _subW[o + corner[a]!] += la;
+          _subW[o + corner[b]!] += lb;
+        }
+      }
+      _nSub += (k + 1) * (k + 2) ~/ 2;
+      for (var y = 0; y < k; y++) {
+        for (var x = 0; x + y < k; x++) {
+          _addTri(vid(x, y), vid(x + 1, y), vid(x, y + 1), 0);
+          if (x + y + 1 < k) _addTri(vid(x + 1, y), vid(x + 1, y + 1), vid(x, y + 1), 0);
+        }
+      }
+    }
+    return true;
+  }
+
+  /// The near-field lattice's triangles (part 0), at the lander's eye only.
+  /// From a raised eye (D22) the 400 m cells are drawn instead: the lattice
+  /// adds no data (it samples the same fan surface) and exists to resolve
+  /// ground metres from a 2 m eye; seen from above, its triangles (linear
+  /// between rings up to 240 m apart) would overlap the cells straddling
+  /// 800 m and cut through them.
   void _latticeTris() {
+    if (_raised) return;
     const sp = landerNearSpokes;
     int v(int ring, int s) => 1 + ring * sp + s % sp;
     for (var s = 0; s < sp; s++) {
@@ -640,11 +842,13 @@ class LanderMeshWork {
     }
   }
 
+  /// Chunk [k] of the skyline: at the lander's eye the far skyline (parts 1-2
+  /// from 800 m, D7); from a raised eye (D22) every triangle, so the skyline
+  /// is that of all the drawn (all solid) ground.
   void _skyChunk(int k) {
     for (var t = k * 2048; t < math.min(_nT, (k + 1) * 2048); t++) {
-      if (_tp[t] == 0) continue;
       final a = _tv[3 * t], b = _tv[3 * t + 1], c = _tv[3 * t + 2];
-      if (_triDmin(_e, _n, a, b, c) < landerNearFieldM) continue;
+      if (!_raised && (_tp[t] == 0 || _triDmin(_e, _n, a, b, c) < landerNearFieldM)) continue;
       _skyTri(_sky, 0.5, _sinA, _cosA, _e, _n, _u, _az, a, b, c);
     }
   }
@@ -751,7 +955,8 @@ class LanderMeshWork {
 
   void _radixUnit() => _rx!.unit();
 
-  /// Chunk [k] of the terrain triangle ids (part != 0) in id order, for the dmin sweep.
+  /// Chunk [k] of the terrain triangle ids (part != 0) in id order, for the dmin sweep (part 0, the
+  /// lattice or a raised eye's split cells, is always kept and is no occluder).
   void _collectChunk(int k) {
     for (var t = k * _chunk; t < math.min(_nT, (k + 1) * _chunk); t++) {
       if (_tp[t] != 0) _buf[_m++] = t;
@@ -762,12 +967,18 @@ class LanderMeshWork {
 
   // ---- the final compaction, in units -------------------------------------
 
-  void _finishStart() {
-    _sweep = null;
-    _buf = Int32List(_nT);
-    _m = 0;
-    _k1 = Uint32List(_nT);
-    _k2 = Uint32List(_nT);
+  /// Unit [i] (0-2) of the compaction's start: one work array each.
+  void _finishStart(int i) {
+    switch (i) {
+      case 0:
+        _sweep = null;
+        _buf = Int32List(_nT);
+        _m = 0;
+      case 1:
+        _k1 = Uint32List(_nT);
+      default:
+        _k2 = Uint32List(_nT);
+    }
   }
 
   /// Chunk [k] of the kept triangles and their draw-order keys: by cell-centre
@@ -800,20 +1011,35 @@ class LanderMeshWork {
     }
   }
 
-  void _allocOut() {
+  /// Unit [i] (0-7) of the output allocation: one array each (25 MB in all at 5 km, D22).
+  void _allocOut(int i) {
     final nv = _nvOut;
-    _oe = Float32List(nv);
-    _on = Float32List(nv);
-    _ou = Float32List(nv);
-    _oal = Float32List(nv);
-    _part = Uint8List(nv);
-    _src = Int32List(4 * nv);
-    _ow = Float32List(4 * nv);
+    switch (i) {
+      case 0:
+        _oe = Float32List(nv);
+      case 1:
+        _on = Float32List(nv);
+      case 2:
+        _ou = Float32List(nv);
+      case 3:
+        _oal = Float32List(nv);
+      case 4:
+        _part = Uint8List(nv);
+      case 5:
+        _src = Int32List(4 * nv);
+      case 6:
+        _ow = Float32List(4 * nv);
+      default:
+        _orl = Float32List(nv);
+    }
   }
 
+  void _hillshadeRow(TerrainPatch p, int i, Float32List out) => hillshadeRow(p.h, p.side, p.pxM, i, out,
+      azimuthDeg: landerReliefAzimuthDeg, altitudeDeg: landerReliefAltitudeDeg, exaggeration: landerReliefExaggeration);
+
   void _compactChunk(int ch) {
-    final e = _oe, n = _on, u = _ou, alpha = _oal, part = _part, src = _src, w = _ow, remap = _remap;
-    final fs = demSize ~/ 2;
+    final e = _oe, n = _on, u = _ou, alpha = _oal, part = _part, src = _src, w = _ow, remap = _remap, rl = _orl;
+    final fs = demSize ~/ 2, nS = near.side;
     for (var v = ch * _chunk; v < math.min(_nV, (ch + 1) * _chunk); v++) {
       final o = remap[v];
       if (o < 0) continue;
@@ -821,13 +1047,29 @@ class LanderMeshWork {
       n[o] = _n[v];
       u[o] = _u[v];
       alpha[o] = 1;
+      if (v >= _bSub) {
+        // a raised eye's split cell (D22): solid, 4 near-grid sources
+        part[o] = 0;
+        var hs = 0.0;
+        for (var q = 0; q < 4; q++) {
+          final k = src[4 * o + q] = _subSrc[4 * (v - _bSub) + q];
+          final wq = w[4 * o + q] = _subW[4 * (v - _bSub) + q];
+          hs += wq * _hsN[(k ~/ demSize - near.r0) * nS + (k % demSize - near.c0)];
+        }
+        rl[o] = hs;
+        continue;
+      }
       if (v < _nL) {
         part[o] = 0;
+        var hs = 0.0;
         for (var q = 0; q < 4; q++) {
-          src[4 * o + q] = _latSrc[4 * v + q];
-          w[4 * o + q] = _latW[4 * v + q];
+          final k = src[4 * o + q] = _latSrc[4 * v + q];
+          final wq = w[4 * o + q] = _latW[4 * v + q];
+          hs += wq * _hsN[(k ~/ demSize - near.r0) * nS + (k % demSize - near.c0)];
         }
-        if (_el[v] > skylineAt(_sky, _az[v])) alpha[o] = landerNearAlpha;
+        rl[o] = hs;
+        // D7 at the lander's eye; from a raised eye (D22) near ground is seen from above: solid
+        if (!_raised && _el[v] > skylineAt(_sky, _az[v])) alpha[o] = landerNearAlpha;
         continue;
       }
       final isFar = v >= _bFP;
@@ -836,44 +1078,61 @@ class LanderMeshWork {
       // D7: the 400 m cells kept inside 800 m (cells straddling the ring) are near ground, see-through
       // above the far skyline like the lattice. Such a vertex is never in the far skyline (any triangle
       // holding it has dmin < 800 m), so the comparison is safe; vertices at 800 m or more keep alpha 1.
-      if (!isFar && _dh[v] < landerNearFieldM && _el[v] > skylineAt(_sky, _az[v])) alpha[o] = landerNearAlpha;
-      final pix = isFar ? _bFP : _bNP, cen = isFar ? _bFC : _bNC;
+      // From a raised eye (D22) all ground is solid.
+      if (!_raised && !isFar && _dh[v] < landerNearFieldM && _el[v] > skylineAt(_sky, _az[v])) alpha[o] = landerNearAlpha;
+      final pix = isFar ? _bFP : _bNP, cen = isFar ? _bFC : _bNC, hs = isFar ? _hsF : _hsN, s = p.side;
       if (v < cen) {
-        final i = (v - pix) ~/ p.side, j = (v - pix) % p.side;
+        final i = (v - pix) ~/ s, j = (v - pix) % s;
         final k = (p.r0 + i) * gs + p.c0 + j;
         src.fillRange(4 * o, 4 * o + 4, k);
         w[4 * o] = 1;
+        rl[o] = hs[i * s + j];
       } else {
-        final i = (v - cen) ~/ (p.side - 1), j = (v - cen) % (p.side - 1);
+        final i = (v - cen) ~/ (s - 1), j = (v - cen) % (s - 1);
         final k = (p.r0 + i) * gs + p.c0 + j;
         src[4 * o] = k;
         src[4 * o + 1] = k + 1;
         src[4 * o + 2] = k + gs;
         src[4 * o + 3] = k + gs + 1;
         w.fillRange(4 * o, 4 * o + 4, 0.25);
+        final l = i * s + j;
+        rl[o] = 0.25 * (hs[l] + hs[l + 1] + hs[l + s] + hs[l + s + 1]);
       }
     }
   }
 
   /// Chunk [k] of the triangles in draw order (far to near) and their sectors.
   void _triChunk(int k) {
-    final asc = _asc, remap = _remap, e = _oe, n = _on, tri = _tri, sec = _sec;
+    final asc = _asc, remap = _remap, tri = _tri, sec = _sec;
     for (var i = k * _chunk; i < math.min(asc.length, (k + 1) * _chunk); i++) {
       final t = asc[asc.length - 1 - i];
       final a = remap[_tv[3 * t]], b = remap[_tv[3 * t + 1]], c = remap[_tv[3 * t + 2]];
       tri[3 * i] = a;
       tri[3 * i + 1] = b;
       tri[3 * i + 2] = c;
-      final caz = _azOf((e[a] + e[b] + e[c]) / 3, (n[a] + n[b] + n[c]) / 3);
-      sec[(caz / 10).floor() % landerSectorCount].add(i);
+      // every sector the triangle's azimuth span touches (D22: from a raised eye, cells near the eye's
+      // foot span tens of degrees and show at a steep frame's lower corners); all for a span over 90°
+      final (a0, a1) = _span(_az, _tv[3 * t], _tv[3 * t + 1], _tv[3 * t + 2]);
+      if (a1 - a0 > 90) {
+        for (final l in sec) {
+          l.add(i);
+        }
+        continue;
+      }
+      for (var s = (a0 / 10).floor(); s <= (a1 / 10).floor(); s++) {
+        sec[s % landerSectorCount].add(i);
+      }
     }
   }
 
   void _finishEnd() {
-    _mesh = LanderMesh(cam, _oe, _on, _ou, _oal, _part, _src, _ow, _tri, [for (final s in _sec) Int32List.fromList(s)],
-        Float64List.fromList(_sky), _ends, _nV - _nL, demSize, demPxM);
+    _sec = const [];
+    _mesh = LanderMesh(cam, _oe, _on, _ou, _oal, _part, _src, _ow, _tri, _secOut,
+        Float64List.fromList(_sky), _ends, _bSub - _nL + _nSub, demSize, demPxM,
+        relief: _orl);
     // the work buffers are not needed any more
     _buf = _asc = _remap = Int32List(0);
+    _hsN = _hsF = Float32List(0);
     _k1 = _k2 = Uint32List(0);
   }
 }

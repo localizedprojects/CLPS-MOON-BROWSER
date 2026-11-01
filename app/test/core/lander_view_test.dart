@@ -11,6 +11,7 @@ import 'package:polar_horizon/core/dem.dart';
 import 'package:polar_horizon/core/geo.dart';
 import 'package:polar_horizon/core/horizon_compute.dart';
 import 'package:polar_horizon/core/lander_view.dart';
+import 'package:polar_horizon/core/relief.dart' show hillshadeBlock;
 import 'package:polar_horizon/core/shadow.dart';
 
 const double px = 400;
@@ -105,7 +106,7 @@ void expectSameMesh(LanderMesh a, LanderMesh b) {
   Uint8List bytes(TypedData d) => d.buffer.asUint8List(d.offsetInBytes, d.lengthInBytes);
   for (final (x, y) in [
     (a.e, b.e), (a.n, b.n), (a.u, b.u), (a.alpha, b.alpha), (a.part, b.part), (a.src, b.src), (a.w, b.w),
-    (a.tri, b.tri), (a.skyline, b.skyline),
+    (a.tri, b.tri), (a.skyline, b.skyline), (a.relief!, b.relief!),
   ]) {
     expect(bytes(x), bytes(y));
   }
@@ -144,6 +145,206 @@ Float64List coarseFrom(PolarGrid grid, double latDeg, double lonDeg, double minM
   }
   return out;
 }
+
+/// The relief (D21) each vertex of [m] should have: Σ w · hillshade of its
+/// patch's block means (the patch windows of [LanderMeshWork]).
+Float64List expectedRelief(LanderMesh m, Int16List dem, int n, double lat, double lon) {
+  final (nr, nc) = gridPixelOf(n, px, lat, lon);
+  final nw = gridWindowAround(n, nr, nc, landerNearPx);
+  final (fr, fc) = gridPixelOf(n ~/ 2, 2 * px, lat, lon);
+  final fw = gridWindowAround(n ~/ 2, fr, fc, landerFarPx(2 * px));
+  final hsN = hillshadeBlock(blockMeanPatch(dem, n, px, 1, nw).h, nw.size, px);
+  final hsF = hillshadeBlock(blockMeanPatch(dem, n, px, 2, fw).h, fw.size, 2 * px);
+  final out = Float64List(m.vertexCount);
+  for (var v = 0; v < m.vertexCount; v++) {
+    final far = m.part[v] == 2, gs = m.gridOf(m.part[v]).$1, win = far ? fw : nw, hs = far ? hsF : hsN;
+    for (var q = 0; q < 4; q++) {
+      final k = m.src[4 * v + q];
+      out[v] += m.w[4 * v + q] * hs[(k ~/ gs - win.r0) * win.size + (k % gs - win.c0)];
+    }
+  }
+  return out;
+}
+
+/// The painter's id buffer (projectTriangles over visibleSectors, in draw
+/// order) against the nearest ray hit of every front triangle per pixel
+/// centre (Möller–Trumbore), on a [w] x [h] raster: pixels where both agree,
+/// pixels with a hit, triangles drawn, and of the other pixels those where
+/// the painter's triangle is as near as the nearest hit (within 1e-5 of the
+/// distance: two overlapping triangles of one surface, a tie) by part pair
+/// ('painted>nearest', e.g. '0>1') with the rest under 'order'.
+(int, int, int, Map<String, int>) painterVsRayCast(LanderMesh m, LanderView view, int w, int h) {
+  final out = LanderProjection();
+  final drawn = projectTriangles(view, m, visibleSectors(view), out);
+  // triangle id of each projected triangle
+  final idOf = <int, int>{};
+  int key(int a, int b, int c) {
+    final s = [a, b, c]..sort();
+    return (s[0] << 42) | (s[1] << 21) | s[2];
+  }
+
+  for (var t = 0; t < m.triangleCount; t++) {
+    idOf[key(m.tri[3 * t], m.tri[3 * t + 1], m.tri[3 * t + 2])] = t;
+  }
+  bool inside(double ax, double ay, double bx, double by, double cx, double cy, double x, double y) {
+    final d1 = (bx - ax) * (y - ay) - (by - ay) * (x - ax);
+    final d2 = (cx - bx) * (y - by) - (cy - by) * (x - bx);
+    final d3 = (ax - cx) * (y - cy) - (ay - cy) * (x - cx);
+    return !((d1 < 0 || d2 < 0 || d3 < 0) && (d1 > 0 || d2 > 0 || d3 > 0));
+  }
+
+  void raster(List<double> xy, void Function(int px, double x, double y) f) {
+    final x0 = math.max(0, [xy[0], xy[2], xy[4]].reduce(math.min).floor());
+    final x1 = math.min(w - 1, [xy[0], xy[2], xy[4]].reduce(math.max).ceil());
+    final y0 = math.max(0, [xy[1], xy[3], xy[5]].reduce(math.min).floor());
+    final y1 = math.min(h - 1, [xy[1], xy[3], xy[5]].reduce(math.max).ceil());
+    for (var y = y0; y <= y1; y++) {
+      for (var x = x0; x <= x1; x++) {
+        if (inside(xy[0], xy[1], xy[2], xy[3], xy[4], xy[5], x + 0.5, y + 0.5)) f(y * w + x, x + 0.5, y + 0.5);
+      }
+    }
+  }
+
+  final paint = Int32List(w * h)..fillRange(0, w * h, -1);
+  var vStart = 0, iStart = 0;
+  for (final b in out.batches) {
+    for (var i = iStart; i < b.indexEnd; i += 3) {
+      final l = [vStart + out.idx[i], vStart + out.idx[i + 1], vStart + out.idx[i + 2]];
+      final t = idOf[key(out.vert[l[0]], out.vert[l[1]], out.vert[l[2]])]!;
+      raster([
+        for (final q in l) ...[out.xy[2 * q], out.xy[2 * q + 1]],
+      ], (p, _, _) => paint[p] = t);
+    }
+    vStart = b.vertexEnd;
+    iStart = b.indexEnd;
+  }
+  // distance along the ray (de, dn, du) to triangle t's plane (Möller–Trumbore), null when parallel
+  double? along(int t, double de, double dn, double du) {
+    final p0 = m.tri[3 * t], p1 = m.tri[3 * t + 1], p2 = m.tri[3 * t + 2];
+    final e1 = [m.e[p1] - m.e[p0], m.n[p1] - m.n[p0], m.u[p1] - m.u[p0]];
+    final e2 = [m.e[p2] - m.e[p0], m.n[p2] - m.n[p0], m.u[p2] - m.u[p0]];
+    final pv = [dn * e2[2] - du * e2[1], du * e2[0] - de * e2[2], de * e2[1] - dn * e2[0]];
+    final det = e1[0] * pv[0] + e1[1] * pv[1] + e1[2] * pv[2];
+    if (det.abs() < 1e-12) return null;
+    final s = [-m.e[p0], -m.n[p0], -m.u[p0]];
+    final q = [s[1] * e1[2] - s[2] * e1[1], s[2] * e1[0] - s[0] * e1[2], s[0] * e1[1] - s[1] * e1[0]];
+    return (e2[0] * q[0] + e2[1] * q[1] + e2[2] * q[2]) / det;
+  }
+
+  (double, double, double) dirAt(double x, double y) {
+    final a = unprojectView(view, x, y);
+    return (
+      math.cos(a.el * deg) * math.sin(a.az * deg),
+      math.cos(a.el * deg) * math.cos(a.az * deg),
+      math.sin(a.el * deg),
+    );
+  }
+
+  // nearest ray hit per pixel centre (Möller–Trumbore), every front triangle
+  final ray = Int32List(w * h)..fillRange(0, w * h, -1);
+  final depth = Float64List(w * h)..fillRange(0, w * h, double.infinity);
+  for (var t = 0; t < m.triangleCount; t++) {
+    final vs = [m.tri[3 * t], m.tri[3 * t + 1], m.tri[3 * t + 2]];
+    final ps = [for (final v in vs) projectView(view, m.e[v], m.n[v], m.u[v])];
+    if (ps.any((p) => !p.front)) continue;
+    raster(
+      [
+        for (final p in ps) ...[p.x, p.y],
+      ],
+      (p, x, y) {
+        final (de, dn, du) = dirAt(x, y);
+        final dist = along(t, de, dn, du);
+        if (dist == null) return;
+        if (dist > 0 && dist < depth[p]) {
+          depth[p] = dist;
+          ray[p] = t;
+        }
+      },
+    );
+  }
+  var same = 0, hits = 0;
+  final other = <String, int>{};
+  for (var p = 0; p < w * h; p++) {
+    if (ray[p] >= 0) hits++;
+    if (paint[p] == ray[p]) {
+      same++;
+      continue;
+    }
+    var k = 'order';
+    if (paint[p] >= 0 && ray[p] >= 0) {
+      final (de, dn, du) = dirAt(p % w + 0.5, p ~/ w + 0.5);
+      final d = along(paint[p], de, dn, du);
+      if (d != null && (d - depth[p]).abs() <= 1e-5 * depth[p]) {
+        k = '${m.part[m.tri[3 * paint[p]]]}>${m.part[m.tri[3 * ray[p]]]}';
+      }
+    }
+    other[k] = (other[k] ?? 0) + 1;
+  }
+  return (same, hits, drawn, other);
+}
+
+/// Brute force: a vertex beyond the near field that is above every nearer
+/// terrain triangle (parts 1-2, dmax under its distance) at its azimuth is
+/// visible, and every triangle of [all] holding such a vertex is in [kept].
+void expectCullConservative(LanderMesh kept, LanderMesh all, int rndSeed, String why) {
+  // brute force: a vertex above every nearer triangle at its azimuth is visible
+  final keys = {for (var t = 0; t < kept.triangleCount; t++) triKey(kept, t)};
+  final bins = List.generate(360, (_) => <int>[]);
+  final wide = <int>[];
+  final dmax = Float64List(all.triangleCount);
+  for (var t = 0; t < all.triangleCount; t++) {
+    final vs = [all.tri[3 * t], all.tri[3 * t + 1], all.tri[3 * t + 2]];
+    if (all.part[vs[0]] == 0) continue;
+    dmax[t] = vs.map((v) => hyp(all, v)).reduce(math.max);
+    final a = vs.map((v) => azOf(all, v)).toList();
+    double w(double d) => (d + 540) % 360 - 180;
+    final db = w(a[1] - a[0]), dc = w(a[2] - a[0]);
+    final a0 = a[0] + math.min(0, math.min(db, dc)), a1 = a[0] + math.max(0, math.max(db, dc));
+    if (a1 - a0 > 90) {
+      wide.add(t);
+      continue;
+    }
+    for (var b = a0.floor(); b <= a1.floor(); b++) {
+      bins[b % 360].add(t);
+    }
+  }
+  final rnd = math.Random(rndSeed);
+  final sample = <int>{};
+  while (sample.length < 2000) {
+    final v = rnd.nextInt(all.vertexCount);
+    if (all.part[v] != 0 && hyp(all, v) > landerNearFieldM) sample.add(v);
+  }
+  final visible = <int>{};
+  for (final v in sample) {
+    final az = azOf(all, v), d = hyp(all, v), el = elOf(all, v);
+    final sa = math.sin(az * deg), ca = math.cos(az * deg);
+    var occ = -999.0;
+    for (final t in [...bins[az.floor() % 360], ...wide]) {
+      if (dmax[t] < d) occ = math.max(occ, crossEl(all, t, sa, ca));
+    }
+    if (el > occ) visible.add(v);
+  }
+  expect(visible, isNotEmpty);
+  var checked = 0;
+  for (var t = 0; t < all.triangleCount; t++) {
+    final vs = [all.tri[3 * t], all.tri[3 * t + 1], all.tri[3 * t + 2]];
+    if (!vs.any(visible.contains)) continue;
+    checked++;
+    expect(keys.contains(triKey(all, t)), isTrue, reason: '$why: triangle $t with a visible vertex was culled');
+  }
+  expect(checked, greaterThan(visible.length));
+}
+
+/// Kept vertices of the shipped-DEM raised meshes (D22), about 1.3x those measured (§8).
+final Map<(String, double), int> _raisedBound = {
+  // measured 2026-10-31 (vertices): SR1 67 772 / 117 944 / 300 353, Haworth 36 834 / 131 185 / 270 423
+  ('derosa2012-sr1-shackleton-rim', 200): 88000,
+  ('derosa2012-sr1-shackleton-rim', 1000): 153000,
+  ('derosa2012-sr1-shackleton-rim', 5000): 390000,
+  ('artemis3-haworth', 200): 48000,
+  ('artemis3-haworth', 1000): 171000,
+  ('artemis3-haworth', 5000): 352000,
+};
 
 void main() {
   test('blockMeanRow keeps ShadowGrid z bit-identical (ds 1, 2, 4)', () {
@@ -541,6 +742,52 @@ void main() {
       expect(top[0], lessThan(100000));
       expect(top[2], lessThan(16000));
     });
+
+    test('raised viewpoints (D22): kept size, memory, build time and no long unit (§8)', () {
+      int bytes(LanderMesh m) => [m.e, m.n, m.u, m.alpha, m.part, m.src, m.w, m.tri, m.skyline, m.relief!, ...m.sectors]
+          .fold(0, (a, d) => a + d.lengthInBytes);
+      for (final id in ['derosa2012-sr1-shackleton-rim', 'artemis3-haworth']) {
+        final m2 = meshes[id]!;
+        // ignore: avoid_print
+        print('§8 D22 $id 2 m: ${m2.vertexCount} vertices, ${m2.triangleCount} triangles, '
+            '${(bytes(m2) / 1e6).toStringAsFixed(1)} MB');
+        for (final hM in [200.0, 1000.0, 5000.0]) {
+          final w = LanderMeshWork(grid.heights, grid.size, grid.scaleM,
+              latDeg: spots[id]!.$1, lonDeg: spots[id]!.$2, observerHeightM: hM);
+          final us = <int>[];
+          final sw = Stopwatch(), total = Stopwatch()..start();
+          while (true) {
+            sw
+              ..reset()
+              ..start();
+            final done = w.step(1);
+            us.add(sw.elapsedMicroseconds);
+            if (done) break;
+          }
+          total.stop();
+          final m = w.mesh;
+          us.sort();
+          final top = us.reversed.take(3).toList();
+          // the 99.5th percentile: a few units may take a GC pause or lose the CPU to the other test
+          // files that `flutter test` runs alongside (a 5 km build is 6-9x the 2 m garbage)
+          final p995 = us[(us.length * 0.995).floor().clamp(0, us.length - 1)];
+          // ignore: avoid_print
+          print('§8 D22 $id ${hM.round()} m: ${m.vertexCount} vertices, ${m.triangleCount} triangles, '
+              '${(bytes(m) / 1e6).toStringAsFixed(1)} MB, built in ${total.elapsedMilliseconds} ms, '
+              '${us.length} units, p99.5 $p995 µs, longest $top µs');
+          expect(m.raisedEye, isTrue);
+          expect(m.alpha.every((a) => a == 1), isTrue, reason: 'no see-through from a raised eye');
+          expect(m.triangleCount, greaterThan(m2.triangleCount), reason: 'more ground is seen from higher');
+          expect(m.vertexCount, lessThanOrEqualTo(_raisedBound[(id, hM)]!), reason: '$id ${hM.round()} m');
+          // the slice rule of §8 (units of a few ms; 2x for the test VM) on all but the slowest 0.5 %
+          // of units, and no unit near the old 120-165 ms one-unit sorts. The units whose work grows
+          // with the kept mesh are split per array, chunk or sector, so none is long at 5 km by
+          // itself; measured alone, the longest is about 5 ms at every height (spec D22, Cost).
+          expect(top[0], lessThan(100000));
+          expect(p995, lessThan(16000));
+        }
+      }
+    });
   });
 
   test('mergeLanderSectors: the sectors\' ids ascending, each once, mark left zeroed', () {
@@ -713,52 +960,7 @@ void main() {
       expect(kept.skyline, meshSkyline(all), reason: 'seed $seed');
       expect(kept.triangleCount, lessThan(all.triangleCount));
       if (seed == 0) expect(all.part.contains(2), isTrue);
-      // brute force: a vertex above every nearer triangle at its azimuth is visible
-      final keys = {for (var t = 0; t < kept.triangleCount; t++) triKey(kept, t)};
-      final bins = List.generate(360, (_) => <int>[]);
-      final wide = <int>[];
-      final dmax = Float64List(all.triangleCount);
-      for (var t = 0; t < all.triangleCount; t++) {
-        final vs = [all.tri[3 * t], all.tri[3 * t + 1], all.tri[3 * t + 2]];
-        if (all.part[vs[0]] == 0) continue;
-        dmax[t] = vs.map((v) => hyp(all, v)).reduce(math.max);
-        final a = vs.map((v) => azOf(all, v)).toList();
-        double w(double d) => (d + 540) % 360 - 180;
-        final db = w(a[1] - a[0]), dc = w(a[2] - a[0]);
-        final a0 = a[0] + math.min(0, math.min(db, dc)), a1 = a[0] + math.max(0, math.max(db, dc));
-        if (a1 - a0 > 90) {
-          wide.add(t);
-          continue;
-        }
-        for (var b = a0.floor(); b <= a1.floor(); b++) {
-          bins[b % 360].add(t);
-        }
-      }
-      final rnd = math.Random(100 + seed);
-      final sample = <int>{};
-      while (sample.length < 2000) {
-        final v = rnd.nextInt(all.vertexCount);
-        if (all.part[v] != 0 && hyp(all, v) > landerNearFieldM) sample.add(v);
-      }
-      final visible = <int>{};
-      for (final v in sample) {
-        final az = azOf(all, v), d = hyp(all, v), el = elOf(all, v);
-        final sa = math.sin(az * deg), ca = math.cos(az * deg);
-        var occ = -999.0;
-        for (final t in [...bins[az.floor() % 360], ...wide]) {
-          if (dmax[t] < d) occ = math.max(occ, crossEl(all, t, sa, ca));
-        }
-        if (el > occ) visible.add(v);
-      }
-      expect(visible, isNotEmpty);
-      var checked = 0;
-      for (var t = 0; t < all.triangleCount; t++) {
-        final vs = [all.tri[3 * t], all.tri[3 * t + 1], all.tri[3 * t + 2]];
-        if (!vs.any(visible.contains)) continue;
-        checked++;
-        expect(keys.contains(triKey(all, t)), isTrue, reason: 'seed $seed: triangle $t with a visible vertex was culled');
-      }
-      expect(checked, greaterThan(visible.length));
+      expectCullConservative(kept, all, 100 + seed, 'seed $seed');
     }
   });
 
@@ -766,80 +968,8 @@ void main() {
     const n = 200, w = 200, h = 100;
     final m = buildLanderMesh(smoothDem(n, 42), n, px, latDeg: -89.5, lonDeg: 30, observerHeightM: 2);
     const view = LanderView(yawDeg: 40, pitchDeg: -4, hfovDeg: 70, w: w + 0.0, h: h + 0.0);
-    final out = LanderProjection();
-    final drawn = projectTriangles(view, m, visibleSectors(view), out);
+    final (same, hits, drawn, _) = painterVsRayCast(m, view, w, h);
     expect(drawn, greaterThan(500));
-    // triangle id of each projected triangle
-    final idOf = <int, int>{};
-    int key(int a, int b, int c) {
-      final s = [a, b, c]..sort();
-      return (s[0] << 42) | (s[1] << 21) | s[2];
-    }
-
-    for (var t = 0; t < m.triangleCount; t++) {
-      idOf[key(m.tri[3 * t], m.tri[3 * t + 1], m.tri[3 * t + 2])] = t;
-    }
-    bool inside(double ax, double ay, double bx, double by, double cx, double cy, double x, double y) {
-      final d1 = (bx - ax) * (y - ay) - (by - ay) * (x - ax);
-      final d2 = (cx - bx) * (y - by) - (cy - by) * (x - bx);
-      final d3 = (ax - cx) * (y - cy) - (ay - cy) * (x - cx);
-      return !((d1 < 0 || d2 < 0 || d3 < 0) && (d1 > 0 || d2 > 0 || d3 > 0));
-    }
-
-    void raster(List<double> xy, void Function(int px, double x, double y) f) {
-      final x0 = math.max(0, [xy[0], xy[2], xy[4]].reduce(math.min).floor());
-      final x1 = math.min(w - 1, [xy[0], xy[2], xy[4]].reduce(math.max).ceil());
-      final y0 = math.max(0, [xy[1], xy[3], xy[5]].reduce(math.min).floor());
-      final y1 = math.min(h - 1, [xy[1], xy[3], xy[5]].reduce(math.max).ceil());
-      for (var y = y0; y <= y1; y++) {
-        for (var x = x0; x <= x1; x++) {
-          if (inside(xy[0], xy[1], xy[2], xy[3], xy[4], xy[5], x + 0.5, y + 0.5)) f(y * w + x, x + 0.5, y + 0.5);
-        }
-      }
-    }
-
-    final paint = Int32List(w * h)..fillRange(0, w * h, -1);
-    var vStart = 0, iStart = 0;
-    for (final b in out.batches) {
-      for (var i = iStart; i < b.indexEnd; i += 3) {
-        final l = [vStart + out.idx[i], vStart + out.idx[i + 1], vStart + out.idx[i + 2]];
-        final t = idOf[key(out.vert[l[0]], out.vert[l[1]], out.vert[l[2]])]!;
-        raster([for (final q in l) ...[out.xy[2 * q], out.xy[2 * q + 1]]], (p, _, _) => paint[p] = t);
-      }
-      vStart = b.vertexEnd;
-      iStart = b.indexEnd;
-    }
-    // nearest ray hit per pixel centre (Möller–Trumbore), every front triangle
-    final ray = Int32List(w * h)..fillRange(0, w * h, -1);
-    final depth = Float64List(w * h)..fillRange(0, w * h, double.infinity);
-    for (var t = 0; t < m.triangleCount; t++) {
-      final vs = [m.tri[3 * t], m.tri[3 * t + 1], m.tri[3 * t + 2]];
-      final ps = [for (final v in vs) projectView(view, m.e[v], m.n[v], m.u[v])];
-      if (ps.any((p) => !p.front)) continue;
-      raster([for (final p in ps) ...[p.x, p.y]], (p, x, y) {
-        final a = unprojectView(view, x, y);
-        final de = math.cos(a.el * deg) * math.sin(a.az * deg), dn = math.cos(a.el * deg) * math.cos(a.az * deg);
-        final du = math.sin(a.el * deg);
-        final p0 = vs[0], p1 = vs[1], p2 = vs[2];
-        final e1 = [m.e[p1] - m.e[p0], m.n[p1] - m.n[p0], m.u[p1] - m.u[p0]];
-        final e2 = [m.e[p2] - m.e[p0], m.n[p2] - m.n[p0], m.u[p2] - m.u[p0]];
-        final pv = [dn * e2[2] - du * e2[1], du * e2[0] - de * e2[2], de * e2[1] - dn * e2[0]];
-        final det = e1[0] * pv[0] + e1[1] * pv[1] + e1[2] * pv[2];
-        if (det.abs() < 1e-12) return;
-        final s = [-m.e[p0], -m.n[p0], -m.u[p0]];
-        final q = [s[1] * e1[2] - s[2] * e1[1], s[2] * e1[0] - s[0] * e1[2], s[0] * e1[1] - s[1] * e1[0]];
-        final dist = (e2[0] * q[0] + e2[1] * q[1] + e2[2] * q[2]) / det;
-        if (dist > 0 && dist < depth[p]) {
-          depth[p] = dist;
-          ray[p] = t;
-        }
-      });
-    }
-    var same = 0, hits = 0;
-    for (var p = 0; p < w * h; p++) {
-      if (paint[p] == ray[p]) same++;
-      if (ray[p] >= 0) hits++;
-    }
     expect(hits, greaterThan(w * h ~/ 3));
     // ignore: avoid_print
     print('T9: painter = ray cast for ${(100 * same / (w * h)).toStringAsFixed(2)} % of pixels');
@@ -860,6 +990,326 @@ void main() {
       expect(calls, greaterThan(rows == 1000 ? 0 : 100));
       expectSameMesh(w.mesh, one);
     }
+  });
+
+  group('raised viewpoint (D22): only the drawing eye moves', () {
+    const lat = -89.4, lon = -120.0;
+    // 2-D distance from the eye's axis to triangle t in the (e, n) plane (0 when it surrounds the axis)
+    double dminOf(LanderMesh m, int t) {
+      final v = [for (var q = 0; q < 3; q++) (m.e[m.tri[3 * t + q]].toDouble(), m.n[m.tri[3 * t + q]].toDouble())];
+      double seg((double, double) a, (double, double) b) {
+        final dx = b.$1 - a.$1, dy = b.$2 - a.$2, l = dx * dx + dy * dy;
+        final s = l == 0 ? 0.0 : (-(a.$1 * dx + a.$2 * dy) / l).clamp(0.0, 1.0);
+        return math.sqrt(math.pow(a.$1 + s * dx, 2) + math.pow(a.$2 + s * dy, 2));
+      }
+
+      final c = [for (var k = 0; k < 3; k++) v[k].$1 * v[(k + 1) % 3].$2 - v[k].$2 * v[(k + 1) % 3].$1];
+      if (c.every((x) => x >= 0) || c.every((x) => x <= 0)) return 0;
+      return math.min(seg(v[0], v[1]), math.min(seg(v[1], v[2]), seg(v[2], v[0])));
+    }
+
+    double dmaxOf(LanderMesh m, int t) => [for (var q = 0; q < 3; q++) hyp(m, m.tri[3 * t + q])].reduce(math.max);
+
+    test('raised eye moves only the eye: same ground, sources, relief and demEnds', () {
+      const n = 200;
+      final dem = smoothDem(n, 7);
+      final a = buildLanderMesh(dem, n, px, latDeg: lat, lonDeg: lon, observerHeightM: 2, cull: false);
+      final b = buildLanderMesh(dem, n, px, latDeg: lat, lonDeg: lon, observerHeightM: 1000, cull: false);
+      expect(b.cam.groundM, a.cam.groundM);
+      expect((a.cam.eyeHeightM, b.cam.eyeHeightM), (2.0, 1000.0));
+      expect((a.raisedEye, b.raisedEye), (false, true));
+      final d = b.cam.eyeM - a.cam.eyeM;
+      expect(d.dot(a.cam.enu.up), closeTo(998, 1e-6));
+      expect(d.norm, closeTo(998, 1e-6));
+      // the grid vertices (parts 1 and 2) by their sources: e and n bit-identical, u 998 m lower, the
+      // same weights and relief. (Near the eye the sets differ: at 2 m the lattice replaces the cells
+      // within 800 m, from 1 km the cells near the foot are drawn split, part 0.)
+      String key(LanderMesh m, int v) => '${m.part[v]}:${m.src.sublist(4 * v, 4 * v + 4).join(',')}';
+      Map<String, int> grid(LanderMesh m) => {
+            for (var v = 0; v < m.vertexCount; v++)
+              if (m.part[v] != 0) key(m, v): v,
+          };
+      final ga = grid(a), gb = grid(b);
+      var common = 0, de = 0.0, du = 0.0;
+      for (final MapEntry(key: k, value: va) in ga.entries) {
+        final vb = gb[k];
+        if (vb == null) {
+          expect(hyp(a, va), lessThan(2000), reason: 'only near grid vertices may be missing from 1 km');
+          continue;
+        }
+        common++;
+        de = math.max(de, math.max((b.e[vb] - a.e[va]).abs(), (b.n[vb] - a.n[va]).abs()));
+        du = math.max(du, (b.u[vb] - a.u[va] + 998).abs());
+        expect(b.w.sublist(4 * vb, 4 * vb + 4), a.w.sublist(4 * va, 4 * va + 4));
+        expect(b.relief![vb], a.relief![va]);
+      }
+      for (final MapEntry(key: k, value: vb) in gb.entries) {
+        if (!ga.containsKey(k)) expect(hyp(b, vb), lessThan(2000), reason: 'only near grid vertices are new at 1 km');
+      }
+      expect(common, greaterThan(ga.length * 0.95));
+      expect(de, lessThan(1e-6), reason: 'e and n are horizontal: the eye moves along up');
+      expect(du, lessThan(0.01));
+      // the same grid triangles beyond 2 km (only their draw order, 3-D distances from the eye, may differ)
+      Set<String> far(LanderMesh m) => {
+            for (var t = 0; t < m.triangleCount; t++)
+              if ([for (var q = 0; q < 3; q++) m.tri[3 * t + q]].every((v) => m.part[v] != 0 && hyp(m, v) > 2000))
+                ([for (var q = 0; q < 3; q++) key(m, m.tri[3 * t + q])]..sort()).join(' '),
+          };
+      final ta = far(a), tb = far(b);
+      expect(ta.length, greaterThan(10000));
+      expect(tb.length, ta.length);
+      expect(tb.containsAll(ta), isTrue); // (not expect(set, set): the matcher compares sets in O(n²))
+      // from 1 km: no lattice; part 0 is the split cells near the foot, each vertex on its cell's fan
+      // (4 sources, a 2 x 2 pixel block, weights summing to 1)
+      final split = [for (var v = 0; v < b.vertexCount; v++) if (b.part[v] == 0) v];
+      expect(split, isNotEmpty);
+      for (final v in split) {
+        final s = b.src.sublist(4 * v, 4 * v + 4);
+        expect([s[1] - s[0], s[2] - s[0], s[3] - s[0]], [1, n, n + 1]);
+        expect(b.w.sublist(4 * v, 4 * v + 4).fold(0.0, (x, y) => x + y), closeTo(1, 1e-6));
+        expect(hyp(b, v), lessThan(2000));
+      }
+      expect(b.gridVerticesBeforeCull - a.gridVerticesBeforeCull, split.length);
+      expect(b.demEnds, a.demEnds);
+    });
+
+    test('flat sphere from 200 m and 1 km: culled beyond the geometric horizon', () {
+      const n = 360, la = -89.5, lo = 30.0;
+      final dem = Int16List(n * n);
+      for (final hM in [200.0, 1000.0]) {
+        final m = buildLanderMesh(dem, n, px, latDeg: la, lonDeg: lo, observerHeightM: hM);
+        final all = buildLanderMesh(dem, n, px, latDeg: la, lonDeg: lo, observerHeightM: hM, cull: false);
+        final dHor = math.sqrt(2 * rM * hM);
+        var nearKept = 0, nearAll = 0, beyond = 0, farthest = 0.0;
+        for (var t = 0; t < m.triangleCount; t++) {
+          if (m.part[m.tri[3 * t]] == 0) continue;
+          // see the 2 m test: hiding is proved from about √2 cells beyond the horizon (from 1 km
+          // the ground x m beyond it lies H·x²/dHor³ below the horizon ray: 1.6e-6 rad at 566 m)
+          final dm = dminOf(m, t);
+          farthest = math.max(farthest, dm);
+          if (dm > dHor + math.sqrt2 * px) beyond++;
+          if (dmaxOf(m, t) < dHor - px) nearKept++;
+        }
+        for (var t = 0; t < all.triangleCount; t++) {
+          if (all.part[all.tri[3 * t]] != 0 && dmaxOf(all, t) < dHor - px) nearAll++;
+        }
+        // ignore: avoid_print
+        print('D22 flat sphere H $hM m: horizon ${dHor.round()} m, farthest kept dmin ${farthest.round()} m, '
+            'kept ${m.triangleCount} of ${all.triangleCount}, $beyond beyond dHor + √2 px');
+        // A few stay beyond that, in narrow wedges: a 0.05° occluder bin straddling a triangle edge that
+        // runs radially from the eye (here the grid's diagonals through the eye, az 15° and 195°) is never
+        // wholly inside one occluder's span, so ground there is hidden only once staggered edges cover it
+        // (conservative, never wrong; at 2 m the horizon is too close for this to show).
+        expect(beyond, lessThan(m.triangleCount ~/ 100), reason: 'H $hM');
+        expect(farthest, lessThan(1.5 * dHor), reason: 'H $hM');
+        expect(nearAll, greaterThan(100));
+        expect(nearKept, nearAll, reason: 'H $hM');
+        if (hM == 200) expect(m.triangleCount, lessThan(all.triangleCount ~/ 3));
+      }
+    });
+
+    test('culling is conservative from raised eyes; the skyline is that of all drawn ground', () {
+      for (final hM in [200.0, 1000.0, 5000.0]) {
+        for (var seed = 0; seed < 2; seed++) {
+          const n = 200;
+          final dem = smoothDem(n, seed);
+          final kept = buildLanderMesh(dem, n, px, latDeg: -89.5, lonDeg: 30, observerHeightM: hM);
+          final all = buildLanderMesh(dem, n, px, latDeg: -89.5, lonDeg: 30, observerHeightM: hM, cull: false);
+          final why = 'H $hM seed $seed';
+          expect(meshSkyline(kept, minDistM: 0), meshSkyline(all, minDistM: 0), reason: why);
+          expect(kept.skyline, meshSkyline(all, minDistM: 0, parts: {0, 1, 2}), reason: why);
+          expect(kept.triangleCount, lessThanOrEqualTo(all.triangleCount));
+          expectCullConservative(kept, all, 200 + seed, why);
+        }
+      }
+    });
+
+    test('near ground is solid from raised eyes; the D7 see-through stays at 2 m and 10 m', () {
+      const n = 200;
+      final (r, _) = gridPixelOf(n, px, lat, lon);
+      // a 100 m ridge one row (400 m) from the site: near ground above the far skyline from 2 and 10 m
+      final dem = ridgeDem(n, [r.round() + 1], 100);
+      for (final hM in [2.0, 10.0, 200.0, 1000.0, 5000.0]) {
+        final m = buildLanderMesh(dem, n, px, latDeg: lat, lonDeg: lon, observerHeightM: hM);
+        final seeThrough = m.alpha.where((a) => a != 1).length;
+        if (hM < landerRaisedEyeMinM) {
+          expect(m.raisedEye, isFalse);
+          expect(seeThrough, greaterThan(0), reason: 'H $hM');
+        } else {
+          expect(m.raisedEye, isTrue);
+          expect(seeThrough, 0, reason: 'H $hM');
+          expect(m.skyline, meshSkyline(m, minDistM: 0, parts: {0, 1, 2}), reason: 'H $hM');
+        }
+      }
+    });
+
+    test('painter order vs ray-cast id buffer from above', () {
+      const n = 200, w = 200, h = 100;
+      final dem = smoothDem(n, 42);
+      for (final hM in [200.0, 1000.0, 5000.0]) {
+        final m = buildLanderMesh(dem, n, px, latDeg: -89.5, lonDeg: 30, observerHeightM: hM);
+        for (final pitch in [-15.0, -25.0]) {
+          final view = LanderView(yawDeg: 40, pitchDeg: pitch, hfovDeg: 70, w: w + 0.0, h: h + 0.0);
+          final (same, hits, drawn, other) = painterVsRayCast(m, view, w, h);
+          // ignore: avoid_print
+          print('T9 D22 H $hM pitch $pitch: painter = ray cast for ${(100 * same / (w * h)).toStringAsFixed(2)} % '
+              'of pixels ($drawn triangles drawn); other pixels: $other');
+          expect(drawn, greaterThan(500));
+          expect(hits, greaterThan(w * h ~/ 3));
+          expect(same / (w * h), greaterThanOrEqualTo(0.995), reason: 'H $hM pitch $pitch');
+        }
+      }
+    });
+
+    test('no on-screen triangle lost to the near-plane guard from raised eyes (D9)', () {
+      const n = 200;
+      final dem = smoothDem(n, 3);
+      for (final hM in [200.0, 5000.0]) {
+        final m = buildLanderMesh(dem, n, px, latDeg: lat, lonDeg: lon, observerHeightM: hM);
+        final xs = Float64List(m.vertexCount), ys = Float64List(m.vertexCount);
+        final front = Uint8List(m.vertexCount);
+        var checked = 0, lost = 0;
+        String? first;
+        for (final yaw in [0.0, 137.0]) {
+          for (final pitch in [-30.0, landerDefaultPitchDeg(LanderViewpoint.km5, hfovDeg: 45, aspect: 0.6), 0.0, 30.0]) {
+            for (final hfov in [45.0, 90.0]) {
+              for (final aspect in [0.6, 1.6]) {
+                final v = LanderView(yawDeg: yaw, pitchDeg: pitch, hfovDeg: hfov, w: 400, h: 400 * aspect);
+                for (var i = 0; i < m.vertexCount; i++) {
+                  final p = projectView(v, m.e[i], m.n[i], m.u[i]);
+                  xs[i] = p.x;
+                  ys[i] = p.y;
+                  front[i] = p.front ? 1 : 0;
+                }
+                bool on(int i) => front[i] == 1 && xs[i] >= 0 && xs[i] <= v.w && ys[i] >= 0 && ys[i] <= v.h;
+                for (var t = 0; t < m.triangleCount; t++) {
+                  final a = m.tri[3 * t], b = m.tri[3 * t + 1], c = m.tri[3 * t + 2];
+                  if (!on(a) && !on(b) && !on(c)) continue;
+                  checked++;
+                  if (front[a] + front[b] + front[c] < 3) {
+                    lost++;
+                    first ??= 'H $hM yaw $yaw pitch $pitch hfov $hfov aspect $aspect: triangle $t';
+                  }
+                }
+              }
+            }
+          }
+        }
+        expect(lost, 0, reason: first);
+        expect(checked, greaterThan(10000));
+      }
+    });
+
+    test('every on-screen triangle is in a visible sector from raised eyes', () {
+      // sectors by azimuth span (§3.7): the cells near the eye's foot span tens of degrees and show at a
+      // steep frame's lower corners; the centroid's sector alone left slivers there
+      const n = 200;
+      for (final hM in [200.0, 1000.0]) {
+        final m = buildLanderMesh(smoothDem(n, 3), n, px, latDeg: lat, lonDeg: lon, observerHeightM: hM);
+        final secOf = List.generate(m.triangleCount, (_) => <int>[]);
+        for (var s = 0; s < landerSectorCount; s++) {
+          for (final t in m.sectors[s]) {
+            secOf[t].add(s);
+          }
+        }
+        var on = 0, missed = 0;
+        String? first;
+        for (final yaw in [0.0, 137.0]) {
+          for (final pitch in [-30.0, -8.0]) {
+            for (final (hfov, aspect) in [(90.0, 1.6), (70.0, 0.6)]) {
+              final v = LanderView(yawDeg: yaw, pitchDeg: pitch, hfovDeg: hfov, w: 400, h: 400 * aspect);
+              final vis = visibleSectors(v).toSet();
+              for (var t = 0; t < m.triangleCount; t++) {
+                final ps = [
+                  for (var q = 0; q < 3; q++) projectView(v, m.e[m.tri[3 * t + q]], m.n[m.tri[3 * t + q]], m.u[m.tri[3 * t + q]]),
+                ];
+                if (!ps.every((p) => p.front) || !ps.any((p) => p.x >= 0 && p.x <= v.w && p.y >= 0 && p.y <= v.h)) continue;
+                on++;
+                if (!secOf[t].any(vis.contains)) {
+                  missed++;
+                  first ??= 'H $hM yaw $yaw pitch $pitch hfov $hfov: triangle $t';
+                }
+              }
+            }
+          }
+        }
+        expect(on, greaterThan(10000));
+        expect(missed, 0, reason: first);
+      }
+    });
+
+    test('landerViewpoint heights and default pitch', () {
+      expect([for (final v in LanderViewpoint.values) v.eyeHeightM(2)], [2.0, 200.0, 1000.0, 5000.0]);
+      expect([for (final v in LanderViewpoint.values) v.eyeHeightM(10)], [10.0, 200.0, 1000.0, 5000.0]);
+      expect([for (final v in LanderViewpoint.values) v.raised], [false, true, true, true]);
+      expect([for (final v in LanderViewpoint.values) v.targetPitchDeg], [0.0, -8.0, -15.0, -25.0]);
+      expect(10 < landerRaisedEyeMinM && landerRaisedEyeMinM <= 200, isTrue);
+      expect(landerHorizonDipDeg(200), closeTo(0.87, 0.01));
+      expect(landerHorizonDipDeg(1000), closeTo(1.94, 0.01));
+      expect(landerHorizonDipDeg(5000), closeTo(4.35, 0.01));
+      // the panel keeps the Sun's and Earth's band under its 48 dp compass strip and a glyph: 64 px
+      // (LanderPainter.bodyClearPx)
+      const clear = 64.0;
+      // (hfov, w, h) -> defaults at 200 m, 1 km, 5 km (§7.3, D22)
+      final table = <(double, double, double), List<double>>{
+        (45, 360, 223): [-4.24, -4.24, -4.24], // phone, inline: the strip is a fifth of the view
+        (45, 360, 560): [-8, -15, -24.43], // phone, full screen portrait
+        (60, 900, 560): [-8, -13.49, -13.49], // desktop
+        (45, 780, 281): [-2.65, -2.65, -2.65], // phone landscape strip
+        (10, 360, 223): [0.68, 0.38, -2.02], // zoomed in: too narrow for both, the horizon wins at 1 and 5 km
+        (10, 360, 560): [-3.99, -3.99, -3.99], // zoomed in, full screen
+      };
+      for (final e in table.entries) {
+        final (hfov, w, h) = e.key;
+        expect(landerDefaultPitchDeg(LanderViewpoint.lander, hfovDeg: hfov, aspect: h / w, topClearFrac: clear / h), 0);
+        final got = [
+          for (final v in LanderViewpoint.values.skip(1))
+            landerDefaultPitchDeg(v, hfovDeg: hfov, aspect: h / w, topClearFrac: clear / h),
+        ];
+        for (var i = 0; i < 3; i++) {
+          expect(got[i], closeTo(e.value[i], 0.01), reason: '${e.key} ${LanderViewpoint.values[i + 1]}');
+        }
+      }
+      for (final hfov in [10.0, 45.0, 60.0, 90.0]) {
+        for (final aspect in [0.2, 0.41, 0.62, 1.0, 1.6, 2.5]) {
+          for (final hPx in [223.0, 560.0]) {
+            for (final v in LanderViewpoint.values) {
+              final p = landerDefaultPitchDeg(v, hfovDeg: hfov, aspect: aspect, topClearFrac: clear / hPx);
+              expect(p.abs(), lessThanOrEqualTo(landerPitchMax));
+              if (!v.raised) {
+                expect(p, 0);
+                continue;
+              }
+              expect(p, greaterThanOrEqualTo(v.targetPitchDeg));
+              final view = LanderView(yawDeg: 0, pitchDeg: p, hfovDeg: hfov, w: hPx / aspect, h: hPx);
+              final why = '$v hfov $hfov aspect $aspect h $hPx';
+              final top = unprojectView(view, view.w / 2, 0).el, bottom = unprojectView(view, view.w / 2, hPx).el;
+              final band = unprojectView(view, view.w / 2, clear).el;
+              // ceiling: the eye's geometric horizon in view, at least min(1°, vfov/8) over the bottom edge
+              final dip = landerHorizonDipDeg(v.eyeHeightM(2)), margin = math.min(1.0, (top - bottom) / 8);
+              expect(bottom, lessThanOrEqualTo(-dip - margin + 1e-6), reason: why);
+              // floor, unless the ceiling wins (a narrow view): the 0° line 3° under the top, the Sun's and
+              // Earth's band under the top 64 px
+              if ((bottom + dip + margin).abs() > 1e-6) {
+                expect(top, greaterThanOrEqualTo(3 - 1e-6), reason: why);
+                expect(band, greaterThanOrEqualTo(landerBodyBandDeg - 1e-6), reason: why);
+              }
+            }
+          }
+        }
+      }
+    });
+
+    test('sliced build equals one-shot at 1 km', () {
+      const n = 200;
+      final dem = smoothDem(n, 7);
+      final one = buildLanderMesh(dem, n, px, latDeg: lat, lonDeg: lon, observerHeightM: 1000);
+      for (final rows in [1, 1000]) {
+        final w = LanderMeshWork(dem, n, px, latDeg: lat, lonDeg: lon, observerHeightM: 1000);
+        while (!w.step(rows)) {}
+        expectSameMesh(w.mesh, one);
+      }
+    });
   });
 
   test('describeLanderView texts', () {
@@ -902,12 +1352,109 @@ void main() {
         'Ground at the centre, 12 kilometres away: sunlit (eclipse).');
     // a custom spot, the centre on the sky (no centre sentence), a near-zero elevation
     expect(
-        describeLanderView(
-            facing: 'west',
-            yawDeg: 270,
-            sun: (az: 268.9, el: -0.04, state: 'partly hidden'),
-            earth: (az: 10.5, el: 1.0, state: 'behind terrain')),
-        "Lander's view, facing west, azimuth 270 degrees. Sun 0.0 degrees up, azimuth 269 degrees, partly hidden. "
-        'Earth 1.0 degrees up, azimuth 11 degrees, behind terrain.');
+      describeLanderView(
+        facing: 'west',
+        yawDeg: 270,
+        sun: (az: 268.9, el: -0.04, state: 'partly hidden'),
+        earth: (az: 10.5, el: 1.0, state: 'behind terrain'),
+      ),
+      "Lander's view, facing west, azimuth 270 degrees. Sun 0.0 degrees up, azimuth 269 degrees, partly hidden. "
+      'Earth 1.0 degrees up, azimuth 11 degrees, behind terrain.',
+    );
+  });
+
+  group('relief shading (D21): hillshade of the mesh\'s own heights, once per mesh', () {
+    final flat = math.sin(35 * math.pi / 180);
+
+    test(
+      'L1 an E-W ridge: the flank facing the drawing light is brighter, the other darker; flat ground is sin 35°',
+      () {
+        const n = 200, lat = -89.4, lon = -120.0, ridge = 60;
+        final m = buildLanderMesh(
+          ridgeDem(n, [ridge], 500),
+          n,
+          px,
+          latDeg: lat,
+          lonDeg: lon,
+          observerHeightM: 2,
+          cull: false,
+        );
+        final rl = m.relief!;
+        expect(rl.length, m.vertexCount);
+        var lit = 0, dark = 0, flatN = 0, lattice = 0;
+        for (var v = 0; v < m.vertexCount; v++) {
+          if (m.part[v] == 0) {
+            // the near field is 25 km from the ridge: flat
+            expect(rl[v], closeTo(flat, 1e-6), reason: 'lattice $v');
+            lattice++;
+            continue;
+          }
+          if (m.w[4 * v] != 1) continue;
+          final (gs, _) = m.gridOf(m.part[v]);
+          final row = m.src[4 * v] ~/ gs, col = m.src[4 * v] % gs, rr = m.part[v] == 2 ? ridge ~/ 2 : ridge;
+          if (row == rr - 1) {
+            // the ground north of the ridge (map up) rises toward it, facing the upper-left light
+            expect(rl[v], greaterThan(flat + 0.1), reason: 'part ${m.part[v]} row $row');
+            lit++;
+          } else if (row == rr + 1) {
+            expect(rl[v], lessThan(flat - 0.1), reason: 'part ${m.part[v]} row $row');
+            dark++;
+          } else if ((row - rr).abs() > 2 && row > 0 && row < gs - 1 && col > 0 && col < gs - 1) {
+            expect(rl[v], closeTo(flat, 1e-6), reason: 'part ${m.part[v]} row $row');
+            flatN++;
+          }
+        }
+        expect(lattice, 1 + landerNearRingsM.length * landerNearSpokes);
+        expect(lit, greaterThan(100));
+        expect(dark, greaterThan(100));
+        expect(flatN, greaterThan(1000));
+      },
+    );
+
+    // two sites' meshes over the same terrain, kept whole (no culling: every patch pixel is a vertex)
+    const n = 460;
+    final dem = smoothDem(n, 42);
+    late LanderMesh a, b;
+    setUpAll(() {
+      a = buildLanderMesh(dem, n, px, latDeg: -89.0, lonDeg: 0, observerHeightM: 2, cull: false);
+      b = buildLanderMesh(dem, n, px, latDeg: -89.0, lonDeg: 90, observerHeightM: 10, cull: false);
+    });
+
+    test('L2 every vertex (all three parts, culled or not) is Σ w · hillshade of its source pixels', () {
+      final culled = buildLanderMesh(smoothDem(200, 7), 200, px, latDeg: -89.4, lonDeg: -120, observerHeightM: 2);
+      for (final (m, d, nn, lat, lon) in [(a, dem, n, -89.0, 0.0), (culled, smoothDem(200, 7), 200, -89.4, -120.0)]) {
+        final want = expectedRelief(m, d, nn, lat, lon), rl = m.relief!;
+        final seen = <int>{};
+        var spread = 0.0;
+        for (var v = 0; v < m.vertexCount; v++) {
+          expect(rl[v], closeTo(want[v], 1e-6), reason: 'vertex $v part ${m.part[v]}');
+          seen.add(m.part[v]);
+          spread = math.max(spread, (rl[v] - flat).abs());
+        }
+        expect(seen, containsAll([0, 1, if (nn == n) 2]));
+        expect(spread, greaterThan(0.05), reason: 'the smooth terrain has slopes');
+      }
+    });
+
+    test('L3 view independent: the same pixel has the same relief in two sites\' meshes', () {
+      final (ar, ac) = gridPixelOf(n, px, -89.0, 0);
+      final (br, bc) = gridPixelOf(n, px, -89.0, 90);
+      final wa = gridWindowAround(n, ar, ac, landerNearPx), wb = gridWindowAround(n, br, bc, landerNearPx);
+      expect(wa == wb, isFalse, reason: 'two different patches');
+      bool inner(GridWindow w, int r, int c) => r > w.r0 && r < w.r0 + w.size - 1 && c > w.c0 && c < w.c0 + w.size - 1;
+      Map<int, double> pixels(LanderMesh m) => {
+        for (var v = 0; v < m.vertexCount; v++)
+          if (m.part[v] == 1 && m.w[4 * v] == 1) m.src[4 * v]: m.relief![v],
+      };
+      final pa = pixels(a), pb = pixels(b);
+      var same = 0;
+      for (final e in pa.entries) {
+        final r = e.key ~/ n, c = e.key % n, o = pb[e.key];
+        if (o == null || !inner(wa, r, c) || !inner(wb, r, c)) continue;
+        expect(o, e.value, reason: 'pixel ($r, $c)');
+        same++;
+      }
+      expect(same, greaterThan(1000));
+    });
   });
 }

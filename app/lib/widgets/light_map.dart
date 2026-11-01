@@ -25,8 +25,8 @@ import 'package:flutter/material.dart';
 import '../core/catalog.dart';
 import '../core/dem.dart';
 import '../core/eclipse.dart';
-import '../core/lander_view.dart' show LanderMesh, landerNearAlpha;
-import '../state/lander_light.dart' show landerAlbedo, landerNotComputedArgb;
+import '../core/lander_view.dart' show LanderMesh, LanderViewpointHeight, landerNearAlpha;
+import '../state/lander_light.dart' show landerAlbedo, landerNotComputedArgb, landerReliefMax, landerReliefMin;
 import '../core/relief.dart';
 import '../core/shadow.dart';
 import '../core/visibility.dart' show EarthCriterion, SunCriterion, earthVisible;
@@ -875,7 +875,9 @@ class _LightMapState extends State<LightMap> {
         onMap: onMap,
         approx: coarseShown,
         eclipse: eclipse?.sentence,
-        lander: kind == LightViewKind.lander);
+        lander: kind == LightViewKind.lander,
+        relief: s.landerRelief,
+        landerStatusAt: s.landerViewpoint.raised ? landerHeightText(s.observerHeightM) : null);
     final status = _StatusLine(
         site: s.site,
         now: now,
@@ -1485,9 +1487,19 @@ class LightLegend extends StatelessWidget {
   /// A lunar eclipse at the frame's moment ([lightEclipseNote]'s sentence).
   final String? eclipse;
 
-  /// The lander's view: three more keys (light not computed, the
-  /// see-through near ground and the dashed horizon, §4.4).
+  /// The lander's view: four more keys (light not computed, the
+  /// see-through near ground, the dashed horizon, §4.4, and the relief
+  /// shading, D21).
   final bool lander;
+
+  /// The lander's view's relief shading is on (its key's swatch and label).
+  final bool relief;
+
+  /// The lander's height text ("2 m") when the lander's view is drawn from a
+  /// raised viewpoint (D22): a key says the Sun's and Earth's status is the
+  /// lander's, at that height, and the see-through near ground's key goes
+  /// (all ground is solid from up there). Null at the lander's height.
+  final String? landerStatusAt;
   const LightLegend(
       {super.key,
       required this.layer,
@@ -1496,7 +1508,9 @@ class LightLegend extends StatelessWidget {
       this.onMap,
       this.approx = false,
       this.eclipse,
-      this.lander = false});
+      this.lander = false,
+      this.relief = false,
+      this.landerStatusAt});
 
   @override
   Widget build(BuildContext context) {
@@ -1545,10 +1559,14 @@ class LightLegend extends StatelessWidget {
             Text(p, style: statStyle(size: 14)),
           ]),
         if (lander)
-          for (final (k, label) in const [
+          for (final (k, label) in [
             (_LanderKey.notComputed, 'Light not computed'),
-            (_LanderKey.seeThrough, 'Near ground, see-through'),
-            (_LanderKey.horizon, 'Horizon (dashed)'),
+            if (landerStatusAt case final at?)
+              (_LanderKey.viewpoint, landerStatusAtLegend(at))
+            else
+              (_LanderKey.seeThrough, 'Near ground, see-through'),
+            (_LanderKey.horizon, landerHorizonLegend(landerStatusAt)),
+            relief ? (_LanderKey.relief, landerReliefLegend) : (_LanderKey.reliefOff, landerReliefOffLegend),
           ])
             Row(mainAxisSize: MainAxisSize.min, children: [
               CustomPaint(size: const Size(22, 16), painter: _LanderSwatch(k)),
@@ -1560,7 +1578,7 @@ class LightLegend extends StatelessWidget {
   }
 }
 
-enum _LanderKey { notComputed, seeThrough, horizon }
+enum _LanderKey { notComputed, seeThrough, horizon, relief, reliefOff, viewpoint }
 
 /// The lander's view's extra legend keys: its grey, the near ground at its
 /// see-through alpha over the sky and hatched as the view draws it (neutral
@@ -1589,6 +1607,24 @@ class _LanderSwatch extends CustomPainter {
           canvas.drawLine(Offset(x, 0), Offset(x + size.height, size.height), hp);
         }
         canvas.restore();
+      case _LanderKey.relief:
+        // a neutral grey ridge: the faces at the relief factor's ends (1.3 and 0.7 x the albedo)
+        const lit = landerAlbedo * landerReliefMax, dim = landerAlbedo * landerReliefMin;
+        canvas.drawPath(Path()
+          ..moveTo(0, size.height)
+          ..lineTo(size.width / 2, 2)
+          ..lineTo(size.width / 2, size.height)
+          ..close(), Paint()..color = const Color.from(alpha: 1, red: lit, green: lit, blue: lit));
+        canvas.drawPath(Path()
+          ..moveTo(size.width / 2, 2)
+          ..lineTo(size.width, size.height)
+          ..lineTo(size.width / 2, size.height)
+          ..close(), Paint()..color = const Color.from(alpha: 1, red: dim, green: dim, blue: dim));
+      case _LanderKey.reliefOff:
+        canvas.drawRect(r, Paint()..color = const Color.from(alpha: 1, red: landerAlbedo, green: landerAlbedo, blue: landerAlbedo));
+      case _LanderKey.viewpoint:
+        // the raised viewpoint's glyph (D22), as on the view's control and chip
+        paintLanderViewpointGlyph(canvas, Rect.fromCenter(center: r.center, width: size.height - 2, height: size.height - 2), PH.text);
       case _LanderKey.horizon:
         final p = Paint()
           ..color = PH.text.withValues(alpha: 0.7)
@@ -2146,31 +2182,58 @@ class LightFramePainter extends CustomPainter {
 /// The Light tab's three views (docs/landers_view_spec.md §7.1).
 enum LightViewKind { closeUp, region, lander }
 
+/// The relief shading's sentence in the lander's view FidelityBadge (D21),
+/// naming the control as the UI does ([LanderViewPanel.reliefLabel]).
+const landerReliefFidelity = 'Relief shading (the Relief shading switch, on by default) brightens or darkens lit '
+    'and shadowed ground alike by up to 30% with the slopes of the same LOLA heights, under a fixed drawing light '
+    'from the map\'s upper left (heights 2x): a visual aid, not sunlight.';
+
+/// The raised viewpoint's sentence in the lander's view FidelityBadge (D22,
+/// §6), for a viewpoint [eye] up over a lander [lander] tall: a drawing aid
+/// over the same terrain and light. It takes the place of the see-through
+/// near ground's sentence (D7), which is the lander's eye's.
+String landerViewpointFidelity(String eye, String lander) =>
+    'Viewpoint raised to $eye above the site as a drawing aid: the same 400 m terrain and the same light frame, '
+    'seen from higher (the lander\'s eye is $lander). The Sun and Earth words, the dashed horizon mask and the map '
+    'stay the lander\'s; the Sun and Earth are drawn in the lander\'s directions, and the drawn terrain, lower from '
+    'up here, can leave a disc in view that is hidden at the lander. '
+    'Ground within 800 m is seen from above and drawn solid.';
+
 /// The lander's view FidelityBadge text (§6): the main text, then (g) the
 /// eye's offset from a preset's 80 m height when over 5 m ([eyeOffsetM] =
 /// the 400 m surface minus the site's height), (h) where the terrain data
-/// ends, and the eclipse note.
+/// ends, and the eclipse note. [heightText] is the lander's height; from a
+/// raised viewpoint (D22) [viewpoint] is the eye's ("1 km"): the skyline
+/// clause is the lander's, [landerViewpointFidelity] replaces the
+/// see-through sentence and (g) names the eye's height and says the offset
+/// is the surface's ("…, which is 30 m below…"). Null: byte for byte the
+/// lander's text.
 String landerFidelityText(String heightText,
     {required bool custom,
     double? eyeOffsetM,
     List<({double az0, double az1, double distM})> demEnds = const [],
-    bool eclipse = false}) {
+    bool eclipse = false,
+    bool relief = false,
+    String? viewpoint}) {
   final ends = [...demEnds]..sort((a, b) => a.az0.compareTo(b.az0));
   String deg(double a) => '${(((a % 360) + 360) % 360).round()}';
   return 'Approximate: the light map\'s own 400 m LOLA terrain and light; Sun and Earth at true size and place. '
       'Terrain is the grid the light map uses (400 m within 64 km, 800 m out to 300 km), block-averaged the same way, '
-      'so rims and peaks are smoothed and the drawn skyline can differ from '
+      'so rims and peaks are smoothed and${viewpoint == null ? '' : ', at the lander\'s height,'} the drawn skyline can differ from '
       '${custom ? '80 m horizons by 0.5–1.4° (up to about 6° on sharp rims); it matches this spot\'s 400 m horizon '
           '(dashed) within about 0.4°' : 'this site\'s 80 m horizon mask (dashed) by about 1° and up to 5°'}. '
-      'Ground within 800 m is not resolved by the 400 m grid: where it would rise above the distant skyline it is '
-      'drawn see-through, because the light map leaves it out. Light and shadow are the Light '
+      '${viewpoint == null ? 'Ground within 800 m is not resolved by the 400 m grid: where it would rise above the distant skyline it is '
+          'drawn see-through, because the light map leaves it out.' : landerViewpointFidelity(viewpoint, heightText)} Light and shadow are the Light '
       'tab\'s computed frame for this moment, pixel for pixel; Earth\'s direction there is taken from the Moon\'s '
       'centre, up to 0.3° higher than seen from the ground. Shadowed ground is drawn dark: Earthshine is not '
-      'computed, and the ground colour is a flat grey, not a photo. The Sun and Earth are drawn in their meaning '
+      'computed, and the ground colour is ${relief ? 'a neutral' : 'a flat'} grey, not a photo.'
+      '${relief ? ' $landerReliefFidelity' : ''} The Sun and '
+      'Earth are drawn in their meaning '
       'colours at true size and position (DE440, apparent, no refraction); glyphs, labels, the 0° line, the '
       'compass and the stripe and dot patterns are visual aids.'
-      '${eyeOffsetM != null && eyeOffsetM.abs() > 5 ? ' The eye is $heightText above the 400 m surface, '
-          '${eyeOffsetM.abs().round()} m ${eyeOffsetM < 0 ? 'below' : 'above'} this site\'s 80 m height.' : ''}'
+      '${eyeOffsetM != null && eyeOffsetM.abs() > 5 ? ' The eye is ${viewpoint ?? heightText} above the 400 m surface, '
+          '${viewpoint == null ? '' : 'which is '}${eyeOffsetM.abs().round()} m ${eyeOffsetM < 0 ? 'below' : 'above'} '
+          'this site\'s 80 m height.' : ''}'
       '${ends.isEmpty ? '' : ' Terrain data ends ${(ends.map((e) => e.distM).reduce(math.min) / 1000).round()} km away '
           'toward azimuth ${ends.map((e) => '${deg(e.az0)}–${deg(e.az1)}°').join(', ')} (edge of the LOLA map).'}'
       '${eclipse ? ' $lightEclipseFidelity' : ''}';

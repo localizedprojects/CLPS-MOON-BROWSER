@@ -14,7 +14,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:polar_horizon/core/catalog.dart' show Site;
 import 'package:polar_horizon/core/dem.dart';
-import 'package:polar_horizon/core/lander_view.dart' show skyBody, turnDelta;
+import 'package:polar_horizon/core/lander_view.dart' show LanderViewpoint, skyBody, turnDelta;
 import 'package:polar_horizon/core/shadow.dart' show lightEarth, lightSunAny, lightSunFull;
 import 'package:polar_horizon/core/site_order.dart';
 import 'package:polar_horizon/main.dart';
@@ -197,7 +197,12 @@ void main() {
     // the painter keeps its labels off the button's corner
     final p = tester.widget<CustomPaint>(find.descendant(
         of: find.byKey(const ValueKey('lander-view')), matching: find.byType(CustomPaint)));
-    expect((p.painter! as LanderPainter).reserve, LanderViewPanel.expandRect(view.width));
+    // and off the relief switch under it (D21) and the viewpoint control left of it (D22)
+    expect((p.painter! as LanderPainter).reserve, [
+      LanderViewPanel.viewpointRect(view.width),
+      LanderViewPanel.expandRect(view.width),
+      LanderViewPanel.reliefRect(view.width, expand: true),
+    ]);
     handle.dispose();
   });
 
@@ -413,7 +418,8 @@ void main() {
   });
 
   testWidgets(
-      "FS10 a callout whose first place is the expand button's corner goes elsewhere once the button is there",
+      "FS10 a callout whose first place is the inline relief switch's box (under the expand button) goes elsewhere "
+      'once the expand button is there',
       (tester) async {
     size(tester, const Size(390, 844));
     LanderPainter.debugRecord = true;
@@ -433,7 +439,9 @@ void main() {
                         state: state, near: null, layer: LightLayer.both, width: 380, onExpand: on ? () {} : null))))));
     await meshReady(tester);
     expect(find.byKey(_expand), findsNothing);
-    final corner = LanderViewPanel.expandRect(rectOf(tester, find.byKey(const ValueKey('lander-view'))).width);
+    // without an expand button the relief switch (D21) takes its slot; with one, the switch moves under it
+    final corner =
+        LanderViewPanel.reliefRect(rectOf(tester, find.byKey(const ValueKey('lander-view'))).width, expand: true);
     final p = panel(tester), hfov = p.cam.hfov;
     final t = state.cursorMs, flat = Float64List(720);
     final sun = skyBody(state.observer, state.eph!.sun(t), 695700, flat);
@@ -460,7 +468,7 @@ void main() {
     final placed = boxes();
     expect(placed, isNotEmpty, reason: 'a callout was drawn');
     for (final box in placed) {
-      expect(box.overlaps(corner), isFalse, reason: '$box over the expand button $corner');
+      expect(box.overlaps(corner), isFalse, reason: '$box over the relief switch $corner');
     }
   });
 
@@ -547,10 +555,17 @@ void main() {
       .whereType<LanderPainter>()
       .single;
 
+  // yaw, pitch, hfov (the viewpoint after them, D22, is checked apart)
   List<double>? storedCamera(WidgetTester tester, String id) {
     final ctx = tester.element(find.byType(LanderViewPanel));
     final v = PageStorage.of(ctx).readState(ctx, identifier: 'lander-camera-$id');
-    return v is List ? [for (final x in v) x as double] : null;
+    return v is List ? [for (final x in v.take(3)) x as double] : null;
+  }
+
+  Object? storedViewpoint(WidgetTester tester, String id) {
+    final ctx = tester.element(find.byType(LanderViewPanel));
+    final v = PageStorage.of(ctx).readState(ctx, identifier: 'lander-camera-$id');
+    return v is List && v.length == 4 ? v[3] : null;
   }
 
   void expectCamera(LanderViewPanelState p, (double, double, double) want, String why) {
@@ -758,5 +773,202 @@ void main() {
     expect(tester.takeException(), isNull);
     await tester.pumpWidget(const SizedBox());
     await tester.pump(const Duration(milliseconds: 100));
+  });
+
+  group('relief shading switch (D21)', () {
+    const relief = ValueKey('lander-relief');
+    bool? toggled(WidgetTester tester) => tester.getSemantics(find.byKey(relief)).flagsCollection.isToggled.toBoolOrNull();
+
+    testWidgets(
+        'F-R1 inline under the expand button, full screen in its slot at 390x844, 844x390 and 1440x900: 48 dp, on '
+        'screen, clear of the close button and the seven buttons', (tester) async {
+      size(tester, const Size(390, 844));
+      await lander(tester);
+      var view = rectOf(tester, find.byKey(const ValueKey('lander-view')));
+      expect(rectOf(tester, find.byKey(relief)), LanderViewPanel.reliefRect(view.width, expand: true).shift(view.topLeft));
+      expect(rectOf(tester, find.byKey(relief)).overlaps(rectOf(tester, find.byKey(_expand))), isFalse);
+      await open(tester);
+      for (final s in const [Size(390, 844), Size(844, 390), Size(1440, 900)]) {
+        size(tester, s);
+        await settle(tester);
+        final why = '$s';
+        expect(find.byKey(relief), findsOneWidget, reason: why);
+        view = rectOf(tester, find.byKey(const ValueKey('lander-view')));
+        final r = rectOf(tester, find.byKey(relief));
+        expect(r, LanderViewPanel.reliefRect(view.width, expand: false).shift(view.topLeft), reason: why);
+        expect(r.size, const Size(48, 48), reason: why);
+        onScreen(tester, find.byKey(relief), s, why);
+        expect(r.overlaps(rectOf(tester, find.byKey(_close))), isFalse, reason: why);
+        // over the view's corner: the seven buttons are below the view
+        expect(r.left >= view.left && r.right <= view.right && r.bottom <= view.bottom, isTrue, reason: why);
+        for (final t in _seven) {
+          final b = find.byTooltip(t);
+          if (b.evaluate().isNotEmpty) expect(r.overlaps(rectOf(tester, b.first)), isFalse, reason: '$why $t');
+        }
+      }
+    });
+
+    testWidgets('F-R2 one switch for both views and every site: turned in one view, the other shows it; it stays '
+        'on across sites', (tester) async {
+      size(tester, const Size(390, 844));
+      final handle = tester.ensureSemantics();
+      await lander(tester);
+      final inline = panel(tester);
+      expect(toggled(tester), isTrue);
+      await open(tester);
+      final full = panel(tester);
+      expect(identical(full.mesh, inline.mesh), isTrue);
+      expect(full.widget.near, isNotNull, reason: 'the light frame is in');
+      final on = full.colors;
+      // off in full screen: today's colours
+      await tester.tap(find.byKey(relief));
+      await tester.pump();
+      expect(state.landerRelief, isFalse);
+      expect(toggled(tester), isFalse);
+      final off = full.colors;
+      expect(off, isNot(on), reason: 'the synthetic terrain has slopes');
+      // close: the inline view shows off; on again there. (In this host the inline view has no light frame,
+      // since the fake engine builds no map overlay, so its ground is "not computed", which relief never
+      // shades: its colours after a rebuild are checked in lander_view_test.dart W-R2, with a frame.)
+      await tester.tap(find.byKey(_close));
+      await settle(tester);
+      expect(find.byType(LanderFullScreenPage), findsNothing);
+      expect(identical(panel(tester).mesh, inline.mesh), isTrue);
+      expect(toggled(tester), isFalse);
+      await tester.tap(find.byKey(relief));
+      await tester.pump();
+      expect(state.landerRelief, isTrue);
+      // reopened: on, with the shaded colours
+      await open(tester);
+      expect(toggled(tester), isTrue);
+      expect(panel(tester).colors, on);
+      // another site in full screen keeps it
+      await tester.tap(find.byKey(_next));
+      await tester.pump();
+      await meshReady(tester);
+      expect(state.landerRelief, isTrue);
+      expect(toggled(tester), isTrue);
+      handle.dispose();
+    });
+
+    testWidgets('F-R3 the full-screen legend (side column and Legend sheet) shows the relief key, on and off',
+        (tester) async {
+      // a phone in landscape: the view and a side column (sideBySide)
+      size(tester, const Size(844, 390));
+      await lander(tester);
+      await open(tester);
+      expect(find.text(landerReliefLegend), findsOneWidget, reason: 'the side column');
+      state.setLanderRelief(false);
+      await settle(tester);
+      expect(find.text(landerReliefOffLegend), findsOneWidget);
+      expect(find.text(landerReliefLegend), findsNothing);
+      size(tester, const Size(390, 844));
+      await settle(tester);
+      await tester.tap(find.byKey(const ValueKey('lander-full-legend')));
+      await settle(tester);
+      expect(find.text(landerReliefOffLegend), findsOneWidget, reason: 'the Legend sheet');
+      expect(tester.widget<LightLegend>(find.byType(LightLegend)).relief, isFalse);
+    });
+  });
+
+  group('viewpoint height (D22)', () {
+    const control = ValueKey('lander-viewpoint');
+    Future<void> choose(WidgetTester tester, LanderViewpoint v) async {
+      await tester.tap(find.byKey(control));
+      await settle(tester);
+      await tester.tap(find.byKey(ValueKey('lander-viewpoint-${v.name}')));
+      await tester.pump();
+      await tester.pump();
+    }
+
+    testWidgets(
+        'F-V1 inline left of the expand button, full screen left of the relief switch at 390x844, 844x390 and '
+        '1440x900: 48 dp, on screen, labelled, clear of the close button, the other controls and the seven buttons',
+        (tester) async {
+      size(tester, const Size(390, 844));
+      final handle = tester.ensureSemantics();
+      await lander(tester);
+      var view = rectOf(tester, find.byKey(const ValueKey('lander-view')));
+      expect(rectOf(tester, find.byKey(control)), LanderViewPanel.viewpointRect(view.width).shift(view.topLeft));
+      expect(rectOf(tester, find.byKey(control)).overlaps(rectOf(tester, find.byKey(_expand))), isFalse);
+      await open(tester);
+      for (final s in const [Size(390, 844), Size(844, 390), Size(1440, 900)]) {
+        size(tester, s);
+        await settle(tester);
+        final why = '$s';
+        expect(find.byKey(control), findsOneWidget, reason: why);
+        view = rectOf(tester, find.byKey(const ValueKey('lander-view')));
+        final r = rectOf(tester, find.byKey(control));
+        expect(r, LanderViewPanel.viewpointRect(view.width).shift(view.topLeft), reason: why);
+        expect(r.size, const Size(48, 48), reason: why);
+        onScreen(tester, find.byKey(control), s, why);
+        expect(r.overlaps(rectOf(tester, find.byKey(_close))), isFalse, reason: why);
+        expect(r.overlaps(rectOf(tester, find.byKey(const ValueKey('lander-relief')))), isFalse, reason: why);
+        for (final t in _seven) {
+          final b = find.byTooltip(t);
+          if (b.evaluate().isNotEmpty) expect(r.overlaps(rectOf(tester, b.first)), isFalse, reason: '$why $t');
+        }
+        expect(
+            tester.getSemantics(find.ancestor(of: find.byKey(control), matching: find.byType(Semantics)).first),
+            isSemantics(
+                label: 'View height: at the lander, 2 m above the site',
+                hint: landerViewpointHint(2),
+                isButton: true,
+                hasTapAction: true),
+            reason: why);
+      }
+      handle.dispose();
+    });
+
+    testWidgets(
+        'F-V2 5 km chosen in full screen: closing, the inline view takes the kept 5 km mesh (no rebuild) and the '
+        'camera; the Legend sheet has the status line; next and previous keep the viewpoint', (tester) async {
+      size(tester, const Size(390, 844));
+      await lander(tester);
+      await open(tester);
+      final full = panel(tester), low = full.mesh!;
+      await choose(tester, LanderViewpoint.km5);
+      expect(state.landerViewpoint, LanderViewpoint.km5);
+      await meshReady(tester);
+      await settle(tester);
+      final high = panel(tester).mesh!;
+      expect(high.cam.eyeHeightM, 5000);
+      expect(identical(high, low), isFalse);
+      final cam = (full.cam.yaw, full.cam.pitch, full.cam.hfov);
+      expect(cam.$2, lessThan(-5), reason: 'tilted down from 5 km');
+      expect(painter(tester).viewpoint, '5 km');
+      // the Legend sheet: the status line, no see-through key
+      await tester.tap(find.byKey(const ValueKey('lander-full-legend')));
+      await settle(tester);
+      expect(find.text('Sun/Earth status: at the lander, 2 m'), findsOneWidget);
+      expect(find.text('Near ground, see-through'), findsNothing);
+      expect(tester.widget<LightLegend>(find.byType(LightLegend)).landerStatusAt, '2 m');
+      Navigator.of(tester.element(find.byType(LightLegend))).pop();
+      await settle(tester);
+      await tester.tap(find.byKey(_close));
+      await settle(tester);
+      expect(find.byType(LanderFullScreenPage), findsNothing);
+      final inline = panel(tester);
+      expect(identical(inline.mesh, high), isTrue, reason: 'the kept 5 km mesh, no rebuild');
+      expect((inline.cam.yaw, inline.cam.pitch, inline.cam.hfov), cam);
+      expect(storedViewpoint(tester, state.site.id), 'km5');
+      // next and previous in full screen keep the viewpoint
+      await open(tester);
+      await tester.tap(find.byKey(_next));
+      await tester.pump();
+      await tester.pump();
+      expect(state.landerViewpoint, LanderViewpoint.km5);
+      expect(state.landerMeshKey, endsWith('|5000.0'));
+      expect(painter(tester).status, contains('Building the view'));
+      expect(find.byKey(control), findsOneWidget, reason: 'shown while building');
+      await tester.tap(find.byKey(_prev));
+      await tester.pump();
+      await tester.pump();
+      expect(identical(panel(tester).mesh, high), isTrue, reason: "the first site's kept 5 km mesh");
+      expect(state.landerViewpoint, LanderViewpoint.km5);
+      await settle(tester);
+      await tester.pumpWidget(const SizedBox());
+      await tester.pump(const Duration(milliseconds: 500));
+    });
   });
 }

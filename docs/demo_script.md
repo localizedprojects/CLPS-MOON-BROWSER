@@ -7,11 +7,13 @@ aloud: the app recomputes them for "the next 12 months" from today's date.
 default settings (next 12 months, 2 m lander). Close other tabs. Have the "Can I trust
 these numbers?" page one tap away. Total: about 3:00.
 
-**What it should look like** (version 1.9.1 web build of 30 October 2026; the dates will differ
+**What it should look like** (version 1.11.0 web build of 1 November 2026; the dates will differ
 on the day): the [landing window and Sky & time](screenshots/site-landing-sky-desktop.webp)
 for Malapert peak (MP1), the [phone landing card](screenshots/landing-phone.webp) and
-[Sky & time on a phone](screenshots/sky-phone.webp), the [Lander view](screenshots/lander-desktop.webp)
-([on a phone](screenshots/lander-phone.webp)), and [Compare](screenshots/compare-desktop.webp).
+[Sky & time on a phone](screenshots/sky-phone.webp), the [Lander's view, full screen](screenshots/lander-desktop.webp)
+([on a phone](screenshots/lander-phone.webp); both shots are from the 1 km viewpoint, while from the
+lander's 2 m the distant ground is a thin band along the skyline and nearer ground is see-through),
+and [Compare](screenshots/compare-desktop.webp).
 
 ---
 
@@ -83,10 +85,16 @@ so it is approximate, and the badge says so."
 
 **Point at:** the Sun on the skyline and the approximation badge.
 
+**Optional, about 5 s, only if the segment has time left:** tap the height button (it reads
+**2 m**) and choose **1 km up**; wait for "Building the view…" to finish. **Say:** "From higher
+up the ground is easier to read. It is a drawing aid, and it says so: the Sun and Earth
+status stays the lander's." **Point at:** the chip "Viewpoint 1 km up, not the lander's".
+
 ## 2:10–2:30 · Compare and decide (Compare)
 
 **Show:** Compare with the top 3 shortlisted. The chart under "Best for your priorities"
-says "Best: {site}" (or "almost tied with {site}" when the scores are close), with one
+says "Best: {site}" (or "almost tied with {site}" when the scores are close, or "Tied: {site}
+and {site}, both {N}" when they round to the same score, as in the screenshot), with one
 block per site: sunlight, Earth and Sun + Earth bars and the longest dark. Tap "Earth
 contact first" and the order changes live.
 

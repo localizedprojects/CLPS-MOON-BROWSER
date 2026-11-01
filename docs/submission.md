@@ -37,6 +37,9 @@ LOLA team's own visibility maps.
 - **Site coordinates:** NASA's Artemis III candidate regions (update of 28 October 2024) and
   LRO LROC images of the IM-1 and IM-2 landers, with the other published sources listed per
   site in `app/assets/data/sites.json`.
+- **Lander photos (linked, not bundled):** the IM-1 and IM-2 site pages link to NASA's pages
+  with each lander's own surface photos (© Intuitive Machines) and LRO's photos of the landers
+  from orbit (NASA/Goddard/Arizona State University).
 
 ## Use of AI
 

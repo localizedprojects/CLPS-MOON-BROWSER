@@ -19,9 +19,9 @@
 - A good-days calendar for each site, good days by month across the shortlist, and the longest night to plan batteries for.
 - Custom sites: drop a pin or type coordinates, and the horizon is computed on the device.
 - Options: a Deep Space Network check, a 10 m mast, three Sun rules, and CSV and PNG export.
-- *Lander's view*: a 3D look around from the lander, using the light map's own 400 m terrain and light (approximate, labelled).
+- *Lander's view*: a 3D look around from the lander, using the light map's own 400 m terrain and light (approximate, labelled). It opens full screen, switches sites inside it, and offers two labelled drawing aids: relief shading and a view from higher (200 m, 1 km or 5 km; the light and the Sun and Earth status stay the lander's).
 - Lunar eclipses: the part of the Sun hidden behind Earth is left out of the Sun fraction and the power.
-- A mission catalogue: CLPS landed positions (IM-1, IM-2), the VIPER area, and planned international sites.
+- A mission catalogue: CLPS landed positions (IM-1, IM-2, with credited links to their real photos on NASA's pages), the VIPER area, and planned international sites.
 - Sunset and Earthset countdowns with the live power in W/m².
 
 **Who it serves.** The public gets a plain answer first. Educators get the Learn section (explanations, a glossary, how the score works). Mission planners get exact numbers on request and CSV files that record their sources.
@@ -39,7 +39,7 @@
 
 ![Malapert peak (MP1): the best 14-day landing window next to the Sky & time view](screenshots/site-landing-sky-desktop.webp)
 
-*Version 1.9.2 web build of 30 October 2026, next 12 months, 2 m lander. More screenshots are in the [README](../README.md#screenshots).*
+*Version 1.11.0 web build of 1 November 2026, next 12 months, 2 m lander. More screenshots are in the [README](../README.md#screenshots).*
 
 **Next steps.** Refine near-field terrain with 20 m LOLA data, check the 2 m Earth numbers at peaks and ridges (Malapert peak's 56% rises to 78% with a 10 m mast).
 
@@ -65,7 +65,7 @@ Sources for every number in this brief (paths relative to the repository root; v
 - 10 m mast, three Sun rules, DSN check: app/lib/widgets/sheets/mission_settings_sheet.dart; DSN threshold 10° in ephem/manifest.json dsn.minElevationDeg.
 - 48 dp tap targets and screen-reader labels (a project rule) and the power proxy (1361 W/m² × (1 au/r)² × visible fraction): CLAUDE.md.
 - Glyph shapes: app/lib/widgets/glyphs.dart. Map textures: app/lib/widgets/light_map.dart. 2 px focus rings: app/lib/theme.dart. Keyboard shortcuts and reduced motion: app/lib/screens/shell.dart and app/lib/theme.dart (disableAnimations). "Explain as I go": app/lib/screens/learn.dart. Export: app/lib/core/export_csv.dart, app/lib/state/chart_hub.dart (exportPng).
-- Lander's view (added in 1.9.0): docs/landers_view_spec.md §1 (terrain = the light engine's 400 m height grid, light = its LightFrame); app/lib/widgets/lander_view.dart (*Face the Sun*); formula.md §12.11 and app/lib/content/how_calculated.dart ("Lander's view"). Lunar eclipses: formula.md §6.5 (added 2026-10-29). Mission catalogue: app/assets/data/sites.json group "missions" (IM-1 and IM-2 landed positions, IM-2 intended target, VIPER mission area, Chang'e-7 planned site, Chandrayaan-5/LUPEX candidate). Countdowns and power: app/lib/core/countdown.dart.
+- Lander's view (added in 1.9.0): docs/landers_view_spec.md §1 (terrain = the light engine's 400 m height grid, light = its LightFrame); app/lib/widgets/lander_view.dart (*Face the Sun*); formula.md §12.11 and app/lib/content/how_calculated.dart ("Lander's view"); full screen and site switching (1.10.0): docs/landers_view_spec.md "Full screen and site switching" and app/lib/widgets/lander_full_screen.dart; relief shading and the view from higher (1.11.0): docs/landers_view_spec.md D21 and D22 and app/lib/widgets/lander_view.dart (`landerViewpointItem`, `landerViewpointChip`). Lander photo links (1.11.0): app/lib/content/lander_photos.dart. Lunar eclipses: formula.md §6.5 (added 2026-10-29). Mission catalogue: app/assets/data/sites.json group "missions" (IM-1 and IM-2 landed positions, IM-2 intended target, VIPER mission area, Chang'e-7 planned site, Chandrayaan-5/LUPEX candidate). Countdowns and power: app/lib/core/countdown.dart.
 - About 10.5 MB: the committed files under app/assets/data total 12,723,990 bytes (git ls-tree -r -l at 709f795, 1.9.0); 2,269,943 bytes of that are app/assets/data/renders/ (Blender check images), which app/pubspec.yaml does not list as assets, leaving 10,454,047 bytes that the app bundles (README.md "On the device").
 - Custom sites, 400 m grid: app/assets/data/map/map.json dem.pxM = 400. 0.46°-1.41° mean and 6.14° max at four test sites: formula.md section 5.2 table and section 13.11.
 - 20 m LOLA data (LDEM_85S_20M): PLAN.md section 6, risk table. Web build, Android screenshots, README, demo script: PLAN.md milestone M6.

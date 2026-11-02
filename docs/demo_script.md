@@ -88,7 +88,7 @@ so it is approximate, and the badge says so."
 **Optional, about 5 s, only if the segment has time left:** tap the height button (it reads
 **2 m**) and choose **1 km up**; wait for "Building the view…" to finish. **Say:** "From higher
 up the ground is easier to read. It is a drawing aid, and it says so: the Sun and Earth
-status stays the lander's." **Point at:** the chip "Viewpoint 1 km up, not the lander's".
+status stays the lander's." **Point at:** the chip "1 km up, not the lander's" by the raised-eye glyph.
 
 ## 2:10–2:30 · Compare and decide (Compare)
 

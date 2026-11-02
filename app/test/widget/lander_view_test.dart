@@ -1753,7 +1753,7 @@ void main() {
       expect(p.cam.yaw, closeTo(77, 1e-9), reason: 'the yaw is kept');
       expect((painterOf(tester).sunWord, painterOf(tester).earthWord), words, reason: "the lander's status words");
       expect(painterOf(tester).viewpoint, '1 km');
-      expect(LanderPainter.paintedChip?.text, "Viewpoint 1 km up, not the lander's");
+      expect(LanderPainter.paintedChip?.text, "1 km up, not the lander's");
       final chip = LanderPainter.paintedChip!.box;
       expect(chip.top, greaterThanOrEqualTo(LanderPainter.compassH));
       for (final r in painterOf(tester).reserve) {
@@ -1875,11 +1875,13 @@ void main() {
     });
 
     test('W-V10 full screen landscape, raised, the Sun under the compass strip with the chip and the controls '
-        'beside its glyph: its words go right under the glyph, not down by the crosshair', () {
+        'beside its glyph: its words go right by the glyph, not down by the crosshair', () {
       // 1.11.0 Android 7 emulator (720 x 1520 at 280 dpi, landscape, full screen, MP1, 200 m, facing the
       // Sun at el +2.6 with pitch -8): the glyph hung under the strip, the chip took the place left of it
       // and the viewpoint control the one right of it, the row under the disc was in the strip, and the
-      // words went to the row under the crosshair, (159.5, 158.7)-(337.2, 188.4), 97 dp under the glyph
+      // words went to the row under the crosshair, (159.5, 158.7)-(337.2, 188.4), 97 dp under the glyph.
+      // 1.11.1 put them right under the glyph; 1.11.2 places them first (W-V12), so they take the place
+      // left of the glyph, as at the lander's height, and the chip moves clear of them
       const sz = Size(496.6, 291.4);
       final cam = LanderCameraController()..set(yaw: 287.1, pitch: -8, hfov: 45);
       final v = cam.view(sz);
@@ -1904,9 +1906,10 @@ void main() {
                 viewpoint: eye)
             .paint(Canvas(ui.PictureRecorder()), sz);
         final box = LanderPainter.paintedSky!.callouts.single, chip = LanderPainter.paintedChip!.box;
-        expect(box.top, inInclusiveRange(a.glyph.dy + LanderPainter.glyphR, a.glyph.dy + LanderPainter.glyphR + 4),
-            reason: '$eye: $box, right under the glyph at ${a.glyph}');
-        expect(box.left <= a.glyph.dx && box.right >= a.glyph.dx, isTrue, reason: '$eye: $box, under the glyph');
+        final gap = Offset(math.max(0.0, math.max(box.left - a.glyph.dx, a.glyph.dx - box.right)),
+                math.max(0.0, math.max(box.top - a.glyph.dy, a.glyph.dy - box.bottom)))
+            .distance;
+        expect(gap, lessThanOrEqualTo(LanderPainter.glyphR + 4), reason: '$eye: $box, right by the glyph at ${a.glyph}');
         for (final (what, r) in [
           ('the chip', chip),
           ('the viewpoint control', reserve[0]),
@@ -1923,7 +1926,8 @@ void main() {
     test('W-V11 the chip\'s height: number and unit in Plex Mono, the words\' Plex Sans space between them (no '
         'double gap)', () {
       // 1.11.0 emulator: "Viewpoint 200  m up, not the lander's", the whole height in Mono, whose space
-      // (0.6 em, 6.6 px at 11) is over twice the words' Sans one
+      // (0.6 em, 6.6 px at 11) is over twice the words' Sans one (1.11.2: "200 m up, not the lander's",
+      // the chip's glyph standing for "Viewpoint")
       const sans = TextStyle(fontFamily: PH.sans, fontSize: 11, color: PH.text, fontWeight: FontWeight.w500);
       final mono = numStyle(size: 11);
       double x(TextPainter t, int i) => t.getOffsetForCaret(TextPosition(offset: i), Rect.zero).dx;
@@ -1942,13 +1946,12 @@ void main() {
         final unit = eye.split(' ').last;
         expect(parts.where((p) => p.$1 == unit).single.$2, PH.mono, reason: '$eye: the unit in Plex Mono');
         final t = TextPainter(text: span, textDirection: TextDirection.ltr)..layout();
-        final k = 'Viewpoint '.length + eye.lastIndexOf(' ');
-        expect(x(t, k + 1) - x(t, k), closeTo(x(t, 10) - x(t, 9), 0.01),
-            reason: '$eye: the gap in the height is the words\' space (after "Viewpoint")');
+        final k = eye.lastIndexOf(' '), up = eye.length;
+        expect(x(t, k + 1) - x(t, k), closeTo(x(t, up + 1) - x(t, up), 0.01),
+            reason: '$eye: the gap in the height is the words\' space (before "up")');
         // the chip as painted: as wide as these words (one line in a wide view), plus its glyph and margins
         final ref = TextPainter(
             text: TextSpan(style: sans, children: [
-              const TextSpan(text: 'Viewpoint '),
               TextSpan(text: eye.substring(0, eye.lastIndexOf(' ')), style: mono),
               const TextSpan(text: ' '),
               TextSpan(text: unit, style: mono),
@@ -1967,6 +1970,60 @@ void main() {
         expect(LanderPainter.paintedChip!.text, landerViewpointChip(eye));
         expect(LanderPainter.paintedChip!.box.width, closeTo(ref.width + 24, 0.01), reason: '$eye: the chip as painted');
       }
+    });
+
+    test('W-V12 (1.11.2) raised, the callouts are placed first, as at the lander\'s height, and the chip then '
+        'clear of them, the bodies and the crosshair', () {
+      // 1.11.1: the chip was placed first and kept only softly, given up before the other body's disc, so
+      // at 200 m a callout went over it in 1,445 of the release gate's 25,200 frames (and over the
+      // controls in 1,059); phone inline at hfov 45, a callout went over it at cells such as (4, 6) and (9, 0)
+      for (final size in const [Size(352.7, 176), Size(392, 168)]) {
+        final reserve = LanderViewPanel.controlsIn(size, inline: true, built: true).all;
+        for (var c = 0; c < 70; c++) {
+          for (final both in [true, false]) {
+            final low = _raisedFrame(size, reserve, c, both: both).callouts;
+            final (:callouts, :chip, :keepOff) = _raisedFrame(size, reserve, c, both: both, eye: '200 m');
+            final at = '$size cell $c ${both ? 'Sun and Earth' : 'Sun'}: chip $chip, callouts $callouts';
+            expect(callouts.where(chip!.overlaps), isEmpty, reason: '$at: a callout over the chip');
+            expect(keepOff.where(chip.overlaps), isEmpty, reason: '$at: the chip over a body');
+            expect(chip.overlaps(LanderPainter.reticleBox(size)), isFalse, reason: '$at: the chip over the crosshair');
+            if (!low.any(chip.overlaps)) expect(callouts, low, reason: '$at: the callouts as at the lander\'s 2 m');
+          }
+        }
+      }
+    });
+
+    test('W-V13 (1.11.2) raised, the chip clear of the callouts: just above the bottom strip where that is '
+        'the place, and never on the crosshair outside a short view', () {
+      // 1.11.1 tried under the compass strip and under or right of the bodies only, and nothing kept it off
+      // the crosshair (on it in every 392 x 120 frame and, moved under a body, in 392 x 168). Phone
+      // 352.7 x 176 at hfov 10, pitch -30, the Sun at cell (7, 1) and Earth (a two-line legend, the gate's at 2 m):
+      // with the callouts placed first, the place under the bodies, (57.1, 75)-(210.4, 93), is on the
+      // crosshair; the chip goes lower, clear of it
+      const phone = Size(352.7, 176);
+      final r = _raisedFrame(phone, LanderViewPanel.controlsIn(phone, inline: true, built: true).all, 17,
+          hfov: 10, pitch: -30, eye: '200 m', seeThrough: true);
+      expect(r.chip!.overlaps(LanderPainter.reticleBox(phone)), isFalse, reason: 'the chip ${r.chip} off the crosshair');
+      expect(r.chip!.top, greaterThan(LanderPainter.reticleBox(phone).bottom), reason: '${r.chip}: under it');
+      expect([...r.callouts, ...r.keepOff].where(r.chip!.overlaps), isEmpty, reason: '${r.chip}: clear');
+      var above = 0;
+      for (final size in const [Size(352.7, 176), Size(392, 168), Size(360, 223)]) {
+        final reserve = LanderViewPanel.controlsIn(size, inline: true, built: true).all;
+        for (final hfov in [10.0, 45.0]) {
+          for (var c = 0; c < 70; c++) {
+            for (final both in [true, false]) {
+              final (:callouts, :chip, :keepOff) = _raisedFrame(size, reserve, c, both: both, hfov: hfov, eye: '1 km');
+              final at = '$size hfov $hfov cell $c ${both ? 'Sun and Earth' : 'Sun'}: chip $chip, callouts $callouts';
+              expect(chip!.overlaps(LanderPainter.reticleBox(size)), isFalse, reason: '$at: over the crosshair');
+              if ((chip.bottom - (size.height - 48)).abs() < 0.01) {
+                above++;
+                expect([...callouts, ...keepOff].where(chip.overlaps), isEmpty, reason: '$at: just above the strip');
+              }
+            }
+          }
+        }
+      }
+      expect(above, greaterThan(0), reason: 'the place just above the bottom strip is used');
     });
 
     testWidgets('W-V9 keyboard focus shows a 2 px ice ring on the viewpoint control and on the relief switch (on and off)',
@@ -2137,7 +2194,7 @@ void main() {
       expect(landerViewpointLabel(LanderViewpoint.lander, 10), 'View height: at the lander, 10 m above the site');
       expect(landerViewpointItem(LanderViewpoint.lander, 10), 'Lander, 10 m');
       expect(landerViewpointItem(LanderViewpoint.km5, 10), '5 km up');
-      expect(landerViewpointChip('1 km'), "Viewpoint 1 km up, not the lander's");
+      expect(landerViewpointChip('1 km'), "1 km up, not the lander's");
       expect(landerStatusAtLegend('2 m'), 'Sun/Earth status: at the lander, 2 m');
       expect(landerHorizonLegend(), 'Horizon (dashed)');
       expect(landerHorizonLegend('2 m'), "Lander's horizon, 2 m (dashed)");
@@ -2221,6 +2278,38 @@ List<Rect> _gateFrame(Size size, double hfov, double pitch,
           probe: 'Centre: regolith · 1.2 km · az 123.4° el -30.0°')
       .paint(Canvas(ui.PictureRecorder()), size);
   return LanderPainter.paintedSky!.callouts;
+}
+
+/// A raised frame of the release gate's shape (1.11.2; W-V12, W-V13): phone inline [size] with its
+/// controls [reserve], the Sun at gate cell [c] (i = c % 10, j = c ~/ 10) and, [both], Earth at its cell,
+/// from [eye] up (null: the lander's 2 m), the mask's legend on one line (two, [seeThrough], as the
+/// release gate's): the callout boxes, the chip and what the chip keeps off.
+({List<Rect> callouts, Rect? chip, List<Rect> keepOff}) _raisedFrame(Size size, List<Rect> reserve, int c,
+    {bool both = true, double hfov = 45, double pitch = 0, String? eye, bool seeThrough = false}) {
+  final cam = LanderCameraController()..set(yaw: 0, pitch: pitch, hfov: hfov);
+  final v = cam.view(size);
+  final i = c % 10, j = c ~/ 10;
+  final sun = _gateBody(v, _gateCell(size, i, j), 0.27, SkyState.up);
+  final earth = both ? _gateBody(v, _gateCell(size, (i + 3) % 10, (j + 2) % 7), 0.95, SkyState.up) : null;
+  LanderPainter.paintedChip = null;
+  LanderPainter(
+          cam: cam,
+          mesh: null,
+          proj: LanderProjection(),
+          colors: null,
+          sun: sun,
+          earth: earth,
+          maskDeg: Float64List(720),
+          maskLabel: '${landerMaskLabel(custom: false, lander: '2 m')}${seeThrough ? '\n$landerSeeThroughLabel' : ''}',
+          probe: 'Centre: regolith · 1.2 km · az 123.4° el -30.0°',
+          reserve: reserve,
+          viewpoint: eye)
+      .paint(Canvas(ui.PictureRecorder()), size);
+  return (
+    callouts: LanderPainter.paintedSky!.callouts,
+    chip: LanderPainter.paintedChip?.box,
+    keepOff: LanderPainter.chipKeepOff([LanderPainter.calloutAnchor(v, sun), if (earth != null) LanderPainter.calloutAnchor(v, earth)])
+  );
 }
 
 /// The Sun's gate cells (Earth's is ((i + 3) % 10, (j + 2) % 7), as in the 1.9.2 release gate) of the

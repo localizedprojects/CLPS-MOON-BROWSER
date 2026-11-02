@@ -173,8 +173,10 @@ String landerViewpointHint(double observerHeightM) =>
 String landerViewpointItem(LanderViewpoint v, double observerHeightM) =>
     v.raised ? '${landerHeightText(v.eyeHeightM(observerHeightM))} up' : 'Lander, ${landerHeightText(observerHeightM)}';
 
-/// The chip on the view from a raised viewpoint [eye] (D22, §6).
-String landerViewpointChip(String eye) => 'Viewpoint $eye up, not the lander\'s';
+/// The chip on the view from a raised viewpoint [eye] (D22, §6), after the
+/// raised-eye glyph, which stands for "Viewpoint" (1.11.2: "Viewpoint 1 km up,
+/// not the lander's", about 53 px wider, took the place the callouts needed).
+String landerViewpointChip(String eye) => '$eye up, not the lander\'s';
 
 /// [landerViewpointChip] as the chip paints it: the words in Plex Sans 11,
 /// the height's number and unit in Plex Mono; the space between them is the
@@ -184,7 +186,6 @@ TextSpan landerViewpointChipSpan(String eye) {
   return TextSpan(
     style: const TextStyle(fontFamily: PH.sans, fontSize: 11, color: PH.text, fontWeight: FontWeight.w500),
     children: [
-      const TextSpan(text: 'Viewpoint '),
       if (i < 0)
         TextSpan(text: eye, style: n)
       else ...[
@@ -341,6 +342,20 @@ class LanderViewPanel extends StatefulWidget {
   /// The viewpoint height control's box (D22): under the compass strip, left
   /// of the expand button inline and of the relief switch full screen.
   static Rect viewpointRect(double w) => Rect.fromLTWH(w - 104, LanderPainter.compassH + 4, 48, 48);
+
+  /// The controls over a view of [size] ([LanderPainter.reserve]): the
+  /// viewpoint height control (D22; also while the view builds), the expand
+  /// button (an [inline] view, once [built]) and the relief switch (D21, once
+  /// [built]), each only where the view is tall enough for it under the
+  /// compass strip; [all] in that order (null: not shown).
+  static ({Rect? viewpoint, Rect? expand, Rect? relief, List<Rect> all}) controlsIn(Size size,
+      {required bool inline, required bool built}) {
+    final w = size.width, h = size.height, vp = viewpointRect(w), rf = reliefRect(w, expand: inline);
+    final viewpoint = h >= vp.bottom + 8 && vp.left >= 0 ? vp : null;
+    final expand = inline && built && h >= LanderPainter.compassH + 4 + 48 + 8 ? expandRect(w) : null;
+    final relief = built && h >= rf.bottom + 8 ? rf : null;
+    return (viewpoint: viewpoint, expand: expand, relief: relief, all: [?viewpoint, ?expand, ?relief]);
+  }
 
   /// The relief shading switch's accessible name; its state is the toggle.
   static const reliefLabel = 'Relief shading';
@@ -1147,15 +1162,11 @@ class LanderViewPanelState extends State<LanderViewPanel> with TickerProviderSta
     _viewH = viewH;
     _initCamera();
     final status = _status;
-    // the expand button: once the view is built, in a view tall enough for it under the compass strip
-    final expand = _canExpand && viewH >= LanderPainter.compassH + 4 + 48 + 8;
-    // the relief switch (D21): once the view is built, under the expand button's slot
+    final overView = LanderViewPanel.controlsIn(Size(w, viewH), inline: widget.onExpand != null, built: _mesh != null);
+    final expand = overView.expand != null, relief = overView.relief != null, viewpoint = overView.viewpoint != null;
     final reliefBox = LanderViewPanel.reliefRect(w, expand: widget.onExpand != null);
-    final relief = _mesh != null && viewH >= reliefBox.bottom + 8;
-    // the viewpoint height control (D22): also while building (back to a kept height at once)
     final viewpointBox = LanderViewPanel.viewpointRect(w);
-    final viewpoint = viewH >= viewpointBox.bottom + 8 && viewpointBox.left >= 0;
-    final reserve = [if (viewpoint) viewpointBox, if (expand) LanderViewPanel.expandRect(w), if (relief) reliefBox];
+    final reserve = overView.all;
     final painter = LanderPainter(
       cam: cam,
       mesh: _mesh,
@@ -1603,14 +1614,16 @@ class LanderPainter extends CustomPainter {
   static ({String text, Rect box})? paintedChip;
 
   /// The raised viewpoint's chip in a view of [size] (D22, §6): the glyph,
-  /// then "Viewpoint 1 km up, not the lander's" ([landerViewpointChipSpan]:
-  /// the height's number and unit in Plex Mono, the space between them the
-  /// words' Plex Sans) in at most 2 lines, as wide as the view less the controls at its right
-  /// ([reserve]). It goes at (8, [compassH] + 6) unless that covers a body
-  /// ([bodies]: the Sun's and Earth's glyphs and discs): then just under the
-  /// body (or bodies) in the way, else just right of them, above the bottom
-  /// strip. If nowhere is clear (a tiny view) it stays at the top left; it is
-  /// painted under the callouts, so a glyph still shows over it.
+  /// then "1 km up, not the lander's" ([landerViewpointChipSpan]: the
+  /// height's number and unit in Plex Mono, the space between them the words'
+  /// Plex Sans) in at most 2 lines, as wide as the view less the controls at
+  /// its right ([reserve]). It goes at (8, [compassH] + 6) unless that covers
+  /// one of [bodies] (what it keeps off: the Sun's and Earth's glyphs and
+  /// discs, and as the caller asks the crosshair and the callouts' boxes):
+  /// then just under the one (or ones) in the way, or just above the bottom
+  /// strip, else just right of them, above the bottom strip. If nowhere is
+  /// clear (a tiny view) it stays at the top left; it is painted under the
+  /// callouts, so a glyph still shows over it.
   ({TextPainter text, Rect box}) _chip(String eye, Size size, List<Rect> bodies) {
     final right = reserve.isEmpty ? size.width : reserve.map((r) => r.left).reduce(math.min);
     final maxW = math.max(40.0, right - 16 - 24);
@@ -1626,7 +1639,7 @@ class LanderPainter extends CustomPainter {
     if (!bodies.any(home.overlaps)) return (text: t, box: home);
     // clear of the controls at the right and of the bottom strip (two lines of 10 px text and the readout)
     final maxRight = right - 8, maxBottom = size.height - 48;
-    final tops = [compassH + 6, for (final r in bodies) r.bottom + 4]..sort();
+    final tops = [compassH + 6, for (final r in bodies) r.bottom + 4, maxBottom - h]..sort();
     final lefts = [8.0, for (final r in bodies) r.right + 4]..sort();
     for (final x in lefts) {
       for (final y in tops) {
@@ -2333,13 +2346,20 @@ class LanderPainter extends CustomPainter {
             ..strokeWidth = 1);
       level = (y0: y0, k: k); // its label goes on after the boxes, clear of them
     }
-    // the raised viewpoint's chip (D22), under the compass strip at the left, or under or beside a body
-    // there (it never covers a glyph or disc): the callouts, the scale's labels and the DEM ends' labels
-    // keep off it
     // where each body's callout hangs (found once a paint)
     final sunA = sun == null ? null : calloutAnchor(v, sun!), earthA = earth == null ? null : calloutAnchor(v, earth!);
-    final chip = viewpoint == null ? null : _chip(viewpoint!, size, chipKeepOff([sunA, earthA]));
-    if (debugRecord) paintedChip = chip == null ? null : (text: landerViewpointChip(viewpoint!), box: chip.box);
+    // the raised viewpoint's chip (D22), under the compass strip at the left, or under, beside or above
+    // the bodies there: never over a glyph or disc, and off the centre crosshair where a place clear of
+    // the bodies is (1.11.1: on it in every short view). The callouts are placed first and the chip
+    // then moves clear of them where it can (below); this place, which the DEM ends' labels keep off,
+    // is its fallback. The callouts, the scale's labels and the DEM ends' labels keep off it
+    final chipOff = chipKeepOff([sunA, earthA]), reticle = reticleBox(size);
+    ({TextPainter text, Rect box})? chipClearOf(List<Rect> keep) {
+      final c = _chip(viewpoint!, size, keep);
+      return keep.any(c.box.overlaps) ? null : c;
+    }
+
+    var chip = viewpoint == null ? null : chipClearOf([...chipOff, reticle]) ?? _chip(viewpoint!, size, chipOff);
     // DEM ends (§3.9): dotted on the drawn skyline where the LOLA map stops
     final demLabels = <Rect>[];
     if (m != null) {
@@ -2430,8 +2450,7 @@ class LanderPainter extends CustomPainter {
     }
 
     final sunGlyph = glyphOf(sunA), earthGlyph = glyphOf(earthA);
-    // the centre crosshair's box: no callout's words go over it
-    final reticle = reticleBox(size);
+    // the centre crosshair's box ([reticle]): no callout's words go over it
     // no callout placed over the compass strip covers an edge chevron's words or
     // the other body's azimuth marker (1.9.2: over them; W24): [keepOf]; nor,
     // where a place that fits keeps clear, the rest of a chevron's tap target
@@ -2439,184 +2458,211 @@ class LanderPainter extends CustomPainter {
     // (its callout repeats the azimuth) or the heading pointer: [preferOf]
     final markers = _markers(v, sun, earth, sunA, earthA), pointer = headingPointer(size);
     final taps = [for (final (r, _, _, _) in chevrons(v, sun, earth)) r];
-    // the expand button's corner ([reserve]) is kept as a chevron's tap target is
-    final soft = [...taps, ...reserve, ?chip?.box];
-    List<Rect> markerOf(bool isSun) => [
-          for (final (r, s) in markers)
-            if (s == isSun) r
+    // the controls over the view ([reserve]) and the viewpoint's chip [chipBox] are kept as a
+    // chevron's tap target is ([preferOf]). Placed with [read] and [strip] (each body's callout, the
+    // readout left out where that gives them their place)
+    final read0 = read, strip0 = strip;
+    (({Rect? legend, Rect? readout}), TextPainter?, (_Callout?, _Callout?)) placeAll(Rect? chipBox) {
+      var read = read0, strip = strip0;
+      final soft = [...taps, ...reserve, ?chipBox];
+      List<Rect> markerOf(bool isSun) => [
+            for (final (r, s) in markers)
+              if (s == isSun) r
+          ];
+      // the two markers over each other (a lunar eclipse): a box over its own covers the other's
+      final twin = markers.length == 2 && markers[0].$1.overlaps(markers[1].$1);
+      List<Rect> keepOf(bool isSun) => [
+            for (final r in taps) Rect.fromLTWH(r.left, 0, r.width, chevronRowH),
+            if (!twin) ...markerOf(!isSun),
+          ];
+      final sunKeep = keepOf(true), earthKeep = keepOf(false);
+      // each body's words keep clear of the other's disc where it is not under
+      // the other's glyph (zoomed in, or in the compass strip), and of its leader,
+      // where a place that fits does (1.9.2: a box over the other disc; W24)
+      List<Rect> spotOf(CalloutAnchor? a, {bool always = false}) {
+        if (a == null) return const [];
+        final l = leaderOf(a);
+        return [
+          if (always || a.rPx > glyphR || a.glyph != a.disc) Rect.fromCircle(center: a.disc, radius: a.rPx + 3),
+          if (l != null) Rect.fromPoints(l.$1, l.$2).inflate(1)
         ];
-    // the two markers over each other (a lunar eclipse): a box over its own covers the other's
-    final twin = markers.length == 2 && markers[0].$1.overlaps(markers[1].$1);
-    List<Rect> keepOf(bool isSun) => [
-          for (final r in taps) Rect.fromLTWH(r.left, 0, r.width, chevronRowH),
-          if (!twin) ...markerOf(!isSun),
-        ];
-    final sunKeep = keepOf(true), earthKeep = keepOf(false);
-    // each body's words keep clear of the other's disc where it is not under
-    // the other's glyph (zoomed in, or in the compass strip), and of its leader,
-    // where a place that fits does (1.9.2: a box over the other disc; W24)
-    List<Rect> spotOf(CalloutAnchor? a, {bool always = false}) {
-      if (a == null) return const [];
-      final l = leaderOf(a);
-      return [
-        if (always || a.rPx > glyphR || a.glyph != a.disc) Rect.fromCircle(center: a.disc, radius: a.rPx + 3),
-        if (l != null) Rect.fromPoints(l.$1, l.$2).inflate(1)
-      ];
-    }
-
-    final sunSpot = spotOf(sunA), earthSpot = spotOf(earthA), earthDisc = spotOf(earthA, always: true);
-    // a callout's soft keeps, most kept first ([calloutPlace]'s prefer sets):
-    // clear of them all, else over its own marker or the heading pointer, else
-    // over a chevron's tap target too, else over the other body's disc [spot],
-    // else (twin markers) over the other's marker
-    List<List<Rect>> preferOf(List<Rect> spot, bool isSun) {
-      final other = twin ? markerOf(!isSun) : const <Rect>[];
-      return [
-        [...spot, ...soft, ...markerOf(isSun), pointer, ...other],
-        [...spot, ...soft, ...other],
-        [...spot, ...other],
-        [...soft, ...markerOf(isSun), pointer, ...other],
-        other
-      ];
-    }
-
-    late final sunPrefer = preferOf(earthSpot, true), sunMergedPrefer = preferOf(earthDisc, true);
-    late final earthPrefer = preferOf(sunSpot, false);
-
-    // Earth's words keep clear of the Sun's callout and glyph (1.9.2: over
-    // them, W19), each box over the bottom strip's boxes [st] under it;
-    // [level] 0: the words in full, 1: shortened where they find no place,
-    // 2: as 1, a lone body's glyph alone where its line finds none either
-    // a pair's soft cost: its worst box's first, then both ([calloutPlace]'s cost)
-    int softCost((_Callout?, _Callout?) c) {
-      final a = c.$1?.cost ?? 0, b = c.$2?.cost ?? 0;
-      return math.max(a, b) * 64 + a + b;
-    }
-
-    // [st]'s placement at each level: the pairs that fit are the same at every
-    // level (found once), and with both bodies level 2 is level 1
-    (_Callout?, _Callout?) Function(int level) placer(({Rect? legend, Rect? readout}) st) {
-      final under = [?st.legend, ?st.readout], memo = <Object, Map<Rect, List<Rect>>>{};
-      // the merged callout (Earth's line in the Sun's box) keeps off Earth's disc too, where it can
-      _Callout? sunAt({int? lines, bool word = false, SkyBody? merged, Rect? clearOf}) => sun == null
-          ? null
-          : _callout(canvas, v, sunA, sun!, true, [?earthGlyph, ?clearOf], under, reticle, sunKeep,
-              lines: lines, word: word, merged: merged, prefer: merged != null ? sunMergedPrefer : sunPrefer, memo: memo);
-      final s = sunAt();
-      _Callout? e({int? lines, bool word = false, bool first = false, _Callout? by}) => earth == null
-          ? null
-          : _callout(canvas, v, earthA, earth!, false, [if (!first) ?(by ?? s)?.box, ?sunGlyph], under, reticle,
-              earthKeep, lines: lines, word: word, prefer: earthPrefer, memo: memo);
-      final two = e();
-      // of the pairs that fit, the first one clearest of the soft keeps (the
-      // [calloutPlace] prefer sets each box keeps clear of; 1.9.2: a box over
-      // the other body's azimuth marker where a pair clear of it fitted, W24)
-      (_Callout?, _Callout?)? best;
-      bool offer((_Callout?, _Callout?) c) {
-        if ((c.$1?.fits ?? true) && (c.$2?.fits ?? true) && (best == null || softCost(c) < softCost(best!))) best = c;
-        return best != null && softCost(best!) == 0;
       }
 
-      (_Callout?, _Callout?)? fitted() {
-        if (offer((s, two))) return best;
-        if (s != null && two != null && s.fits) {
-          // no place for Earth's words clear of the Sun's: Earth's placed first and
-          // the Sun's clear of them, both in full where that fits (1.9.2: Earth's
-          // shortened though both fitted in full; W23)
-          final e1 = e(first: true)!;
-          if (e1.fits && offer((sunAt(clearOf: e1.box)!, e1))) return best;
-          // else the Sun's next places that fit, the first that leaves Earth's words
-          // one (1.9.2: the readout left out though both fitted in full; W24)
-          for (var k = 1; k <= 8; k++) {
-            final sk = s.nth!(k);
-            if (!sk.fits || (best != null && sk.cost * 65 >= softCost(best!))) break;
-            if (offer((sk, e(by: sk)!))) return best;
-          }
+      final sunSpot = spotOf(sunA), earthSpot = spotOf(earthA), earthDisc = spotOf(earthA, always: true);
+      // a callout's soft keeps, most kept first ([calloutPlace]'s prefer sets):
+      // clear of them all, else over its own marker or the heading pointer, else
+      // over a chevron's tap target, the controls or the chip [soft] too (one
+      // set: none is given up before the others), else over the other body's
+      // disc [spot], else (twin markers) over the other's marker
+      List<List<Rect>> preferOf(List<Rect> spot, bool isSun) {
+        final other = twin ? markerOf(!isSun) : const <Rect>[];
+        return [
+          [...spot, ...soft, ...markerOf(isSun), pointer, ...other],
+          [...spot, ...soft, ...other],
+          [...spot, ...other],
+          [...soft, ...markerOf(isSun), pointer, ...other],
+          other
+        ];
+      }
+
+      late final sunPrefer = preferOf(earthSpot, true), sunMergedPrefer = preferOf(earthDisc, true);
+      late final earthPrefer = preferOf(sunSpot, false);
+
+      // Earth's words keep clear of the Sun's callout and glyph (1.9.2: over
+      // them, W19), each box over the bottom strip's boxes [st] under it;
+      // [level] 0: the words in full, 1: shortened where they find no place,
+      // 2: as 1, a lone body's glyph alone where its line finds none either
+      // a pair's soft cost: its worst box's first, then both ([calloutPlace]'s cost)
+      int softCost((_Callout?, _Callout?) c) {
+        final a = c.$1?.cost ?? 0, b = c.$2?.cost ?? 0;
+        return math.max(a, b) * 64 + a + b;
+      }
+
+      // [st]'s placement at each level: the pairs that fit are the same at every
+      // level (found once), and with both bodies level 2 is level 1
+      (_Callout?, _Callout?) Function(int level) placer(({Rect? legend, Rect? readout}) st) {
+        final under = [?st.legend, ?st.readout], memo = <Object, Map<Rect, List<Rect>>>{};
+        // the merged callout (Earth's line in the Sun's box) keeps off Earth's disc too, where it can
+        _Callout? sunAt({int? lines, bool word = false, SkyBody? merged, Rect? clearOf}) => sun == null
+            ? null
+            : _callout(canvas, v, sunA, sun!, true, [?earthGlyph, ?clearOf], under, reticle, sunKeep,
+                lines: lines, word: word, merged: merged, prefer: merged != null ? sunMergedPrefer : sunPrefer, memo: memo);
+        final s = sunAt();
+        _Callout? e({int? lines, bool word = false, bool first = false, _Callout? by}) => earth == null
+            ? null
+            : _callout(canvas, v, earthA, earth!, false, [if (!first) ?(by ?? s)?.box, ?sunGlyph], under, reticle,
+                earthKeep, lines: lines, word: word, prefer: earthPrefer, memo: memo);
+        final two = e();
+        // of the pairs that fit, the first one clearest of the soft keeps (the
+        // [calloutPlace] prefer sets each box keeps clear of; 1.9.2: a box over
+        // the other body's azimuth marker where a pair clear of it fitted, W24)
+        (_Callout?, _Callout?)? best;
+        bool offer((_Callout?, _Callout?) c) {
+          if ((c.$1?.fits ?? true) && (c.$2?.fits ?? true) && (best == null || softCost(c) < softCost(best!))) best = c;
+          return best != null && softCost(best!) == 0;
         }
-        return best;
-      }
 
-      final fit = fitted();
-      (_Callout?, _Callout?) atLevel(int level) {
-        if (fit != null) return fit;
-        if (level == 0) return (s, two);
-        if (s == null || two == null) {
-          // a lone body (1.9.2: its two lines over its glyph and the crosshair, W22): its
-          // position line, the word after it where the glyph (solid: in view) does not
-          // show it, else without; else (level 2) its glyph alone
-          _Callout? lone(SkyBody? b, bool isSun, _Callout? full, _Callout? Function({int? lines, bool word}) at) {
-            if (b == null || full == null || full.fits) return full;
-            for (final w in [if (calloutLines(b, isSun)[1] != 'in view') true, false]) {
-              final one = at(lines: 1, word: w)!;
-              if (one.fits) return one;
+        (_Callout?, _Callout?)? fitted() {
+          if (offer((s, two))) return best;
+          if (s != null && two != null && s.fits) {
+            // no place for Earth's words clear of the Sun's: Earth's placed first and
+            // the Sun's clear of them, both in full where that fits (1.9.2: Earth's
+            // shortened though both fitted in full; W23)
+            final e1 = e(first: true)!;
+            if (e1.fits && offer((sunAt(clearOf: e1.box)!, e1))) return best;
+            // else the Sun's next places that fit, the first that leaves Earth's words
+            // one (1.9.2: the readout left out though both fitted in full; W24)
+            for (var k = 1; k <= 8; k++) {
+              final sk = s.nth!(k);
+              if (!sk.fits || (best != null && sk.cost * 65 >= softCost(best!))) break;
+              if (offer((sk, e(by: sk)!))) return best;
             }
-            return level == 2 ? at(lines: 0) : full;
           }
+          return best;
+        }
 
-          return (lone(sun, true, s, sunAt), lone(earth, false, two, e));
-        }
-        if (two.fits) return (s, two);
-        // no place for Earth's words clear of the Sun's (a lunar eclipse puts both
-        // at one spot; a short view): its position line alone (no status word),
-        // else that line under the Sun's words in one callout
-        final one = e(lines: 1)!;
-        if (one.fits) {
-          // the merged callout where it keeps clearer of the soft keeps (the words the same)
-          if (s.fits && softCost((s, one)) > 0) {
-            final both = sunAt(merged: earth)!;
-            if (both.fits && softCost((both, null)) < softCost((s, one))) return (both, e(lines: 0));
+        final fit = fitted();
+        (_Callout?, _Callout?) atLevel(int level) {
+          if (fit != null) return fit;
+          if (level == 0) return (s, two);
+          if (s == null || two == null) {
+            // a lone body (1.9.2: its two lines over its glyph and the crosshair, W22): its
+            // position line, the word after it where the glyph (solid: in view) does not
+            // show it, else without; else (level 2) its glyph alone
+            _Callout? lone(SkyBody? b, bool isSun, _Callout? full, _Callout? Function({int? lines, bool word}) at) {
+              if (b == null || full == null || full.fits) return full;
+              for (final w in [if (calloutLines(b, isSun)[1] != 'in view') true, false]) {
+                final one = at(lines: 1, word: w)!;
+                if (one.fits) return one;
+              }
+              return level == 2 ? at(lines: 0) : full;
+            }
+
+            return (lone(sun, true, s, sunAt), lone(earth, false, two, e));
           }
-          return (s, one);
+          if (two.fits) return (s, two);
+          // no place for Earth's words clear of the Sun's (a lunar eclipse puts both
+          // at one spot; a short view): its position line alone (no status word),
+          // else that line under the Sun's words in one callout
+          final one = e(lines: 1)!;
+          if (one.fits) {
+            // the merged callout where it keeps clearer of the soft keeps (the words the same)
+            if (s.fits && softCost((s, one)) > 0) {
+              final both = sunAt(merged: earth)!;
+              if (both.fits && softCost((both, null)) < softCost((s, one))) return (both, e(lines: 0));
+            }
+            return (s, one);
+          }
+          final both = sunAt(merged: earth)!;
+          if (both.fits) return (both, e(lines: 0));
+          // none fits, never one box over the other (1.9.2: stacked, W20): where the
+          // Sun's own words fit, Earth's glyph alone; else Earth's line clear of the
+          // Sun's box, else the merged callout
+          if (s.fits) return (s, e(lines: 0));
+          return one.box!.overlaps(s.box!) ? (both, e(lines: 0)) : (s, one);
         }
-        final both = sunAt(merged: earth)!;
-        if (both.fits) return (both, e(lines: 0));
-        // none fits, never one box over the other (1.9.2: stacked, W20): where the
-        // Sun's own words fit, Earth's glyph alone; else Earth's line clear of the
-        // Sun's box, else the merged callout
-        if (s.fits) return (s, e(lines: 0));
-        return one.box!.overlaps(s.box!) ? (both, e(lines: 0)) : (s, one);
+
+        final byLevel = <int, (_Callout?, _Callout?)>{};
+        return (level) {
+          final l = s != null && two != null ? math.min(level, 1) : level;
+          return byLevel[l] ??= atLevel(l);
+        };
       }
 
-      final byLevel = <int, (_Callout?, _Callout?)>{};
-      return (level) {
-        final l = s != null && two != null ? math.min(level, 1) : level;
-        return byLevel[l] ??= atLevel(l);
-      };
+      final placers = <bool, (_Callout?, _Callout?) Function(int)>{};
+      (_Callout?, _Callout?) place(({Rect? legend, Rect? readout}) st, int level) =>
+          (placers[st.readout != null] ??= placer(st))(level);
+
+      int misfits((_Callout?, _Callout?) c) => [c.$1, c.$2].where((k) => k != null && !k.fits).length;
+      // how much of the bodies' words a placement shows (the Sun's callout with Earth's line merged: both)
+      int words((_Callout?, _Callout?) c) =>
+          [c.$1, c.$2].fold(0, (n, k) => n + (k?.words.score ?? 0));
+      final allWords = 4 * [?sunA, ?earthA].length;
+      // the bottom strip without the readout
+      late final noRead = bottomStrip(size, legendSize, null);
+      var placed = place(strip, 0);
+      // the words in full first, then shortened ([place] levels) where they still
+      // find no place: the status word goes after the probe, a lone body's line
+      // last (level 2: only a lone body's words differ from level 1's)
+      for (final level in [0, 1, if (allWords < 8) 2]) {
+        if (level > 0) {
+          if (misfits(placed) == 0) break;
+          placed = place(strip, level);
+        }
+        if (status == null && strip.readout != null && (misfits(placed) > 0 || words(placed) < allWords)) {
+          // no place for a body's words (the disc in the compass strip, or an edge
+          // chevron over the place above it in a short view): the probe is
+          // secondary, so it is left out where that gives every callout its place,
+          // or a body more of its words (1.9.2: Earth's glyph alone, W23)
+          final s = noRead, again = place(s, level);
+          if (misfits(again) == 0 && (misfits(placed) > 0 || words(again) > words(placed))) {
+            read = null;
+            strip = s;
+            placed = again;
+          }
+        }
+      }
+      return (strip, read, placed);
     }
 
-    final placers = <bool, (_Callout?, _Callout?) Function(int)>{};
-    (_Callout?, _Callout?) place(({Rect? legend, Rect? readout}) st, int level) =>
-        (placers[st.readout != null] ??= placer(st))(level);
-
-    int misfits((_Callout?, _Callout?) c) => [c.$1, c.$2].where((k) => k != null && !k.fits).length;
-    // how much of the bodies' words a placement shows (the Sun's callout with Earth's line merged: both)
-    int words((_Callout?, _Callout?) c) =>
-        [c.$1, c.$2].fold(0, (n, k) => n + (k?.words.score ?? 0));
-    final allWords = 4 * [?sunA, ?earthA].length;
-    // the bottom strip without the readout
-    late final noRead = bottomStrip(size, legendSize, null);
-    var placed = place(strip, 0);
-    // the words in full first, then shortened ([place] levels) where they still
-    // find no place: the status word goes after the probe, a lone body's line
-    // last (level 2: only a lone body's words differ from level 1's)
-    for (final level in [0, 1, if (allWords < 8) 2]) {
-      if (level > 0) {
-        if (misfits(placed) == 0) break;
-        placed = place(strip, level);
-      }
-      if (status == null && strip.readout != null && (misfits(placed) > 0 || words(placed) < allWords)) {
-        // no place for a body's words (the disc in the compass strip, or an edge
-        // chevron over the place above it in a short view): the probe is
-        // secondary, so it is left out where that gives every callout its place,
-        // or a body more of its words (1.9.2: Earth's glyph alone, W23)
-        final s = noRead, again = place(s, level);
-        if (misfits(again) == 0 && (misfits(placed) > 0 || words(again) > words(placed))) {
-          read = null;
-          strip = s;
-          placed = again;
-        }
+    // the callouts first, as at the lander's height, then the viewpoint's chip clear of their boxes,
+    // the bodies, the crosshair and the DEM ends' labels; where it finds no such place, the callouts
+    // again, keeping off the chip in its fallback place (1.11.1: the chip placed first, the callouts
+    // over it or the controls where that kept them off the other body's disc)
+    var res = placeAll(null);
+    if (chip != null) {
+      final boxes = [?res.$3.$1?.box, ?res.$3.$2?.box];
+      final keep = [...chipOff, ...boxes, ?res.$1.legend, ?res.$1.readout, ...demLabels];
+      if (chipClearOf([...keep, reticle]) case final c?) {
+        chip = c;
+      } else {
+        res = placeAll(chip.box);
       }
     }
+    if (debugRecord) paintedChip = chip == null ? null : (text: landerViewpointChip(viewpoint!), box: chip.box);
+    final placed = res.$3;
+    strip = res.$1;
+    read = res.$2;
     final (sunCallout, earthCallout) = placed;
     final sunBox = sunCallout?.box, earthBox = earthCallout?.box;
     // (the glyphs too: a callout's glyph sits outside its box and is painted over a label under it;

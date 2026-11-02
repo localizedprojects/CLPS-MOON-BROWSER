@@ -42,7 +42,7 @@ Total: 29.9 s (30 s or less). Captions are 9 to 11 words each.
   the page shows a different value, use that value.
 - Shot 5: the Lander's view uses the light map's own 400 m terrain and computed light; it
   is approximate and labelled so in the app. The caption says so too. Keep the height button
-  at **2 m** (the lander's own eye): from 200 m, 1 km or 5 km the view says "Viewpoint … up,
+  at **2 m** (the lander's own eye): from 200 m, 1 km or 5 km the view says "… up,
   not the lander's", and the caption would no longer hold. The README's Lander shots are from
   1 km.
 - Put the title, links and credits in the video description (see

@@ -1,6 +1,6 @@
 // A chart page that has not drawn says why in its card instead of staying
 // blank: that this web view is too old only on evidence (a syntax error, or
-// a Chrome older than the bundle is built for: Chrome 69, Android 7's stock
+// a Chrome older than the bundle is built for: Chrome 51, Android 7's stock
 // web view, runs it), otherwise that it is still loading. A later ready
 // takes the message away.
 import 'dart:io' show File;
@@ -43,21 +43,22 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  test('the minimum Chrome equals the chart bundle build target (Chrome 69, the stock web view of Android 7)', () {
+  test('the minimum Chrome equals the chart bundle build target (Chrome 51, the stock web view of Android 7)', () {
     final vite = File('../charts/vite.config.ts').readAsStringSync();
     final target = RegExp(r"target: \[[^\]]*'chrome(\d+)'").firstMatch(vite);
     expect(target, isNotNull, reason: 'charts/vite.config.ts names a chrome build target');
     expect(chartMinChromeMajor, int.parse(target!.group(1)!));
-    expect(chartMinChromeMajor, 69);
+    expect(chartMinChromeMajor, 51);
   });
 
-  testWidgets('the stock web view of Android 7 (Chrome 69) gets no "too old" verdict', (tester) async {
+  testWidgets('the stock web view of Android 7 (Chrome 51) gets no "too old" verdict', (tester) async {
     final c = ChartController('sky');
     c.attach((_) {}, 'page');
     await pumpChart(tester, c);
     c.pageLoaded();
-    c.pageUserAgent('Mozilla/5.0 (Linux; Android 7.0; sdk_gphone) AppleWebKit/537.36 (KHTML, like Gecko) '
-        'Version/4.0 Chrome/69.0.3497.100 Mobile Safari/537.36');
+    // the version of the API 24 emulator's web view
+    c.pageUserAgent('Mozilla/5.0 (Linux; Android 7.0; sdk_gphone; wv) AppleWebKit/537.36 (KHTML, like Gecko) '
+        'Version/4.0 Chrome/51.0.2704.91 Mobile Safari/537.36');
     await tester.pump();
     expect(c.issue, isNull);
     expect(problem, findsNothing);
@@ -70,7 +71,8 @@ void main() {
       (tester) async {
     String ua(String chrome) => 'Mozilla/5.0 (Linux; Android 7.0) AppleWebKit/537.36 (KHTML, like Gecko) '
         'Version/4.0 Chrome/$chrome Mobile Safari/537.36';
-    expect(chromeMajor('"${ua('69.0.3497.100')}"'), 69);
+    expect(chromeMajor('"${ua('51.0.2704.91')}"'), 51);
+    expect(chromeMajor(ua('69.0.3497.100')), 69);
     expect(chromeMajor('Mozilla/5.0 (iPhone; CPU iPhone OS 17_0) AppleWebKit/605.1.15 Version/17.0 Safari/604.1'), isNull);
     final c = ChartController('sky');
     c.attach((_) {}, 'page');
@@ -88,7 +90,7 @@ void main() {
     expect(problem, findsOneWidget, reason: 'the timeout never turns the evidence into "still loading"');
     expect(slow, findsNothing);
     c.handleRaw('{"type":"ready","view":"sky"}');
-    c.pageUserAgent(ua('60.0.1'));
+    c.pageUserAgent(ua('50.0.1'));
     await tester.pump();
     expect(problem, findsNothing, reason: 'a ready chart is drawn');
   });

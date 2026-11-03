@@ -11,6 +11,7 @@ import 'package:polar_horizon/theme.dart';
 import 'package:polar_horizon/widgets/chart_bridge.dart';
 import 'package:polar_horizon/widgets/chart_focus.dart';
 import 'package:polar_horizon/widgets/chart_view.dart';
+import 'package:polar_horizon/widgets/save_file.dart';
 import 'package:provider/provider.dart';
 
 // a 1 x 1 PNG, as a chart's export would send it
@@ -174,6 +175,80 @@ void main() {
     expect(find.textContaining('newer Android System WebView'), findsNothing);
     expect(picture(), findsOneWidget);
     expect(tester.takeException(), isNull);
+  });
+
+  group('a slow phone (an old web view takes long to make the picture)', () {
+    late List<List<SaveFile>> saved;
+    late List<String> asks;
+    void answer(String id) =>
+        hub.timeline.handleRaw(jsonEncode({'type': 'png', 'id': id, 'dataUrl': 'data:image/png;base64,$_png'}));
+    void slowPage(Object owner) {
+      hub.timeline.attach((json) {
+        final m = jsonDecode(json) as Map<String, dynamic>;
+        if (m['type'] == 'exportPng') asks.add(m['id'] as String); // answered only when the test says
+      }, owner);
+      hub.timeline.handleRaw('{"type":"ready","view":"timeline"}');
+    }
+
+    setUp(() {
+      hub.dispose();
+      saved = [];
+      asks = [];
+      hub = ChartHub(onEvent: (_) {}, save: (f) async => saved.add(f));
+      slowPage('slow page');
+    });
+
+    testWidgets('a picture that takes long still shows; one that comes after the wait is dropped, not shared',
+        (tester) async {
+      await pumpPage(tester);
+      await tester.tap(find.byType(ChartView));
+      await tester.pumpAndSettle();
+      expect(asks, hasLength(1));
+      await tester.pump(const Duration(seconds: 20));
+      expect(find.textContaining('Preparing the full-screen chart'), findsOneWidget);
+      answer(asks.single);
+      await tester.pumpAndSettle();
+      expect(picture(), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('chart-focus-close')));
+      await tester.pumpAndSettle();
+      // again, and this time the picture comes after the wait
+      await tester.tap(find.byType(ChartView));
+      await tester.pumpAndSettle();
+      expect(asks, hasLength(2));
+      await tester.pump(ChartHub.snapshotTimeout);
+      await tester.pump();
+      expect(find.textContaining('could not be made'), findsOneWidget);
+      answer(asks.last);
+      await tester.pumpAndSettle();
+      expect(saved, isEmpty, reason: 'the share sheet never opens for a picture nobody waits for');
+      expect(picture(), findsNothing);
+      expect(find.textContaining('could not be made'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('the page reloads while it works: the new page\'s picture stays when the old request ends',
+        (tester) async {
+      await pumpPage(tester);
+      await tester.tap(find.byType(ChartView));
+      await tester.pumpAndSettle();
+      expect(asks, hasLength(1));
+      // the web view's page is gone and a new one is ready: the full screen asks it again
+      slowPage('reloaded page');
+      await tester.pumpAndSettle();
+      expect(asks, hasLength(2));
+      answer(asks.last);
+      await tester.pumpAndSettle();
+      expect(picture(), findsOneWidget);
+      // the first request times out, then its picture comes: neither changes what is shown
+      await tester.pump(ChartHub.snapshotTimeout);
+      await tester.pump();
+      expect(picture(), findsOneWidget);
+      answer(asks.first);
+      await tester.pumpAndSettle();
+      expect(picture(), findsOneWidget);
+      expect(saved, isEmpty);
+      expect(tester.takeException(), isNull);
+    });
   });
 
   testWidgets('a chart that is not ready says so instead of a picture', (tester) async {

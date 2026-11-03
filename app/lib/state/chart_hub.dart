@@ -88,9 +88,22 @@ class ChartHub {
   final Map<String, String> _snapView = {};
   int _snapSeq = 0;
 
+  /// [snapshot] ids given up on (timed out, or their chart reported an
+  /// error): a picture that still comes is dropped, never saved or shared as
+  /// a file (it used to open the share sheet unasked).
+  final Set<String> _gaveUp = {};
+
+  /// How long [snapshot] waits for its picture. The page draws it off screen
+  /// and encodes a PNG, which on a slow phone with an old web view (Android
+  /// 7's, Chrome 51) can take far longer than the 8 s once allowed; the full
+  /// screen says it is preparing the chart meanwhile, and a chart error ends
+  /// the wait at once.
+  static const snapshotTimeout = Duration(seconds: 60);
+
   /// A PNG of [c]'s chart at [width] x [height] logical px, rendered at
   /// [scale] device pixels per px: the full-screen picture (chart_focus.dart).
-  /// Null when the chart is not ready, fails, or does not answer in 8 s.
+  /// Null when the chart is not ready, fails, or does not answer within
+  /// [snapshotTimeout].
   Future<Uint8List?> snapshot(ChartController c, int width, int height, {double scale = 1}) {
     if (!c.ready) return Future.value(null);
     final id = 'focus-${++_snapSeq}';
@@ -98,11 +111,16 @@ class ChartHub {
     _snaps[id] = done;
     _snapView[id] = c.view;
     c.send({'type': 'exportPng', 'id': id, 'width': width, 'height': height, 'scale': scale});
-    return done.future.timeout(const Duration(seconds: 8), onTimeout: () {
-      _snaps.remove(id);
-      _snapView.remove(id);
+    return done.future.timeout(snapshotTimeout, onTimeout: () {
+      _giveUp(id);
       return null;
     });
+  }
+
+  void _giveUp(String id) {
+    _snapView.remove(id);
+    _snaps.remove(id)?.complete(null);
+    _gaveUp.add(id);
   }
 
   /// Turn the "Simple view" switch [on] or off.
@@ -272,9 +290,24 @@ class ChartHub {
   /// PNGs requested together (sky + timeline), shared in one go when all
   /// have arrived: one share sheet on Android (two sheets in a row made the
   /// second clear the first one's file).
+  ///
+  /// The wait is [exportTimeout] from the request, then [exportRestTimeout]
+  /// after each image for the next; when it runs out, the images that came
+  /// are shared and a late one is dropped, never shared on its own. An old
+  /// web view on a slow phone (the Android 7 emulator's Chrome 51) took about
+  /// a minute to draw both at 1600 x 1000: the 20 s once allowed ran out with
+  /// nothing in, then each image opened its own share sheet.
+  static const exportTimeout = Duration(minutes: 3);
+  static const exportRestTimeout = Duration(seconds: 60);
   final Map<String, Uint8List?> _batch = {};
   final Map<String, String> _batchView = {};
   Timer? _batchTimer;
+
+  /// Every id a sky + timeline export asked for: such an image that comes
+  /// when no export is waiting for it (after the wait ran out, after its
+  /// chart reported an error, or a second copy) is dropped, never shared on
+  /// its own.
+  final Set<String> _batchIds = {};
 
   void _handle(ChartController c, Map<String, dynamic> ev) {
     if (ev['type'] == 'seek' && identical(c, timeline)) _state?.setCursor((ev['t'] as num).toDouble());
@@ -284,11 +317,12 @@ class ChartHub {
       _snaps.remove(id)!.complete(base64Decode((ev['dataUrl'] as String).split(',').last));
       return; // a full-screen picture, not a file to share
     }
+    // a full-screen picture that came too late: its caller has moved on
+    if (ev['type'] == 'png' && _gaveUp.remove('${ev['id']}')) return;
     if (ev['type'] == 'error') {
       // that chart's full-screen pictures will not come
       for (final id in [for (final e in _snapView.entries) if (e.value == c.view) e.key]) {
-        _snapView.remove(id);
-        _snaps.remove(id)?.complete(null);
+        _giveUp(id);
       }
     }
     if (ev['type'] == 'png') {
@@ -296,25 +330,48 @@ class ChartHub {
       final bytes = base64Decode((ev['dataUrl'] as String).split(',').last);
       if (_batch.containsKey(id)) {
         _batch[id] = bytes;
-        if (_batch.values.every((b) => b != null)) _flushBatch();
+        if (_batch.values.every((b) => b != null)) {
+          _flushBatch();
+        } else {
+          _waitForBatch(exportRestTimeout);
+        }
+      } else if (_batchIds.contains(id)) {
+        return; // a sky or timeline image nobody is waiting for any more
       } else {
         _save([SaveFile('$id.png', bytes, 'image/png')]);
       }
     }
     if (ev['type'] == 'error' && _batch.isNotEmpty) {
-      // that chart's image will not come: share what the others sent
+      // that chart's image will not come: share what the others sent (if it
+      // comes after all, it is dropped: never a second share)
       _batch.removeWhere((id, b) => b == null && _batchView[id] == c.view);
       if (_batch.values.every((b) => b != null)) _flushBatch();
     }
     onEvent(ev);
   }
 
+  void _waitForBatch(Duration d) {
+    _batchTimer?.cancel();
+    _batchTimer = Timer(d, _flushBatch);
+  }
+
   void _flushBatch() {
     _batchTimer?.cancel();
     _batchTimer = null;
     final files = [for (final e in _batch.entries) if (e.value != null) SaveFile('${e.key}.png', e.value!, 'image/png')];
+    // still missing when the wait ran out (dropped if it comes later)
+    final missing = [for (final e in _batch.entries) if (e.value == null) e.key];
+    final lateViews = [for (final id in missing) _batchView[id]];
     _batch.clear();
     _batchView.clear();
+    if (missing.isNotEmpty) {
+      onEvent({
+        'type': 'notice',
+        'message': files.isEmpty
+            ? 'The charts did not send their images in time; try again.'
+            : 'The ${lateViews.join(' and ')} chart did not send its image in time; saved the other one only.',
+      });
+    }
     if (files.isNotEmpty) _save(files);
   }
 
@@ -359,9 +416,9 @@ class ChartHub {
       ..clear()
       ..[skyId] = sky.view
       ..[tlId] = timeline.view;
-    _batchTimer?.cancel();
+    _batchIds.addAll([skyId, tlId]);
     // a chart that never answers must not hold the other image back forever
-    _batchTimer = Timer(const Duration(seconds: 20), _flushBatch);
+    _waitForBatch(exportTimeout);
     exportPng(sky, skyId);
     exportPng(timeline, tlId);
   }

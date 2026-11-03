@@ -17,7 +17,7 @@ import { SkyHeader } from './SkyHeader'
 import { buildSky, skyAlt, skyHeader } from './sky'
 import { bodyGlyphSvg, drawSkyOverlay } from './skyOverlay'
 import { captionLine, captionText, exactLine, highestHillsText, keyLine, legendNames } from './skyCaption'
-import { C, MONO } from './theme'
+import { C, HOST_CORNER_PX, MONO } from './theme'
 import { usePlot } from './usePlot'
 import { useExport, useHost, useLatest, useLiveMode, Waiting } from './viewHooks'
 
@@ -37,9 +37,14 @@ function useWidth(el: React.RefObject<HTMLElement | null>): number {
     if (!node) return
     const f = () => setW(node.clientWidth || window.innerWidth)
     f()
-    const ro = new ResizeObserver(f)
-    ro.observe(node)
-    return () => ro.disconnect()
+    // no ResizeObserver before Chrome 64 (Android 7's WebView is 51): window resizes there
+    const ro = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(f)
+    if (ro) ro.observe(node)
+    else window.addEventListener('resize', f)
+    return () => {
+      ro?.disconnect()
+      window.removeEventListener('resize', f)
+    }
   })
   return w
 }
@@ -144,7 +149,8 @@ export function SkyView() {
   return (
     <div ref={root} className="ph-col4" style={{ height: '100%', overflowY: 'auto', overflowX: 'hidden', boxSizing: 'border-box', padding: `4px ${PAD}px 8px`,
       display: 'flex', flexDirection: 'column', fontSize: 13, lineHeight: 1.3, color: C.text }}>
-      <div className="ph-row8" style={{ display: 'flex', alignItems: 'center', minHeight: 40 }}>
+      {/* clear of the host's full-screen button: "Exact numbers" sat under it (F3) */}
+      <div className="ph-row8" style={{ display: 'flex', alignItems: 'center', minHeight: 40, paddingRight: HOST_CORNER_PX - PAD }}>
         <SkyHeader title={h.title} site={h.site} time={h.time} tip={`${h.title} · ${h.site} · ${d.timeLabel}`} />
         <DetailToggle exact={exact} onChange={setExact} />
       </div>

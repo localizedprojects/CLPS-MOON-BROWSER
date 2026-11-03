@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import type { CompareData } from './bridge'
 import {
-  buildCompare, buildCompareSimple, headline, longestDarkText, pctText, ranked, reasons, scoreLine, scoreTexts, weightsText, wrapAt,
+  buildCompare, buildCompareSimple, headline, longestDarkText, pctText, ranked, reasons, scoreLine, scoreTexts, SIMPLE_PNG_ROW_PX, weightsText, wrapAt, wrapFit,
 } from './compare'
 import top3 from './devdata/compare.json'
+import { exportHeight } from './plotGeom'
 
 describe('compare (web-3, android-5, science-6)', () => {
   const rows = [
@@ -172,5 +173,66 @@ describe('compare simple view (charts spec 2.3)', () => {
     expect(cats).toContain('r0b') // one category row per reason line
     expect(texts(f)[0].split('<br>')).toHaveLength(3) // title + two reason lines in one block
     expect(cats).not.toContain('r2') // no reason row for IM-2
+  })
+})
+
+describe('the PNG at the width asked for (F4, 2026-11-03: the full-screen Compare on a phone)', () => {
+  const d = (top3 as unknown as { data: CompareData }).data
+  type Ann = { text: string; font: { size: number }; yref?: string }
+  const lines = (a: Ann) => a.text.split('<br>').map((l) => l.replace(/<[^>]+>/g, '').replace(/&amp;/g, '&'))
+  it('wrapFit breaks at the separators, then a part still too long at its spaces', () => {
+    expect(wrapFit('Best: Malapert peak (MP1) · almost tied with IM-1 Odysseus (landed), 61.84 vs 61.83', 30))
+      .toEqual(['Best: Malapert peak (MP1) ·', 'almost tied with IM-1 Odysseus', '(landed), 61.84 vs 61.83'])
+    expect(wrapFit('a · b', 30)).toEqual(wrapAt('a · b', 30))
+    for (const l of wrapFit(scoreLine(d.weights), 40)) expect(l.length).toBeLessThanOrEqual(40)
+  })
+  it('a 1600 px file is unchanged: the figure equals the one built without a width', () => {
+    expect(buildCompareSimple(d, { png: true, widthPx: 1600 })).toEqual(buildCompareSimple(d, { png: true }))
+    expect(buildCompare(d, { png: true, widthPx: 1600 })).toEqual(buildCompare(d, { png: true }))
+  })
+  it('on a 391 px phone picture no headline, reason or score line runs past the right edge', () => {
+    const W = 391
+    const f = buildCompareSimple(d, { png: true, narrow: true, widthPx: W })
+    const ann = f.layout.annotations as Ann[]
+    // these lines start 4 px from the picture's left edge
+    for (const a of ann.filter((x) => x.yref === 'paper' || x.text.includes('score'))) {
+      for (const l of lines(a)) expect(l.length * 0.52 * a.font.size, l).toBeLessThanOrEqual(W - 8)
+    }
+    const wide = buildCompareSimple(d, { png: true })
+    const score = (g: typeof f) => (g.layout.annotations as Ann[]).find((a) => a.text.startsWith('Score'))!
+    expect(lines(score(wide))).toHaveLength(1)
+    expect(lines(score(f)).length).toBeGreaterThan(1)
+    // the bottom margin grows by the extra lines, so the score line stays clear of the bars
+    const m = (g: typeof f) => g.layout.margin as { t: number; b: number }
+    expect(m(f).b - m(wide).b).toBe(17 * (lines(score(f)).length - 1))
+  })
+  it('a phone held sideways (about 800 x 335) gets a taller picture, not the simple rows squeezed into each other', () => {
+    // the rows' height in a PNG of [f] at [h] px, per category row
+    const pitch = (f: ReturnType<typeof buildCompareSimple>, h: number) => {
+      const m = f.layout.margin as { t: number; b: number }
+      return (exportHeight(f, h) - m.t - m.b) / (f.layout.yaxis as { categoryarray: string[] }).categoryarray.length
+    }
+    const land = buildCompareSimple(d, { png: true, widthPx: 800 })
+    expect(pitch(land, 335)).toBeGreaterThanOrEqual(SIMPLE_PNG_ROW_PX) // was about 9 px: labels drawn over each other
+    expect(exportHeight(land, 335)).toBeGreaterThan(335)
+    // a portrait phone picture and a 1600 x 1000 file have the room: made at the size asked, as before
+    expect(exportHeight(buildCompareSimple(d, { png: true, narrow: true, widthPx: 391 }), 729)).toBe(729)
+    expect(exportHeight(buildCompareSimple(d, { png: true, widthPx: 1600 }), 1000)).toBe(1000)
+    // the exact view and the live figure ask for nothing
+    expect(exportHeight(buildCompare(d, { png: true, widthPx: 800 }), 335)).toBe(335)
+    expect(buildCompareSimple(d).minHeight).toBeUndefined()
+  })
+  it('the exact view wraps its headline and score line to the room right of the site names', () => {
+    const W = 391
+    const f = buildCompare(d, { png: true, narrow: true, widthPx: W })
+    const ann = f.layout.annotations as Ann[]
+    const head = ann.find((a) => a.font.size === 15)!
+    const score = ann.find((a) => a.text.startsWith('Score (0'))!
+    expect(lines(head).length).toBeGreaterThan(1)
+    expect(lines(score).length).toBeGreaterThan(1)
+    // the names' column (wrapped at 14 characters) takes about 90 px of the 391
+    for (const l of lines(score)) expect(l.length * 0.52 * 12, l).toBeLessThanOrEqual(W - 8 - 90)
+    for (const l of lines(head)) expect(l.length * 0.52 * 15, l).toBeLessThanOrEqual(W - 8 - 90)
+    expect(lines(head).join(' ')).toBe(headline(d, true))
   })
 })

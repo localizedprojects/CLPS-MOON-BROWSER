@@ -424,7 +424,7 @@ These are the CI steps in CI's order (`npm install` also works, but may update `
 
 **`npm audit` (accepted).** `npm audit --omit=dev` reports 0 advisories, so nothing shipped in the bundle is affected. The full `npm audit` reports 3 high-severity advisories, all in dev-only build tooling (`braces`, pulled in by `vite-plugin-singlefile`); they matter only at build time on trusted input. Do **not** run `npm audit fix --force`: it would downgrade `vite-plugin-singlefile`, which builds the single-file bundle. Revisit when `braces` ships a fix (an `overrides` entry in `package.json`).
 
-The build is one self-contained `index.html`, because Android WebViews refuse ES-module script loads from `file://` assets. Commit the rebuilt bundle; CI fails if it is stale. The charts only render. Never put science in this bundle.
+The build is one self-contained `index.html`, because Android WebViews refuse ES-module script loads from `file://` assets. It is one classic script built for Chrome 51, the stock WebView of Android 7.0 (`build.target` in `charts/vite.config.ts`, with `src/polyfills.ts`; `src/bundleTarget.test.ts` checks the bundle, and `chartMinChromeMajor` in `app/lib/widgets/chart_bridge.dart` must match). Commit the rebuilt bundle; CI fails if it is stale. The charts only render. Never put science in this bundle.
 
 ### Python pipeline (optional: regenerates `app/assets/data`)
 

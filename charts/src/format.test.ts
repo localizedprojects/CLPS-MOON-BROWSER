@@ -97,8 +97,8 @@ describe('edge +', () => {
   })
 })
 
-describe('sortedStable: equal items keep their order on Chrome 69 too', () => {
-  /** [f] with an Array.prototype.sort that, like V8 before 7.0 (Chrome 69) on more than 10 items, swaps equal items. */
+describe('sortedStable: equal items keep their order on Chrome 51 too', () => {
+  /** [f] with an Array.prototype.sort that, like V8 before 7.0 (Chrome 70) on more than 10 items, swaps equal items. */
   function withUnstableSort(f: () => void) {
     const sort = Array.prototype.sort
     ;(Array.prototype as { sort: unknown }).sort = function (this: unknown[], cmp?: (a: unknown, b: unknown) => number) {

@@ -617,7 +617,8 @@ export function buildSky(d: SkyData, opts: SkyOptions = {}): { data: Trace[]; la
     })
     const lines: string[] = [captionHtml(captionLine('Sun', d.now.sun)), captionHtml(captionLine('Earth', d.now.earth)), '']
     // the key breaks between sentences, so "Heights stretched: edge −9°, centre 8°." stays on one line
-    for (const l of wrapText(keyLine(d, range), EXPORT_WRAP, /(?<=\.) /)) lines.push(`<span style="color:${C.muted}">${escHtml(l)}</span>`)
+    // (at a newline put after each ". ": a lookbehind /(?<=\.) / is a SyntaxError before Chrome 62)
+    for (const l of wrapText(keyLine(d, range).replace(/\. /g, '.\n'), EXPORT_WRAP, /\n/)) lines.push(`<span style="color:${C.muted}">${escHtml(l)}</span>`)
     if (exact) {
       lines.push('')
       for (const [name, b] of [['Sun', d.now.sun], ['Earth', d.now.earth]] as const) {

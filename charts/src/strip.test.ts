@@ -7,8 +7,10 @@ import type { TimelineData } from './bridge'
 import sr1Msg from './devdata/timeline.json'
 import haworthMsg from './devdata/timeline_haworth.json'
 import dsnMsg from './devdata/timeline_dsn.json'
-import { buildStrip, buildTimelineExport, fitFlag, fitLabel, flagW, inWindow, placeFlags, ROW_INDEX, rowLabels, rowPx, spanWindow, stripFlags, stripHeight, windowFor } from './strip'
+import { buildStrip, buildTimelineExport, EXACT_PLOT_MIN_PX, EXPORT_LINE, fitFlag, fitLabel, flagW, inWindow, placeFlags, ROW_INDEX, rowLabels, rowPx, spanWindow, stripFlags, stripHeight, timelineExportText, windowFor } from './strip'
 import type { Span } from './strip'
+import { charsIn } from './compare'
+import { exportHeight } from './plotGeom'
 import { answerLines, answerText, bothLine, comingUp, darkLine, earthLine, gaps, lineText, stepBoundary, sunLine } from './timelineAnswer'
 import type { Run } from './timelineAnswer'
 
@@ -265,5 +267,84 @@ describe('flags fit a narrow strip (rubric-2)', () => {
     expect(tiny.endsWith('…')).toBe(true)
     expect(flagW(tiny)).toBeLessThanOrEqual(90)
     expect(fitFlag('Next dark · about 30 min', 500)).toBe('Next dark · about 30 min')
+  })
+})
+
+describe('the export at the size asked for (F2, 2026-11-03: the full-screen When on a phone)', () => {
+  const t = OCT11 + 136 * DAY
+  const plain = (s: string) => s.replace(/<[^>]+>/g, '').replace(/\u00a0/g, ' ')
+  const plotH = (f: { layout: Record<string, unknown> }, h: number) => {
+    const m = f.layout.margin as { t: number; b: number }
+    return h - m.t - m.b
+  }
+  it('a 1600 x 1000 file keeps every line, unwrapped, at the old geometry', () => {
+    const a = timelineExportText(SR1, t, false), b = timelineExportText(SR1, t, false, { width: 1600, height: 1000 })
+    expect(b.header).toEqual(a.header)
+    expect(b.footer).toEqual(a.footer)
+    expect(a.header).toHaveLength(6)
+    expect(a.footer).toHaveLength(6)
+    expect([a.widthPx, b.widthPx, a.narrow, b.narrow]).toEqual([1300, 1300, false, false])
+    expect(buildTimelineExport(SR1, t, false, { width: 1600, height: 1000 }).layout.margin)
+      .toEqual(buildTimelineExport(SR1, t, false).layout.margin)
+  })
+  it('the landscape phone picture (800 x 335) keeps the rows readable: Coming up goes, the answer lines stay', () => {
+    const size = { width: 800, height: 335 }
+    const x = timelineExportText(SR1, t, false, size)
+    expect(x.header).toHaveLength(6)
+    expect(x.footer).toEqual([])
+    const f = buildTimelineExport(SR1, t, false, size)
+    // before: about 366 px of lines in a 335 px picture, the rows a hairline
+    expect(plotH(f, size.height)).toBeGreaterThanOrEqual(3 * 30)
+    expect(x.widthPx).toBeLessThanOrEqual(size.width)
+  })
+  it('a picture with room for some of Coming up keeps its first events; a very short one keeps only the site, period and time', () => {
+    const some = timelineExportText(SR1, t, false, { width: 800, height: 400 })
+    expect(some.footer.length).toBeGreaterThan(1)
+    expect(some.footer.length).toBeLessThan(6)
+    expect(some.footer[1]).toBe(timelineExportText(SR1, t, false).footer[1])
+    const tiny = timelineExportText(SR1, t, false, { width: 800, height: 240 })
+    expect(tiny.header.map(plain)).toEqual(timelineExportText(SR1, t, false).header.slice(0, 2).map(plain))
+    expect(tiny.footer).toEqual([])
+  })
+  it('lines wrap to a narrow picture (no line runs off its right edge), continuation lines indented', () => {
+    const size = { width: 391, height: 729 }
+    const x = timelineExportText(SR1, t, false, size)
+    expect(x.narrow).toBe(true)
+    for (const l of x.header) expect(plain(l).length, l).toBeLessThanOrEqual(charsIn(size.width - 24, 15) + 7)
+    for (const l of x.footer) expect(plain(l).length, l).toBeLessThanOrEqual(charsIn(size.width - 24, 14) + 7)
+    expect(x.header.length).toBeGreaterThan(6)
+    expect(x.header.some((l) => l.startsWith('\u00a0\u00a0\u00a0'))).toBe(true)
+    // the bold site part is never split
+    expect(x.header[0]).toMatch(/^<b>When · [^<]+<\/b>/)
+    const f = buildTimelineExport(SR1, t, false, size)
+    const m = f.layout.margin as { t: number; b: number }
+    expect(m.t).toBe(30 + 14 + EXPORT_LINE * x.header.length)
+    expect(plotH(f, size.height)).toBeGreaterThanOrEqual(3 * 48)
+  })
+  it('with the Heights panel, a short picture draws no empty Coming up', () => {
+    const f = buildTimelineExport(SR1, t, true, { width: 800, height: 335 })
+    const ann = f.layout.annotations as { text: string }[]
+    expect(ann.some((a) => a.text === '')).toBe(false)
+    expect((f.layout.margin as { b: number }).b).toBe(60)
+    expect(buildTimelineExport(SR1, t, true, { width: 1600, height: 1000 }).layout).toEqual(buildTimelineExport(SR1, t, true).layout)
+  })
+  it('with the Heights panel, a picture too short for it is made taller, not drawn over itself', () => {
+    // at 800 x 335 its legend sat on the strip's ticks and its axis title on the "% = share" note; at
+    // 391 x 729 the four-row legend sat on the strip's rows
+    for (const [size, narrow] of [[{ width: 800, height: 335 }, false], [{ width: 391, height: 729 }, true]] as const) {
+      const f = buildTimelineExport(SR1, t, true, size)
+      expect(f.minHeight, `${size.width}`).toBeGreaterThan(size.height)
+      expect(plotH(f, exportHeight(f, size.height)), `${size.width}`).toBeGreaterThanOrEqual(EXACT_PLOT_MIN_PX(narrow))
+    }
+    // a 1600 x 1000 file has the room: made at the size asked
+    expect(buildTimelineExport(SR1, t, true, { width: 1600, height: 1000 }).minHeight).toBeUndefined()
+    expect(buildTimelineExport(SR1, t, false, { width: 800, height: 335 }).minHeight).toBeUndefined()
+  })
+  it('with the Heights panel, Coming up (from the plot\'s left edge) wraps to the room right of the row labels', () => {
+    // a narrow picture tall enough for Coming up (its row labels take 100 px)
+    const size = { width: 391, height: 2000 }
+    const x = timelineExportText(SR1, t, true, size)
+    expect(x.footer.length).toBeGreaterThan(1)
+    for (const l of x.footer) expect(plain(l).length * 0.52 * 14, l).toBeLessThanOrEqual(size.width - 100 - 8)
   })
 })

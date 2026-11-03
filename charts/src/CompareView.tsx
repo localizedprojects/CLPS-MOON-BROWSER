@@ -24,10 +24,12 @@ export function CompareView() {
   const ref = usePlot(fig)
   const state = useRef({ m, exact })
   state.current = { m, exact }
-  useExport(() => {
+  useExport((w) => {
     const s = state.current
     if (!s.m) return null
-    return s.exact ? buildCompare(s.m.data, { png: true }) : buildCompareSimple(s.m.data, { png: true })
+    // at the requested width: the app's full-screen picture is phone-sized, and its lines wrap there (F4)
+    const o = { png: true, narrow: w < 600, widthPx: w }
+    return s.exact ? buildCompare(s.m.data, o) : buildCompareSimple(s.m.data, o)
   })
   if (!m) return <Waiting what="comparison data" />
   return (

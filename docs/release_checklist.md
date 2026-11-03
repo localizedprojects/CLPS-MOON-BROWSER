@@ -44,7 +44,13 @@
 - Done: release App Bundle builds (debug-signed until the upload key exists).
 - Done: Android 7.0 (API 24, 32-bit ARM emulator, stock WebView 51): a walkthrough of every screen
   on 1.9.2, whose 16 bugs were fixed in 1.9.3, and the Explore map integration test
-  (`map_75s_test.dart`) passed. On WebView 51 the charts show the "update your WebView" message, as designed.
+  (`map_75s_test.dart`) passed. Up to 1.11.3, on WebView 51 the charts show the "update your WebView"
+  message, as designed. Since the charts are built for Chrome 51 (after 1.11.3), the same emulator draws
+  the classic sky plot and timeline on Site › Sky & time (slowly: about 2 min on its software CPU). A
+  release build of that branch there (2026-11-03) also drew the Simple view, Compare and their full-screen
+  pictures, and shared the sky + timeline PNGs in one share. A full-screen picture too short for its rows
+  (Compare's simple view, or the When view's Heights panel, on a phone held sideways) is now made taller
+  and fitted to the screen; that is checked in the browser, not yet on the emulator.
   1.11.0 on the same emulator (2026-11-01): it updated in place over 1.9.3 with the settings kept; the
   Lander's view heights, relief switch, full screen with site switching, landscape, the IM-1 and IM-2
   photo cards and Back navigation worked, with no app errors in logcat.

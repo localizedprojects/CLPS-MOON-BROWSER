@@ -68,6 +68,8 @@ class FocusableChart extends StatelessWidget {
       Positioned.fill(
         child: GestureDetector(behavior: HitTestBehavior.opaque, excludeFromSemantics: true, onTap: open),
       ),
+      // the charts keep their top-right text and controls clear of this
+      // corner (charts/src/theme.ts HOST_CORNER_PX, checked in theme.test.ts)
       if (overlayButton)
         Positioned(
           top: 2,
@@ -166,6 +168,7 @@ class _ChartFocusPageState extends State<ChartFocusPage> {
   Size? _asked;
   Uint8List? _png;
   bool _failed = false;
+  int _request = 0;
 
   /// A wide chart waits for the screen to turn sideways, but not for ever (a
   /// device that will not turn still gets its picture).
@@ -214,8 +217,11 @@ class _ChartFocusPageState extends State<ChartFocusPage> {
     _asked = size;
     final w = size.width.floor(), h = size.height.floor();
     if (w < 40 || h < 40) return;
+    // only the newest request's answer counts: an older one (another size, or
+    // asked before the chart's page reloaded) may still come, or time out, later
+    final request = ++_request;
     widget.hub.snapshot(widget.controller, w, h, scale: math.min(dpr, 3)).then((png) {
-      if (!mounted || _asked != size) return;
+      if (!mounted || request != _request || _asked != size) return;
       setState(() {
         _png = png;
         _failed = png == null;

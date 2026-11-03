@@ -37,7 +37,7 @@ class ChartController {
   /// Why this chart has not drawn, or null. [ChartIssue.tooOld] only on real
   /// evidence that this web view cannot run the chart bundle: a JavaScript
   /// syntax error before `ready`, or a Chrome (Android System WebView) older
-  /// than [chartMinChromeMajor] (the bundle is built for Chrome 69, Android
+  /// than [chartMinChromeMajor] (the bundle is built for Chrome 51, Android
   /// 7's stock web view, where the cards used to stay blank). A page that has
   /// loaded but not reported `ready` within [readyTimeout] is only
   /// [ChartIssue.slow]: a cold start on a slow
@@ -361,10 +361,12 @@ mixin ChartAcksHost<T extends StatefulWidget> on State<T> {
 }
 
 /// The oldest Chrome (Android System WebView) major version that can run
-/// the chart bundle: charts/vite.config.ts builds it for Chrome 69 (es2018,
-/// Android 7's stock web view). The one place the app reads it; it must equal
-/// the bundle's build target (test/widget/chart_problem_test.dart checks).
-const chartMinChromeMajor = 69;
+/// the chart bundle: charts/vite.config.ts builds it for Chrome 51 (es2015,
+/// a classic script; Android 7.0's stock web view, 51.0.2704 on the API 24
+/// emulator, where the sky plot and timeline were seen to draw). The one place
+/// the app reads it; it must equal the bundle's build target
+/// (test/widget/chart_problem_test.dart checks).
+const chartMinChromeMajor = 51;
 
 /// The Chrome major version in a user agent string, or null (not Chrome).
 /// The string may come JSON-quoted from runJavaScriptReturningResult.

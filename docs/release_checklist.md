@@ -9,8 +9,9 @@
 - [ ] Bump `version:` in `app/pubspec.yaml` (build number must rise for every upload).
 - [ ] Android: upload key in `app/android/key.properties` ([release_signing.md](release_signing.md)),
       then `flutter build appbundle --release`; Play App Signing on.
-- [ ] iOS: on the Mac, set the team in Xcode (keep the team ID out of the repo), `flutter build ipa`,
-      upload with Xcode or Transporter. `ITSAppUsesNonExemptEncryption` is already `false`.
+- [ ] iOS: on the Mac, `bash tools/xcode_setup.sh`, set the team in Xcode (keep the team ID out of the
+      repo: [xcode.md](xcode.md)), then Product > Archive (or `flutter build ipa`) and upload with Xcode
+      or Transporter. `ITSAppUsesNonExemptEncryption` is already `false`.
 - [ ] Application ID: still `org.spaceapps.polarhorizon.polar_horizon`. It cannot change after the
       first Play upload; rename it first if you want a new one.
 

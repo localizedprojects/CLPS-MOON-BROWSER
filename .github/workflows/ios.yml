@@ -1,0 +1,123 @@
+# iOS on a macOS runner: the same steps as on a Mac with Xcode (docs/xcode.md).
+# tools/xcode_setup.sh prepares app/ios, then xcodebuild builds the workspace exactly as Xcode's Run
+# button does (simulator, no signing), Flutter builds the device release (no signing), and one
+# integration test runs on an iPhone simulator. Nothing is signed or uploaded; no secrets are used.
+name: iOS
+
+on:
+  push:
+    branches: [xcode-ready]
+  pull_request:
+    paths:
+      - "app/ios/**"
+      - "app/pubspec.*"
+      - "tools/xcode_setup.sh"
+      - ".github/workflows/ios.yml"
+  workflow_dispatch:
+    inputs:
+      xcode:
+        description: "Xcode to use, e.g. 26.0 for /Applications/Xcode_26.0.app (empty: the runner's default)"
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+# A newer push to the same branch or pull request supersedes the older run, so cancel it.
+concurrency:
+  group: ios-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  xcode:
+    runs-on: macos-15
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Xcode
+        env:
+          XCODE: ${{ inputs.xcode }}
+        run: |
+          if [ -n "$XCODE" ]; then sudo xcode-select -s "/Applications/Xcode_${XCODE}.app/Contents/Developer"; fi
+          xcode-select -p
+          xcodebuild -version
+          echo "iOS Simulator SDK: $(xcrun --sdk iphonesimulator --show-sdk-version)"
+          echo "Installed:"; ls -d /Applications/Xcode*.app
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 3.44.6
+          channel: stable
+          cache: true
+
+      # the one command a person runs on their Mac (without opening Xcode)
+      - name: tools/xcode_setup.sh
+        timeout-minutes: 20
+        run: bash tools/xcode_setup.sh --no-open
+
+      # shows any project update Flutter made to app/ios (it should be none on this Flutter)
+      - name: Changes made by the setup
+        run: |
+          git status --porcelain
+          git diff --stat
+          git diff -- app/ios
+          if [ -n "$(git status --porcelain -- app/ios)" ]; then
+            echo "::warning title=app/ios changed::the setup changed files in app/ios (listed in this step); commit them so a fresh checkout matches"
+          fi
+
+      # what Xcode's Run button does with a simulator picked (signing is chosen later, in Xcode)
+      - name: Xcode build (Debug, iOS Simulator)
+        timeout-minutes: 30
+        run: >-
+          xcodebuild -workspace app/ios/Runner.xcworkspace -scheme Runner -configuration Debug
+          -sdk iphonesimulator -destination 'generic/platform=iOS Simulator'
+          CODE_SIGNING_ALLOWED=NO build
+
+      - name: Flutter release build for devices (no signing)
+        timeout-minutes: 30
+        working-directory: app
+        run: flutter build ios --release --no-codesign
+
+      - name: Integration test on an iPhone simulator
+        timeout-minutes: 35
+        working-directory: app
+        run: |
+          test_file=integration_test/map_75s_test.dart
+          if [ ! -f "$test_file" ]; then
+            echo "::warning::SKIPPED the integration test: $test_file is missing"; exit 0
+          fi
+          sdk="$(xcrun --sdk iphonesimulator --show-sdk-version)"
+          # the newest available iPhone whose iOS is not newer than this Xcode's simulator SDK
+          udid="$(xcrun simctl list devices available --json | python3 -c '
+          import json, re, sys
+          sdk = tuple(int(p) for p in (sys.argv[1].split(".") + ["0"])[:2])
+          best = None
+          for rt, devs in json.load(sys.stdin)["devices"].items():
+              m = re.search(r"iOS-(\d+)-(\d+)", rt)
+              if not m:
+                  continue
+              v = (int(m.group(1)), int(m.group(2)))
+              for d in devs:
+                  if d.get("isAvailable") and d["name"].startswith("iPhone"):
+                      key = (v <= sdk, v, d["name"])
+                      if best is None or key > best[0]:
+                          best = (key, d["udid"], d["name"] + " / iOS %d.%d" % v)
+          if best:
+              print(best[1])
+              print("simulator: " + best[2], file=sys.stderr)
+          ' "$sdk")"
+          if [ -z "$udid" ]; then
+            echo "::warning::SKIPPED the integration test: no available iPhone simulator on this runner"; exit 0
+          fi
+          xcrun simctl boot "$udid" 2>/dev/null || true
+          xcrun simctl bootstatus "$udid" -b
+          flutter test "$test_file" -d "$udid"
+
+      # anything the builds left in the checkout (for example a Package.resolved Xcode wrote, or a
+      # project update made during a build rather than by the setup)
+      - name: Changes after the builds
+        if: always()
+        run: |
+          git status --porcelain --untracked-files=all
+          git diff -- app/ios

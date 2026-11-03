@@ -32,9 +32,14 @@
 - [ ] Ads: no. In-app purchases: no. Category: Education (or Reference).
 
 ## Listing assets
+All the texts (with character counts), the form answers and the screenshot list are in
+[store/listing.md](store/listing.md).
 - [ ] Screenshots: phone (Play: at least 2; App Store: 6.9" and 6.5" iPhone, 13" iPad as the app supports iPad),
-      plus 7" and 10" tablet for Play if offered on tablets.
-- [ ] Play feature graphic 1024x500, 512x512 icon; short and full description; credit NASA data sources.
+      plus 7" and 10" tablet for Play if offered on tablets. Order, captions and how they were made:
+      [store/listing.md › Screenshots and graphics](store/listing.md#screenshots-and-graphics).
+- [ ] Play feature graphic 1024x500, 512x512 icon; short and full description; credit NASA data sources:
+      [store/listing.md › Google Play](store/listing.md#google-play) and
+      [App Store](store/listing.md#app-store-app-store-connect).
 
 ## Testing status (before the first store upload)
 - These notes were written at v1.1.0; re-check each line against the current release (1.11.0) before

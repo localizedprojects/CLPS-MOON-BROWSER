@@ -90,8 +90,8 @@ const calcSections = <CalcSection>[
     ],
     accuracy: 'Tested against the exact area of a circle cut by a straight edge, and against the exact overlap of '
         'two circles (within 2% of the disc). The 2025–2035 data holds 19 eclipses, about 2.4 hours a year with the '
-        'whole Sun behind Earth at the pole. The 18.6-year averages under About this site leave eclipses out, '
-        'which changes them by at most about 0.03 percentage points.',
+        'whole Sun behind Earth at the pole. The 18.6-year averages under About this site include them too: '
+        'they lower the Sun shares there by at most about 0.03 percentage points.',
     ref: 'formula.md §6',
   ),
   CalcSection(

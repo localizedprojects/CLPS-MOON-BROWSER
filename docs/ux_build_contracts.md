@@ -30,7 +30,7 @@ spec, this file wins.
 4. **Caveat fixes** found while writing `formula.md` (§17):
    - A custom site shows "slope not computed for custom spots", not "NaN° slope".
    - "About this site" shows the 18.6-year long-term averages for preset sites. Label
-     them exactly: "18.6-year average (2 m above ground, any part of the Sun or Earth; lunar eclipses not included, under 0.1 percentage point)".
+     them exactly: "18.6-year average (2 m above ground, any part of the Sun or Earth; lunar eclipses included; they lower the Sun shares by under 0.1 percentage point)" (eclipses added to the averages on 2026-11-03; formula.md §9.6).
    - Custom sites show "Long-term averages are only precomputed for the 16 catalogue sites".
 5. **Science conventions are unchanged** (see `CLAUDE.md`). No placeholder numbers. Every
    approximation keeps a `FidelityBadge` (now in `lib/theme.dart`).

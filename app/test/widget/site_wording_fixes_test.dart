@@ -85,8 +85,9 @@ void main() {
 
   test('science-1: the long-term label names the Earth rule', () {
     expect(longTermLabel, contains('any part of the Sun or Earth'));
-    // CLAUDE.md: the pipeline's 18.6-year averages leave lunar eclipses out (formula.md §6.5)
-    expect(longTermLabel, contains('lunar eclipses not included, under 0.1 percentage point'));
+    // formula.md §6.5, §9.6: since 2026-11-03 the pipeline's 18.6-year averages include lunar
+    // eclipses (Earth in front of the Sun); they lower the Sun shares by under 0.1 point
+    expect(longTermLabel, contains('lunar eclipses included; they lower the Sun shares by under 0.1 percentage point'));
   });
 
   test('ux2-8: on a wide desktop column the sky plot leaves room for the timeline', () {

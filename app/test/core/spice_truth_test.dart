@@ -6,6 +6,7 @@ import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:polar_horizon/core/catalog.dart';
 import 'package:polar_horizon/core/ephemeris.dart';
 import 'package:polar_horizon/core/geo.dart';
 import 'package:polar_horizon/core/horizon.dart';
@@ -56,6 +57,55 @@ void main() {
         final mask = HorizonMask(step, Float64List.fromList([for (final v in (c['mask'] as List)) (v as num).toDouble()]));
         final f = visibleFraction((c['az'] as num).toDouble(), (c['el'] as num).toDouble(), (c['rho'] as num).toDouble(), mask);
         expect(f, closeTo((c['fraction'] as num).toDouble(), 1e-9));
+      }
+    });
+  });
+
+  // Lunar eclipses (formula.md §6.5): the pipeline's 18.6-year averages
+  // (sites.json longTerm*) remove Earth's disk from the Sun with a Python port
+  // of eclipse.dart; `python -m lunarsp.fixtures eclipse` writes its results.
+  group('lunar eclipse term vs Python reference', () {
+    final ecl = truth['eclipse'] as Map<String, dynamic>;
+    double d(Object? v) => (v as num).toDouble();
+    void check(Map<String, dynamic> c, AzEl sun, double rhoS, AzEl earth, double rhoE, HorizonMask mask) {
+      final e = SunEclipse.of(sun, rhoS, earth, rhoE);
+      expect(e.sepDeg, closeTo(d(c['sep']), 1e-9));
+      expect(e.overlaps, c['overlaps']);
+      expect(e.centreHidden, c['centreHidden']);
+      expect(e.fraction, closeTo(d(c['eclipse']), 1e-9));
+      if (e.occulter != null) {
+        expect(e.occulter!.du, closeTo(d(c['du']), 1e-9));
+        expect(e.occulter!.dv, closeTo(d(c['dv']), 1e-9));
+      }
+      expect(visibleFraction(sun.az, sun.el, rhoS, mask, occulter: e.occulter), closeTo(d(c['fraction']), 1e-9));
+      expect(visibleFraction(sun.az, sun.el, rhoS, mask), closeTo(d(c['fractionTerrainOnly']), 1e-9));
+    }
+
+    test('synthetic disk pairs against jagged masks match to 1e-9', () {
+      final step = d(ecl['maskAzStepDeg']);
+      final masks = [
+        for (final m in ecl['masks'] as List) HorizonMask(step, Float64List.fromList([for (final v in m as List) d(v)])),
+      ];
+      final cases = (ecl['synthetic'] as List).cast<Map<String, dynamic>>();
+      expect(cases.where((c) => c['overlaps'] == true && d(c['eclipse']) < 1 && d(c['fraction']) > 0), isNotEmpty);
+      for (final c in cases) {
+        final s = (c['sun'] as List).map(d).toList(), e = (c['earth'] as List).map(d).toList();
+        check(c, AzEl(s[0], s[1], 1.5e8), s[2], AzEl(e[0], e[1], 3.8e5), e[2], masks[c['mask'] as int]);
+      }
+    });
+
+    test('2026-03-03 at Malapert Peak (SPICE directions, shipped 2 m mask) match to 1e-9', () {
+      final site = ecl['site'] as Map<String, dynamic>;
+      final catalog = SiteCatalog.parse(
+        File('assets/data/sites.json').readAsStringSync(),
+        File('assets/data/horizons.json').readAsStringSync(),
+      );
+      final mask = catalog.mask(site['id'] as String, d(site['maskHeightM']))!;
+      final samples = (site['samples'] as List).cast<Map<String, dynamic>>();
+      expect(samples.where((c) => d(c['eclipse']) == 1), isNotEmpty); // total cover
+      for (final c in samples) {
+        final s = (c['sun'] as List).map(d).toList(), e = (c['earth'] as List).map(d).toList();
+        check(c, AzEl(s[0], s[1], s[2]), d(c['rhoSun']), AzEl(e[0], e[1], e[2]), d(c['rhoEarth']), mask);
       }
     });
   });

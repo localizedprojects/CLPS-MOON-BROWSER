@@ -53,4 +53,4 @@ Regenerate this table after re-copying (`tests/test_bundled_matches_app.py` chec
 | `horizons.json` | 288,113 | `874bb481773da50ce8a133303ec52eb7ec68ceeccc711e534926964cc1cf2b4c` |
 | `map/dem_400m.bin.gz` | 4,694,460 | `71d285a32a4c1410ffed5c4d8bc62ea8ed04625f443d6f72997fa5d8b0208dbf` |
 | `map/map.json` | 3,587 | `dec5ebbe43c177e604047169009b966510bf849323e3b702a7abcdceceb3cc79` |
-| `sites.json` | 38,392 | `8eb01e69661a9b20b051d1f8acdf9b7dfc7b6b76a23b124f2f386f97a64f46b2` |
+| `sites.json` | 38,417 | `dcf64a670737c3b469c5ee02d0d6f50e3e4ba7c34636adb878851a66fa2260d6` |

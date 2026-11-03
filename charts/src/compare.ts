@@ -21,7 +21,7 @@ import { C, FONT, HOVER, MONO, TICK } from './theme'
 
 export const DEFAULT_EARTH_LABEL = 'Earth in view'
 
-type Fig = { data: Record<string, unknown>[]; layout: Record<string, unknown>; alt: string }
+type Fig = { data: Record<string, unknown>[]; layout: Record<string, unknown>; alt: string; minHeight?: number }
 
 /** One line describing the score weights, as the formula box in the app shows them. */
 export function weightsText(w: CompareData['weights']): string {
@@ -40,7 +40,7 @@ export function scoreLine(w: CompareData['weights']): string {
     `${pctNum(w.both)}% Sun + Earth together. Power and comms are sub-scores, so the bars alone do not add up to the score.`
 }
 
-/** Rows best first (equal scores keep their order, on Chrome 69 too). */
+/** Rows best first (equal scores keep their order, on Chrome 51 too). */
 export const ranked = (d: CompareData): CompareRow[] => sortedStable(d.rows, (a, b) => b.score - a.score)
 
 /** Score text with the shared tie-aware decimals ([scoreDecimals] over every row). */
@@ -141,6 +141,12 @@ export function pctText(v: number): string {
   return `${r}%`
 }
 
+/**
+ * How many characters of [fontPx] IBM Plex Sans text fit in [px], a little
+ * short: the export's lines average 0.43-0.51 em per character (bold too).
+ */
+export const charsIn = (px: number, fontPx: number) => Math.max(12, Math.floor(px / (0.52 * fontPx)))
+
 /** Break [text] at ' · ' separators (else spaces) into lines of at most [max] characters. */
 export function wrapAt(text: string, max: number): string[] {
   const parts = text.split(' · ')
@@ -158,6 +164,11 @@ export function wrapAt(text: string, max: number): string[] {
   return lines
 }
 
+/** [wrapAt], with a part still longer than [max] broken at its spaces too. */
+export const wrapFit = (text: string, max: number): string[] =>
+  // concat, not flatMap: Array flatMap is Chrome 69 (Android 7's WebView is 51)
+  ([] as string[]).concat(...wrapAt(text, max).map((l) => (l.length > max ? wrapAt(l, max) : [l])))
+
 export interface CompareOptions {
   /** Narrow plot (phone): short axis titles, wrapped names and labels. */
   narrow?: boolean
@@ -167,10 +178,31 @@ export interface CompareOptions {
    * lines around the chart (they wrap and are read first).
    */
   png?: boolean
+  /**
+   * PNG export width, px: the headline, reasons and score line wrap to it
+   * (the app's full-screen picture is phone-sized; F4, 2026-11-03).
+   */
+  widthPx?: number
 }
 
 const mono = (s: string) => `<span style="font-family:${MONO}">${s}</span>`
 const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+
+/**
+ * The PNG's [text] in lines that fit the [px] left of it (one line without
+ * an export width), each escaped and wrapped by [tag].
+ */
+function pngLines(text: string, fontPx: number, opts: CompareOptions, px: number, tag = (s: string) => s): string[] {
+  const lines = opts.widthPx ? wrapFit(text, charsIn(px, fontPx)) : [text]
+  return lines.map((l) => tag(esc(l)))
+}
+/** Extra margin for [n] lines where one was planned, px. */
+const moreLines = (n: number, pitch: number) => Math.max(0, n - 1) * pitch
+/**
+ * The least row pitch of the simple view's PNG, px: its labels (12.5 px)
+ * and a site's title with its reason line (two rows) need it.
+ */
+export const SIMPLE_PNG_ROW_PX = 17
 
 /**
  * Plain alt text: the headline as this view shows it (so a screen reader never hears "almost tied" under a
@@ -202,12 +234,19 @@ export function buildCompare(d: CompareData, opts: CompareOptions = {}): Fig {
     xref: 'paper', yref: 'paper', x: 0, xanchor: 'left', y: 0, yanchor: 'top', yshift: narrow ? -38 : -36, showarrow: false, align: 'left',
     font: { size: 12, color: C.muted }, text: narrow ? wt.replace('] + ', ']<br>+ ') : wt,
   }]
+  // PNG: the headline above (growing up) and the score line under the weights (growing down), both from
+  // the plot's left edge, right of the site names (automargin): their width is estimated from the names
+  const labelPx = Math.max(...names.map((n) => Math.max(...n.split('<br>').map((x) => x.length)))) * 0.52 * (narrow ? 11.5 : 12.5) + 10
+  const textPx = (opts.widthPx ?? 0) - (narrow ? 8 : 20) - labelPx - 6
+  const head = opts.png ? pngLines(headline(d, true), 15, opts, textPx, (l) => `<b>${l}</b>`) : []
+  const score = opts.png ? pngLines(scoreLine(d.weights), 12, opts, textPx) : []
+  const wtLines = narrow ? 2 : 1
   if (opts.png) {
     annotations.push(
       { xref: 'paper', yref: 'paper', x: 0, xanchor: 'left', y: 1, yanchor: 'bottom', yshift: 50, showarrow: false, align: 'left',
-        font: { size: 15, color: C.text }, text: `<b>${esc(headline(d, true))}</b>` },
-      { xref: 'paper', yref: 'paper', x: 0, xanchor: 'left', y: 0, yanchor: 'top', yshift: -58, showarrow: false, align: 'left',
-        font: { size: 12, color: C.muted }, text: esc(scoreLine(d.weights)) })
+        font: { size: 15, color: C.text }, text: head.join('<br>') },
+      { xref: 'paper', yref: 'paper', x: 0, xanchor: 'left', y: 0, yanchor: 'top', yshift: -58 - 16 * (wtLines - 1), showarrow: false, align: 'left',
+        font: { size: 12, color: C.muted }, text: score.join('<br>') })
   }
   return {
     alt: compareAlt(d, rows, earth, true),
@@ -222,7 +261,8 @@ export function buildCompare(d: CompareData, opts: CompareOptions = {}): Fig {
     ],
     layout: {
       paper_bgcolor: C.bg, plot_bgcolor: C.bg, font: FONT, hoverlabel: HOVER, barmode: 'group',
-      margin: { l: narrow ? 8 : 20, r: narrow ? 34 : 40, t: opts.png ? 92 : 8, b: opts.png ? 96 : narrow ? 74 : 62 },
+      margin: { l: narrow ? 8 : 20, r: narrow ? 34 : 40, t: opts.png ? 92 + moreLines(head.length, 20) : 8,
+        b: opts.png ? 96 + 16 * (wtLines - 1) + moreLines(score.length, 16) : narrow ? 74 : 62 },
       // separate domains with a clear gap, end ticks inside the range: '100' and '0' never touch
       xaxis: { domain: narrow ? [0, 0.58] : [0, 0.64], range: [0, 110], ...ticks, automargin: true,
         title: { text: narrow ? '% of period' : '% of the chosen period', font: { size: 12, color: C.muted }, standoff: 4 }, gridcolor: C.grid, tickfont: TICK },
@@ -263,7 +303,7 @@ export function buildCompareSimple(d: CompareData, opts: CompareOptions = {}): F
   const cats: string[] = [], ticks: string[] = []
   const at = (cat: string, tick = '') => { cats.push(cat); ticks.push(tick); return cats.length - 1 }
   const annotations: Record<string, unknown>[] = []
-  const reasonMax = narrow ? 62 : 96
+  const reasonMax = Math.min(narrow ? 62 : 96, opts.widthPx ? charsIn(opts.widthPx - 8, 12.5) : Infinity)
   rows.forEach((r, i) => {
     // title line, then the reason line(s) under it in one text block (natural line spacing),
     // given one category row per line so the bars never move under it
@@ -289,21 +329,27 @@ export function buildCompareSimple(d: CompareData, opts: CompareOptions = {}): F
     customdata: rows.map((r) => r.name),
     hovertemplate: `${m.label} %{x:.1f}% of your chosen dates<extra>%{customdata}</extra>`,
   }))
+  const head = opts.png ? pngLines(headline(d), 15, opts, (opts.widthPx ?? 0) - 8, (l) => `<b>${l}</b>`) : []
+  const score = opts.png ? pngLines(scoreLine(d.weights), 12.5, opts, (opts.widthPx ?? 0) - 8) : []
   if (opts.png) {
     annotations.push(
       { xref: 'paper', yref: 'paper', x: 0, xshift: -left + 4, y: 1, yanchor: 'bottom', yshift: 26, xanchor: 'left', showarrow: false, align: 'left',
-        text: `<b>${esc(headline(d))}</b>`, font: { size: 15, color: C.text } },
+        text: head.join('<br>'), font: { size: 15, color: C.text } },
       { xref: 'paper', yref: 'paper', x: 0, xshift: -left + 4, y: 1, yanchor: 'bottom', yshift: 6, xanchor: 'left', showarrow: false, align: 'left',
         text: 'Bars: share of your chosen dates', font: { size: 12.5, color: C.muted } },
       { xref: 'paper', yref: 'paper', x: 0, xshift: -left + 4, y: 0, yanchor: 'top', yshift: -10, xanchor: 'left', showarrow: false, align: 'left',
-        text: esc(scoreLine(d.weights)), font: { size: 12.5, color: C.muted } })
+        text: score.join('<br>'), font: { size: 12.5, color: C.muted } })
   }
+  const margin = { l: left, r: narrow ? 52 : 60, t: opts.png ? 70 + moreLines(head.length, 20) : 4, b: opts.png ? 44 + moreLines(score.length, 17) : 4 }
   return {
     alt: compareAlt(d, rows, earth, false),
     data,
+    // a PNG asked shorter than its rows need (a phone's landscape full screen, about 800 x 335) is made
+    // this tall and fitted to its box by the host, instead of rows squeezed into each other
+    ...(opts.png ? { minHeight: margin.t + margin.b + cats.length * SIMPLE_PNG_ROW_PX } : {}),
     layout: {
       paper_bgcolor: C.bg, plot_bgcolor: C.bg, font: FONT, hoverlabel: HOVER, barmode: 'overlay', bargap: 0.26, showlegend: false,
-      margin: { l: left, r: narrow ? 52 : 60, t: opts.png ? 70 : 4, b: opts.png ? 44 : 4 },
+      margin,
       xaxis: { range: [0, 100], visible: false, fixedrange: true },
       yaxis: { type: 'category', categoryorder: 'array', categoryarray: cats, autorange: false, range: [cats.length - 0.5, -0.5],
         tickmode: 'array', tickvals: cats, ticktext: ticks, showgrid: false, zeroline: false, fixedrange: true, automargin: false, ticks: '',

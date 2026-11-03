@@ -85,7 +85,8 @@ export function useExport(make: (width: number, height: number) => Fig | null) {
 }
 
 export function Waiting({ what }: { what: string }) {
-  return <div style={{ ...box, display: 'grid', placeItems: 'center', color: C.muted, fontSize: 12.5, letterSpacing: 0.4 }}>Loading {what}…</div>
+  // centred by flex: no CSS grid before Chrome 57 (Android 7's WebView is 51)
+  return <div style={{ ...box, display: 'flex', alignItems: 'center', justifyContent: 'center', color: C.muted, fontSize: 12.5, letterSpacing: 0.4 }}>Loading {what}…</div>
 }
 
 /**

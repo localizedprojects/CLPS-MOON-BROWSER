@@ -12,6 +12,7 @@ import { useEffect, useRef } from 'react'
 import Plotly from 'plotly.js-basic-dist-min'
 import { post } from './bridge'
 import type { PlotlyDiv } from './plotGeom'
+import { exportHeight } from './plotGeom'
 
 export type { AxisPx, PlotlyDiv } from './plotGeom'
 export { clickTimeMs, plotAxes } from './plotGeom'
@@ -19,6 +20,8 @@ export { clickTimeMs, plotAxes } from './plotGeom'
 export interface Fig {
   data: unknown[]
   layout: Record<string, unknown>
+  /** A PNG export is made at least this tall, px (exportHeight in plotGeom.ts). */
+  minHeight?: number
 }
 
 export interface PlotHooks<F extends Fig> {
@@ -67,8 +70,9 @@ export function usePlot<F extends Fig>(fig: F | null, hooks: PlotHooks<F> = {}) 
       // now, whether or not a size change was seen (a hidden div reports none)
       const settle = () => { if (el.isConnected && el.clientWidth > 0) redraw() }
       ro.current?.disconnect()
-      ro.current = new ResizeObserver(fit)
-      ro.current.observe(el)
+      // no ResizeObserver before Chrome 64 (Android 7's WebView is 51): the window events below then
+      ro.current = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(fit)
+      ro.current?.observe(el)
       // also on a window resize (the full-screen view's settle nudge, a rotation)
       window.removeEventListener('resize', fitRef.current)
       window.removeEventListener('ph-settle', settleRef.current)
@@ -98,6 +102,7 @@ export async function exportPng(fig: Fig | null, id: string, width = 1600, heigh
     post({ type: 'error', message: 'export failed: no chart data yet' })
     return
   }
+  height = exportHeight(fig, height)
   try {
     const dataUrl: string = await Plotly.toImage(
       { data: fig.data, layout: { ...fig.layout, width, height, autosize: false }, config: { staticPlot: true } },

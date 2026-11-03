@@ -47,3 +47,12 @@ export function clickTimeMs(gd: Pick<PlotlyDiv, '_fullLayout' | 'getBoundingClie
   }
   return null
 }
+
+/**
+ * The height a PNG of [fig] is made at when [height] px is asked: at least
+ * the figure's own minHeight (its rows would overlap below it). The host
+ * fits the picture to its box (BoxFit.contain in chart_focus.dart).
+ */
+export function exportHeight(fig: { minHeight?: number }, height: number): number {
+  return Math.max(height, Math.ceil(fig.minHeight ?? 0))
+}

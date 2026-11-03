@@ -11,14 +11,14 @@
  * (TimelineView.tsx), so a cursor message never redraws this figure.
  */
 import type { TimelineData } from './bridge'
-import { pctText } from './compare'
+import { charsIn, pctText, wrapFit } from './compare'
 import { DAY_MS, edgeOf, edgeTip, fmtDate, fmtDur, sortedStable, touchesEdge } from './format'
 import type { Glyph, Run } from './timelineAnswer'
 import { answerText, comingUp, DEFAULT_EARTH, gaps, longestDark, nextRun, rowPct, runAt, runDur } from './timelineAnswer'
 import { C, FONT, HOVER, MONO, utcIso } from './theme'
 import { buildHeights, cursorShape } from './timeline'
 
-type FigOut = { data: unknown[]; layout: Record<string, unknown>; alt: string }
+type FigOut = { data: unknown[]; layout: Record<string, unknown>; alt: string; minHeight?: number }
 
 type Trace = Record<string, unknown>
 
@@ -218,7 +218,7 @@ export function buildStrip(d: TimelineData, win: Run, opts: StripOptions = {}): 
   }
   const layout: Record<string, unknown> = {
     paper_bgcolor: C.bg, plot_bgcolor: C.bg, font: FONT, hoverlabel: HOVER,
-    margin: { ...m, t: m.t + 22 * head.length + (head.length ? 14 : 0), b: m.b + 22 * foot.length + (foot.length ? 16 : 0) },
+    margin: { ...m, t: m.t + EXPORT_LINE * head.length + (head.length ? 14 : 0), b: m.b + EXPORT_LINE * foot.length + (foot.length ? 16 : 0) },
     hovermode: 'closest', barmode: 'overlay',
     xaxis: { type: 'date', range: [utcIso(win[0]), utcIso(win[1])], gridcolor: C.grid, linecolor: C.gridStrong,
       tickfont: { family: MONO, size: 11.5, color: C.muted }, nticks: narrow ? 4 : 8,
@@ -314,30 +314,83 @@ export function placeFlags(flags: Flag[], plot: { l: number; w: number }, rowTop
   return out
 }
 
+/** Line pitch of the export's header and footer, px (buildStrip's margins count lines with it). */
+export const EXPORT_LINE = 22
+/**
+ * The least plot height of the export with the Heights panel, px: below it
+ * the panel's legend (four rows on a narrow picture) runs into the strip's
+ * rows and ticks, and its axis title into the strip's "% = share" note.
+ */
+export const EXACT_PLOT_MIN_PX = (narrow: boolean) => (narrow ? 760 : 400)
+/** A size the export is asked for, px (the app's full-screen picture, a file). */
+export interface ExportSize { width: number; height: number }
+
+/**
+ * The export's text and strip geometry: the header (site and period, the
+ * shown time, the four answer lines) and the Coming up footer. Without
+ * [size] (or with room for it all, as in a 1600 x 1000 file) every line, as
+ * before. At a [size], lines wrap to its width, and a picture too short for
+ * them all keeps the rows readable (at least 30 px each, 48 on a narrow
+ * one, more with the Heights panel): Coming up loses events from the end,
+ * then goes; then the answer lines go (the site, period and shown time
+ * stay). The landscape full-screen picture of a phone is about 800 x 335,
+ * where the rows were squeezed to a hairline under all the lines (F2,
+ * 2026-11-03).
+ */
+export function timelineExportText(d: TimelineData, t: number, exact: boolean, size?: ExportSize):
+  { header: string[]; footer: string[]; narrow: boolean; widthPx: number; height?: number } {
+  const range = d.range as Run
+  const day = (ms: number) => fmtDate(ms, { year: true, time: false })
+  // the bold part never splits across lines (wrapFit breaks at ' · '): held together until wrapped
+  const KEEP = '\ue000'
+  const top = [`<b>When${KEEP}${d.siteName}</b> · Whole period ${day(range[0])} – ${day(range[1])} · all times UTC`, `Shown ${fmtDate(t, { year: true })}`]
+  const answers = answerText(d, t, true).map((s) => `· ${s}`)
+  const events = comingUp(d, t, 5).map((e) => `${e.mark} ${e.text}`)
+  const unkeep = (lines: string[]) => lines.map((l) => l.split(KEEP).join(' · '))
+  if (!size) return { header: unkeep([...top, ...answers]), footer: ['<b>Coming up</b>', ...events], narrow: false, widthPx: 1300 }
+  const narrow = size.width < 600
+  const m = stripMargin(narrow, false)
+  // continuation lines indented under their first; the lines start 16 px in from the left edge, the
+  // Heights view's Coming up at the plot's left edge
+  const wrap = (lines: string[], fontPx: number, left = 16) => ([] as string[]).concat(...lines.map((l) =>
+    wrapFit(l, charsIn(size.width - left - 8, fontPx)).map((x, i) => (i ? `\u00a0\u00a0\u00a0${x}` : x))))
+  const rowsMin = exact ? EXACT_PLOT_MIN_PX(narrow) : 3 * (narrow ? 48 : 30)
+  const headH = (n: number) => (n ? 14 + EXPORT_LINE * n : 0)
+  // with the Heights panel, a picture asked too short for it under the site, period and shown time is
+  // made taller (the figure's minHeight; the host fits it to its box)
+  const height = exact ? Math.max(size.height, m.t + headH(wrap(top, 15).length) + 60 + rowsMin) : size.height
+  const room = height - m.t - (exact ? 60 : m.b) - rowsMin
+  const footH = (n: number) => (n ? (exact ? 0 : 16) + EXPORT_LINE * n : 0)
+  let header = wrap([...top, ...answers], 15)
+  if (headH(header.length) > room) header = wrap(top, 15)
+  header = unkeep(header)
+  let footer: string[] = []
+  for (let n = events.length; n > 0; n--) {
+    const f = ['<b>Coming up</b>', ...wrap(events.slice(0, n), 14, exact ? m.l : 16)]
+    if (headH(header.length) + footH(f.length) <= room) { footer = f; break }
+  }
+  return { header, footer, narrow, widthPx: Math.min(1300, size.width - m.l - m.r), height }
+}
+
 /**
  * The PNG export: the whole period (whatever span is on screen), the cursor,
  * the header, the answer lines and Coming up; the Heights curves under it
- * when Exact numbers is on.
+ * when Exact numbers is on. At a [size], laid out for it (timelineExportText).
  */
-export function buildTimelineExport(d: TimelineData, t: number, exact: boolean): FigOut {
+export function buildTimelineExport(d: TimelineData, t: number, exact: boolean, size?: ExportSize): FigOut {
   const range = d.range as Run
-  const day = (ms: number) => fmtDate(ms, { year: true, time: false })
-  const header = [
-    `<b>When · ${d.siteName}</b> · Whole period ${day(range[0])} – ${day(range[1])} · all times UTC`,
-    `Shown ${fmtDate(t, { year: true })}`,
-    ...answerText(d, t, true).map((s) => `· ${s}`),
-  ]
-  const footer = ['<b>Coming up</b>', ...comingUp(d, t, 5).map((e) => `${e.mark} ${e.text}`)]
-  const s = buildStrip({ ...d, cursor: t }, range, { widthPx: 1300, header, footer: exact ? [] : footer })
+  const { header, footer, narrow, widthPx, height } = timelineExportText(d, t, exact, size)
+  const s = buildStrip({ ...d, cursor: t }, range, { widthPx, narrow, header, footer: exact ? [] : footer })
   if (!exact) return s
   const h = buildHeights({ ...d, cursor: t })
   const sl = s.layout, hl = h.layout as Record<string, Record<string, unknown>>
   return {
     alt: s.alt,
+    ...(size && height && height > size.height ? { minHeight: height } : {}),
     data: [...s.data, ...h.data.map((tr) => ({ ...tr, xaxis: 'x2', yaxis: 'y2' }))],
     layout: {
       ...sl,
-      margin: { ...(sl.margin as object), b: 60 + 22 * footer.length },
+      margin: { ...(sl.margin as object), b: 60 + EXPORT_LINE * footer.length },
       xaxis: { ...(sl.xaxis as object), anchor: 'y' },
       yaxis: { ...(sl.yaxis as object), domain: [0.52, 1] },
       xaxis2: { ...hl.xaxis, anchor: 'y2' },
@@ -346,8 +399,8 @@ export function buildTimelineExport(d: TimelineData, t: number, exact: boolean):
       // the strip's cursor line spans the whole paper, so it crosses the Heights panel too (same time range)
       shapes: sl.shapes,
       annotations: [...(sl.annotations as unknown[]),
-        { xref: 'paper', yref: 'paper', x: 0, y: 0, yshift: -40, xanchor: 'left', yanchor: 'top', showarrow: false, align: 'left',
-          text: footer.join('<br>'), font: { size: 14, color: C.text } }],
+        ...(footer.length ? [{ xref: 'paper', yref: 'paper', x: 0, y: 0, yshift: -40, xanchor: 'left', yanchor: 'top', showarrow: false, align: 'left',
+          text: footer.join('<br>'), font: { size: 14, color: C.text } }] : [])],
     },
   }
 }

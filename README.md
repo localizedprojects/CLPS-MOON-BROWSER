@@ -424,7 +424,7 @@ These are the CI steps in CI's order (`npm install` also works, but may update `
 
 **`npm audit` (accepted).** `npm audit --omit=dev` reports 0 advisories, so nothing shipped in the bundle is affected. The full `npm audit` reports 3 high-severity advisories, all in dev-only build tooling (`braces`, pulled in by `vite-plugin-singlefile`); they matter only at build time on trusted input. Do **not** run `npm audit fix --force`: it would downgrade `vite-plugin-singlefile`, which builds the single-file bundle. Revisit when `braces` ships a fix (an `overrides` entry in `package.json`).
 
-The build is one self-contained `index.html`, because Android WebViews refuse ES-module script loads from `file://` assets. Commit the rebuilt bundle; CI fails if it is stale. The charts only render. Never put science in this bundle.
+The build is one self-contained `index.html`, because Android WebViews refuse ES-module script loads from `file://` assets. It is one classic script built for Chrome 51, the stock WebView of Android 7.0 (`build.target` in `charts/vite.config.ts`, with `src/polyfills.ts`; `src/bundleTarget.test.ts` checks the bundle, and `chartMinChromeMajor` in `app/lib/widgets/chart_bridge.dart` must match). Commit the rebuilt bundle; CI fails if it is stale. The charts only render. Never put science in this bundle.
 
 ### Python pipeline (optional: regenerates `app/assets/data`)
 
@@ -525,7 +525,7 @@ CLAUDE.md                   conventions for contributors and coding agents
 
 | Suite | Location | Command | Count |
 |---|---|---|---|
-| Flutter: Dart core, state, widgets | `app/test/` | `flutter test` | 1,357 pass, 4 skipped, with `flutter analyze` clean (3 November 2026, 1.12.0) |
+| Flutter: Dart core, state, widgets | `app/test/` | `flutter test` | 1,363 pass, 4 skipped, with `flutter analyze` clean (3 November 2026, 1.13.0) |
 | Chart bundle | `charts/src/*.test.ts` | `npm test` | 164 (30 October 2026) |
 | Python pipeline | `pipeline/tests/` | `python -m pytest` | 635: 633 pass, 2 skipped (DE442 not downloaded), with the SPICE kernels and LOLA DEMs in the cache (30 October 2026; about 180 tests skip without them) |
 | Python library | `pylib/tests/` | `python -m pytest` (from `pylib/`) | 520 pass, with the SPICE kernels in the cache (30 October 2026; some skip without them) |

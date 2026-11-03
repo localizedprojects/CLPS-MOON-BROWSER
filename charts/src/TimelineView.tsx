@@ -10,7 +10,7 @@
  */
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { post } from './bridge'
-import { timelineCursor } from './cursor'
+import { heldTimelineCursor, timelineCursor } from './cursor'
 import { DetailToggle, useDetail } from './DetailToggle'
 import { fmtDate, fmtDur } from './format'
 import type { PlacedFlag, Span } from './strip'
@@ -20,10 +20,12 @@ import type { AnswerLine, Glyph, Run } from './timelineAnswer'
 import { answerLines, comingUp, stepBoundary } from './timelineAnswer'
 import { clickTimeMs, plotAxes, usePlot } from './usePlot'
 import type { PlotlyDiv } from './plotGeom'
-import { C, MONO } from './theme'
+import { C, HOST_CORNER_PX, MONO } from './theme'
 import { box, useExport, useHost, useLatest, useLiveMode, Waiting } from './viewHooks'
 
 const mono: React.CSSProperties = { fontFamily: MONO, fontVariantNumeric: 'tabular-nums' }
+/** The view's side padding, px. */
+const PAD_X = 12
 
 function useWidth() {
   const [w, setW] = useState(() => window.innerWidth)
@@ -60,9 +62,10 @@ const UNIT_AFTER = new RegExp(`(\\d) (d|h|min|${MON})\\b`, 'g')
 const NUM_AFTER = new RegExp(`\\b(d|h|${MON}|in) (\\d)`, 'g')
 const keep = (s: string) => s.replace(UNIT_AFTER, '$1\u00a0$2').replace(NUM_AFTER, '$1\u00a0$2')
 
-function Line({ l }: { l: AnswerLine }) {
+/** [corner]: the line at the top right, kept clear of the host's full-screen button (F3). */
+function Line({ l, corner = false }: { l: AnswerLine; corner?: boolean }) {
   return (
-    <div className="ph-row8" style={{ display: 'flex', alignItems: 'baseline', lineHeight: 1.35 }}>
+    <div className="ph-row8" style={{ display: 'flex', alignItems: 'baseline', lineHeight: 1.35, ...(corner ? { paddingRight: HOST_CORNER_PX - PAD_X } : {}) }}>
       <span style={{ flex: '0 0 auto', transform: 'translateY(2px)' }}><GlyphIcon kind={l.key} on={l.on} /></span>
       <span>
         {l.label && <b style={{ fontWeight: 600 }}>{l.label} </b>}
@@ -112,10 +115,9 @@ export function TimelineView() {
   const [win, setWin] = useState<{ span: Span; w: Run } | null>(null)
   const [plotVer, setPlotVer] = useState(0)
   const range = (m?.data.range ?? [0, 1]) as Run
-  const tNow = t ?? m?.data.cursor ?? range[0]
-
-  // a new payload (another site, other dates) shows its own cursor
-  useEffect(() => { if (m) setT(timelineCursor(m, cur.current)) }, [m]) // eslint-disable-line react-hooks/exhaustive-deps
+  // before this view's own cursor ref has filled (it mounts late, e.g. Simple view switched on after
+  // the time moved), the newest cursor the page holds: the first window is anchored there (F1)
+  const tNow = t ?? (m ? heldTimelineCursor(m) : range[0])
 
   // the span's window: kept while the cursor stays inside it, survives payload updates and site switches
   const shownWin = useMemo<Run>(() => (win && win.span === span && win.w[0] >= range[0] && win.w[1] <= range[1]
@@ -138,6 +140,9 @@ export function TimelineView() {
     if (nw !== shownWin) setWin({ span, w: nw })
   }
   const cur = useLatest('cursor', apply)
+  // a new payload (another site, other dates) shows its own cursor or a newer cursor message, and the
+  // window moves to it when it is outside, as for a cursor message
+  useEffect(() => { if (m) apply() }, [m]) // eslint-disable-line react-hooks/exhaustive-deps
   const seekClick = (gd: PlotlyDiv | null, ev: MouseEvent) => {
     if (!gd) return
     const tc = clickTimeMs(gd, { event: ev })
@@ -146,9 +151,10 @@ export function TimelineView() {
   const ref = usePlot(fig, { onAfterPlot: () => setPlotVer((v) => v + 1) })
   const href = usePlot(hFig, { onAfterPlot: () => setPlotVer((v) => v + 1) })
 
-  useExport(() => {
+  useExport((w, h) => {
     const { m } = state.current
-    return m ? buildTimelineExport(m.data, timelineCursor(m, cur.current), exact) : null
+    // at the requested size: the app's full-screen picture is phone-sized (F2)
+    return m ? buildTimelineExport(m.data, timelineCursor(m, cur.current), exact, { width: w, height: h }) : null
   })
 
   if (!m || !fig) return <Waiting what="timeline data" />
@@ -203,11 +209,11 @@ export function TimelineView() {
     </div>)
 
   return (
-    <div className={narrow ? 'ph-col4' : 'ph-col6'} style={{ ...box, overflowY: 'auto', boxSizing: 'border-box', padding: '4px 12px 4px', display: 'flex', flexDirection: 'column', fontSize: 13.5, color: C.text }}
+    <div className={narrow ? 'ph-col4' : 'ph-col6'} style={{ ...box, overflowY: 'auto', boxSizing: 'border-box', padding: `4px ${PAD_X}px 4px`, display: 'flex', flexDirection: 'column', fontSize: 13.5, color: C.text }}
       aria-label={`${fig.alt} Shown time ${fmtDate(tNow, { year: true })} UTC.`} role="group">
       <div style={{ color: C.muted, fontSize: 12.5 }}>When · all times UTC</div>
       <div aria-live={live} className={narrow ? 'ph-facts' : 'ph-facts-wide'}>
-        {lines.map((l) => <Line key={l.key} l={l} />)}
+        {lines.map((l, i) => <Line key={l.key} l={l} corner={i === (narrow ? 0 : 1)} />)}
       </div>
       <div className="ph-wrap8" style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between' }}>
         <Presets value={span} onChange={pickSpan} narrow={narrow} />

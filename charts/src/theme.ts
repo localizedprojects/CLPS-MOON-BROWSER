@@ -52,3 +52,11 @@ export const HOVER = { bgcolor: C.panel, bordercolor: C.gridStrong, font: { fami
 export function utcIso(ms: number): string {
   return new Date(ms).toISOString().replace('T', ' ').slice(0, 19)
 }
+
+/**
+ * The host's "Open full screen" button covers the page's top-right corner:
+ * 48 px, 2 px in from the top and right (FocusableChart in
+ * app/lib/widgets/chart_focus.dart). Text and controls in the top 52 px stay
+ * this far from the right edge, so none sits under it (F3, 2026-11-03).
+ */
+export const HOST_CORNER_PX = 52

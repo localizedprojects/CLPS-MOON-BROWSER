@@ -3,6 +3,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:math' as math;
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -266,13 +267,125 @@ void main() {
       final saved = <List<SaveFile>>[];
       final hub = ChartHub(onEvent: (_) {}, save: (f) async => saved.add(f));
       addTearDown(hub.dispose);
-      final sky = page(hub.sky);
-      page(hub.timeline);
+      final sky = page(hub.sky), tl = page(hub.timeline);
       hub.exportSkyTimelinePng(state);
       final skyId = sky.lastWhere((m) => m['type'] == 'exportPng')['id'] as String;
+      final tlId = tl.lastWhere((m) => m['type'] == 'exportPng')['id'] as String;
       hub.timeline.handleRaw(jsonEncode({'type': 'error', 'message': 'export failed'}));
       hub.sky.handleRaw(jsonEncode({'type': 'png', 'id': skyId, 'dataUrl': 'data:image/png;base64,iVBORw0KGgo='}));
       expect(saved.single.map((f) => f.name), ['$skyId.png']);
+      // its image comes after all: dropped, not a second share
+      hub.timeline.handleRaw(jsonEncode({'type': 'png', 'id': tlId, 'dataUrl': 'data:image/png;base64,iVBORw0KGgo='}));
+      expect(saved.length, 1);
+    });
+
+    // the Android 7 emulator (Chrome 51 web view) took about 50 s for the sky
+    // image and 9 s more for the timeline: the 20 s wait once allowed ran out
+    // with nothing in, then each image opened its own share sheet (two
+    // ACTION_SEND intents instead of one ACTION_SEND_MULTIPLE)
+    testWidgets('slow charts (about a minute) still give one share with both images', (tester) async {
+      final saved = <List<SaveFile>>[];
+      final events = <Map<String, dynamic>>[];
+      final hub = ChartHub(onEvent: events.add, save: (f) async => saved.add(f));
+      addTearDown(hub.dispose);
+      final sky = page(hub.sky), tl = page(hub.timeline);
+      hub.exportSkyTimelinePng(state);
+      final skyId = sky.lastWhere((m) => m['type'] == 'exportPng')['id'] as String;
+      final tlId = tl.lastWhere((m) => m['type'] == 'exportPng')['id'] as String;
+      const png = 'data:image/png;base64,iVBORw0KGgo=';
+      await tester.pump(const Duration(seconds: 50));
+      hub.sky.handleRaw(jsonEncode({'type': 'png', 'id': skyId, 'dataUrl': png}));
+      await tester.pump(const Duration(seconds: 9));
+      expect(saved, isEmpty, reason: 'waits for the second image');
+      hub.timeline.handleRaw(jsonEncode({'type': 'png', 'id': tlId, 'dataUrl': png}));
+      await tester.pump();
+      expect(saved.length, 1, reason: 'one share, not one per image');
+      expect(saved.single.map((f) => f.name), ['$skyId.png', '$tlId.png']);
+      expect(events.where((e) => e['type'] == 'notice'), isEmpty);
+    });
+
+    testWidgets('when the wait runs out, what came is shared once and a late image is dropped', (tester) async {
+      final saved = <List<SaveFile>>[];
+      final events = <Map<String, dynamic>>[];
+      final hub = ChartHub(onEvent: events.add, save: (f) async => saved.add(f));
+      addTearDown(hub.dispose);
+      final sky = page(hub.sky), tl = page(hub.timeline);
+      const png = 'data:image/png;base64,iVBORw0KGgo=';
+      // neither chart answers: nothing to share, and the user is told
+      hub.exportSkyTimelinePng(state);
+      await tester.pump(ChartHub.exportTimeout + const Duration(seconds: 1));
+      expect(saved, isEmpty);
+      expect(events.last['message'], contains('did not send their images in time'));
+      // the timeline never answers: the sky image goes alone after the wait
+      hub.exportSkyTimelinePng(state);
+      final skyId = sky.lastWhere((m) => m['type'] == 'exportPng')['id'] as String;
+      final tlId = tl.lastWhere((m) => m['type'] == 'exportPng')['id'] as String;
+      await tester.pump(const Duration(seconds: 10));
+      hub.sky.handleRaw(jsonEncode({'type': 'png', 'id': skyId, 'dataUrl': png}));
+      await tester.pump(ChartHub.exportRestTimeout - const Duration(seconds: 1));
+      expect(saved, isEmpty, reason: 'still waiting for the timeline');
+      await tester.pump(const Duration(seconds: 2));
+      expect(saved.single.map((f) => f.name), ['$skyId.png']);
+      expect(events.last['message'], contains('timeline chart did not send its image'));
+      // the timeline image comes after all: dropped, never a second share sheet
+      hub.timeline.handleRaw(jsonEncode({'type': 'png', 'id': tlId, 'dataUrl': png}));
+      hub.timeline.handleRaw(jsonEncode({'type': 'png', 'id': tlId, 'dataUrl': png}));
+      await tester.pump();
+      expect(saved.length, 1);
+      expect(events.where((e) => e['type'] == 'png' && e['id'] == tlId), isEmpty);
+      // other exports are unaffected
+      page(hub.compare);
+      hub.compare.handleRaw(jsonEncode({'type': 'png', 'id': 'comparison_x', 'dataUrl': png}));
+      expect(saved.last.single.name, 'comparison_x.png');
+    });
+
+    // a slow phone with an old web view (the Android 7 emulator) took longer
+    // than the 8 s once allowed: the full screen gave up, then the late picture
+    // went to the share sheet as "focus-2.png" unasked
+    testWidgets('a full-screen picture that comes after the wait (or a chart error) is dropped, never shared',
+        (tester) async {
+      final saved = <List<SaveFile>>[];
+      final events = <Map<String, dynamic>>[];
+      final hub = ChartHub(onEvent: events.add, save: (f) async => saved.add(f));
+      addTearDown(hub.dispose);
+      final tl = page(hub.timeline);
+      const png = 'data:image/png;base64,iVBORw0KGgo=';
+      final got = <Uint8List?>[];
+      unawaited(hub.snapshot(hub.timeline, 400, 800).then(got.add));
+      final late = tl.lastWhere((m) => m['type'] == 'exportPng')['id'] as String;
+      await tester.pump(ChartHub.snapshotTimeout + const Duration(seconds: 1));
+      expect(got, [null], reason: 'the caller has given up');
+      hub.timeline.handleRaw(jsonEncode({'type': 'png', 'id': late, 'dataUrl': png}));
+      // given up on because its chart reported an error, then the picture comes after all
+      unawaited(hub.snapshot(hub.timeline, 400, 800).then(got.add));
+      final failed = tl.lastWhere((m) => m['type'] == 'exportPng')['id'] as String;
+      hub.timeline.handleRaw(jsonEncode({'type': 'error', 'message': 'export failed'}));
+      await tester.pump();
+      expect(got, [null, null]);
+      hub.timeline.handleRaw(jsonEncode({'type': 'png', 'id': failed, 'dataUrl': png}));
+      await tester.pump();
+      expect(saved, isEmpty, reason: 'nobody asked for a file');
+      expect(events.where((e) => e['type'] == 'png'), isEmpty);
+      // a file export still works afterwards
+      hub.timeline.handleRaw(jsonEncode({'type': 'png', 'id': 'timeline_x', 'dataUrl': png}));
+      expect(saved.single.single.name, 'timeline_x.png');
+    });
+
+    testWidgets('a slow full-screen picture (well past 8 s) still comes to its caller', (tester) async {
+      final saved = <List<SaveFile>>[];
+      final hub = ChartHub(onEvent: (_) {}, save: (f) async => saved.add(f));
+      addTearDown(hub.dispose);
+      final tl = page(hub.timeline);
+      final got = <Uint8List?>[];
+      unawaited(hub.snapshot(hub.timeline, 400, 800).then(got.add));
+      final id = tl.lastWhere((m) => m['type'] == 'exportPng')['id'] as String;
+      expect(ChartHub.snapshotTimeout, greaterThanOrEqualTo(const Duration(seconds: 30)));
+      await tester.pump(const Duration(seconds: 25));
+      expect(got, isEmpty, reason: 'still waiting');
+      hub.timeline.handleRaw(jsonEncode({'type': 'png', 'id': id, 'dataUrl': 'data:image/png;base64,iVBORw0KGgo='}));
+      await tester.pump();
+      expect(got.single, isNotNull);
+      expect(saved, isEmpty, reason: 'a full-screen picture, not a file');
     });
 
     test('a single chart export is saved on its own', () async {

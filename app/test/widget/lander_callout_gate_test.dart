@@ -10,8 +10,10 @@
 // each count to a ceiling (a ratchet: lower a ceiling when a change brings its
 // count down; never raise one without saying why in the change). Set
 // LANDER_GATE_OUT to a path prefix to write each height's overlapping frames
-// there. A second test paints desktop and tablet sizes ([_large]): no overlap
-// at any height.
+// there. The bottom strip's readout and legend under a control ('strip on
+// controls', not a callout) are held to a ceiling too: none since 1.11.3. A
+// second test paints desktop and tablet sizes ([_large]): no overlap at any
+// height, and no strip on a control.
 @Tags(['slow'])
 library;
 
@@ -71,7 +73,7 @@ const _info = [
   'far', // a box farther than [_farPx] from its own glyph
   'words cut', // a body's words shortened
   'no readout', // the centre readout left out
-  'strip on controls', // the bottom strip's readout or legend under a control (not a callout)
+  'strip on controls', // the bottom strip's readout or legend under a control (not a callout; held to [_ceiling])
 ];
 
 /// The overlaps the placement never accepts (its hard keeps, 1.9.2: 30 frames
@@ -84,16 +86,34 @@ const _hard = ['other callout', 'readout', 'legend', 'glyph core', 'crosshair', 
 /// under the glyph, W-V10).
 const _farPx = 48.0;
 
-/// Frames with any overlap, then per category ([_cats]), at each height: the
-/// ceilings (1.11.2, measured 2026-11-02; 1.11.1's in the comments). To stay
+/// Frames with any overlap, then per category ([_cats], and 'strip on
+/// controls'), at each height: the ceilings (1.11.2, measured 2026-11-02;
+/// 1.11.1's in the comments; 1.11.3, measured 2026-11-03, at 2 m). To stay
 /// near a minute, raised heights sample every fourth body position (200 m from
 /// the first, 1 km the second, 5 km the third; 1 km and 5 km lay out alike,
 /// the chip's digits being Plex Mono): LANDER_GATE_FULL=1 paints each in full
 /// (no ceilings then). The lander's 2 m is always painted in full.
 const _ceiling = <String, Map<String, int>>{
   // 2 m: the 1.9.2 gate's 30 hard frames (a lunar eclipse, 392 x 120, glyph core and crosshair); the
-  // controls (D21, D22) are soft keeps. 1.11.2 left every 2 m count as it was
-  '2 m': {'any': 2008, 'hard': 30, 'controls': 951, 'disc': 789, 'glyph core': 30, 'glyph edge': 367, 'crosshair': 30},
+  // controls (D21, D22) are soft keeps. 1.11.2 left every 2 m count as it was. 1.11.3 keeps the bottom
+  // strip off the controls (strip on controls 15,120 to 0: the legend ran under the relief switch in
+  // 352.7 x 176 and 392 x 168, under the viewpoint control and the expand button in 392 x 120, and the
+  // readout under the relief switch in 352.7 x 176): the two-line legend moved in left of them takes sky
+  // the callouts had beside it. Raised from 1.11.2 for that alone (1.11.2's in the comments): in 392 x 120 (any
+  // +222, controls +158, disc +78, glyph edge +4), whose 30 dp legend cannot fit in the 16 dp under the
+  // 48 dp controls, so it moves 104 dp in over the place left of it; and 392 x 168 (any +14, glyph edge
+  // +13, controls +2, disc +1). 352.7 x 176 and every raised count are unchanged (the narrower readout
+  // is left out exactly where it was)
+  '2 m': {
+    'any': 2244, // 2008
+    'hard': 30,
+    'controls': 1111, // 951
+    'disc': 868, // 789
+    'glyph core': 30,
+    'glyph edge': 384, // 367
+    'crosshair': 30,
+    'strip on controls': 0, // 15120
+  },
   // raised (D22), 1.11.2: the callouts placed first, as at 2 m, then the chip clear of them, the bodies
   // and the crosshair, else the callouts again keeping off the chip in its fallback place (1.11.1: the
   // chip first, a soft keep given up before the other body's disc). What is left: a callout over the
@@ -115,6 +135,7 @@ const _ceiling = <String, Map<String, int>>{
     'crosshair': 6,
     'chip on body': 249, // 741
     'chip on crosshair': 342, // 2310
+    'strip on controls': 0, // 1.11.2: 3673
   },
   '1 km': {
     'any': 980, // 2716
@@ -127,6 +148,7 @@ const _ceiling = <String, Map<String, int>>{
     'crosshair': 6,
     'chip on body': 324, // 777
     'chip on crosshair': 240, // 2355
+    'strip on controls': 0, // 1.11.2: 3677
   },
   '5 km': {
     'any': 849, // 2379
@@ -139,6 +161,7 @@ const _ceiling = <String, Map<String, int>>{
     'crosshair': 9,
     'chip on body': 228, // 657
     'chip on crosshair': 234, // 2040
+    'strip on controls': 0, // 1.11.2: 3390
   },
 };
 
@@ -322,7 +345,7 @@ void main() {
       for (final MapEntry(:key, value: t) in rows.entries) {
         final ceiling = _ceiling[key];
         if (ceiling == null || (full && key != '2 m')) continue;
-        for (final c in ['any', 'hard', ..._cats]) {
+        for (final c in ['any', 'hard', ..._cats, 'strip on controls']) {
           final n = switch (c) {
                 'any' => t.any,
                 'hard' => t.hard,
@@ -344,6 +367,7 @@ void main() {
     for (final (k, eye) in [null, '200 m', '1 km', '5 km'].indexed) {
       final t = _gate(eye, stride: 4, from: k, sizes: _large);
       expect(t.any, 0, reason: '${eye ?? '2 m'}: ${t.count}\n${t.lines.take(5).join('\n')}');
+      expect(t.count['strip on controls'] ?? 0, 0, reason: '${eye ?? '2 m'}: the bottom strip under a control');
     }
   }, timeout: const Timeout(Duration(minutes: 2)));
 }

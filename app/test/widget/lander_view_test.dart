@@ -2026,6 +2026,93 @@ void main() {
       expect(above, greaterThan(0), reason: 'the place just above the bottom strip is used');
     });
 
+    test('W-V14 (1.11.3) the bottom strip keeps off the controls: the legend moved in left of them with its '
+        'lines whole, the readout fitted to its row, at 2 m and raised, in the release gate\'s five sizes', () {
+      // 1.11.2 laid the strip out as if the controls were not there: in every frame of 352.7 x 176, 392 x 168
+      // and 392 x 120 the legend (2 m: the mask's line over the see-through one) or the centre readout ran
+      // under the relief switch, or the viewpoint control and the expand button
+      const probe = 'Centre: regolith · 1.2 km · az 123.4° el -30.0°';
+      for (final (size, inline) in const [
+        (Size(352.7, 176), true),
+        (Size(392, 168), true),
+        (Size(392, 120), true),
+        (Size(360, 223), true),
+        (Size(496.6, 291.4), false),
+      ]) {
+        final controls = LanderViewPanel.controlsIn(size, inline: inline, built: true).all;
+        for (final eye in [null, '1 km']) {
+          final label = eye == null
+              ? '${landerMaskLabel(custom: false)}\n$landerSeeThroughLabel'
+              : landerMaskLabel(custom: false, lander: '2 m');
+          ({Rect? legend, Rect? readout}) frame(List<Rect> reserve, {Offset? sunAt, String text = probe, double scale = 1}) {
+            final cam = LanderCameraController()..set(yaw: 0, pitch: 0, hfov: 45);
+            final v = cam.view(size);
+            LanderPainter(
+                    cam: cam,
+                    mesh: null,
+                    proj: LanderProjection(),
+                    colors: null,
+                    sun: sunAt == null ? null : _gateBody(v, sunAt, 0.27, SkyState.up),
+                    maskDeg: Float64List(720),
+                    maskLabel: label,
+                    probe: text,
+                    reserve: reserve,
+                    textScaler: TextScaler.linear(scale),
+                    viewpoint: eye)
+                .paint(Canvas(ui.PictureRecorder()), size);
+            return LanderPainter.paintedStrip!;
+          }
+
+          final at = '$size ${eye ?? '2 m'}';
+          // the strip as it is with no control over the view (1.11.2's everywhere)
+          final free = frame(const []), strip = frame(controls);
+          final legend = strip.legend!, readout = strip.readout;
+          for (final s in [legend, ?readout]) {
+            expect(controls.where(s.overlaps), isEmpty, reason: '$at: strip box $s under a control $controls');
+            expect(s.left >= 0 && s.right <= size.width && s.bottom <= size.height, isTrue, reason: '$at: $s in view');
+          }
+          // the readout shown wherever it was (left out only over the crosshair: 392 x 120 at 2 m)
+          expect(readout == null, free.readout == null, reason: '$at: the readout $readout, without controls ${free.readout}');
+          // the legend's lines whole (as many, as tall) and at the foot; moved in only beside a control: 4 dp
+          // left of it
+          expect(legend.height, free.legend!.height, reason: '$at: the legend\'s lines $legend vs ${free.legend}');
+          expect(legend.bottom, free.legend!.bottom, reason: '$at: at the foot');
+          final beside = controls.where((r) => r.top < legend.bottom && r.bottom > legend.top);
+          expect(legend.right,
+              closeTo(beside.isEmpty ? size.width - 4 : beside.map((r) => r.left - 4).reduce(math.min), 0.01),
+              reason: '$at: $legend beside $beside');
+          if (readout != null) {
+            expect(readout.overlaps(legend), isFalse, reason: '$at: $readout over the legend $legend');
+            // one line, as tall; as it was where no control is beside its row
+            expect(readout.height, free.readout!.height, reason: '$at: the readout $readout on one line');
+            if (controls.where((r) => r.top < readout.bottom && r.bottom > readout.top).isEmpty) {
+              expect(readout, free.readout, reason: '$at: no control beside the readout\'s row: as it was');
+            }
+          }
+          // a long readout (the full status words) or large text: fitted beside a control it can wrap onto more
+          // lines, and is then still never over the crosshair, nor shown where it is left out without the
+          // controls (judged only before it is fitted, it went over the crosshair in 392 x 120 at 1 km, and up
+          // past the view's top in 352.7 x 176 at 2 m with 2x text, where it is left out without the controls)
+          for (final scale in [1.0, 1.3, 2.0]) {
+            const long = 'Centre: full Sun · Earth hidden · 12.4 km · az 131.0° el +0.8°';
+            final s = frame(controls, text: long, scale: scale), was = frame(const [], text: long, scale: scale);
+            final r = s.readout, cross = Rect.fromCircle(center: size.center(Offset.zero), radius: 10);
+            expect(r != null && r.overlaps(cross), isFalse, reason: '$at x$scale: the readout $r over the crosshair');
+            if (was.readout == null) expect(r, isNull, reason: '$at x$scale: the readout $r, left out without controls');
+            expect([?s.legend, ?r].where((b) => controls.any(b.overlaps)), isEmpty, reason: '$at x$scale: $s under a control');
+          }
+          // over the gate's body positions (the Sun alone): never on a control, never left out for it
+          for (var c = 0; c < 70; c++) {
+            final p = _gateCell(size, c % 10, c ~/ 10);
+            final s = frame(controls, sunAt: p), was = frame(const [], sunAt: p);
+            expect([?s.legend, ?s.readout].where((b) => controls.any(b.overlaps)), isEmpty,
+                reason: '$at cell $c: $s under a control');
+            expect(s.readout == null, was.readout == null, reason: '$at cell $c: the readout $s, without controls $was');
+          }
+        }
+      }
+    });
+
     testWidgets('W-V9 keyboard focus shows a 2 px ice ring on the viewpoint control and on the relief switch (on and off)',
         (tester) async {
       size(tester, const Size(360, 1000));

@@ -308,7 +308,7 @@ The app does **not** model surface composition, water ice, temperature, dust, bo
 - **Visibility rules.**
   - By default the Sun counts as visible when any part of its disk is above the terrain; this is the LOLA convention. The Earth counts as visible when its centre is above the terrain.
   - Both rules can be changed in the mission settings.
-  - The Sun also counts as hidden where Earth covers it (lunar eclipses): any rule needs an uncovered part above the terrain, the centre rule needs the centre outside Earth's disk, and the whole-disk rule fails on any overlap. Earth is modelled as a sharp sphere of its equatorial radius (no atmosphere ring, no flattening), and the 18.6-year averages under About this site leave eclipses out (at most about 0.03 percentage points).
+  - The Sun also counts as hidden where Earth covers it (lunar eclipses): any rule needs an uncovered part above the terrain, the centre rule needs the centre outside Earth's disk, and the whole-disk rule fails on any overlap. Earth is modelled as a sharp sphere of its equatorial radius (no atmosphere ring, no flattening), and the 18.6-year averages under About this site include eclipses too (they lower the Sun shares there by at most about 0.03 percentage points).
 - **Power.** The power figure is incident irradiance on a panel facing the Sun (no cos(elevation) factor). It is not electrical output: there is no model of panel efficiency, orientation limits, batteries or thermal effects.
 - **Communication.** Earth visibility does not include lunar-surface multipath, antenna masks or link budgets.
 - **The DSN rule** is optional and off by default.

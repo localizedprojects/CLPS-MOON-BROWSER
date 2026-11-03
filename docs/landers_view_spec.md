@@ -629,7 +629,7 @@ The lead visually checks the shots for:
 - Earthshine, fill light, ~~relief shading~~ (added in 1.11.0 as a labelled drawing aid, D21), albedo maps, textures, stars, atmosphere, Earth's phase or night side on its disc, and the Sun's corona.
 - Changing formula.md §12.2 (Earth cast along the Moon-centre direction, about 0.26° optimistic). It is badged here and needs the user's OK first.
 - Unifying the 600 m (`computeCoarseHorizon`) and 800 m (light engine) near-field cuts. That is a separate decision.
-- Eclipses in the pipeline's 18.6-year averages.
+- ~~Eclipses in the pipeline's 18.6-year averages~~ (added to the pipeline on 2026-11-03, formula.md §9.6).
 - Moving the eye anywhere other than the site (no walking or flying), choosing the eye height from the view (it follows `observerHeightM`), and VR / device orientation.
 - Light prefetch of far frames during play, and far frames on the web during play.
 - Blender renders (no longer shown in the app).

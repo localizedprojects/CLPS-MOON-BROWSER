@@ -112,15 +112,15 @@ Values marked **derived** are plain arithmetic on the code's constants. The repo
 | Parameter | Value | Source |
 |---|---|---|
 | Default observer height $h_{\rm obs}$ | 2.0 m (the light map always uses this default; §12) | `config.py:127`; `constants.dart:22`; `shadow.dart:146,155,368,387` |
-| Horizon-mask observer heights | 2 and 10 m for the app; 0 m only for the AVGVISIB cross-check | `config.py:129`; `sites.py:30,66`; `app_state.dart:762` (`addCustomSite`) |
+| Horizon-mask observer heights | 2 and 10 m for the app; 0 m only for the AVGVISIB cross-check | `config.py:129`; `sites.py:30,74`; `app_state.dart:762` (`addCustomSite`) |
 | Preset azimuth step | 0.25° (1440 azimuths) | `config.py:131`; `horizon.py:70` |
 | Preset near-field exclusion | 120 m (1.5 px of the 80 m DEM) | `config.py:133`; `horizon.py:41` |
 | Preset march schedule | 10 m steps to < 20 km, then ×1.001 to ≥ 600 km; 5392 samples, 120 m to 600 061 m | `horizon.py:39-47` |
 | On-device azimuth step | 0.5° (720 azimuths) | `horizon_compute.dart:22,58` |
 | On-device march schedule | 100 m steps from 600 m to < 20 km, then ×1.005 to ≥ 300 km; 738 samples, last 300 055 m | `horizon_compute.dart:20-36`; `fixtures.py:31,47-48` |
-| Mask storage quantum | 0.01° (centidegrees) | `sites.py:73`; `horizon.dart:20-23` |
-| Disk strips | $n=16$ ($\sum_k\eta_k=12.62675$) | `visibility.py:17`; `visibility.dart:13-17` |
-| $\cos e$ floor in strip azimuth offset | $10^{-6}$ | `visibility.py:43`; `visibility.dart:25-26` |
+| Mask storage quantum | 0.01° (centidegrees) | `sites.py:81`; `horizon.dart:20-23` |
+| Disk strips | $n=16$ ($\sum_k\eta_k=12.62675$) | `visibility.py:24`; `visibility.dart:13-17` |
+| $\cos e$ floor in strip azimuth offset | $10^{-6}$ | `visibility.py:53`; `visibility.dart:25-26` |
 | `fullDisk` threshold | $f\ge0.999$ | `visibility.dart:78` |
 | Local slope baseline | 160 m (±80 m central differences) | `horizon.py:100-108` |
 | Shadow sweep | near field 1.5 px, giving lag $L=2$; $L$ clamped to $[1,2^{20}]$; horizontal-light threshold $10^{-9}$; rotated grid $W=\lceil n\sqrt2\rceil+2$ | `shadow.dart:187,198,204` |
@@ -149,7 +149,7 @@ Values marked **derived** are plain arithmetic on the code's constants. The repo
 | Custom-site placement limit | latitude ≤ −80.01° (map tap, after "Check this spot"); $-90\le\varphi\le-80.01$ and $-180\le\lambda\le180$ (typed coordinates); a spot the 400 m DEM cannot sample is refused (`PolarGrid.coversLatLon`) | `map_view.dart:33`; `app_state.dart` `addCustomSite` |
 | Light-map close-up | 320 px of the 400 m grid (128 km) | `light_engine.dart:18` |
 | Long-term statistics period | 2009-01-01T00:00 UTC + 18.6 × 365.25 d, hourly (derived: 163 048 samples) | `sites.py:30-44` |
-| AVGVISIB agreement tolerance | ±0.005 (fraction) around the LOLA 3×3 [min, max] | `sites.py:138-139` |
+| AVGVISIB agreement tolerance | ±0.005 (fraction) around the LOLA 3×3 [min, max] | `sites.py:146-147` |
 | Render epoch window | [2026-10-09T00:00Z, 2027-10-09T00:00Z), hourly (derived: 8760); eye height 2.0 m | `render_prep.py:36-38,121-125` |
 | Render band | ±30°, 4096 × 683 px, 0.0878°/px; skyline alpha threshold 0.5 | `render_site.py:160-164`; `render_post.py:63,76` |
 | Validation test tolerance | 0.01′ | `test_horizons_validation.py:25`; `spice_truth_test.dart:45` |
@@ -523,7 +523,7 @@ The ray-march is validated against closed forms in §13.7.
 - **Near-field exclusion:** all $d < 120$ m are dropped (1.5 px of the 80 m DEM).
 - **Total:** 5392 samples, 120 … 19 990 m (1988) plus 20 000 … 600 061 m (3404).
 - **Azimuth grid:** $a = 0, 0.25, \dots, 359.75$ (1440 values; `horizon.py:70`, `config.py:131`).
-- **Observer heights:** 2 and 10 m for the app (`config.py:129`), plus 0 m for the AVGVISIB cross-check only (`sites.py:30,66`).
+- **Observer heights:** 2 and 10 m for the app (`config.py:129`), plus 0 m for the AVGVISIB cross-check only (`sites.py:30,74`).
 
 **On-device custom-site masks** (Dart, `horizon_compute.dart:20-36`; mirrored in `fixtures.py:31,47-48`):
 - **Near steps:** 100 m from 600 m up to < 20 000 m (194 samples).
@@ -550,9 +550,9 @@ The ray-march is validated against closed forms in §13.7.
 
 ### 5.3 Horizon mask storage and periodic interpolation
 
-**Storage.** $\mathrm{centi} = \mathrm{int}(\mathrm{round}(100\,e))$ (`sites.py:73`), read back as $e = \mathrm{centi}/100$ (`horizon.dart:20-23`). The quantisation error is at most 0.005°.
+**Storage.** $\mathrm{centi} = \mathrm{int}(\mathrm{round}(100\,e))$ (`sites.py:81`), read back as $e = \mathrm{centi}/100$ (`horizon.dart:20-23`). The quantisation error is at most 0.005°.
 
-**Interpolation** (`visibility.py:20-27`, `horizon.dart:28-34`), with $\Delta a$ the mask step and $M$ the mask length:
+**Interpolation** (`visibility.py:27-34`, `horizon.dart:28-34`), with $\Delta a$ the mask step and $M$ the mask length:
 
 $$q = \frac{a \bmod 360}{\Delta a},\quad i_0 = \lfloor q\rfloor \bmod M,\quad f = q - \lfloor q\rfloor,\quad H(a) = (1-f)H_{i_0} + f\,H_{(i_0+1)\bmod M}$$
 
@@ -566,7 +566,7 @@ Source: `horizon.py:100-108`. The baseline is $b = 160$ m (2 px of the 80 m DEM)
 
 $$g_x = \frac{h(x_0+80, y_0) - h(x_0-80, y_0)}{160},\quad g_y = \frac{h(x_0, y_0+80) - h(x_0, y_0-80)}{160},\quad S = \arctan\sqrt{g_x^2+g_y^2}\ (\text{deg})$$
 
-It is written to `sites.json` as `slopeDeg`, rounded to 0.1 (`sites.py:104`).
+It is written to `sites.json` as `slopeDeg`, rounded to 0.1 (`sites.py:112`).
 
 ---
 
@@ -574,18 +574,18 @@ It is written to `sites.json` as `slopeDeg`, rounded to 0.1 (`sites.py:104`).
 
 ### 6.1 Angular radius
 
-Source: `visibility.py:30-32`, `visibility.dart:20`.
+Source: `visibility.py:37-39`, `visibility.dart:20`.
 
 $$\rho = \arcsin\!\frac{R_b}{r}\ (\text{deg}),\qquad R_\odot = 695\,700\ \text{km},\quad R_\oplus = 6378.1366\ \text{km}$$
 
 - $r$ is the **topocentric** range in km, $\lVert\vec r_{b} - (R + h/1000)\hat U\rVert$.
-- It comes from `Observer.look` (`geo.dart:77-85`; used at `timeseries.dart:136-139`) and from `sites.py:48-50`.
+- It comes from `Observer.look` (`geo.dart:77-85`; used at `timeseries.dart:136-139`) and from `sites.py:49-51`.
 - The height $h$ is terrain height + observer height.
 - Values: $\rho_\odot(1\,\mathrm{au}) = 0.26645°$ and $\rho_\oplus(384\,400\ \mathrm{km}) = 0.95072°$.
 
 ### 6.2 Finite-disk visible fraction (16-strip integration)
 
-Source: `visibility.py:35-51`, `visibility.dart:13-36`. The disk has centre $(a_c, e_c)$ and radius $\rho$, and $n = 16$.
+Source: `visibility.py:42-71`, `visibility.dart:13-36`. The disk has centre $(a_c, e_c)$ and radius $\rho$, and $n = 16$.
 
 $$\xi_k = -1 + \frac{2k+1}{n},\quad \eta_k = \sqrt{1-\xi_k^2},\quad k = 0,\dots,n-1,\qquad \textstyle\sum_k\eta_k = 12.62675$$
 
@@ -605,7 +605,7 @@ Measured accuracy:
 
 ### 6.3 Analytic circular segment (test reference)
 
-Source: `visibility.py:54-58`, `visibility.dart:40-43`. This is the fraction of a unit disk above a straight line, where $s$ is the signed distance of the centre above the line, in radii:
+Source: `visibility.py:160-164`, `visibility.dart:40-43`. This is the fraction of a unit disk above a straight line, where $s$ is the signed distance of the centre above the line, in radii:
 
 $$f_{\rm seg}(s) = 1 - \frac{\arccos\tilde s - \tilde s\sqrt{1-\tilde s^2}}{\pi},\qquad \tilde s = \mathrm{clip}(s,-1,1)$$
 
@@ -621,7 +621,7 @@ E_i^{0}=\begin{cases}e_\oplus>H_\oplus(a_\oplus) & \texttt{center}\ \text{(defau
 - The comparisons are strict ($>$), except that `fullDisk` uses $\ge 0.999$.
 - The defaults are set in `SeriesOptions` (`timeseries.dart:33-38`).
 - If `requireDsn` is set, Earth visibility is also ANDed with the DSN mask (§8, §9.3; `timeseries.dart:156`).
-- The pipeline long-term statistics use $f>0$ (any part) for both bodies (`sites.py:83-84,109-111`; §9.6).
+- The pipeline long-term statistics use $f>0$ (any part) for both bodies (`sites.py:91-92,117-119`; §9.6); the app's 2 m values remove Earth from the Sun as below, the AVGVISIB surface values do not (§13.9).
 - During a lunar eclipse (§6.5) $f_\odot$ already excludes the part of the Sun behind Earth, `center` also needs the Sun's centre outside Earth's disk ($d \ge \rho_\oplus$), and `fullDisk` also needs no overlap at all ($\epsilon_\odot = 0$). Earth visibility and the DSN check are unaffected.
 
 ### 6.5 Earth in front of the Sun (lunar eclipses)
@@ -668,13 +668,13 @@ $\epsilon_\odot$ ignores the terrain and is kept per sample as `SiteSeries.sunEc
 
 19 events in 11 years. Per year: 6.9 h with any overlap, 2.4 h of total cover, 4.4 h with the centre hidden, and 4.5 h of full sunlight lost ($\int\epsilon_\odot\,dt$). These match the lunar eclipses seen from Earth (a partial or penumbral one on Earth can be total from the south pole when the Moon passes north of the shadow's axis, as on 2026-08-28 and 2028-01-12).
 
-**The 18.6-year averages (§9.6) do not include eclipses**: they are pipeline output, and the SPICE kernels needed to recompute them were not available when this was added. At most the hours above can change them, and only when the site is otherwise sunlit: the any-part "Sunlit" and "Sun and Earth" values drop by at most $2.4/8766 \approx 0.03$ percentage points (below their 0.1 rounding), a centre-rule share by at most $0.05$ points, and the mean power by at most $4.5/8766 \approx 0.05\,\%$ of the full-Sun value.
+**The 18.6-year averages (§9.6) include eclipses** since 2026-11-03: the pipeline's `sun_occulter` and `visible_fraction(occulter=)` (`visibility.py:74-143`) port `eclipse.dart` and the occulter term of `visibleFraction`, and the Dart code reproduces them to $10^{-9}$ (the `eclipse` key of `spice_truth.json`: the 2026-03-03 eclipse at Malapert Peak every 10 min and 40 synthetic disk pairs; `spice_truth_test.dart`). Over the 18.6-year hourly grid (2009-01-01 + 18.6 yr) the disks overlap at 124–126 of the 163 048 samples (about 6.8 h a year), and only those samples change (bit-for-bit elsewhere). Measured at the 19 presets (2 m observer, unrounded): the any-part "Sunlit" share drops by 0 to 0.029 percentage points (median 0.027; 0 at Haworth, Mons Mouton, Nobile Rim 1 and the peak near Cabeus B, where Earth never covers a part of the Sun that is above the terrain); "Sun and Earth" drops by exactly the same amount (an Earth that covers the sunlit part of the Sun is itself above the terrain); Earth is unchanged; a centre-rule share would drop by up to 0.051 points and a full-disk share by up to 0.077; the mean power by up to 0.050 % of the full-Sun value. These are about the per-year figures above ($2.4/8766\approx0.03$, $4.4/8766\approx0.05$, $4.5/8766\approx0.05$); 2009–2027 has slightly more overlap per year than 2025–2035. After rounding to 0.1, 8 shipped values move down by 0.1: `longTermSunlitPct` at Mons Mouton plateau (27.5 → 27.4), Nobile Rim 2 (35.2 → 35.1), Malapert Peak (79.2 → 79.1), VIPER area (55.3 → 55.2), Chang'e-7 (57.2 → 57.1) and LUPEX (84.9 → 84.8), and `longTermBothPct` at the IM-2 intended target (43.5 → 43.4) and Chang'e-7 (36.1 → 36.0). The AVGVISIB cross-check (§13.9) stays terrain-only on our side; with eclipses it would move by at most 0.029 points.
 
 ---
 
 ## 7. Power
 
-Source: `visibility.py:61-63`, `visibility.dart:49-52`. $P$ is the irradiance on a panel kept normal to the Sun direction. There is no $\cos e_\odot$ factor. The code docstrings and the CSV header (`export_csv.dart:20`) call it the irradiance "on a panel facing the Sun"; a vertical panel that tracks the Sun in azimuth would get an extra factor $\cos e_\odot$ ($\cos 2.5° = 0.99905$, $\cos 8° = 0.990$).
+Source: `visibility.py:167-169`, `visibility.dart:49-52`. $P$ is the irradiance on a panel kept normal to the Sun direction. There is no $\cos e_\odot$ factor. The code docstrings and the CSV header (`export_csv.dart:20`) call it the irradiance "on a panel facing the Sun"; a vertical panel that tracks the Sun in azimuth would get an extra factor $\cos e_\odot$ ($\cos 2.5° = 0.99905$, $\cos 8° = 0.990$).
 
 $$P = 1361\ \mathrm{W\,m^{-2}}\times\left(\frac{149\,597\,870.7\ \mathrm{km}}{r_\odot}\right)^{2} f_\odot$$
 
@@ -863,23 +863,23 @@ The measured accuracy of `computeSeries` against SPICE is in §13.8.
 
 ### 9.6 Long-term statistics (pipeline, preset sites only)
 
-Source: `sites.py:30-51,79-96,109-111`.
+Source: `sites.py:30-59,87-104,117-119`; eclipse term `visibility.py:42-143`.
 
 **Grid** (`sites.py:32-33,40-44`). $u_k=u_0+3600k$ s, with $u_0$ = 2009-01-01T00:00:00 UTC and $u_k<u_0+18.6\times365.25\times86400$ s. Derived: 163 048 hourly samples, the last at 2027-08-08T15:00Z.
 
 Each epoch is converted UTC → ET through `naif0012.tls`. The Sun and Earth centre vectors are apparent (LT+S), computed fresh with SPICE rather than read from the shipped 2025–2035 ephemeris.
 
-**Per epoch** (`sites.py:47-51`):
+**Per epoch** (`sites.py:47-59`):
 
 $$\vec v = \vec r_b(t) - \Big(R + \frac{h}{1000}\Big)\hat U\ \ (\text{km}),\qquad h = h_{\rm site} + h_{\rm obs}$$
 
-$(a,e)$ then come from the ENU basis (`geometry.py:48-56`), $\rho = \arcsin(R_b/\lVert\vec v\rVert)$, and $f$ from §6.2, using the mask computed for that observer height.
+$(a,e)$ then come from the ENU basis (`geometry.py:48-56`), $\rho = \arcsin(R_b/\lVert\vec v\rVert)$, and $f$ from §6.2, using the mask computed for that observer height. For the app values (below) the Sun's $f_\odot$ also excludes the part of its disk behind Earth's disk, per strip, exactly as in the app (§6.5: the separation $d$ and offsets $(\Delta u,\Delta v)$ from the same epoch's Sun and Earth directions); without overlap ($d\ge\rho_\odot+\rho_\oplus$) it is bit-for-bit the terrain-only $f$.
 
-**App long-term values** ($h_{\rm obs}=2$ m = `HORIZON_HEIGHTS_M[0]`, with the 2 m mask; `sites.py:87-88,109-111`; `config.py:129`). Each is rounded to 0.1:
+**App long-term values** ($h_{\rm obs}=2$ m = `HORIZON_HEIGHTS_M[0]`, with the 2 m mask; `sites.py:96,117-119`; `config.py:129`). Each is rounded to 0.1:
 
 $$\text{longTermSunlitPct}=100\,\overline{[f_\odot>0]},\quad \text{longTermEarthPct}=100\,\overline{[f_\oplus>0]},\quad \text{longTermBothPct}=100\,\overline{[f_\odot>0]\wedge[f_\oplus>0]}$$
 
-These averages leave out lunar eclipses (Earth hiding the Sun, §6.5); including them would lower the Sun shares by at most about 0.03 percentage points.
+These averages include lunar eclipses (Earth hiding the Sun, §6.5; since 2026-11-03). They lower the Sun shares by at most 0.029 percentage points (median 0.027 over the presets) and leave `longTermEarthPct` unchanged; 8 rounded values moved down by 0.1 (§6.5).
 
 The Earth term here uses any part of the disk, but the app's default Earth criterion is the disk centre. These values are therefore not directly comparable to the app's default %Earth (the any-part share is the larger one).
 
@@ -887,7 +887,7 @@ The Earth term here uses any part of the disk, but the app's default Earth crite
 
 **Where they are shown.** About this site (Site › Overview) shows the three values as bars under "18.6-year average (2 m above ground, any part of the Sun or Earth)", labelled "Sunlit", "Earth in view (any part)" and "Sun and Earth" for catalogue sites, and "Long-term averages are only precomputed for the preset catalogue sites" for a custom spot (`about_site.dart:17,20,60-74`). The same card prints the mask summary as "The highest skyline is <`horizonMaxDeg`, 1 dp>° up, on terrain <`horizonMaxDistanceKm`, 0 dp> km away" (`about_site.dart:36-39`).
 
-**Surface comparison values** for the AVGVISIB cross-check ($h_{\rm obs}=0$ = `CROSSCHECK_HEIGHT_M`, with the 0 m mask; `sites.py:30,80-84`):
+**Surface comparison values** for the AVGVISIB cross-check ($h_{\rm obs}=0$ = `CROSSCHECK_HEIGHT_M`, with the 0 m mask; `sites.py:30,88-92`):
 
 $$\text{oursSunlit}=\frac1N\sum_k[f_{\odot,k}>0],\qquad \text{oursEarth}=\frac1N\sum_k[f_{\oplus,k}>0]$$
 
@@ -1568,9 +1568,10 @@ Source: `series_metrics_test.dart:53-84`. This compares `computeSeries` with a S
 
 ### 13.9 LOLA AVGVISIB cross-check (preset sites)
 
-Source: `sites.py:131-164`. "ours" is the surface-observer fraction from §9.6.
+Source: `sites.py:139-172`. "ours" is the surface-observer fraction from §9.6.
+- **Like with like:** "ours" is terrain-only (`_fractions(..., eclipses=False)`, `sites.py:90`): lunar eclipses are left out of this comparison of terrain horizons (whether the maps remove them was not checked against Mazarico et al. 2011), while the app's 2 m `longTerm*` values include them (§9.6). Adding them here would lower `oursSunlit` by at most 0.029 points (measured at the 19 presets), far below the differences in the table, so the rows and statistics are the same as before 2026-11-03.
 - **LOLA values:** the nearest-pixel DN × $4\times10^{-5}$ (§4.3), plus the [min, max] of the 3×3 window of 120 m pixels.
-- **Agreement test** (`sites.py:138-139`):
+- **Agreement test** (`sites.py:146-147`):
 
 $$\text{lo}_{3\times3}-0.005\ \le\ \text{ours}\ \le\ \text{hi}_{3\times3}+0.005$$
 
@@ -1806,4 +1807,4 @@ No files other than this one were changed while writing it.
 13. **Earth status wording with the DSN required (fixed).** `earthStatusText(..., earthRule:, hzDeg:)` names the terrain first and blames the DSN only when Earth would count under the user's Earth rule without it. A partly risen Earth with its centre hidden now reads "... its centre is below the skyline ... (and no DSN station can see the Moon)". `nowAt` also sends `earth.terrainVisible` (the verdict before the DSN check), so the sky plot, the exact-numbers readout and the light-map arrow say "no DSN" instead of "hidden". The Sun status likewise says how much of the disk is up when a stricter Sun rule does not count it.
 14. **Stale code comment (fixed).** The `nowAt` doc comment no longer mentions the removed 360 view.
 15. **Light-map close-up near the map edge (fixed).** The close-up legend now counts its shares in a 64 km disc centred on the site's own pixel (`lightFrameShares`, `LightFrame.pixelOf`), and says what share of that disc lies on the map when less than 98% does (54% for IM-1 Odysseus). `shadow_test.dart` now tests three windows that really are clamped (right edge, top edge, bottom-left corner).
-16. **Lunar eclipses (fixed in the series, 2026-10-29).** The per-sample series (§9.2) now removes the part of the Sun behind Earth (§6.5), so the availability, metrics, power, score, calendar, landing window and CSV follow it. The single-instant paths that compute the Sun on their own now include it too: `nowAt` in `chart_bridge.dart` (the sky plot and status line) removes Earth's disk from the Sun with the same `SunEclipse` term and says whether Earth, not the terrain, stops the Sun counting (`eclipse`, `eclipseHides`), and the light map (§12, `light_map.dart`) takes all direct sunlight off the picture at total cover and the full-Sun class during a partial eclipse (no ground sees the whole disk), using the site's eclipse for the whole frame (labelled). Still not included: eclipses in the pipeline's 18.6-year averages (§9.6; at most about 0.03 percentage points), and the dim red light Earth's atmosphere bends onto the Moon (Earth is modelled as a sharp-edged disk).
+16. **Lunar eclipses (fixed in the series, 2026-10-29).** The per-sample series (§9.2) now removes the part of the Sun behind Earth (§6.5), so the availability, metrics, power, score, calendar, landing window and CSV follow it. The single-instant paths that compute the Sun on their own now include it too: `nowAt` in `chart_bridge.dart` (the sky plot and status line) removes Earth's disk from the Sun with the same `SunEclipse` term and says whether Earth, not the terrain, stops the Sun counting (`eclipse`, `eclipseHides`), and the light map (§12, `light_map.dart`) takes all direct sunlight off the picture at total cover and the full-Sun class during a partial eclipse (no ground sees the whole disk), using the site's eclipse for the whole frame (labelled). The pipeline's 18.6-year averages include them since 2026-11-03 (§9.6; at most 0.029 percentage points, 8 rounded values moved by 0.1), with the LOLA cross-check kept terrain-only (§13.9). Still not included: the dim red light Earth's atmosphere bends onto the Moon (Earth is modelled as a sharp-edged disk).

@@ -193,7 +193,7 @@
   ]
  },
  "avgvis": {
-  "description": "End-to-end check: our long-term % of time any part of the Sun / Earth is above the terrain horizon (DE440 + LOLA 80 m/240 m horizon, surface observer, 18.6-yr hourly) vs the LOLA team average-visibility maps AVGVISIB_75S_120M_201608 (Mazarico et al. 2011 method, 120 m DEM). Differences reflect DEM resolution, averaging period and pixel vs point sampling.",
+  "description": "End-to-end check: our long-term % of time any part of the Sun / Earth is above the terrain horizon (DE440 + LOLA 80 m/240 m horizon, surface observer, 18.6-yr hourly) vs the LOLA team average-visibility maps AVGVISIB_75S_120M_201608 (Mazarico et al. 2011 method, 120 m DEM). Differences reflect DEM resolution, averaging period and pixel vs point sampling. Our side is terrain-only: lunar eclipses (Earth in front of the Sun) are left out here, which raises our Sun values by at most about 0.03 percentage points, far below these differences; the app's 2 m long-term values include them.",
   "period": "2009-01-01 + 18.6 yr, hourly, surface observer, any part of disk",
   "nearFieldExclusionM": 120.0,
   "regions": {

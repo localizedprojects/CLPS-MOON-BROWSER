@@ -13,6 +13,13 @@
     (``map/dem_400m.bin.gz``, 2280 px to about 75 S). ``python -m
     lunarsp.fixtures coarse`` rewrites only this key (no SPICE kernels), e.g.
     after ``python -m lunarsp.basemap dem``.
+  * ``eclipse``: lunar eclipses (Earth in front of the Sun, formula.md section
+    6.5) with the Python ``sun_occulter`` / ``visible_fraction(occulter=)``
+    results (Dart ``SunEclipse.of`` + ``visibleFraction(occulter:)`` must match
+    to 1e-9): the 2026-03-03 eclipse at Malapert Peak every 10 min (SPICE
+    ``spkcpo`` directions, the shipped 2 m mask) and seeded synthetic disk pairs
+    against jagged masks. ``python -m lunarsp.fixtures eclipse`` rewrites only
+    this key.
 """
 
 from __future__ import annotations
@@ -25,7 +32,7 @@ import numpy as np
 from . import spice_env
 from .config import APP_FIXTURE_DIR, EPHEM_END_UTC, EPHEM_START_UTC
 from .geometry import reference_azel
-from .visibility import visible_fraction
+from .visibility import angular_radius_deg, occulter, sun_occulter, visible_fraction
 from .outio import write_json, utc_stamp
 
 
@@ -180,6 +187,7 @@ def build(n_azel: int = 1000, n_frac: int = 40, seed: int = 20261008) -> dict:
         "maskAzStepDeg": 0.25,
         "azel": cases,
         "fraction": frac,
+        "eclipse": _eclipse_fixture(),
     }
     APP_FIXTURE_DIR.mkdir(parents=True, exist_ok=True)
     write_json((APP_FIXTURE_DIR / "spice_truth.json"), out)
@@ -201,12 +209,95 @@ def build_coarse_only() -> dict:
     return ch
 
 
+#: The 2026-03-03 total lunar eclipse at a preset whose 2 m horizon clears the
+#: whole Sun at mid-eclipse (as in app/test/core/eclipse_test.dart).
+ECLIPSE_SITE = "derosa2012-mp1-malapert-peak"
+ECLIPSE_T0, ECLIPSE_T1, ECLIPSE_STEP_S = "2026-03-03T08:00:00", "2026-03-03T15:00:00", 600.0
+
+
+def _eclipse_row(sun, earth, az_mask, el_mask) -> dict:
+    """Python reference for one Sun/Earth pair: sun/earth = (az, el, rho)."""
+    o = sun_occulter(*sun, *earth)
+    f = visible_fraction(*sun, az_mask, el_mask, occulter=occulter(o))[0]
+    f0 = visible_fraction(*sun, az_mask, el_mask)[0]
+    return {"sep": float(o["sep"][0]), "overlaps": bool(o["overlaps"][0]), "du": float(o["du"][0]),
+            "dv": float(o["dv"][0]), "eclipse": float(o["eclipse"][0]), "centreHidden": bool(o["centre_hidden"][0]),
+            "fraction": float(f), "fractionTerrainOnly": float(f0)}
+
+
+def _eclipse_fixture(n_synth: int = 40, n_masks: int = 8, seed: int = 20261103) -> dict:
+    from .config import HORIZON_HEIGHTS_M, WEB_DATA_DIR
+    from .geometry import reference_azel
+
+    spice_env.load()
+    sites = {s["id"]: s for s in json.loads((WEB_DATA_DIR / "sites.json").read_text())["sites"]}
+    hz = json.loads((WEB_DATA_DIR / "horizons.json").read_text())
+    site, h_obs = sites[ECLIPSE_SITE], float(HORIZON_HEIGHTS_M[0])
+    el_mask = np.asarray(hz["masks"][ECLIPSE_SITE][f"{h_obs:g}"], float) / 100.0  # as the app reads it
+    az_mask = np.arange(el_mask.size) * float(hz["azStepDeg"])
+    h_m = float(site["terrainHeightM"]) + h_obs  # the app's Observer(lat, lon, terrainHeightM + 2)
+    samples = []
+    for unix in np.arange(_unix(ECLIPSE_T0), _unix(ECLIPSE_T1) + 1, ECLIPSE_STEP_S):
+        et = spice_env.unix_to_et(float(unix))
+        look = {}
+        for body in ("sun", "earth"):
+            az, el, rng_km = reference_azel(body, [et], site["lat"], site["lon"], h_m)
+            look[body] = [float(az[0]), float(el[0]), float(rng_km[0])]
+        sun = (look["sun"][0], look["sun"][1], float(angular_radius_deg("sun", look["sun"][2])))
+        earth = (look["earth"][0], look["earth"][1], float(angular_radius_deg("earth", look["earth"][2])))
+        samples.append({"unixMs": float(unix) * 1000.0, "sun": look["sun"], "earth": look["earth"],
+                        "rhoSun": sun[2], "rhoEarth": earth[2], **_eclipse_row(sun, earth, az_mask, el_mask)})
+
+    rng = np.random.default_rng(seed)
+    az_s = np.arange(0.0, 360.0, 0.25)
+    masks = []
+    for _ in range(n_masks):  # jagged synthetic horizons, as in ``fraction``
+        k, ph, amp = rng.integers(1, 6, size=3), rng.uniform(0, 2 * np.pi, size=3), rng.uniform(0.2, 2.0, size=3)
+        m = 1.0 + sum(a * np.sin(np.radians(az_s) * kk + p) for a, kk, p in zip(amp, k, ph))
+        masks.append(np.round(m + rng.normal(0, 0.15, size=az_s.size), 2))
+    cases = []
+    for i in range(n_synth):
+        mi = i % n_masks
+        rs, re = float(rng.uniform(0.262, 0.271)), float(rng.uniform(0.92, 0.98))
+        az = float(rng.uniform(0, 360))
+        el = float(np.interp(az, az_s, masks[mi], period=360) + rng.uniform(-1.3, 1.3) * rs)
+        # separation: total cover, partial, just apart (in turn), at a random position angle
+        d = float(rng.uniform(0, re - rs)) if i % 4 == 0 else (
+            float(rng.uniform(rs + re, rs + re + 0.05)) if i % 4 == 3 else float(rng.uniform(re - rs, rs + re)))
+        pa = float(rng.uniform(0, 2 * np.pi))
+        sun, earth = (az, el, rs), ((az + d * np.sin(pa) / np.cos(np.radians(el))) % 360.0, el + d * np.cos(pa), re)
+        cases.append({"mask": mi, "sun": list(sun), "earth": [float(earth[0]), float(earth[1]), re],
+                      **_eclipse_row(sun, earth, az_s, masks[mi])})
+    return {
+        "source": "SPICE spkcpo (MOON_ME, LT+S, DE440) for the site series; Python lunarsp.visibility "
+                  "sun_occulter / visible_fraction(occulter=) for every value",
+        "site": {"id": ECLIPSE_SITE, "lat": site["lat"], "lon": site["lon"], "hM": h_m, "maskHeightM": h_obs,
+                 "samples": samples},
+        "maskAzStepDeg": 0.25,
+        "masks": [m.tolist() for m in masks],
+        "synthetic": cases,
+    }
+
+
+def build_eclipse_only() -> dict:
+    """Regenerate only ``eclipse`` in spice_truth.json; every other key keeps its bytes."""
+    path = APP_FIXTURE_DIR / "spice_truth.json"
+    out = json.loads(path.read_text())
+    out["eclipse"] = _eclipse_fixture()
+    write_json(path, out)
+    e = out["eclipse"]
+    print(f"eclipse: {len(e['site']['samples'])} site samples, {len(e['synthetic'])} synthetic cases")
+    return e
+
+
 if __name__ == "__main__":
     import sys
 
     if sys.argv[1:] == ["coarse"]:
         build_coarse_only()
+    elif sys.argv[1:] == ["eclipse"]:
+        build_eclipse_only()
     elif sys.argv[1:]:
-        raise SystemExit("usage: python -m lunarsp.fixtures [coarse]")
+        raise SystemExit("usage: python -m lunarsp.fixtures [coarse | eclipse]")
     else:
         build()

@@ -241,8 +241,8 @@ void main() {
       await tester.tap(find.text(aboutSiteTitle));
       await tester.pumpAndSettle();
       expect(
-          find.text('18.6-year average (2 m above ground, any part of the Sun or Earth; lunar eclipses not included, '
-              'under 0.1 percentage point)'),
+          find.text('18.6-year average (2 m above ground, any part of the Sun or Earth; lunar eclipses included; '
+              'they lower the Sun shares by under 0.1 percentage point)'),
           findsOneWidget);
       expect(find.text('70%'), findsOneWidget);
       expect(find.text('Artemis III candidate region · 4.5° slope'), findsOneWidget);

@@ -1,5 +1,5 @@
 {
- "generatedUtc": "2026-10-29T12:27:24Z",
+ "generatedUtc": "2026-11-03T12:49:26Z",
  "frame": "MOON_ME (LOLA DE421 mean-Earth compatible)",
  "dem": "LOLA LDEM_80S_80M (near) + LDEM_75S_240M (far, to 600 km); exact spherical-Moon geometry",
  "observerHeightsM": [
@@ -7,7 +7,7 @@
   10.0
  ],
  "azStepDeg": 0.25,
- "longTermPeriod": "2009-01-01 + 18.6 yr, hourly, 2 m observer, any part of disk",
+ "longTermPeriod": "2009-01-01 + 18.6 yr, hourly, 2 m observer, any part of disk, lunar eclipses included",
  "groups": [
   {
    "id": "artemis",
@@ -128,7 +128,7 @@
    "horizonMaxAzDeg": 57.25,
    "horizonMaxDistanceKm": 0.3,
    "horizonMeanDeg": 3.52,
-   "longTermSunlitPct": 27.5,
+   "longTermSunlitPct": 27.4,
    "longTermEarthPct": 74.4,
    "longTermBothPct": 21.7
   },
@@ -239,7 +239,7 @@
    "horizonMaxAzDeg": 151.75,
    "horizonMaxDistanceKm": 2.9,
    "horizonMeanDeg": 3.86,
-   "longTermSunlitPct": 35.2,
+   "longTermSunlitPct": 35.1,
    "longTermEarthPct": 68.4,
    "longTermBothPct": 23.8
   },
@@ -441,7 +441,7 @@
    "horizonMaxAzDeg": 310.0,
    "horizonMaxDistanceKm": 0.4,
    "horizonMeanDeg": -1.02,
-   "longTermSunlitPct": 79.2,
+   "longTermSunlitPct": 79.1,
    "longTermEarthPct": 63.2,
    "longTermBothPct": 47.3
   },
@@ -547,7 +547,7 @@
    "horizonMaxAzDeg": 34.5,
    "horizonMaxDistanceKm": 0.3,
    "horizonMeanDeg": -0.63,
-   "longTermSunlitPct": 55.3,
+   "longTermSunlitPct": 55.2,
    "longTermEarthPct": 72.9,
    "longTermBothPct": 37.1
   },
@@ -623,7 +623,7 @@
    "horizonMeanDeg": 1.01,
    "longTermSunlitPct": 46.3,
    "longTermEarthPct": 93.3,
-   "longTermBothPct": 43.5
+   "longTermBothPct": 43.4
   },
   {
    "id": "change-7-planned-landing",
@@ -658,9 +658,9 @@
    "horizonMaxAzDeg": 142.5,
    "horizonMaxDistanceKm": 0.1,
    "horizonMeanDeg": 0.05,
-   "longTermSunlitPct": 57.2,
+   "longTermSunlitPct": 57.1,
    "longTermEarthPct": 60.8,
-   "longTermBothPct": 36.1
+   "longTermBothPct": 36.0
   },
   {
    "id": "lupex-chandrayaan-5-candidate",
@@ -690,7 +690,7 @@
    "horizonMaxAzDeg": 344.75,
    "horizonMaxDistanceKm": 0.3,
    "horizonMeanDeg": -1.26,
-   "longTermSunlitPct": 84.9,
+   "longTermSunlitPct": 84.8,
    "longTermEarthPct": 58.2,
    "longTermBothPct": 49.2
   }

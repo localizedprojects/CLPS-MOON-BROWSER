@@ -21,7 +21,7 @@ from .config import HORIZON_AZ_STEP_DEG, HORIZON_HEIGHTS_M, HORIZON_MIN_DIST_M, 
 from .dem import PolarRaster, TerrainModel
 from .geometry import azel, center_vectors, site_vector_km
 from .horizon import horizon_profile, local_slope_deg
-from .visibility import angular_radius_deg, visible_fraction
+from .visibility import angular_radius_deg, occulter, sun_occulter, visible_fraction
 from .outio import write_json, utc_stamp
 
 CATALOG = Path(__file__).with_name("site_catalog.json")
@@ -44,11 +44,19 @@ def _crosscheck_vectors(step_s: float = 3600.0):
     return center_vectors("sun", ets), center_vectors("earth", ets)
 
 
-def _fractions(vecs, body, lat, lon, h_m, az_mask, el_mask):
+def _look(vecs, body, lat, lon, h_m):
+    """Topocentric (az, el, rho) of ``body`` for an observer ``h_m`` above the sphere."""
     v = vecs - site_vector_km(lat, lon, h_m)
     az, el = azel(v, lat, lon)
-    rho = angular_radius_deg(body, np.linalg.norm(v, axis=1))
-    return visible_fraction(az, el, rho, az_mask, el_mask)
+    return az, el, angular_radius_deg(body, np.linalg.norm(v, axis=1))
+
+
+def _fractions(sun_c, earth_c, lat, lon, h_m, az_mask, el_mask, eclipses: bool):
+    """Visible fractions (Sun, Earth). With ``eclipses`` the part of the Sun
+    behind Earth's disk is removed per strip (formula.md section 6.5), as in the app."""
+    sun, earth = _look(sun_c, "sun", lat, lon, h_m), _look(earth_c, "earth", lat, lon, h_m)
+    occ = occulter(sun_occulter(*sun, *earth)) if eclipses else None
+    return visible_fraction(*sun, az_mask, el_mask, occulter=occ), visible_fraction(*earth, az_mask, el_mask)
 
 
 def build() -> dict:
@@ -78,14 +86,14 @@ def build() -> dict:
 
         # end-to-end cross-check at the surface (observer height 0 m)
         el0 = prof["elevation"][CROSSCHECK_HEIGHT_M]
-        fs = _fractions(sun_c, "sun", lat, lon, h_site + CROSSCHECK_HEIGHT_M, az_mask, el0)
-        fe = _fractions(earth_c, "earth", lat, lon, h_site + CROSSCHECK_HEIGHT_M, az_mask, el0)
+        # terrain only: lunar eclipses left out of this comparison (formula.md section 13.9)
+        fs, fe = _fractions(sun_c, earth_c, lat, lon, h_site + CROSSCHECK_HEIGHT_M, az_mask, el0, eclipses=False)
         ours_sun = float(np.mean(fs > 0))
         ours_earth = float(np.mean(fe > 0))
         row = {"id": s["id"], "name": s["short"], "kind": s.get("kind"), "oursSunlit": ours_sun, "oursEarth": ours_earth}
-        # long-term figures for the app at the default 2 m observer height
-        fs2 = _fractions(sun_c, "sun", lat, lon, h_site + heights[0], az_mask, el2)
-        fe2 = _fractions(earth_c, "earth", lat, lon, h_site + heights[0], az_mask, el2)
+        # long-term figures for the app at the default 2 m observer height,
+        # with lunar eclipses (Earth in front of the Sun) removed as in the app
+        fs2, fe2 = _fractions(sun_c, earth_c, lat, lon, h_site + heights[0], az_mask, el2, eclipses=True)
         if avg_sun is not None:
             w = avg_sun.window_latlon(lat, lon, 1)
             row.update({"lolaSunlit": float(avg_sun.sample_nearest_latlon(lat, lon)),
@@ -122,7 +130,7 @@ def build() -> dict:
         "azStepDeg": HORIZON_AZ_STEP_DEG,
         # the longTerm*Pct fields are computed at the default observer height (fs2/fe2 above)
         "longTermPeriod": f"{CROSSCHECK_START[:10]} + {CROSSCHECK_YEARS} yr, hourly, "
-                          f"{heights[0]:g} m observer, any part of disk",
+                          f"{heights[0]:g} m observer, any part of disk, lunar eclipses included",
     }
     write_json((WEB_DATA_DIR / "sites.json"), {**meta, "groups": catalog.get("groups", []), "sites": sites_out}, indent=1)
     write_json((WEB_DATA_DIR / "horizons.json"), {"azStepDeg": HORIZON_AZ_STEP_DEG, "unit": "centidegrees",
@@ -148,7 +156,10 @@ def build() -> dict:
         "description": ("End-to-end check: our long-term % of time any part of the Sun / Earth is above the terrain "
                         "horizon (DE440 + LOLA 80 m/240 m horizon, surface observer, 18.6-yr hourly) vs the LOLA team "
                         "average-visibility maps AVGVISIB_75S_120M_201608 (Mazarico et al. 2011 method, 120 m DEM). "
-                        "Differences reflect DEM resolution, averaging period and pixel vs point sampling."),
+                        "Differences reflect DEM resolution, averaging period and pixel vs point sampling. "
+                        "Our side is terrain-only: lunar eclipses (Earth in front of the Sun) are left out here, "
+                        "which raises our Sun values by at most about 0.03 percentage points, far below these "
+                        "differences; the app's 2 m long-term values include them."),
         # the AVGVISIB cross-check itself runs at the surface (CROSSCHECK_HEIGHT_M)
         "period": f"{CROSSCHECK_START[:10]} + {CROSSCHECK_YEARS} yr, hourly, surface observer, any part of disk",
         "nearFieldExclusionM": HORIZON_MIN_DIST_M,

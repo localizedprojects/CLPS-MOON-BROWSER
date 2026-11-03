@@ -97,7 +97,34 @@ abstract class ChartPage {
   /// loading, and a JavaScript error reached its console.
   void Function()? onLoaded;
   void Function(String message)? onConsoleError;
+
+  /// Set by the host: the page's web content process was terminated, so the
+  /// page stays blank until it is loaded again (ios-chart-recovery).
+  void Function()? onGone;
+
+  /// A web resource error from the page's NavigationDelegate. iOS reports
+  /// that the system killed the page's web content process (memory
+  /// pressure, a long time in the background) only this way:
+  /// webview_flutter_wkwebview turns WKNavigationDelegate's
+  /// webViewWebContentProcessDidTerminate into an error of type
+  /// [WebResourceErrorType.webContentProcessTerminated] and has no dedicated
+  /// callback for it. Other errors leave the page as it is.
+  void webResourceError(WebResourceError error) {
+    if (error.errorType == WebResourceErrorType.webContentProcessTerminated) onGone?.call();
+  }
 }
+
+/// How many times in a row a chart host reloads a page whose web content
+/// process died (ios-chart-recovery). A page that keeps dying is then left
+/// as it is (blank until its screen is rebuilt, as before this recovery)
+/// instead of being reloaded in a loop. `ready` does not end the run: the
+/// bundle reports it before it draws anything, so a page that the replayed
+/// payloads kill (memory) dies after `ready` every time.
+const chartGoneRetries = 3;
+
+/// How long a page reloaded after such a death must stay alive before the
+/// next death starts the count of [chartGoneRetries] again.
+const chartGoneStable = Duration(minutes: 1);
 
 /// The real page: a webview_flutter controller with the bundle loaded.
 class _WebViewPage extends ChartPage {
@@ -111,7 +138,12 @@ class _WebViewPage extends ChartPage {
       // 2026-10-13). The charts zoom themselves where it makes sense.
       ..enableZoom(false)
       ..addJavaScriptChannel('PH', onMessageReceived: (m) => c.handleRaw(m.message))
-      ..setNavigationDelegate(NavigationDelegate(onPageFinished: (_) => onLoaded?.call()))
+      ..setNavigationDelegate(NavigationDelegate(
+        onPageFinished: (_) => onLoaded?.call(),
+        // iOS only: Android reports a render-process death to MainActivity
+        // ([chartRenderGone]), and its delegate stays as it was
+        onWebResourceError: Platform.isIOS ? webResourceError : null,
+      ))
       ..setOnConsoleMessage((m) {
         if (m.level == JavaScriptLogLevel.error) onConsoleError?.call(m.message);
       })
@@ -158,6 +190,12 @@ class _MobileChartState extends State<_MobileChart> {
   bool _busy = false, _disposed = false, _recreatePending = false;
   int _gen = 0;
 
+  /// Pages in a row whose web content process died, each within
+  /// [chartGoneStable] of the reload before it (see [chartGoneRetries]);
+  /// [_goneStable] clears the count once a reloaded page has lived that long.
+  int _goneInARow = 0;
+  Timer? _goneStable;
+
   /// Completed when the current page is replaced or the host goes away: a
   /// runJavaScript stuck on a dead page then stops holding this host's pump,
   /// so nothing here keeps the old page (and its native objects) alive
@@ -185,6 +223,7 @@ class _MobileChartState extends State<_MobileChart> {
       debugPrint('chart ${c.view}: $message');
       if (!_disposed && gen == _gen) c.pageError(message);
     };
+    _page.onGone = () => _pageGone(gen);
     c.attach((json) {
       _queue.add(json);
       _pump();
@@ -203,6 +242,34 @@ class _MobileChartState extends State<_MobileChart> {
   void _abandonPage() {
     if (!_abandon.isCompleted) _abandon.complete();
     _abandon = Completer<void>();
+  }
+
+  /// iOS: the system killed this page's web content process, which leaves
+  /// the web view blank. Recovered as after an Android render-process death
+  /// ([_recreate]): a fresh web view and page, to which the controller
+  /// replays the latest payloads once it reports `ready`. Only this host's
+  /// page died, so only it is rebuilt. Reports from a replaced page, and
+  /// repeats before the rebuild, are ignored; a page that keeps dying, ready
+  /// or not, is reloaded at most [chartGoneRetries] times in a row. Then the
+  /// host lets the controller go (not ready, so Play and exports do not wait
+  /// on the dead page).
+  void _pageGone(int gen) {
+    if (_disposed || gen != _gen || _recreatePending) return;
+    final c = widget.controller;
+    _goneStable?.cancel();
+    _goneStable = null;
+    if (++_goneInARow > chartGoneRetries) {
+      debugPrint('chart ${c.view}: web content process keeps terminating; not reloading again');
+      _queue.clear();
+      _abandonPage();
+      c.detach(this);
+      return;
+    }
+    _recreate();
+    _goneStable = Timer(chartGoneStable, () {
+      _goneStable = null;
+      _goneInARow = 0;
+    });
   }
 
   /// A render process died: one new web view (new platform view) and page,
@@ -254,6 +321,7 @@ class _MobileChartState extends State<_MobileChart> {
   @override
   void dispose() {
     _disposed = true;
+    _goneStable?.cancel();
     chartRenderGone.removeListener(_recreate);
     _queue.clear();
     _abandonPage();

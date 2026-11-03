@@ -18,7 +18,7 @@ The same Flutter code runs as a web app and on Android.
 Scan the code with your phone's camera. It opens <https://localizedprojects.github.io/CLPS-MOON-BROWSER/get/>, which picks the right install for the device:
 
 - **Android:** downloads [lunar-horizon.apk](https://github.com/localizedprojects/CLPS-MOON-BROWSER/releases/latest/download/lunar-horizon.apk) from the [latest release](https://github.com/localizedprojects/CLPS-MOON-BROWSER/releases/latest). Open it and allow installing from your browser when Android asks (Android 7.0 or newer; signed with a development key, so it is installed directly, not from the Play Store). If you later switch to the Play Store version (or a build signed with a different key), uninstall this one first; Android will not update across signing keys.
-- **iPhone and iPad:** opens the web app in Safari; use Share, then *Add to Home Screen* to keep it as an app. (Installing an iOS app file needs a paid Apple Developer account; the page has one switch, `IOS_URL` in `app/web/get/index.html`, for a TestFlight or App Store link later, and the QR code stays the same.)
+- **iPhone and iPad:** opens the web app in Safari; use Share, then *Add to Home Screen* to keep it as an app. (Installing an iOS app file needs a paid Apple Developer account; the page has one switch, `IOS_URL` in `app/web/get/index.html`, for a TestFlight or App Store link later, and the QR code stays the same.) With a Mac you can build and run the native app yourself in Xcode: [docs/xcode.md](docs/xcode.md).
 - **Computers:** <https://localizedprojects.github.io/CLPS-MOON-BROWSER/>
 - **Privacy:** no accounts, no analytics, no ads, no tracking; see the [privacy policy](https://localizedprojects.github.io/CLPS-MOON-BROWSER/privacy/).
 
@@ -395,7 +395,7 @@ adb exec-out screencap -p > shot.png       # screenshot
 powershell -ExecutionPolicy Bypass -File tools\install_android.ps1
 ```
 
-**On an iPhone or iPad (macOS):** pull, build the iOS release and install and open it on every connected device in one step (`--device <name>` picks one, `--list` shows them, `--no-pull` builds the code as it is). Choose a signing team once in Xcode first (Runner target, Signing & Capabilities; a free Apple ID works for your own devices, for 7 days at a time). Started over SSH, it runs itself in the Mac's Terminal, where signing works.
+**On an iPhone or iPad (macOS):** pull, build the iOS release and install and open it on every connected device in one step (`--device <name>` picks one, `--list` shows them, `--no-pull` builds the code as it is). Choose a signing team once in Xcode first (Runner target, Signing & Capabilities; a free Apple ID works for your own devices, for 7 days at a time). Started over SSH, it runs itself in the Mac's Terminal, where signing works. To open, run and archive the app in Xcode itself, one command prepares `app/ios` and opens the workspace: `bash tools/xcode_setup.sh`; the clicks and troubleshooting are in [docs/xcode.md](docs/xcode.md).
 
 ```bash
 bash tools/install_ios.sh
@@ -525,7 +525,7 @@ CLAUDE.md                   conventions for contributors and coding agents
 
 | Suite | Location | Command | Count |
 |---|---|---|---|
-| Flutter: Dart core, state, widgets | `app/test/` | `flutter test` | 1,350 pass, 4 skipped, with `flutter analyze` clean (2 November 2026, 1.11.2) |
+| Flutter: Dart core, state, widgets | `app/test/` | `flutter test` | 1,355 pass, 4 skipped, with `flutter analyze` clean (3 November 2026, 1.11.3) |
 | Chart bundle | `charts/src/*.test.ts` | `npm test` | 164 (30 October 2026) |
 | Python pipeline | `pipeline/tests/` | `python -m pytest` | 635: 633 pass, 2 skipped (DE442 not downloaded), with the SPICE kernels and LOLA DEMs in the cache (30 October 2026; about 180 tests skip without them) |
 | Python library | `pylib/tests/` | `python -m pytest` (from `pylib/`) | 520 pass, with the SPICE kernels in the cache (30 October 2026; some skip without them) |

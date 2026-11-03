@@ -1533,7 +1533,8 @@ class LanderPainter extends CustomPainter {
   /// expand button, the relief switch: [LanderViewPanel.viewpointRect],
   /// [LanderViewPanel.expandRect], [LanderViewPanel.reliefRect]): the
   /// callouts keep off them where a place that fits does, and the elevation
-  /// scale's and level's labels always.
+  /// scale's and level's labels and the bottom strip ([bottomStrip],
+  /// [stripRight]; 1.11.3) always.
   final List<Rect> reserve;
 
   /// The raised viewpoint's height text ("1 km", D22), null at the lander's
@@ -2422,26 +2423,56 @@ class LanderPainter extends CustomPainter {
     // first so the callouts and the scale labels keep out of it
     final cx = size.width / 2, cy = size.height / 2;
     // (the hatched near ground's line under the mask's, in one box)
-    final nearLegend = hatched ? _text(landerSeeThroughLabel, size: 10, color: PH.text, maxWidth: size.width - 40) : null;
-    final lh = legend?.height ?? 0;
-    final legendSize = legend == null && nearLegend == null
+    var nearLegend = hatched ? _text(landerSeeThroughLabel, size: 10, color: PH.text, maxWidth: size.width - 40) : null;
+    Size? boxOf(TextPainter? a, TextPainter? b) => a == null && b == null
         ? null
-        : Size(math.max(legend?.width ?? 0, nearLegend?.width ?? 0), lh + (nearLegend?.height ?? 0));
+        : Size(math.max(a?.width ?? 0, b?.width ?? 0), (a?.height ?? 0) + (b?.height ?? 0));
+    var legendSize = boxOf(legend, nearLegend);
+    // (the legend as it is with no control over the view: 1.11.2's, for the readout's left-out rule)
+    final freeLegend = legendSize;
+    // the strip keeps off the controls over the view ([reserve]; 1.11.3: in three of the five phone
+    // sizes of the release gate the legend or the readout ran under the relief switch, the viewpoint
+    // control or the expand button in every frame): beside a control a row of the strip ends 4 dp left
+    // of it ([stripRight]), the legend moved in ([bottomStrip]) and, where that leaves it too little
+    // room, its lines wrapped there (each its own, in their order)
+    for (var k = 0; k < 3 && legendSize != null; k++) {
+      final l = bottomStrip(size, legendSize, null, reserve: reserve).legend!;
+      if (l.left >= 6 - 1e-6) break;
+      final mw = math.max(40.0, l.right - 36);
+      if (legend != null) legend = _text(maskLabel, size: 10, color: PH.text, maxWidth: mw);
+      if (nearLegend != null) nearLegend = _text(landerSeeThroughLabel, size: 10, color: PH.text, maxWidth: mw);
+      legendSize = boxOf(legend, nearLegend);
+    }
+    final lh = legend?.height ?? 0;
     // a readout found for another camera (moved since): just the live direction
     final pa = probeAt;
     final live = probe != null && pa != null && (pa.yaw != cam.yaw || pa.pitch != cam.pitch);
     final msg = status ?? (live ? 'Centre: ${landerProbeAz(cam.yaw, cam.pitch)}' : probe);
     var read = msg == null ? null : _readout(msg, mono: status == null, maxWidth: size.width - 20);
     Size? sz(TextPainter? t) => t == null ? null : Size(t.width, t.height);
-    var strip = bottomStrip(size, legendSize, sz(read));
-    if (status == null && strip.readout != null) {
-      // the probe is secondary: left out where it would cover the crosshair or a body's glyph
-      final r = strip.readout!;
-      final glyphs = [Offset(cx, cy), ?sunA?.glyph, ?earthA?.glyph];
-      if (glyphs.any((g) => r.overlaps(Rect.fromCircle(center: g, radius: 10)))) {
-        read = null;
-        strip = bottomStrip(size, legendSize, null);
-      }
+    var strip = bottomStrip(size, legendSize, sz(read), reserve: reserve);
+    // the probe is secondary: left out where it would cover the crosshair or a body's glyph. Judged
+    // where it is with no control over the view (1.11.2's place, at its whole width: a control never
+    // shows it where that leaves it out), then again where it is painted, since fitted beside a control
+    // (below) a long readout or large text can wrap onto more lines, up over the crosshair
+    final glyphs = [Offset(cx, cy), ?sunA?.glyph, ?earthA?.glyph];
+    bool coversGlyph(Rect? r) => r != null && glyphs.any((g) => r.overlaps(Rect.fromCircle(center: g, radius: 10)));
+    if (status == null && coversGlyph(bottomStrip(size, freeLegend, sz(read)).readout)) {
+      read = null;
+      strip = bottomStrip(size, legendSize, null, reserve: reserve);
+    }
+    // beside a control the readout's row is shorter (1.11.3): the readout as [_readout] fits it there
+    // (whole, else without its `Centre: ` lead, else wrapped), never under the control; again where
+    // that puts it on another row
+    for (var k = 0; k < 3 && msg != null && strip.readout != null; k++) {
+      final r = strip.readout!, right = stripRight(size, r.top, r.bottom, reserve);
+      if (r.right <= right) break;
+      read = _readout(msg, mono: status == null, maxWidth: math.max(40.0, right - 14));
+      strip = bottomStrip(size, legendSize, sz(read), reserve: reserve);
+    }
+    if (status == null && coversGlyph(strip.readout)) {
+      read = null;
+      strip = bottomStrip(size, legendSize, null, reserve: reserve);
     }
     // each body's words keep clear of the other's glyph too (an eclipse puts Earth's right over the Sun's)
     Rect? glyphOf(CalloutAnchor? a) {
@@ -2619,7 +2650,7 @@ class LanderPainter extends CustomPainter {
           [c.$1, c.$2].fold(0, (n, k) => n + (k?.words.score ?? 0));
       final allWords = 4 * [?sunA, ?earthA].length;
       // the bottom strip without the readout
-      late final noRead = bottomStrip(size, legendSize, null);
+      late final noRead = bottomStrip(size, legendSize, null, reserve: reserve);
       var placed = place(strip, 0);
       // the words in full first, then shortened ([place] levels) where they still
       // find no place: the status word goes after the probe, a lone body's line
@@ -2819,16 +2850,32 @@ class LanderPainter extends CustomPainter {
   /// The bottom strip's boxes in a view of [size] (§5): the reference
   /// horizon's legend (text of size [legend]) at the bottom right, and the
   /// centre readout (text of size [readout]) at the bottom left, on the
-  /// legend's row when the two fit side by side, else just above it.
-  static ({Rect? legend, Rect? readout}) bottomStrip(Size size, Size? legend, Size? readout) {
-    final l = legend == null
-        ? null
-        : Rect.fromLTWH(size.width - legend.width - 34, size.height - legend.height - 8, legend.width + 30, legend.height + 4);
+  /// legend's row when the two fit side by side, else just above it. The
+  /// legend keeps off the controls over the view ([reserve], 1.11.3): beside
+  /// one it ends 4 dp left of it ([stripRight]); the caller fits the
+  /// readout's width to its row the same way.
+  static ({Rect? legend, Rect? readout}) bottomStrip(Size size, Size? legend, Size? readout,
+      {List<Rect> reserve = const []}) {
+    Rect? l;
+    if (legend != null) {
+      final top = size.height - legend.height - 8;
+      // how far the controls beside the legend's row move it in (0: none there)
+      final dx = size.width - 4 - stripRight(size, top, size.height - 4, reserve);
+      l = Rect.fromLTWH(size.width - legend.width - 34 - dx, top, legend.width + 30, legend.height + 4);
+    }
     if (readout == null) return (legend: l, readout: null);
     final w = readout.width + 8, h = readout.height + 4;
     final bottom = l == null ? size.height - 6 : (6 + w + 6 <= l.left ? l.bottom : l.top - 2);
     return (legend: l, readout: Rect.fromLTWH(6, bottom - h, w, h));
   }
+
+  /// The right end of a bottom strip's row from [top] to [bottom] in a view
+  /// of [size] (1.11.3): 4 dp in from the view's edge, and 4 dp left of each
+  /// control over the view beside the row ([reserve]: the viewpoint control,
+  /// the expand button, the relief switch).
+  static double stripRight(Size size, double top, double bottom, List<Rect> reserve) => reserve
+      .where((r) => r.top < bottom && r.bottom > top)
+      .fold(size.width - 4, (m, r) => math.min(m, r.left - 4));
 
   /// Whether a scale label at [r] is drawn: whole inside the view of [size]
   /// under the compass strip, clear of its edges and of every box in [boxes].

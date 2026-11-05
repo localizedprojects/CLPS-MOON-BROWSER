@@ -87,6 +87,12 @@ void main() {
 
   // the preset nearest the pole: inside the synthetic DEM (±51 km)
   Future<String> nearPole(WidgetTester tester) async {
+    // The default period starts today (UTC) and the time shown with it, so the
+    // Sun's state here depended on the day the tests ran (W18 needs the Sun in
+    // view). Pin the period and the time to the day these cases were written.
+    final pinned = DateTime.utc(2026, 10, 30);
+    await tester.runAsync(() => state.setRange(pinned, DateTime.utc(2027, 10, 30)));
+    state.setCursor(pinned.millisecondsSinceEpoch.toDouble());
     final site = state.allSites.reduce((a, b) => a.lat < b.lat ? a : b);
     await tester.runAsync(() => state.selectSite(site.id));
     state.lightEngineForTest = _FakeEngine();

@@ -5,10 +5,10 @@ library;
 
 import 'dart:math' as math;
 
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Interval;
 import 'package:flutter/semantics.dart' show SemanticsService;
 
-import '../core/metrics.dart' show NextStretch, bothAt;
+import '../core/metrics.dart' show Interval, NextStretch, bothAt;
 import '../core/summary.dart' show date;
 import '../core/wording.dart' show fmtDuration, periodDates;
 import '../state/app_state.dart';
@@ -81,6 +81,42 @@ String nextStretchText(NextStretch? stretch, {double? cursorMs, bool inWindowNow
   };
 }
 
+/// The longest wordings [nextStretchText] can give for the period [startMs]
+/// to [endMs]: each one with the widest day of the period's years by [width]
+/// and the longest wait ("in …") and length ("lasts …") the period allows.
+/// The time bar keeps its next-stretch link the size of these, so the bar
+/// never gains or loses a line while Play changes the date.
+List<String> longestNextStretchTexts(double startMs, double endMs, double Function(String) width) {
+  T widest<T>(Iterable<T> xs, String Function(T) text) => xs.reduce((a, b) => width(text(b)) > width(text(a)) ? b : a);
+  const dayMs = 86400e3, hourMs = 3600e3;
+  final span = math.max(endMs - startMs, hourMs);
+  // the widest of "N d 23 h", "N d" (the whole period) and "23 h 59 min"
+  // that fit between [least] and the period's length
+  double longest(double least) => widest(
+      [
+        for (final ms in [span, span - span % dayMs - hourMs, dayMs - 60e3])
+          if (ms >= least && ms <= span) ms,
+        span,
+      ],
+      fmtDuration);
+  final y0 = DateTime.fromMillisecondsSinceEpoch(startMs.round(), isUtc: true).year;
+  final y1 = DateTime.fromMillisecondsSinceEpoch(endMs.round(), isUtc: true).year;
+  final day = widest([
+    for (var y = y0; y <= y1; y++)
+      for (var m = 1; m <= 12; m++) DateTime.utc(y, m, 28).millisecondsSinceEpoch.toDouble(),
+  ], date);
+  final wait = longest(0);
+  String stretch(bool good, double lasts) =>
+      nextStretchText(NextStretch(Interval(day, day + lasts), good: good), cursorMs: day - wait);
+  return [
+    stretch(true, longest(dayMs)),
+    stretch(false, math.min(span, dayMs - 60e3)),
+    nextStretchText(null, inWindowNow: true),
+    nextStretchText(null),
+    nextStretchText(null, loading: true),
+  ];
+}
+
 /// The spec's name for [TimeScrubber].
 typedef TimeBar = TimeScrubber;
 
@@ -113,6 +149,9 @@ class _TimeScrubberState extends State<TimeScrubber> {
   AppState get state => widget.state;
   bool get compact => widget.compact;
   final _hideFocus = FocusNode(debugLabel: 'time-hide');
+  // the next-stretch link's longest wordings and their one-line width, per
+  // period and text style (see [_nextLink])
+  (Object, List<String>, double)? _longestNext;
   final _showFocus = FocusNode(debugLabel: 'time-show');
 
   @override
@@ -203,6 +242,49 @@ class _TimeScrubberState extends State<TimeScrubber> {
   // sideways drags on the bar (the slider, the strip) never turn the Site page
   @override
   Widget build(BuildContext context) => NoPageSwipe(child: _bar(context));
+
+  /// The next-stretch link's words in a box the size of the period's longest
+  /// wording ([longestNextStretchTexts]) at the width the link gets: the bar
+  /// is pinned by its bottom edge, so a line more or less (the dates and
+  /// times in the words change while Play runs) would move Pause, the slider
+  /// and the day arrows under the finger (Android 7 run). The same box keeps
+  /// the link on its own row or beside the day arrows on phones. [end]: the
+  /// words keep to the box's end (the link sits at the bar's right).
+  Widget _nextLink(String text, {required bool end}) => LayoutBuilder(builder: (context, c) {
+        // the style the Text below gets (with the platform's bold text)
+        final style = MediaQuery.boldTextOf(context)
+            ? DefaultTextStyle.of(context).style.merge(const TextStyle(fontWeight: FontWeight.bold))
+            : DefaultTextStyle.of(context).style;
+        final scaler = MediaQuery.textScalerOf(context);
+        TextPainter painter(String t, double maxWidth) =>
+            TextPainter(text: TextSpan(text: t, style: style), textDirection: TextDirection.ltr, textScaler: scaler)
+              ..layout(maxWidth: maxWidth);
+        double measure(String t, double maxWidth, {bool height = false}) {
+          final tp = painter(t, maxWidth);
+          final v = height ? tp.height : tp.width;
+          tp.dispose();
+          return v;
+        }
+
+        double oneLine(String t) => measure(t, double.infinity);
+        final key = (state.rangeStartMs, state.rangeEndMs, style, scaler);
+        if (_longestNext?.$1 != key) {
+          final texts = longestNextStretchTexts(state.rangeStartMs, state.rangeEndMs, oneLine);
+          _longestNext = (key, texts, texts.map(oneLine).reduce(math.max));
+        }
+        final (_, longest, longestWidth) = _longestNext!;
+        // (1 px to spare: text laid out at exactly its own width can wrap)
+        final w = math.min(c.maxWidth, math.max(longestWidth, oneLine(text)).ceilToDouble() + 1);
+        final h = [...longest, text].map((t) => measure(t, w, height: true)).reduce(math.max);
+        return SizedBox(
+          width: w,
+          height: h,
+          child: Align(
+            alignment: end ? AlignmentDirectional.centerEnd : AlignmentDirectional.centerStart,
+            child: Text(text, textAlign: end ? TextAlign.end : TextAlign.start),
+          ),
+        );
+      });
 
   Widget _bar(BuildContext context) {
     final bar = state.timeControlsHidden
@@ -361,7 +443,7 @@ class _TimeScrubberState extends State<TimeScrubber> {
           final nextButton = GuideTarget(id: 'time-next', child: TextButton(
             style: const ButtonStyle(minimumSize: WidgetStatePropertyAll(Size(48, 48))),
             onPressed: goNext,
-            child: Text(nextText),
+            child: _nextLink(nextText, end: inline),
           ));
           if (inline) {
             final row = Row(children: [

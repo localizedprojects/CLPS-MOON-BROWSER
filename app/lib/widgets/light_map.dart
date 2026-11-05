@@ -1672,6 +1672,12 @@ class _Swatch extends CustomPainter {
   bool shouldRepaint(covariant _Swatch old) => old.k != k;
 }
 
+/// How far a remembered arrow label may move between two layouts beyond its
+/// arrow head's own move and still count as staying put (two label rows):
+/// [layoutArrowLabels] takes a spot further away only when no spot this
+/// near is clear of the site, its name and the notes.
+const arrowLabelStep = 48.0;
+
 /// One direction arrow for [layoutArrowLabels]: its shaft runs from [from] to
 /// the head at [tip]; [size] is its label's box.
 typedef ArrowLabel = ({Offset from, Offset tip, Size size});
@@ -1684,8 +1690,10 @@ typedef ArrowLabel = ({Offset from, Offset tip, Size size});
 /// the labels still never cover each other or a head where that is possible.
 ///
 /// With [memory], a label takes the free spot nearest to where it was on the
-/// last layout, so Play (the arrows turning a little and the label
-/// words changing on every step) never makes a label jump between spots.
+/// last layout. When the other arrow's head sweeps under it and no free spot
+/// is a short step away ([arrowLabelStep]), it lets that head pass under it,
+/// so Play (the arrows turning a little and the label words changing on
+/// every step) never makes a label jump between spots.
 List<Offset> layoutArrowLabels(
     {required List<ArrowLabel> arrows, required Size canvas, List<Rect> keepClear = const [], ArrowLabelMemory? memory}) {
   Offset inside(Size s, Offset c) => Offset(
@@ -1772,16 +1780,31 @@ List<Offset> layoutArrowLabels(
             (shafts.any(r.inflate(1).contains) ? 8 : 0);
       }
 
-      // first the nearest spot clear of the notes, the site and every head;
-      // only when there is none does covering one weigh against distance
+      // first the nearest spot a short step from where it was that is clear
+      // of the notes, the site and every head. When the other arrow's head
+      // sweeps under it and every such step is blocked, it stays near and
+      // lets that head pass under it rather than hop to a free spot across
+      // the map (the IM-1 Odysseus Play run); only with no short step clear
+      // of the notes and the site does it take the nearest free spot, and
+      // only with none of those does covering one weigh against distance
+      final headMoved = prevTip == null ? 0.0 : (a.tip - prevTip).distance;
+      bool short(Offset c) => (c - prev).distance <= headMoved + arrowLabelStep;
       bool clear(Offset c) => ok(c) && clearOf(box(c), [...heads, ...keepClear]);
-      final near = options.where(clear).toList();
-      final free = near.isNotEmpty ? near : options.where(ok).toList();
-      at = free.isEmpty
-          ? candidates.first
-          : near.isNotEmpty
-              ? near.reduce((a, b) => (b - moved).distance < (a - moved).distance ? b : a)
-              : free.reduce((a, b) => cost(b) < cost(a) ? b : a);
+      Offset nearest(List<Offset> cs) => cs.reduce((a, b) => (b - moved).distance < (a - moved).distance ? b : a);
+      Offset cheapest(List<Offset> cs) => cs.reduce((a, b) => cost(b) < cost(a) ? b : a);
+      final near = options.where((c) => short(c) && clear(c)).toList();
+      final aside = options.where((c) => short(c) && ok(c) && clearOf(box(c), keepClear)).toList();
+      final far = options.where(clear).toList();
+      final free = options.where(ok).toList();
+      at = near.isNotEmpty
+          ? nearest(near)
+          : aside.isNotEmpty
+              ? cheapest(aside)
+              : far.isNotEmpty
+                  ? nearest(far)
+                  : free.isNotEmpty
+                      ? cheapest(free)
+                      : candidates.first;
     }
     placed.add(box(at));
     out.add(at);

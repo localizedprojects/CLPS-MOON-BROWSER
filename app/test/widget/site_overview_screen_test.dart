@@ -26,6 +26,19 @@ void main() {
   setUpAll(() async {
     state = AppState();
     await state.init();
+    // The default period starts today (UTC) and the default site is its top
+    // pick, so these cases depended on the day they ran. The top pick changes
+    // with the start date: for periods starting in about one week of most
+    // months (21-27 Dec 2026 and 18-24 Jan 2027, for example) it is IM-1
+    // Odysseus, whose Sunlit and "Sun and Earth together" are both 41% (two
+    // "41%" texts) and whose "100%" is too wide in the test font's square
+    // glyphs at 320 dp, text x2. Pin the period, the site and the time to the
+    // day these cases were written.
+    final pinned = DateTime.utc(2026, 10, 14);
+    await state.setRange(pinned, DateTime.utc(2027, 10, 14));
+    // init() selects the top pick of its own period; take the pinned one's
+    await state.selectSite(state.rankedAll.first.id);
+    state.setCursor(pinned.millisecondsSinceEpoch.toDouble());
   });
 
   tearDownAll(() => state.dispose());

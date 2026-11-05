@@ -22,6 +22,17 @@ void main() {
     await loadPlexFonts();
     state = AppState();
     await state.init();
+    // The default period starts today (UTC) and the default selection is its
+    // top pick, which the count badge case needs to be Malapert peak. The top
+    // pick changes with the start date: IM-1 Odysseus for periods starting in
+    // about one week of most months (21-27 Dec 2026 and 18-24 Jan 2027, for
+    // example). Pin the period, the site and the time to the day these cases
+    // were written.
+    final pinned = DateTime.utc(2026, 10, 29);
+    await state.setRange(pinned, DateTime.utc(2027, 10, 29));
+    // init() selects the top pick of its own period; take the pinned one's
+    await state.selectSite(state.rankedAll.first.id);
+    state.setCursor(pinned.millisecondsSinceEpoch.toDouble());
   });
   tearDownAll(() => state.dispose());
 

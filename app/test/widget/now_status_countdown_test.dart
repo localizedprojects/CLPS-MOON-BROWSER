@@ -96,6 +96,16 @@ void main() {
     setUpAll(() async {
       state = AppState();
       await state.init();
+      // The default period starts today (UTC), and the 2026-03-03 eclipse case
+      // needs 2026 in the loaded ephemeris, which a default period starting
+      // later than 1 Jan 2027 does not have (a RangeError from 2 Jan 2027 on).
+      // Pin the period, the site and the time to the day these cases were
+      // written.
+      final pinned = DateTime.utc(2026, 10, 29);
+      await state.setRange(pinned, DateTime.utc(2027, 10, 29));
+      // init() selects the top pick of its own period; take the pinned one's
+      await state.selectSite(state.rankedAll.first.id);
+      state.setCursor(pinned.millisecondsSinceEpoch.toDouble());
     });
     tearDownAll(() => state.dispose());
 

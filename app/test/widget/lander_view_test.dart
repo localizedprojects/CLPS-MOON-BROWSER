@@ -100,6 +100,14 @@ void main() {
 
   // the preset nearest the pole: inside the synthetic DEM (±51 km)
   Future<void> nearPole(WidgetTester tester) async {
+    // The default period starts today (UTC) and the time shown with it, so
+    // where the Sun and Earth stand here depended on the day the tests ran
+    // (from 15 Nov 2026 both are out of view on the right of the compass
+    // strip test's view, and its tap 0.6 across lands on the second edge
+    // chevron). Pin the period and the time to the day these cases were written.
+    final pinned = DateTime.utc(2026, 10, 30);
+    await tester.runAsync(() => state.setRange(pinned, DateTime.utc(2027, 10, 30)));
+    state.setCursor(pinned.millisecondsSinceEpoch.toDouble());
     final site = state.allSites.reduce((a, b) => a.lat < b.lat ? a : b);
     await tester.runAsync(() => state.selectSite(site.id));
     installFakes();

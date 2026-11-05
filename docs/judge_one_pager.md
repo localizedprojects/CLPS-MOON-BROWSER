@@ -20,7 +20,7 @@
 - Custom sites: drop a pin or type coordinates, and the horizon is computed on the device.
 - Options: a Deep Space Network check, a 10 m mast, three Sun rules, and CSV and PNG export.
 - *Lander's view*: a 3D look around from the lander, using the light map's own 400 m terrain and light (approximate, labelled). It opens full screen, switches sites inside it, and offers two labelled drawing aids: relief shading and a view from higher (200 m, 1 km or 5 km; the light and the Sun and Earth status stay the lander's).
-- Lunar eclipses: the part of the Sun hidden behind Earth is left out of the Sun fraction and the power.
+- Lunar eclipses: the part of the Sun hidden behind Earth is left out of the Sun fraction and the power, and since 1.12.0 out of the preset sites' 18.6-year averages too (this lowers their Sun shares by under 0.1 percentage point).
 - A mission catalogue: CLPS landed positions (IM-1, IM-2, with credited links to their real photos on NASA's pages), the VIPER area, and planned international sites.
 - Sunset and Earthset countdowns with the live power in W/m².
 
@@ -28,7 +28,7 @@
 
 **Accessibility.** Sun (amber), Earth (blue) and both (teal) each carry a shape: a rayed disc, a dotted crescent and a hatched diamond. Map classes also differ by texture. The project rules require screen-reader labels and 48 dp targets on every control; the app also has 2 px focus rings and keyboard shortcuts. The app respects reduced motion, and "Explain as I go" adds explanations inline.
 
-**Technology.** A Python pipeline (spiceypy, numpy) precomputes the compact data the app bundles (about 10.5 MB, committed to the repository). The Flutter app (web and Android) keeps all science in a pure-Dart core, tested against SPICE truth vectors. The charts only draw: the app sends them chart-ready data.
+**Technology.** A Python pipeline (spiceypy, numpy) precomputes the compact data the app bundles (about 10.5 MB, committed to the repository). The Flutter app (web and Android) keeps all science in a pure-Dart core, tested against SPICE truth vectors. The charts only draw: the app sends them chart-ready data. Since 1.13.0 they also draw in Android 7's stock WebView (Chrome 51).
 
 **Use of AI.** Claude Code (Anthropic's AI coding agent) wrote the code, tests and documentation, researched the site sources (fact-checked by separate AI agents) and made the demo videos and their music, under the team's direction and review. The results are not AI output: every visibility number, chart and map is computed by that code from NASA SPICE and LOLA data and checked as above ([details](submission.md#use-of-ai)).
 
@@ -41,14 +41,16 @@
 
 ![Malapert peak (MP1): the best 14-day landing window next to the Sky & time view](screenshots/site-landing-sky-desktop.webp)
 
-*Version 1.11.0 web build of 1 November 2026, next 12 months, 2 m lander. More screenshots are in the [README](../README.md#screenshots).*
+*Screenshot from the version 1.11.0 web build of 1 November 2026 (the app is now 1.13.0), next 12 months, 2 m lander. More screenshots are in the [README](../README.md#screenshots).*
 
 **Next steps.** Refine near-field terrain with 20 m LOLA data, check the 2 m Earth numbers at peaks and ridges (Malapert peak's 56% rises to 78% with a 10 m mast).
 
-**Links.** Code: <https://github.com/localizedprojects/CLPS-MOON-BROWSER>. Web app: <https://localizedprojects.github.io/CLPS-MOON-BROWSER/>.
+**Links.** Code: <https://github.com/localizedprojects/CLPS-MOON-BROWSER>. Web app: <https://localizedprojects.github.io/CLPS-MOON-BROWSER/>. Android app (APK, Android 7.0 or newer): <https://github.com/localizedprojects/CLPS-MOON-BROWSER/releases/latest/download/lunar-horizon.apk>.
+<!-- The APK link serves the latest GitHub release. That is still v1.2.0 (17 October 2026) until the v1.13.0 release is published. -->
+<!-- TODO at submission: add the demo video's public link to the Links line. -->
 
 <!--
-Sources for every number in this brief (paths relative to the repository root; values read on 2026-10-10, re-checked for 1.9.1 on 2026-10-30, UI references re-checked on 2026-10-11, landing-window and chart wording on 2026-10-12):
+Sources for every number in this brief (paths relative to the repository root; values read on 2026-10-10, re-checked for 1.9.1 on 2026-10-30, UI references re-checked on 2026-10-11, landing-window and chart wording on 2026-10-12, the 1.12.0 and 1.13.0 additions and the links on 2026-11-05):
 - "within about 1.6° of the horizon": PLAN.md section 6, risk table.
 - 19 preset sites; 80 m near / 240 m far DEM out to 600 km; Artemis III presets are approximate region centres: app/assets/data/sites.json (sites, dem, groups[0].note).
 - "next 12 months": app/lib/state/app_state.dart (default range is 365 days from today, UTC).
@@ -76,4 +78,8 @@ Sources for every number in this brief (paths relative to the repository root; v
 - 240 m grid ends at 75°S: pipeline/lunarsp/config.py (LDEM_75S_240M, ±457 km); samples outside it are ignored (pipeline/lunarsp/horizon.py).
 - Ranking progress before the top pick appears: app/lib/screens/explore.dart ("Ranked so far: N of M sites"); the top pick shows only once ranking is done (app/lib/widgets/top_pick_card.dart). Click path: top_pick_card.dart "See this site"; app/lib/widgets/top_pick_card.dart calls AppState.openSite, which opens the Overview tab by default (app/lib/state/app_state.dart); app/lib/widgets/best_window_card.dart "Show me" and "See the light at that moment" (app/lib/screens/site/overview.dart opens the Sky & time or Light & shadow tab with the cursor at the window's start).
 - 1.73′ is the maximum (MOON_PA); IAU_MOON would be 0.198′ (validation.json frame_sensitivity).
+- Version 1.13.0: app/pubspec.yaml (1.13.0+21). The screenshot is from 1.11.0: docs/screenshots/ last changed in 94c0f45 (2026-11-01).
+- Eclipses in the 18.6-year averages (1.12.0, 7c4af07): pipeline/lunarsp/sites.py (the 2 m shares use eclipses=True; the 0 m cross-check against the LOLA maps stays terrain-only, so validation.json and the 1.98/1.78 figures are unchanged). "Under 0.1 percentage point": longTermLabel in app/lib/widgets/about_site.dart.
+- Charts on Android 7's stock WebView (1.13.0, a4d4497): charts/vite.config.ts (build.target es2015, chrome51) and app/lib/widgets/chart_bridge.dart (chartMinChromeMajor = 51); the Android 7.0 emulator run is in docs/release_checklist.md (Testing status).
+- APK link: README.md "Get the app". On 2026-11-05 the GitHub releases API lists v1.2.0 (2026-10-17) as the latest release.
 -->

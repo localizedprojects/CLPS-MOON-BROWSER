@@ -3,9 +3,21 @@
 Replace each `{…}` with the value on screen on the day. Never read numbers from this file
 aloud: the app recomputes them for "the next 12 months" from today's date.
 
-**Setup.** Use the release web build, or the Android release APK on a phone, with the
-default settings (next 12 months, 2 m lander). Close other tabs. Have the "Can I trust
-these numbers?" page one tap away. Total: about 3:00.
+**Setup.** Use the release web build, or an Android release build of 1.13.0 or later on a
+phone, with the default settings (next 12 months, 2 m lander). Close other tabs. Have the
+"Can I trust these numbers?" page one tap away. Total: about 3:00.
+
+**Recorded tour (1.13.0).** `lunar-horizon-tour-v1.13.0.mp4` runs 3:16 (195.9 s at 30 fps,
+1440 × 1050). It follows this script with burned-in captions in place of speech (the same
+text is in `lunar-horizon-tour-v1.13.0.srt`), a chapter label beside each caption, the same
+piano piece as the [30 s cut](demo_30s.md), and soft tap, whoosh and chapter-chime sounds.
+Its chapters start at 0:00 (1 · The question), 0:29 (2 · When to land), 0:57 (3 · Sky &
+time), 1:28 (4 · Light & shadow, with the Lander's view), 2:14 (5 · Compare), 2:33 (6 · Your
+own spot) and 2:49 (7 · Learn). Beyond this script it also shows *At a glance* (chapter 2),
+the Lander's view full screen with its site arrows (chapter 4) and *How it's calculated*
+(chapter 7). From 3:11 it ends on the same logo card as the 30 s cut: "Lunar Horizon" and
+"Made with AI assistance (Claude Code)". It was recorded on 4 November 2026 from the 1.13.0
+web build, with the app's clock on 2 November 2026 (UTC).
 
 **What it should look like** (version 1.11.0 web build of 1 November 2026; the dates will differ
 on the day): the [landing window and Sky & time](screenshots/site-landing-sky-desktop.webp)

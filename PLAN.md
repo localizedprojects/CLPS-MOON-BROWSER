@@ -85,7 +85,7 @@ pipeline/ (Python: spiceypy, numpy)              app/assets/data/ (committed, ~1
 - **M5:** Explain mode, accessibility, export, polish. **Done** (initial release).
 - **M6:** README, demo script, judge one-pager, web deploy config, and **an Android emulator run with screenshots**. **Done** (initial release); the web app is published from `main` by `deploy-pages.yml`.
 
-**Status (2026-11-01).** M1–M6 were built before the repository's first public commit (`5838d00`, 2026-10-14, history squashed), so there are no separate `M<n>` commits; later work shipped as numbered releases through pull requests:
+**Status (2026-11-05).** M1–M6 were built before the repository's first public commit (`5838d00`, 2026-10-14, history squashed), so there are no separate `M<n>` commits; later work shipped as numbered releases through pull requests:
 - **1.1.0–1.3.1** (2026-10-17 to 10-20): loading screen, Play kept in step with the charts, first-launch tutorial, Android 7 fixes.
 - **1.4.0** (10-20): feature guides on every screen. **1.5.0** (10-25): the *At a glance* overview for every site.
 - **1.6.0–1.7.0** (10-28): terrain and the Explore map's layers out to 75°S, so sites near 80°S (IM-1) get a full light & shadow close-up.
@@ -96,6 +96,9 @@ pipeline/ (Python: spiceypy, numpy)              app/assets/data/ (committed, ~1
 - **1.9.3** (10-31): sixteen fixes from the Android 7 emulator run, each with a test.
 - **1.10.0** (10-31): the Lander's view full screen (the expand button or F), with previous / next and the site picker switching the landing site inside it.
 - **1.11.0** (11-01): the Lander's view gets relief shading (slopes of its own LOLA heights under a fixed drawing light, not the Sun; switchable) and a view from higher (2 m lander, 200 m, 1 km, 5 km; only the drawing eye moves), both labelled; the IM-1 and IM-2 site pages link to real photos from each lander on NASA's pages; the now-status sentence is worked out at the whole minute shown.
+- **1.11.1–1.11.3** (11-01 to 11-03): fixes from the 1.11.0 Android 7 emulator run; the Lander's view places the Sun and Earth labels before the raised-viewpoint chip; on iOS the charts recover after the web view process is killed; one command prepares the Xcode project (`docs/xcode.md`).
+- **1.12.0** (11-03): the pipeline's 18.6-year averages also leave out the Sun hidden by Earth in lunar eclipses (the Sun shares drop by under 0.1 percentage point).
+- **1.13.0** (11-03): the charts are built for Chrome 51, so they draw in Android 7's stock WebView instead of asking for a newer one.
 
 ## 5. Assumptions (decided without asking)
 
@@ -124,7 +127,7 @@ pipeline/ (Python: spiceypy, numpy)              app/assets/data/ (committed, ~1
 
 ## 7. Open questions (none are blockers; defaults in brackets)
 
-1. Web deploy target? [GitHub Pages via Actions, plus a Netlify config]
+1. Web deploy target? [GitHub Pages via Actions (`deploy-pages.yml`); no Netlify config was added]
 2. Default date range on first launch? [the next 12 months from today]
 3. Should DSN coverage be on by default for comms? [off; an optional "realistic link" toggle]
 4. App name? [working title "**Lunar Horizon**"]

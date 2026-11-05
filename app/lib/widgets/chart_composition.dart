@@ -5,9 +5,10 @@ import 'package:flutter/services.dart';
 ///
 /// Flutter's default way to embed an Android WebView draws it into a texture
 /// that Flutter composites. On Android 7 (API 24, the oldest this app runs on;
-/// WebView Chrome 69) that texture is only partly repainted: during Play, when
-/// a chart only moves its cursor, the classic timeline under the sky chart
-/// kept just a strip of its Earth curve while its page drew every step. With
+/// stock WebView Chrome 51, the charts' build target since 1.13.0) that
+/// texture is only partly repainted: during Play, when a chart only moves its
+/// cursor, the classic timeline under the sky chart kept just a strip of its
+/// Earth curve while its page drew every step. With
 /// Hybrid Composition the WebView is a real Android view in the window, which
 /// Android repaints itself.
 ///

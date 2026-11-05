@@ -30,6 +30,8 @@
 
 **Technology.** A Python pipeline (spiceypy, numpy) precomputes the compact data the app bundles (about 10.5 MB, committed to the repository). The Flutter app (web and Android) keeps all science in a pure-Dart core, tested against SPICE truth vectors. The charts only draw: the app sends them chart-ready data.
 
+**Use of AI.** Claude Code (Anthropic's AI coding agent) wrote the code, tests and documentation, researched the site sources (fact-checked by separate AI agents) and made the demo videos and their music, under the team's direction and review. The results are not AI output: every visibility number, chart and map is computed by that code from NASA SPICE and LOLA data and checked as above ([details](submission.md#use-of-ai)).
+
 **Limitations.**
 - Geometry is airless and refraction-free. Terrain within 120 m of a preset site is excluded because the 80 m DEM cannot resolve it (600 m for custom sites on the 400 m DEM).
 - Custom sites use a 400 m grid. At four test sites their horizons differ from the 80 m masks by 0.46°–1.41° on average (up to 6.14°), so they are labelled lower-fidelity.

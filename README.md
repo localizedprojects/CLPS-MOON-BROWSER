@@ -11,7 +11,7 @@ The same Flutter code runs as a web app and on Android.
 
 > **Status.** Complete: Explore (the map with every site ranked), Site (Overview, Sky & time with the classic sky plot and timeline, and the light & shadow map with the 3D *Lander's view*, which also opens full screen), Compare and Learn, plus the *best landing window* finder. Suggested landings keep the Sun and Earth at least 0.25° above the skyline. The Sun's visible fraction allows for lunar eclipses (Earth in front of the Sun), and the sites include the NASA CLPS landers' positions (IM-1, IM-2, with links to their real photos) and the VIPER area, plus planned international sites (Chang'e-7, Chandrayaan-5/LUPEX). Code: [localizedprojects/CLPS-MOON-BROWSER](https://github.com/localizedprojects/CLPS-MOON-BROWSER). Web app: <https://localizedprojects.github.io/CLPS-MOON-BROWSER/>.
 
-**Space Apps submission:** [docs/submission.md](docs/submission.md) (summary, NASA data used, use of AI, links).
+**Space Apps submission:** [docs/submission.md](docs/submission.md) (summary, project details, NASA data used, references, [use of AI](#use-of-ai), links).
 
 ### Get the app
 
@@ -274,6 +274,12 @@ flutter test integration_test/map_75s_test.dart -d emulator-5554    # the Explor
 | `@fontsource/ibm-plex-sans`, `@fontsource/ibm-plex-mono` (IBM Plex) | SIL OFL 1.1 | Copyright © 2017 IBM Corp. |
 
 The MIT licence text: *Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions: The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software. THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.* The OFL text is in `app/assets/fonts/`.
+
+---
+
+## Use of AI
+
+Lunar Horizon was built with Claude Code, Anthropic's AI coding agent: the team set the goals, chose the features and reviewed the results, and Claude Code wrote essentially all of the code, tests and documentation, including the app's own text and the script that draws its icon. All 46 commits on `main` up to 4 November 2026 carry a `Co-authored-by: Claude` trailer. Claude Code research agents found the preset sites' published coordinates and sources and drafted the site descriptions, and separate AI agents fact-checked them (`pipeline/research/`). AI agents also recorded and edited the demo videos from the real running app and composed their music as code (the piano sound is the FluidR3_GM SoundFont, MIT licence); both videos end on a "Made with AI assistance (Claude Code)" label. The results are not AI output: every visibility number, chart and map is computed by that code from NASA SPICE and LOLA data, and the checks against JPL Horizons, the LOLA team's maps and the site horizons are listed under [Validation](#validation). The full disclosure, ready for the Space Apps form, is in [docs/submission.md](docs/submission.md#use-of-ai).
 
 ---
 
@@ -567,5 +573,6 @@ To enable it, go to the repository's *Settings › Pages* once and set the sourc
 - [formula.md](formula.md): every formula, constant and measured accuracy, with `file:line` references
 - [PLAN.md](PLAN.md): architecture, milestones and the assumptions decided along the way
 - [CLAUDE.md](CLAUDE.md): science conventions and repository rules
+- [docs/submission.md](docs/submission.md): the Space Apps form answers, including the [use of AI](docs/submission.md#use-of-ai) and the references
 - [docs/ux_spec.md](docs/ux_spec.md) and [docs/ux_build_contracts.md](docs/ux_build_contracts.md): the UX design behind the screens
 - [pipeline/blender/README.md](pipeline/blender/README.md): the Blender renders behind the skyline cross-check

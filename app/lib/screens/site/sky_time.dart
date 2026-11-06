@@ -84,10 +84,15 @@ double timelineFrameHeight(double width, {bool exact = false}) =>
 /// Height of the sky ("Where to look") frame in the single column: the plot
 /// (sized to the frame width, at most 520) plus 230 on a phone (180 from
 /// [skyTimeNarrowWidth]) for the header, the two caption lines, the key line
-/// and the "Paths" toggle, which wrap more on a phone. With exact numbers
-/// the exact block, the highest hills and the legend are added.
+/// and the "Paths" toggle, which wrap more on a phone, and 0.75 px more per
+/// px under a 360 px frame: they wrap more there (at 288 px, a 320 px
+/// screen, the key line ended at 541 px plus 8 padding in a 518 px frame;
+/// Chromium, web build), so one more wrapped caption line still fits. With
+/// exact numbers the exact block, the highest hills and the legend are added.
 double skyFrameHeight(double width, {bool exact = false}) =>
-    math.min(width, 520.0) + (width < skyTimeNarrowWidth ? 230.0 : 180.0) + (exact ? 200.0 : 0.0);
+    math.min(width, 520.0) +
+    (width < skyTimeNarrowWidth ? 230.0 + math.max(0.0, (360 - width) * 0.75) : 180.0) +
+    (exact ? 200.0 : 0.0);
 
 /// What [_panel] adds around a chart on each axis: the card's margin (6 + 6)
 /// and its padding (4 + 4).

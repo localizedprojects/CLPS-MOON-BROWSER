@@ -379,6 +379,16 @@ void main() {
     expect(skyFrameHeight(370, exact: true), greaterThan(370 + 230));
   });
 
+  // Where the "Where to look" content ends (the key line, then 8 px padding),
+  // measured in Chromium on the web build (Malapert peak, the default dates):
+  // the frame holds it, with room for one more wrapped caption line (17 px).
+  for (final (screen, frame, content) in const [(320, 288.0, 549.0), (360, 328.0, 557.0), (412, 380.0, 576.0), (700, 580.0, 722.0)]) {
+    test('$screen px wide: the "Where to look" frame (${frame.round()} px wide) holds its caption and key line', () {
+      expect(math.min(screen - 12.0, 600.0) - chartCardChrome, frame);
+      expect(skyFrameHeight(frame), greaterThanOrEqualTo(content + 17));
+    });
+  }
+
   // Where the simple timeline's content ends (the header, answer lines,
   // presets, strip, note, COMING UP and all its rows, then the 4 px padding),
   // measured in Chromium on the web build (Malapert peak, the default dates):

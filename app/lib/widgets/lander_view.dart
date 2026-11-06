@@ -66,6 +66,8 @@ enum _Words {
   merged,
   lineWord,
   line,
+  // the position line without the azimuth (text scaled up, a short view: 1.13.2)
+  lineShort,
   glyph;
 
   /// How much of the bodies' words this shows (merged: both bodies').
@@ -74,6 +76,7 @@ enum _Words {
         _Words.merged => 6,
         _Words.lineWord => 3,
         _Words.line => 2,
+        _Words.lineShort => 1,
         _Words.glyph => 0,
       };
 }
@@ -1593,7 +1596,7 @@ class LanderPainter extends CustomPainter {
   /// LanderPainter with [debugRecord] on: 'F' in full, 'M' in full with Earth's position line
   /// under them (the Sun's), 'm' that line in the Sun's callout (Earth's), '1'
   /// the position line alone, '1w' that line with the status word after it,
-  /// '0' the glyph alone, '-' not in view.
+  /// '1s' that line without the azimuth, '0' the glyph alone, '-' not in view.
   @visibleForTesting
   static ({String sun, String earth})? paintedWords;
 
@@ -1990,7 +1993,8 @@ class LanderPainter extends CustomPainter {
       Rect? reticle,
       List<Rect> keep = const [],
       List<List<Rect>> prefer = const [],
-      Map<Rect, List<Rect>>? memo}) {
+      Map<Rect, List<Rect>>? memo,
+      bool overStrip = true}) {
     final soft = {for (final p in prefer) ...p}.toList();
     final w = box.width, h = box.height;
     // the lowest foot for a box reaching from [x]: over each bottom-strip box under it, else the view's
@@ -2105,6 +2109,8 @@ class LanderPainter extends CustomPainter {
       return d.bottom <= floorAt(d.left) && !ks.any(d.overlaps) ? d : null;
     }
 
+    // a box over the compass strip clear of its headings (centred 27 down; the major ticks from 37)
+    bool overHeads(Rect r) => overStrip || r.top >= compassH - 11 - 1e-6;
     late final high = () {
       // (each keep list once: one with the same boxes moves a place the same)
       late final keeps = () {
@@ -2133,8 +2139,10 @@ class LanderPainter extends CustomPainter {
       (() => cands, (Rect r) => inside(r) && edge(r) && off(r)),
       (() => shifted, (Rect r) => edge(r) && off(r)),
       // above the disc, over the compass strip (painted over it), never under the bottom strip
-      (() => high, (Rect r) => clear(r) && off(r)),
-      (() => high, (Rect r) => edge(r) && off(r)),
+      // (with [overStrip] off, text scaled up, only down in the strip's tick band, clear of its
+      // headings; the caller shortens the words first)
+      (() => high, (Rect r) => overHeads(r) && clear(r) && off(r)),
+      (() => high, (Rect r) => overHeads(r) && edge(r) && off(r)),
       // within the disc's 3 px margin, clear of the disc itself
       (() => cands, (Rect r) => inside(r) && near(r) && off(r)),
       (() => shifted, (Rect r) => near(r) && off(r))
@@ -2173,7 +2181,7 @@ class LanderPainter extends CustomPainter {
         (high, edge)
       ]) {
         for (final r in list) {
-          if (ok(r)) return (box: r, fits: off(r), cost: prefer.length);
+          if (ok(r)) return (box: r, fits: off(r) && (!identical(list, high) || overHeads(r)), cost: prefer.length);
         }
       }
       // nothing fits (a tiny view, or the bottom strip's readout takes the room:
@@ -2207,7 +2215,11 @@ class LanderPainter extends CustomPainter {
   /// shared by the calls for one [strip] (the same [keep] and [prefer] each).
   _Callout? _callout(Canvas canvas, LanderView v, CalloutAnchor? a, SkyBody b, bool isSun, List<Rect> avoid,
       List<Rect> strip, Rect reticle, List<Rect> keep,
-      {int? lines, bool word = false, SkyBody? merged, List<List<Rect>> prefer = const [],
+      {int? lines,
+      bool word = false,
+      bool short = false,
+      SkyBody? merged,
+      List<List<Rect>> prefer = const [],
       Map<Object, Map<Rect, List<Rect>>>? memo}) {
     if (a == null) return null;
     final color = isSun ? PH.sun : PH.earth;
@@ -2268,8 +2280,10 @@ class LanderPainter extends CustomPainter {
         }
       );
     }
+    // [short]: the position line without the azimuth (the compass strip's marker shows it)
+    final first = short ? all[0].replaceFirst(RegExp(r' · az [0-9.]+°'), '') : all[0];
     final ts = [
-      for (final (i, l) in (word && lines == 1 ? ['${all[0]} · ${all[1]}'] : all.take(lines ?? all.length)).indexed)
+      for (final (i, l) in (word && lines == 1 ? ['$first · ${all[1]}'] : [first, ...all.skip(1)].take(lines ?? all.length)).indexed)
         _text(l, size: 11, color: i == 0 ? color : PH.text, mono: i == 0, maxWidth: v.w - 6),
       if (merged != null)
         _text(calloutLines(merged, false).first, size: 11, color: PH.earth, mono: true, maxWidth: v.w - 6)
@@ -2284,8 +2298,14 @@ class LanderPainter extends CustomPainter {
         reticle: reticle,
         keep: keep,
         prefer: prefer,
-        memo: memo == null ? null : memo[(isSun, merged != null, size)] ??= {});
-    final words = merged != null ? _Words.merged : (lines == 1 ? (word ? _Words.lineWord : _Words.line) : _Words.full);
+        memo: memo == null ? null : memo[(isSun, merged != null, size)] ??= {},
+        // with text scaled up a box over the compass strip's headings is no fit (1.13.2 browser
+        // check: at x2, "Sun · az 66.4° · el +5.6°" over "060" and "030"): the words are
+        // shortened first, down to the glyph alone
+        overStrip: textScaler.scale(11) <= 11 + 1e-9);
+    final words = merged != null
+        ? _Words.merged
+        : (lines == 1 ? (short && !word ? _Words.lineShort : (word ? _Words.lineWord : _Words.line)) : _Words.full);
     _Callout at(int skip) {
       final (:box, :fits, :cost) = fitsAt(skip);
       return _Callout(
@@ -2479,8 +2499,20 @@ class LanderPainter extends CustomPainter {
     // at a smaller text scale, step by step down to x1, else at x1 cut to the lines that fit
     final line1 = _text('X', size: 11, scaler: TextScaler.noScaling).height;
     final legendTop = compassH + 2 + (status == null ? 0 : line1 + 6);
-    bool legendOver() =>
+    bool legendHigh() =>
         legendSize != null && bottomStrip(size, legendSize, null, reserve: reserve).legend!.top < legendTop - 1e-6;
+    // nor, with its text scaled up, over the Sun's or Earth's glyph (1.13.2 browser check: at text x2
+    // in the 344 x 168 full-screen phone view its four lines covered the middle of the view, over the
+    // Sun just faced); at x1 it is as before
+    final bodyGlyphs = [
+      for (final g in [?sunA?.glyph, ?earthA?.glyph]) Rect.fromCircle(center: g, radius: glyphR + 1),
+    ];
+    final scaledUp = textScaler.scale(10) > 10 + 1e-9;
+    bool onGlyph() =>
+        scaledUp &&
+        legendSize != null &&
+        bodyGlyphs.any(bottomStrip(size, legendSize, null, reserve: reserve).legend!.overlaps);
+    bool legendOver() => legendHigh() || onGlyph();
     if (legendOver()) {
       for (var f = textScaler.scale(10) / 10 - 0.25; f > 1 - 1e-9 && legendOver(); f -= 0.25) {
         final sc = TextScaler.linear(math.max(1.0, f));
@@ -2488,7 +2520,7 @@ class LanderPainter extends CustomPainter {
         freeLegend = legendSize;
         fitLegend(scaler: sc);
       }
-      if (legendOver()) {
+      if (legendHigh()) {
         const sc = TextScaler.noScaling;
         final n = [?legend, ?nearLegend].length, line = _text('X', size: 10, scaler: sc).height;
         final lines = math.max(1, ((size.height - 8 - legendTop) / line / n).floor());
@@ -2638,15 +2670,17 @@ class LanderPainter extends CustomPainter {
       (_Callout?, _Callout?) Function(int level) placer(({Rect? legend, Rect? readout}) st) {
         final under = [?st.legend, ?st.readout], memo = <Object, Map<Rect, List<Rect>>>{};
         // the merged callout (Earth's line in the Sun's box) keeps off Earth's disc too, where it can
-        _Callout? sunAt({int? lines, bool word = false, SkyBody? merged, Rect? clearOf}) => sun == null
-            ? null
-            : _callout(canvas, v, sunA, sun!, true, [?earthGlyph, ?clearOf], under, reticle, sunKeep,
-                lines: lines, word: word, merged: merged, prefer: merged != null ? sunMergedPrefer : sunPrefer, memo: memo);
+        _Callout? sunAt({int? lines, bool word = false, bool short = false, SkyBody? merged, Rect? clearOf}) =>
+            sun == null
+                ? null
+                : _callout(canvas, v, sunA, sun!, true, [?earthGlyph, ?clearOf], under, reticle, sunKeep,
+                    lines: lines, word: word, short: short, merged: merged, prefer: merged != null ? sunMergedPrefer : sunPrefer, memo: memo);
         final s = sunAt();
-        _Callout? e({int? lines, bool word = false, bool first = false, _Callout? by}) => earth == null
-            ? null
-            : _callout(canvas, v, earthA, earth!, false, [if (!first) ?(by ?? s)?.box, ?sunGlyph], under, reticle,
-                earthKeep, lines: lines, word: word, prefer: earthPrefer, memo: memo);
+        _Callout? e({int? lines, bool word = false, bool short = false, bool first = false, _Callout? by}) =>
+            earth == null
+                ? null
+                : _callout(canvas, v, earthA, earth!, false, [if (!first) ?(by ?? s)?.box, ?sunGlyph], under,
+                    reticle, earthKeep, lines: lines, word: word, short: short, prefer: earthPrefer, memo: memo);
         final two = e();
         // of the pairs that fit, the first one clearest of the soft keeps (the
         // [calloutPlace] prefer sets each box keeps clear of; 1.9.2: a box over
@@ -2684,11 +2718,16 @@ class LanderPainter extends CustomPainter {
             // a lone body (1.9.2: its two lines over its glyph and the crosshair, W22): its
             // position line, the word after it where the glyph (solid: in view) does not
             // show it, else without; else (level 2) its glyph alone
-            _Callout? lone(SkyBody? b, bool isSun, _Callout? full, _Callout? Function({int? lines, bool word}) at) {
+            // (with text scaled up, then that line without the azimuth: 1.13.2, no box over the
+            // compass strip's headings there)
+            _Callout? lone(
+                SkyBody? b, bool isSun, _Callout? full, _Callout? Function({int? lines, bool word, bool short}) at) {
               if (b == null || full == null || full.fits) return full;
-              for (final w in [if (calloutLines(b, isSun)[1] != 'in view') true, false]) {
-                final one = at(lines: 1, word: w)!;
-                if (one.fits) return one;
+              for (final short in [false, if (scaledUp) true]) {
+                for (final w in [if (calloutLines(b, isSun)[1] != 'in view') true, false]) {
+                  final one = at(lines: 1, word: w, short: short)!;
+                  if (one.fits) return one;
+                }
               }
               return level == 2 ? at(lines: 0) : full;
             }
@@ -2714,6 +2753,15 @@ class LanderPainter extends CustomPainter {
           // Sun's own words fit, Earth's glyph alone; else Earth's line clear of the
           // Sun's box, else the merged callout
           if (s.fits) return (s, e(lines: 0));
+          // with text scaled up (1.13.2: at x2 in a 344 x 168 phone view, wide-angle, the merged
+          // callout took most of the view): the Sun's position line alone, else both glyphs alone
+          if (scaledUp) {
+            for (final short in [false, true]) {
+              final s1 = sunAt(lines: 1, short: short)!;
+              if (s1.fits) return (s1, e(lines: 0));
+            }
+            return (sunAt(lines: 0), e(lines: 0));
+          }
           return one.box!.overlaps(s.box!) ? (both, e(lines: 0)) : (s, one);
         }
 
@@ -2817,6 +2865,7 @@ class LanderPainter extends CustomPainter {
             _Words.merged => 'M',
             _Words.lineWord => '1w',
             _Words.line => '1',
+            _Words.lineShort => '1s',
             _Words.glyph => '0',
           };
       paintedWords = (

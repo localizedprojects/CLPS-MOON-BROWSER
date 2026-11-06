@@ -104,6 +104,30 @@ NextStretch? nextStretch(SiteSeries s, double fromMs, {double minHours = 24}) {
   return any == null ? null : NextStretch(any, good: false);
 }
 
+/// How far [nextStretch] reaches while the cursor runs over [s] from
+/// [fromMs] on: the longest wait from the cursor to the stretch it names,
+/// and the longest good stretch and shorter window it names (0 when it names
+/// none). The time bar keeps its "Next good stretch" link the size of the
+/// longest wording these allow, so the bar keeps its height during Play.
+({double waitMs, double goodMs, double shortMs}) nextStretchReach(SiteSeries s, double fromMs, {double minHours = 24}) {
+  var wait = 0.0, good = 0.0, short = 0.0;
+  double longer(double a, double b) => b > a ? b : a;
+  // before the last good stretch starts it names the next good stretch;
+  // from there on, the next window of any length (each one shorter)
+  var from = fromMs;
+  for (var w = nextGoodWindow(s, from, minHours: minHours); w != null; w = nextGoodWindow(s, w.startMs, minHours: minHours)) {
+    wait = longer(wait, w.startMs - from);
+    good = longer(good, w.endMs - w.startMs);
+    from = w.startMs;
+  }
+  for (var w = nextBothWindow(s, from); w != null; w = nextBothWindow(s, w.startMs)) {
+    wait = longer(wait, w.startMs - from);
+    short = longer(short, w.endMs - w.startMs);
+    from = w.startMs;
+  }
+  return (waitMs: wait, goodMs: good, shortMs: short);
+}
+
 Interval? longest(List<Interval> xs) {
   Interval? best;
   for (final x in xs) {

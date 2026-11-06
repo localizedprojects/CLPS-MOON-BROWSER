@@ -1000,6 +1000,63 @@ void main() {
     });
   });
 
+  group('arrow labels over the arrows (1.13.1 browser check)', () {
+    // while Play runs a label may stay put as the other arrow's head passes
+    // under it; drawn after both arrows, its words stay readable on top
+    // (IM-1 Odysseus: the Sun's head was drawn over "Earth 13°")
+    testWidgets('both arrows, lines and heads, are drawn before either label', (tester) async {
+      final hill = (await tester.runAsync(() => createTestImage(width: 8, height: 8)))!;
+      addTearDown(hill.dispose);
+      const site = Site(
+          id: 's', name: 'Spot', short: 'Spot', group: 'illumination', kind: 'k', confidence: 'c', notes: '',
+          lat: -89.5, lon: 0, terrainHeightM: 0);
+      const side = 354.0, ext = 100000.0, k = side / ext;
+      final (x, y) = latLonToXY(site.lat, site.lon);
+      final view = (x0: x - side / 2 / k, y0: y + side / 2 / k, ext: ext);
+      Map<String, dynamic> body(double az) => {'az': az, 'el': 4.0, 'hz': 0.0, 'rho': 0.27, 'frac': 1.0, 'visible': true};
+      final m = ArrowLabelMemory();
+      const key = ValueKey('frame');
+      await tester.pumpWidget(Center(
+          child: CustomPaint(
+              key: key,
+              size: const Size(side, side),
+              painter: LightFramePainter(
+                  hillshade: hill,
+                  halfWidthM: 304000,
+                  images: null,
+                  view: view,
+                  sites: const [site],
+                  selected: site,
+                  now: {'sun': body(100), 'earth': body(20)},
+                  closeUp: true,
+                  labelMemory: m))));
+      final calls = <Symbol>[];
+      final at = <Offset?>[];
+      expect(
+          tester.renderObject(find.byKey(key)),
+          paints
+            ..everything((method, args) {
+              calls.add(method);
+              at.add(method == #drawParagraph ? args[1] as Offset : null);
+              return true;
+            }));
+      // where the painter puts each label's words (its box is 4 px wider)
+      final words = [
+        for (var i = 0; i < m.centres.length; i++) m.centres[i] - Offset((m.sizes[i].width - 4) / 2, m.sizes[i].height / 2),
+      ];
+      final labels = [
+        for (var j = 0; j < calls.length; j++)
+          if (at[j] != null && words.any((o) => (at[j]! - o).distance < 0.01)) j,
+      ];
+      expect(labels, hasLength(2));
+      final over = [
+        for (var j = labels.first + 1; j < calls.length; j++)
+          if (calls[j] == #drawLine || calls[j] == #drawCircle) calls[j],
+      ];
+      expect(over, isEmpty, reason: 'a shaft or head drawn over a label');
+    });
+  });
+
   group('lander legend', () {
     testWidgets('"Near ground, see-through" is keyed by the view\'s hatch, not an amber band', (tester) async {
       const key = ValueKey('swatch');

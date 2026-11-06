@@ -1691,9 +1691,11 @@ typedef ArrowLabel = ({Offset from, Offset tip, Size size});
 ///
 /// With [memory], a label takes the free spot nearest to where it was on the
 /// last layout. When the other arrow's head sweeps under it and no free spot
-/// is a short step away ([arrowLabelStep]), it lets that head pass under it,
-/// so Play (the arrows turning a little and the label words changing on
-/// every step) never makes a label jump between spots.
+/// is a short step away ([arrowLabelStep]), it lets that head pass under it
+/// (the labels are drawn over the arrows), so Play (the arrows turning a
+/// little and the label words changing on every step) does not make a label
+/// jump between spots while one a short step away is clear of the site, its
+/// name and the notes.
 List<Offset> layoutArrowLabels(
     {required List<ArrowLabel> arrows, required Size canvas, List<Rect> keepClear = const [], ArrowLabelMemory? memory}) {
   Offset inside(Size s, Offset c) => Offset(
@@ -2147,7 +2149,7 @@ class LightFramePainter extends CustomPainter {
       ..color = const Color(0xCC000000)
       ..strokeWidth = 5
       ..strokeCap = StrokeCap.round;
-    for (final (i, a) in arrows.indexed) {
+    for (final a in arrows) {
       final pen = Paint()
         ..color = a.color
         ..strokeWidth = 2.4
@@ -2177,6 +2179,12 @@ class LightFramePainter extends CustomPainter {
           ..strokeWidth = 2.6);
         if (a.visible) canvas.drawCircle(a.tip, 2.4, Paint()..color = a.color);
       }
+    }
+    // the labels over both arrows: while Play runs, a label may stay put as
+    // the other arrow's head passes ([layoutArrowLabels]); on top, with its
+    // dark shadow, its words stay readable (1.13.1 browser check: the Sun's
+    // head was drawn over "Earth 13°" at IM-1 Odysseus)
+    for (final (i, a) in arrows.indexed) {
       a.label.paint(canvas, ats[i] - Offset(a.label.width / 2, a.label.height / 2));
     }
     siteLabel.paint(canvas, siteAt - Offset(siteLabel.width / 2, siteLabel.height / 2));

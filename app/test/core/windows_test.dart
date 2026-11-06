@@ -127,6 +127,41 @@ void main() {
       expect(nextStretch(_series(_r(48, S)), -1), isNull);
     });
 
+    test('nextStretchReach: the longest wait, good stretch and shorter window it names', () {
+      final r = nextStretchReach(s, 0);
+      expect((r.waitMs / _h, r.goodMs / _h, r.shortMs / _h), (60.0, 24.0, 2.0),
+          reason: 'from 0 h the good stretch at 60 h (not the run under way at 0 h, nor the 10 h one at 40 h); '
+              'from 60 h on the 2 h window at 100 h');
+      final none = nextStretchReach(_series(_r(48, S)), 0);
+      expect((none.waitMs, none.goodMs, none.shortMs), (0.0, 0.0, 0.0));
+    });
+
+    test('nextStretchReach matches nextStretch from every sample on random data', () {
+      final rnd = math.Random(12);
+      for (var k = 0; k < 60; k++) {
+        final flags = <int>[];
+        while (flags.length < 300) {
+          flags.addAll(_r(1 + rnd.nextInt(40), rnd.nextBool() ? B : (rnd.nextBool() ? S : 0)));
+        }
+        final ser = _series(flags);
+        final from = rnd.nextInt(20) * _h;
+        var wait = 0.0, good = 0.0, short = 0.0;
+        for (var t = from; t < ser.n * _h; t += _h) {
+          final st = nextStretch(ser, t);
+          if (st == null) continue;
+          final len = st.window.endMs - st.window.startMs;
+          wait = math.max(wait, st.window.startMs - t);
+          if (st.good) {
+            good = math.max(good, len);
+          } else {
+            short = math.max(short, len);
+          }
+        }
+        final r = nextStretchReach(ser, from);
+        expect((r.waitMs, r.goodMs, r.shortMs), (wait, good, short), reason: 'case $k from $from');
+      }
+    });
+
     test('matches goodWindows() on random data', () {
       final rnd = math.Random(11);
       for (var k = 0; k < 100; k++) {

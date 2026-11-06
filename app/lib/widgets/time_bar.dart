@@ -8,7 +8,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart' hide Interval;
 import 'package:flutter/semantics.dart' show SemanticsService;
 
-import '../core/metrics.dart' show Interval, NextStretch, bothAt;
+import '../core/metrics.dart' show Interval, NextStretch, bothAt, nextStretchReach;
 import '../core/summary.dart' show date;
 import '../core/wording.dart' show fmtDuration, periodDates;
 import '../state/app_state.dart';
@@ -83,20 +83,23 @@ String nextStretchText(NextStretch? stretch, {double? cursorMs, bool inWindowNow
 
 /// The longest wordings [nextStretchText] can give for the period [startMs]
 /// to [endMs]: each one with the widest day of the period's years by [width]
-/// and the longest wait ("in …") and length ("lasts …") the period allows.
-/// The time bar keeps its next-stretch link the size of these, so the bar
-/// never gains or loses a line while Play changes the date.
-List<String> longestNextStretchTexts(double startMs, double endMs, double Function(String) width) {
+/// and the longest wait ("in …") and length ("lasts …") the period allows,
+/// or, with [reach] (the period's own windows, [nextStretchReach]), the
+/// longest the link can name. The time bar keeps its next-stretch link the
+/// size of these, so the bar never gains or loses a line while Play changes
+/// the date.
+List<String> longestNextStretchTexts(double startMs, double endMs, double Function(String) width,
+    {({double waitMs, double goodMs, double shortMs})? reach}) {
   T widest<T>(Iterable<T> xs, String Function(T) text) => xs.reduce((a, b) => width(text(b)) > width(text(a)) ? b : a);
-  const dayMs = 86400e3, hourMs = 3600e3;
+  const dayMs = 86400e3, hourMs = 3600e3, minMs = 60e3;
   final span = math.max(endMs - startMs, hourMs);
-  // the widest of "N d 23 h", "N d" (the whole period) and "23 h 59 min"
-  // that fit between [least] and the period's length
-  double longest(double least) => widest(
+  // the widest wording of a time from [least] to [most]: [most] or, below
+  // it, its "N d 23 h", "23 h 59 min", "H h 59 min" or "59 min" forms
+  double longest(double least, double most) => widest(
       [
-        for (final ms in [span, span - span % dayMs - hourMs, dayMs - 60e3])
-          if (ms >= least && ms <= span) ms,
-        span,
+        for (final ms in [most - most % dayMs - hourMs, dayMs - minMs, most - minMs, most - most % hourMs - minMs, hourMs - minMs])
+          if (ms >= least && ms <= most) ms,
+        most,
       ],
       fmtDuration);
   final y0 = DateTime.fromMillisecondsSinceEpoch(startMs.round(), isUtc: true).year;
@@ -105,12 +108,12 @@ List<String> longestNextStretchTexts(double startMs, double endMs, double Functi
     for (var y = y0; y <= y1; y++)
       for (var m = 1; m <= 12; m++) DateTime.utc(y, m, 28).millisecondsSinceEpoch.toDouble(),
   ], date);
-  final wait = longest(0);
+  final wait = longest(0, reach?.waitMs ?? span);
   String stretch(bool good, double lasts) =>
       nextStretchText(NextStretch(Interval(day, day + lasts), good: good), cursorMs: day - wait);
   return [
-    stretch(true, longest(dayMs)),
-    stretch(false, math.min(span, dayMs - 60e3)),
+    if (reach == null || reach.goodMs > 0) stretch(true, longest(dayMs, reach?.goodMs ?? span)),
+    if (reach == null || reach.shortMs > 0) stretch(false, longest(0, reach?.shortMs ?? math.min(span, dayMs - minMs))),
     nextStretchText(null, inWindowNow: true),
     nextStretchText(null),
     nextStretchText(null, loading: true),
@@ -150,7 +153,7 @@ class _TimeScrubberState extends State<TimeScrubber> {
   bool get compact => widget.compact;
   final _hideFocus = FocusNode(debugLabel: 'time-hide');
   // the next-stretch link's longest wordings and their one-line width, per
-  // period and text style (see [_nextLink])
+  // period, series and text style (see [_nextLink])
   (Object, List<String>, double)? _longestNext;
   final _showFocus = FocusNode(debugLabel: 'time-show');
 
@@ -243,18 +246,23 @@ class _TimeScrubberState extends State<TimeScrubber> {
   @override
   Widget build(BuildContext context) => NoPageSwipe(child: _bar(context));
 
-  /// The next-stretch link's words in a box the size of the period's longest
-  /// wording ([longestNextStretchTexts]) at the width the link gets: the bar
-  /// is pinned by its bottom edge, so a line more or less (the dates and
-  /// times in the words change while Play runs) would move Pause, the slider
-  /// and the day arrows under the finger (Android 7 run). The same box keeps
-  /// the link on its own row or beside the day arrows on phones. [end]: the
-  /// words keep to the box's end (the link sits at the bar's right).
-  Widget _nextLink(String text, {required bool end}) => LayoutBuilder(builder: (context, c) {
-        // the style the Text below gets (with the platform's bold text)
-        final style = MediaQuery.boldTextOf(context)
-            ? DefaultTextStyle.of(context).style.merge(const TextStyle(fontWeight: FontWeight.bold))
-            : DefaultTextStyle.of(context).style;
+  /// The next-stretch link ([button] with the words [text]) in a box the
+  /// size it has with the period's longest wording ([longestNextStretchTexts])
+  /// at the width it gets: the bar is pinned by its bottom edge, so a line
+  /// more or less (the dates and times in the words change while Play runs)
+  /// would move Pause, the slider and the day arrows under the finger
+  /// (Android 7 run). The same box keeps the link on its own row or beside
+  /// the day arrows on phones. The button itself (its tap, hover and focus
+  /// ring) keeps to its words, at the box's end when [end] (the link sits at
+  /// the bar's right).
+  Widget _nextLink(String text, Widget Function(Widget words) button, {required bool end}) =>
+      LayoutBuilder(builder: (context, c) {
+        // the style the button gives its words (with the platform's bold
+        // text) and the button's padding round them
+        final buttonStyle = TextButtonTheme.of(context).style;
+        final base = buttonStyle?.textStyle?.resolve(const {}) ?? Theme.of(context).textTheme.labelLarge ?? const TextStyle();
+        final style = MediaQuery.boldTextOf(context) ? base.merge(const TextStyle(fontWeight: FontWeight.bold)) : base;
+        final pad = (buttonStyle?.padding?.resolve(const {}) ?? EdgeInsets.zero).resolve(Directionality.of(context));
         final scaler = MediaQuery.textScalerOf(context);
         TextPainter painter(String t, double maxWidth) =>
             TextPainter(text: TextSpan(text: t, style: style), textDirection: TextDirection.ltr, textScaler: scaler)
@@ -267,21 +275,28 @@ class _TimeScrubberState extends State<TimeScrubber> {
         }
 
         double oneLine(String t) => measure(t, double.infinity);
-        final key = (state.rangeStartMs, state.rangeEndMs, style, scaler);
+        // the longest wordings the period's own windows allow (the theoretical
+        // ones while there is no series)
+        final series = state.series;
+        final key = (state.rangeStartMs, state.rangeEndMs, series, style, scaler);
         if (_longestNext?.$1 != key) {
-          final texts = longestNextStretchTexts(state.rangeStartMs, state.rangeEndMs, oneLine);
+          final texts = longestNextStretchTexts(state.rangeStartMs, state.rangeEndMs, oneLine,
+              reach: series == null ? null : nextStretchReach(series, state.rangeStartMs));
           _longestNext = (key, texts, texts.map(oneLine).reduce(math.max));
         }
         final (_, longest, longestWidth) = _longestNext!;
-        // (1 px to spare: text laid out at exactly its own width can wrap)
-        final w = math.min(c.maxWidth, math.max(longestWidth, oneLine(text)).ceilToDouble() + 1);
+        // the words' width: the longest one's line, or all the room the
+        // button leaves them (1 px to spare: text laid out at exactly its own
+        // width can wrap)
+        final room = math.max(0.0, c.maxWidth - pad.horizontal);
+        final w = math.min(room, math.max(longestWidth, oneLine(text)).ceilToDouble() + 1);
         final h = [...longest, text].map((t) => measure(t, w, height: true)).reduce(math.max);
         return SizedBox(
-          width: w,
-          height: h,
+          width: w + pad.horizontal,
+          height: math.max(kMinInteractiveDimension, h + pad.vertical),
           child: Align(
             alignment: end ? AlignmentDirectional.centerEnd : AlignmentDirectional.centerStart,
-            child: Text(text, textAlign: end ? TextAlign.end : TextAlign.start),
+            child: button(Text(text, textAlign: end ? TextAlign.end : TextAlign.start)),
           ),
         );
       });
@@ -440,11 +455,16 @@ class _TimeScrubberState extends State<TimeScrubber> {
             ),
           );
           final nextIcon = GuideTarget(id: 'time-next', child: IconButton(tooltip: nextText, onPressed: goNext, icon: const Icon(Icons.skip_next)));
-          final nextButton = GuideTarget(id: 'time-next', child: TextButton(
-            style: const ButtonStyle(minimumSize: WidgetStatePropertyAll(Size(48, 48))),
-            onPressed: goNext,
-            child: _nextLink(nextText, end: inline),
-          ));
+          final nextButton = _nextLink(
+              nextText,
+              (words) => GuideTarget(
+                  id: 'time-next',
+                  child: TextButton(
+                    style: const ButtonStyle(minimumSize: WidgetStatePropertyAll(Size(48, 48))),
+                    onPressed: goNext,
+                    child: words,
+                  )),
+              end: inline);
           if (inline) {
             final row = Row(children: [
               play,

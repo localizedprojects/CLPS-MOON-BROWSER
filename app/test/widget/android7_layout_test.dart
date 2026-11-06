@@ -6,7 +6,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart' hide Interval;
 import 'package:flutter_test/flutter_test.dart';
-import 'package:polar_horizon/core/metrics.dart' show Interval, NextStretch;
+import 'package:polar_horizon/core/metrics.dart' show Interval, NextStretch, bothAt, nextStretch, nextStretchReach;
 import 'package:polar_horizon/state/app_state.dart';
 import 'package:polar_horizon/theme.dart';
 import 'package:polar_horizon/widgets/chart_bridge.dart' show utcLabel;
@@ -119,6 +119,21 @@ void main() {
     // for every date (the next-stretch words change their length with the
     // date and the times in them, review of 2026-11-05: at 720 px and at
     // 320 px it gained or lost a line on some dates)
+    test('the room kept from the period\'s own windows holds every wording at every time of it', () {
+      double width(String t) => t.length.toDouble();
+      final s = state.series!;
+      final most = longestNextStretchTexts(state.rangeStartMs, state.rangeEndMs, width,
+              reach: nextStretchReach(s, state.rangeStartMs))
+          .map(width)
+          .reduce(math.max);
+      var n = 0;
+      for (var t = state.rangeStartMs; t <= state.lastCursorMs; t += state.options.stepMs, n++) {
+        final text = nextStretchText(nextStretch(s, t), cursorMs: t, inWindowNow: bothAt(s, t));
+        expect(width(text), lessThanOrEqualTo(most), reason: '${utcLabel(t)}: $text');
+      }
+      expect(n, greaterThan(1000));
+    });
+
     testWidgets('the time bar keeps its height and its controls their places at every time of the period', (tester) async {
       state.togglePlay();
       addTearDown(state.pausePlay);
@@ -170,14 +185,25 @@ void main() {
   test('no next-stretch wording of a period is longer than its longest ones', () {
     // a stand-in for the text's width: its length
     double width(String t) => t.length.toDouble();
-    const day = 86400e3;
-    for (final (start, days) in [(DateTime.utc(2026, 11, 5), 365), (DateTime.utc(2027, 1, 20), 30), (DateTime.utc(2025, 1, 1), 3650)]) {
-      final t0 = start.millisecondsSinceEpoch.toDouble(), t1 = t0 + days * day;
+    const day = 86400e3, hour = 3600e3, min = 60e3;
+    for (final (start, hours) in [
+      (DateTime.utc(2026, 11, 5), 365 * 24),
+      (DateTime.utc(2027, 1, 20), 30 * 24),
+      (DateTime.utc(2025, 1, 1), 3650 * 24),
+      // under a day (review of 1.13.1: the last day of the ephemeris gives
+      // 31 Dec 2035 00:00 to 23:00, where "in 59 min · lasts 16 h 19 min" was
+      // longer than the room kept for "in 23 h · lasts 23 h") and just over
+      (DateTime.utc(2035, 12, 31), 23),
+      (DateTime.utc(2035, 12, 31), 2),
+      (DateTime.utc(2035, 12, 31), 1),
+      (DateTime.utc(2030, 6, 1), 29),
+    ]) {
+      final t0 = start.millisecondsSinceEpoch.toDouble(), t1 = t0 + hours * hour;
       final most = longestNextStretchTexts(t0, t1, width).map(width).reduce(math.max);
-      for (var c = t0; c < t1; c += days * day / 40 + 3600e3 * 5 + 60e3 * 7) {
-        for (final wait in [0.0, 60e3 * 59, 3600e3 * 23 + 60e3 * 59, day * 9 + 3600e3 * 23, t1 - c]) {
-          for (final lasts in [60e3 * 10, 3600e3 * 23 + 60e3 * 59, day + 3600e3 * 13, t1 - c - wait]) {
-            if (c + wait + lasts > t1 || lasts <= 0) continue;
+      for (var c = t0; c < t1; c += (t1 - t0) / 40 + (hours > 48 ? 5 * hour : 0) + 7 * min) {
+        for (final wait in [0.0, 59 * min, 23 * hour + 59 * min, 9 * day + 23 * hour, t1 - c - 61 * min, t1 - c]) {
+          for (final lasts in [10 * min, 16 * hour + 19 * min, 23 * hour + 59 * min, day + 13 * hour, t1 - c - wait - min, t1 - c - wait]) {
+            if (wait < 0 || c + wait + lasts > t1 || lasts <= 0) continue;
             final text = nextStretchText(NextStretch(Interval(c + wait, c + wait + lasts), good: lasts >= day), cursorMs: c);
             expect(width(text), lessThanOrEqualTo(most), reason: text);
           }

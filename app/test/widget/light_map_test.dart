@@ -177,6 +177,22 @@ void main() {
       expect(box(at).left, lessThan(a.tip.dx + 20));
     });
 
+    test('with the part on screen given, labels keep to it; one too small for them falls back to the whole map', () {
+      // the map runs on below the time bar: its upper 60 % shows
+      final seen = Rect.fromLTWH(0, 0, canvas.width, canvas.height * 0.6);
+      for (final deg in [150.0, 180.0, 210.0]) {
+        final arrows = [arrow(deg, len: 120), arrow(deg + 12, len: 120)];
+        final at = layoutArrowLabels(arrows: arrows, canvas: canvas, visible: seen);
+        for (final c in at) {
+          expect(seen.contains(box(c).topLeft) && seen.contains(box(c).bottomRight), isTrue, reason: 'arrow at $deg deg: ${box(c)}');
+        }
+        expect(box(at[0]).overlaps(box(at[1])), isFalse);
+        // a sliver too thin for the two labels: the whole map as before
+        final sliver = Rect.fromLTWH(0, 0, canvas.width, 20);
+        expect(layoutArrowLabels(arrows: arrows, canvas: canvas, visible: sliver), layoutArrowLabels(arrows: arrows, canvas: canvas));
+      }
+    });
+
     test('a tiny canvas (a snapshot strip) still keeps the two labels apart', () {
       const small = Size(320, 110);
       const c = Offset(160, 55);

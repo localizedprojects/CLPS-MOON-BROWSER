@@ -678,6 +678,60 @@ class _LightMapState extends State<LightMap> {
   // legend shares of the shown frame, computed once per frame
   final _labelMemory = ArrowLabelMemory();
 
+  /// The part of the map on screen, in its own coordinates, when the page
+  /// shows only part of it (a phone in portrait: the map runs on under the
+  /// time bar until the page scrolls); null: all of it. The Sun and Earth
+  /// labels keep to it ([layoutArrowLabels]).
+  Rect? _shown;
+  final _canvasKey = GlobalKey(debugLabel: 'light map canvas');
+
+  /// The scroll views round the map, watched so a scroll that ends measures
+  /// [_shown] again.
+  final _watched = <ScrollPosition>{};
+  bool _measureQueued = false;
+
+  void _measureShownSoon() {
+    if (_measureQueued) return;
+    _measureQueued = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _measureQueued = false;
+      _measureShown();
+    });
+  }
+
+  void _measureShown() {
+    final at = _canvasKey.currentContext;
+    final box = at?.findRenderObject();
+    if (!mounted || at == null || box is! RenderBox || !box.attached || !box.hasSize) return;
+    final map = box.localToGlobal(Offset.zero) & box.size;
+    var r = map;
+    final positions = <ScrollPosition>{};
+    at.visitAncestorElements((e) {
+      if (e is StatefulElement && e.state is ScrollableState) {
+        final st = e.state as ScrollableState;
+        final port = st.context.findRenderObject();
+        if (port is RenderBox && port.hasSize) r = r.intersect(port.localToGlobal(Offset.zero) & port.size);
+        positions.add(st.position);
+      }
+      return true;
+    });
+    for (final p in _watched.difference(positions)) {
+      p.isScrollingNotifier.removeListener(_measureShownSoon);
+    }
+    for (final p in positions.difference(_watched)) {
+      p.isScrollingNotifier.addListener(_measureShownSoon);
+    }
+    _watched
+      ..clear()
+      ..addAll(positions);
+    // all of it, or none of it (scrolled away): no preference
+    final whole = r.width >= map.width - 0.5 && r.height >= map.height - 0.5;
+    final shown = whole || r.width <= 0 || r.height <= 0 ? null : r.shift(-map.topLeft);
+    bool near(Rect? a, Rect? b) =>
+        a == b || a != null && b != null && (a.topLeft - b.topLeft).distance < 1 && (a.bottomRight - b.bottomRight).distance < 1;
+    if (!near(shown, _shown)) setState(() => _shown = shown);
+  }
+
   /// The lander's view's mesh (its FidelityBadge reads the eye height and DEM ends).
   final _landerMesh = ValueNotifier<LanderMesh?>(null);
 
@@ -732,6 +786,9 @@ class _LightMapState extends State<LightMap> {
 
   @override
   void dispose() {
+    for (final p in _watched) {
+      p.isScrollingNotifier.removeListener(_measureShownSoon);
+    }
     _loop.dispose();
     _landerMesh.dispose();
     _sideScroll.dispose();
@@ -951,6 +1008,8 @@ class _LightMapState extends State<LightMap> {
       // the ground past the base map's edge: shaded on the device (ReliefKeeper)
       _relief.want(fine && viewBeyondBaseMap(view, layers.halfWidthM) ? view : null, s.dem, layers.relief);
       if (!s.playing) _labelMemory.clear();
+      // after this layout: how much of the map the page shows
+      _measureShownSoon();
       final playNote = 'Coarser while playing, pause for full detail. Showing ${utcLabel(tMap)}';
       final semantic = '${s.site.short}, ${utcLabel(tMap)}. '
           '${shares == null ? 'Computing.' : '${coarseShown ? 'About ' : ''}${(100 * shares.sun).round()}% of the area $scope is sunlit, '
@@ -1088,6 +1147,7 @@ class _LightMapState extends State<LightMap> {
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(PH.radiusInner),
                 child: CustomPaint(
+                  key: _canvasKey,
                   size: Size(side, side),
                   painter: LightFramePainter(
                     hillshade: layers.hillshade,
@@ -1103,6 +1163,7 @@ class _LightMapState extends State<LightMap> {
                     noteArea: noteArea,
                     // only Play keeps labels near their last spots
                     labelMemory: s.playing ? _labelMemory : null,
+                    shownArea: _shown,
                     earthRule: o.earthCriterion,
                     requireDsn: o.requireDsn,
                     textScaler: MediaQuery.textScalerOf(context).clamp(maxScaleFactor: PH.maxCanvasTextScale),
@@ -1688,6 +1749,9 @@ typedef ArrowLabel = ({Offset from, Offset tip, Size size});
 /// inside [canvas] and clear of every arrow head and shaft, of [keepClear]
 /// and of the labels placed before it. When no spot is free (a tiny canvas),
 /// the labels still never cover each other or a head where that is possible.
+/// With [visible] (the part of [canvas] on screen, when the page shows only
+/// part of the map), "inside" means inside that part, when the labels fit in
+/// it; otherwise the whole canvas.
 ///
 /// With [memory], a label takes the free spot nearest to where it was on the
 /// last layout. When the other arrow's head sweeps under it and no free spot
@@ -1697,10 +1761,20 @@ typedef ArrowLabel = ({Offset from, Offset tip, Size size});
 /// jump between spots while one a short step away is clear of the site, its
 /// name and the notes.
 List<Offset> layoutArrowLabels(
-    {required List<ArrowLabel> arrows, required Size canvas, List<Rect> keepClear = const [], ArrowLabelMemory? memory}) {
+    {required List<ArrowLabel> arrows,
+    required Size canvas,
+    List<Rect> keepClear = const [],
+    ArrowLabelMemory? memory,
+    Rect? visible}) {
+  final whole = Offset.zero & canvas;
+  // the part on screen, when every label fits in it (side by side or stacked)
+  final seen = visible?.intersect(whole);
+  final widest = arrows.fold(0.0, (m, a) => math.max(m, a.size.width));
+  final stack = arrows.fold(0.0, (m, a) => m + a.size.height + 6);
+  final area = seen != null && seen.width >= widest + 4 && seen.height >= stack + 4 ? seen : whole;
   Offset inside(Size s, Offset c) => Offset(
-      c.dx.clamp(s.width / 2 + 2, math.max(s.width / 2 + 2, canvas.width - s.width / 2 - 2)),
-      c.dy.clamp(s.height / 2 + 2, math.max(s.height / 2 + 2, canvas.height - s.height / 2 - 2)));
+      c.dx.clamp(area.left + s.width / 2 + 2, math.max(area.left + s.width / 2 + 2, area.right - s.width / 2 - 2)),
+      c.dy.clamp(area.top + s.height / 2 + 2, math.max(area.top + s.height / 2 + 2, area.bottom - s.height / 2 - 2)));
   final heads = [for (final a in arrows) Rect.fromCircle(center: a.tip, radius: 9)];
   final shafts = <Offset>[
     for (final a in arrows)
@@ -1771,8 +1845,7 @@ List<Offset> layoutArrowLabels(
       // (a head at or past the map's edge, which a label pinned to that edge
       // cannot get out of the way of, only weighs too)
       final ownHead = heads[i];
-      final ownSeen = (Offset.zero & canvas).deflate(1).contains(ownHead.topLeft) &&
-          (Offset.zero & canvas).deflate(1).contains(ownHead.bottomRight);
+      final ownSeen = area.deflate(1).contains(ownHead.topLeft) && area.deflate(1).contains(ownHead.bottomRight);
       bool ok(Offset c) => clearOf(box(c), placed) && !(ownSeen && box(c).overlaps(ownHead));
       double cost(Offset c) {
         final r = box(c);
@@ -1903,7 +1976,15 @@ class LightFramePainter extends CustomPainter {
   LightFramePainter({required this.hillshade, required this.halfWidthM, required this.images, required this.view,
       required this.sites, required this.selected, required this.now, required this.closeUp,
       this.siteNames = true, this.arrowFrac = 0.24, this.earthRule = EarthCriterion.center, this.requireDsn = false,
-      this.textScaler = TextScaler.noScaling, this.exact = false, this.noteArea, this.labelMemory, this.relief});
+      this.textScaler = TextScaler.noScaling, this.exact = false, this.noteArea, this.labelMemory, this.relief,
+      this.shownArea});
+
+  /// The part of the canvas on screen when the page shows only part of the
+  /// map (null: all of it); the Sun and Earth labels keep to it.
+  final Rect? shownArea;
+
+  /// The Sun and Earth label boxes of the last paint (for tests).
+  static List<Rect> lastArrowLabels = const [];
 
   /// Keeps each arrow label on its spot from frame to frame (Play).
   final ArrowLabelMemory? labelMemory;
@@ -2088,6 +2169,7 @@ class LightFramePainter extends CustomPainter {
       memory: labelMemory,
       arrows: [for (final a in arrows) (from: p + a.dir * 12, tip: a.tip, size: Size(a.label.width + 4, a.label.height))],
       canvas: size,
+      visible: shownArea,
       keepClear: [
         Rect.fromCircle(center: p, radius: 14),
         boxAt(siteLabel, siteAt),
@@ -2102,6 +2184,7 @@ class LightFramePainter extends CustomPainter {
       ?poleBadge,
       for (var i = 0; i < arrows.length; i++) boxAt(arrows[i].label, ats[i]),
     ];
+    lastArrowLabels = [for (var i = 0; i < arrows.length; i++) boxAt(arrows[i].label, ats[i])];
 
     // every marker on the canvas is kept clear of the neighbours' names
     for (final st in sites) {
@@ -2196,6 +2279,7 @@ class LightFramePainter extends CustomPainter {
       old.images != images ||
       old.relief != relief ||
       old.noteArea != noteArea ||
+      old.shownArea != shownArea ||
       old.labelMemory != labelMemory ||
       old.view != view ||
       old.selected != selected ||

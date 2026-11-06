@@ -1,7 +1,7 @@
-# Store listing texts and form answers (Lunar Horizon 1.13.0)
+# Store listing texts and form answers (Lunar Horizon 1.13.1)
 
 Everything to paste into Google Play Console and App Store Connect for the first upload of
-version 1.13.0 (build 21). Nothing here has been uploaded: the store accounts are opened by a parent
+version 1.13.1 (build 22). Nothing here has been uploaded: the store accounts are opened by a parent
 or guardian ([release_checklist.md](../release_checklist.md#accounts)). The form answers follow the
 checklist's [Store forms](../release_checklist.md#store-forms) section.
 
@@ -87,13 +87,11 @@ Made for the NASA Space Apps Challenge. Not an official NASA product.
 | Privacy policy | <https://localizedprojects.github.io/CLPS-MOON-BROWSER/privacy/> |
 | Price | Owner's choice (the app has no ads and no in-app purchases) |
 
-### What's new in 1.13.0 (477/500)
-From the 1.13.0 release notes, shortened.
+### What's new in 1.13.1 (333/500)
+From the 1.13.1 release notes, shortened.
 ```text
-• Charts now work on older Android phones whose WebView was never updated (WebView 51 and newer, the stock version on Android 7). On a slow phone the first chart can take a while to appear.
-• "Sky and timeline charts (PNG)" shares both pictures together in one go.
-• Full-screen chart pictures fit the screen: in landscape the When strip and the Compare chart are no longer squashed, and long lines wrap.
-• Simple view "When" follows the time shown as soon as you switch it on.
+• Light & shadow map: the Sun and Earth labels no longer jump across the map while Play runs, and both labels are drawn above the arrows, so neither arrow hides the other's label.
+• Time bar: Pause, the slider and the day arrows no longer shift while Play runs; the "Next good stretch" link keeps the same space whatever its wording.
 ```
 
 ### Data safety (Play Console › App content › Data safety)
@@ -108,7 +106,7 @@ the time controls are hidden, which short guides were seen) stay on the device. 
 files go to the share sheet only when the user asks, which Play does not count as collection or
 sharing.
 
-Permissions in the 1.13.0 APK (`aapt2 dump permissions`): only AndroidX's internal
+Permissions in the 1.13.1 APK (`aapt2 dump permissions`): only AndroidX's internal
 `<package>.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION`, the app's own signature permission, which users
 never see or grant. There is no `INTERNET` permission in release builds (only the debug and profile
 manifests add it).
@@ -252,7 +250,7 @@ and has no encryption of its own.
 
 ### What's New
 The first App Store version has no "What's New" field. For a TestFlight "What to Test" note, use the
-last three lines of the Play text above (the first line is about Android WebViews only).
+Play text above (both lines apply on iPhone and iPad too).
 
 ---
 

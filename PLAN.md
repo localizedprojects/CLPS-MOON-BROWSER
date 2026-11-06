@@ -99,6 +99,7 @@ pipeline/ (Python: spiceypy, numpy)              app/assets/data/ (committed, ~1
 - **1.11.1–1.11.3** (11-01 to 11-03): fixes from the 1.11.0 Android 7 emulator run; the Lander's view places the Sun and Earth labels before the raised-viewpoint chip; on iOS the charts recover after the web view process is killed; one command prepares the Xcode project (`docs/xcode.md`).
 - **1.12.0** (11-03): the pipeline's 18.6-year averages also leave out the Sun hidden by Earth in lunar eclipses (the Sun shares drop by under 0.1 percentage point).
 - **1.13.0** (11-03): the charts are built for Chrome 51, so they draw in Android 7's stock WebView instead of asking for a newer one.
+- **1.13.1** (11-06): during Play the light map's Sun and Earth labels no longer jump across the map and are drawn above both arrows; the time bar's controls no longer shift as the "Next good stretch" link's wording changes; six more test files pin their dates, so the suite passes on the hackathon and judging days.
 
 ## 5. Assumptions (decided without asking)
 

@@ -42,7 +42,7 @@ All the texts (with character counts), the form answers and the screenshot list 
       [App Store](store/listing.md#app-store-app-store-connect).
 
 ## Testing status (before the first store upload)
-- These notes were written at v1.1.0; re-check each line against the current release (1.13.0) before
+- These notes were written at v1.1.0; re-check each line against the current release (1.13.1) before
   the first store upload.
 - Planned end-to-end runs (record results here): Android emulator (Android 14, API 34) on normal
   and small screens, offline, rotation, backgrounding during Play; the same on the Mac's iOS simulators.
@@ -64,7 +64,7 @@ All the texts (with character counts), the form answers and the screenshot list 
 
 ## Competition / sideload release (GitHub Releases APK)
 For the Space Apps entry and anyone installing from the QR code. This APK is not a store build.
-- [ ] Bump `version:` in `app/pubspec.yaml` (for example `1.13.0+21`; the build number must rise, or
+- [ ] Bump `version:` in `app/pubspec.yaml` (for example `1.13.1+22`; the build number must rise, or
       Android refuses to install the update over the earlier one). After the build, check that the
       version the app shows matches.
 - [ ] From `app/`: `flutter build apk --release`. Without `app/android/key.properties` the release APK
@@ -74,7 +74,7 @@ For the Space Apps entry and anyone installing from the QR code. This APK is not
       ones; a build signed with another key must be uninstalled first.
 - [ ] Rename `app/build/app/outputs/flutter-apk/app-release.apk` to `lunar-horizon.apk` and record its
       checksum: `sha256sum lunar-horizon.apk` (PowerShell: `Get-FileHash lunar-horizon.apk`).
-- [ ] Publish a GitHub release (tag `v1.13.0`, notes with the changes and the SHA-256), attach
+- [ ] Publish a GitHub release (tag `v1.13.1`, notes with the changes and the SHA-256), attach
       `lunar-horizon.apk`, and mark it **latest**.
 - [ ] Check that <https://github.com/localizedprojects/CLPS-MOON-BROWSER/releases/latest/download/lunar-horizon.apk>
       downloads the new file (same SHA-256), then install it over the previous version on a phone.

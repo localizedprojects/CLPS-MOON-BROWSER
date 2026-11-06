@@ -1,7 +1,7 @@
 # Final deep review: plan
 
-> **Status note (2026-11-05).** This plan is unchanged since 2026-10-10. The app has grown since
-> (releases 1.1.0 to 1.13.0; see PLAN.md §4): the light & shadow map out to 75°S, lunar eclipses in the
+> **Status note (2026-11-06).** This plan is unchanged since 2026-10-10. The app has grown since
+> (releases 1.1.0 to 1.13.1; see PLAN.md §4): the light & shadow map out to 75°S, lunar eclipses in the
 > Sun fraction (`formula.md` §6.5) and, since 1.12.0, in the pipeline's 18.6-year averages, three more mission sites (IM-2's intended target, Chang'e-7, Chandrayaan-5/LUPEX), sunset and Earthset countdowns with live
 > power, the Lander's view with its full screen, relief shading and view from higher
 > (`docs/landers_view_spec.md`), the IM-1 and IM-2 real-photo link cards, and charts built for Chrome 51 so they draw in

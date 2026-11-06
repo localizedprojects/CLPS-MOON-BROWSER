@@ -10,6 +10,7 @@ import 'package:flutter/material.dart';
 import '../content/lander_photos.dart';
 import '../theme.dart';
 import 'site_glance_card.dart' show numSpans;
+import 'web_address.dart';
 
 class LanderPhotosCard extends StatelessWidget {
   final LanderPhotos photos;
@@ -64,27 +65,8 @@ class _LinkRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final muted = PHText.small.copyWith(color: PH.muted);
-    final name = landerPhotoUrlSemantics(link);
-    // SelectableText is a long-press target: a text field node of its own
-    // (RenderEditable is no semantics boundary, hence the container), at
-    // least 48 dp tall, named by the page it opens. On the web that node is
-    // an input, which takes the name as its label. On Android a text field
-    // shows only its value below API 28, so there the name is a node of its
-    // own around it.
-    // Its own storage key: under Overview's PageStorageKey the text field's
-    // scroller would otherwise start at the page's saved scroll offset (see
-    // site_glance_card.dart)
-    final address = Semantics(
-      container: true,
-      label: web ? name : null,
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(minHeight: 48),
-        child: KeyedSubtree(
-          key: PageStorageKey('lander-photo-url-$index'),
-          child: SelectableText(link.url, style: numStyle(size: 12, color: PH.muted)),
-        ),
-      ),
-    );
+    final address = WebAddress(
+        url: link.url, name: landerPhotoUrlSemantics(link), storageKey: 'lander-photo-url-$index', web: web);
     // One node per link: its title, description, date and credit, with the
     // named address as its child.
     return Semantics(
@@ -95,7 +77,7 @@ class _LinkRow extends StatelessWidget {
           Text.rich(numSpans(link.title, PHText.body.copyWith(fontWeight: FontWeight.w500))), // numbers in Mono
           Text.rich(numSpans(link.shows, PHText.small)),
           Text.rich(numSpans('${link.date} · ${landerPhotoCredit(link)}', muted)),
-          web ? address : Semantics(container: true, label: name, child: address),
+          address,
         ]),
       ),
     );

@@ -73,7 +73,7 @@ It opens with a short animation (the Sun skimming along the south-pole horizon, 
   - PNG images of the Sky & time charts and of the comparison chart
 
   On the web the files download through the browser. On Android they open the share sheet.
-- **Learn and check.** Learn explains how the app works and what each view shows, has a glossary, how the score works (with a worked example for the current top site), *How it's calculated*, the keyboard shortcuts and the credits, and an *Explain as I go* switch that adds a short explanation next to each chart and map. Its "Can I trust these numbers?" section opens the *Validation & assumptions* page, which reads `app/assets/data/validation.json` directly.
+- **Learn and check.** Learn explains how the app works and what each view shows, has a glossary, how the score works (with a worked example for the current top site), *How it's calculated*, the keyboard shortcuts and the credits (with a short Use of AI note and the source-code address), and an *Explain as I go* switch that adds a short explanation next to each chart and map. Its "Can I trust these numbers?" section opens the *Validation & assumptions* page, which reads `app/assets/data/validation.json` directly.
 
 The project rules require a screen-reader label on every interactive control and tap targets of at least 48 dp. Placing a custom site also works from the keyboard. By design, colour is never the only way something is shown: shapes, patterns and direct labels carry the same meaning (for example the Sun, Earth and "both" glyphs in `app/lib/widgets/glyphs.dart`).
 

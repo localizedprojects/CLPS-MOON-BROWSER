@@ -16,6 +16,7 @@ import '../version.dart';
 import '../widgets/explain.dart';
 import '../widgets/site_card.dart' show FocusRingInkWell;
 import '../widgets/site_glance_card.dart' show numSpans;
+import '../widgets/web_address.dart';
 import 'how_calculated.dart';
 import 'validation_page.dart';
 import '../widgets/feature_guide.dart';
@@ -493,40 +494,102 @@ class _KeyCap extends StatelessWidget {
       );
 }
 
+/// Learn › Credits: the "Use of AI" paragraph, a short form of the
+/// disclosure in docs/submission.md and the README.
+const learnUseOfAi = 'Lunar Horizon was built with Claude Code, Anthropic\'s AI coding agent. Under the team\'s '
+    'direction it wrote the code, the tests and the documentation, including the text in this app; it found the '
+    'preset sites\' published coordinates and sources and drafted their descriptions (fact-checked by separate AI '
+    'agents); and it made the demo videos and their music. The results are not AI output: every number, chart and '
+    'map here is computed by that code from NASA SPICE and LOLA data, and checked against JPL Horizons and the LOLA '
+    'team\'s maps. No AI model produces the numbers.';
+
+/// The source code's address, shown under Credits.
+const learnSourceUrl = 'https://github.com/localizedprojects/CLPS-MOON-BROWSER';
+
 class _Credits extends StatelessWidget {
   const _Credits();
 
-  static const _items = <(String, String)>[
-    ('NASA/JPL NAIF SPICE', 'Sun and Earth positions, with the DE440 ephemeris and the Moon\'s orientation.'),
-    ('LRO LOLA', 'Terrain heights from the Lunar Orbiter Laser Altimeter on NASA\'s Lunar Reconnaissance Orbiter (PDS).'),
-    ('JPL Horizons', 'Independent positions used to check the app.'),
-    ('IBM Plex', 'IBM Plex Sans and IBM Plex Mono typefaces, SIL Open Font License 1.1.'),
+  static const _artemisUrl = 'https://www.nasa.gov/news-release/nasa-provides-update-on-artemis-iii-moon-landing-regions/';
+
+  /// Who, what, and an optional (web address, its screen-reader name).
+  static const _items = <(String, String, (String, String)?)>[
+    ('NASA/JPL NAIF SPICE', 'Sun and Earth positions, with the DE440 ephemeris and the Moon\'s orientation.', null),
+    (
+      'LRO LOLA',
+      'Terrain heights from the Lunar Orbiter Laser Altimeter on NASA\'s Lunar Reconnaissance Orbiter (PDS), and the '
+          'LOLA team\'s long-term average Sun and Earth visibility maps, for the map overlays and as a check.',
+      null
+    ),
+    ('JPL Horizons', 'Independent positions used to check the app.', null),
+    (
+      'JPL DSN Telecommunications Link Design Handbook (810-005)',
+      'Locations of the Deep Space Network antennas at Goldstone, Madrid and Canberra (module 301).',
+      null
+    ),
+    (
+      'Site coordinates',
+      'NASA\'s Artemis III candidate landing regions (update of 28 Oct 2024), Henriksen et al. (2023) and LROC '
+          'mosaics, De Rosa et al. (2012), LROC images of IM-1 and IM-2, and Beyer et al. (2025) for VIPER. Each '
+          'site\'s page lists its own sources.',
+      (_artemisUrl, 'Web address of NASA\'s Artemis III landing regions update, on NASA\'s site')
+    ),
+    (
+      'Lander photos',
+      'Linked from the IM-1 and IM-2 site pages, not bundled: surface photos © Intuitive Machines; photos from '
+          'orbit NASA/Goddard/Arizona State University.',
+      null
+    ),
+    ('IBM Plex', 'IBM Plex Sans and IBM Plex Mono typefaces, SIL Open Font License 1.1.', null),
+    (
+      'Open-source software',
+      'Flutter and Dart packages; React and Plotly.js (MIT licence) for the charts; SpiceyPy (NAIF CSPICE), NumPy '
+          'and SciPy for the data; the Roboto web font (Apache License 2.0).',
+      null
+    ),
+    (
+      'Source code',
+      'On GitHub under the MIT licence. The data, fonts and libraries keep their own terms.',
+      (learnSourceUrl, 'Web address of the source code, on GitHub')
+    ),
   ];
 
   @override
-  Widget build(BuildContext context) => Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-        _heading('Credits'),
-        _card(
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            for (final (who, what) in _items)
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 4),
-                child: Text.rich(TextSpan(children: [
+  Widget build(BuildContext context) {
+    final muted = PHText.body.copyWith(color: PH.muted);
+    var link = 0;
+    Widget address((String, String) a) =>
+        WebAddress(key: ValueKey('credits-url-${a.$1}'), url: a.$1, name: a.$2, storageKey: 'credits-url-${link++}');
+    return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+      _heading('Credits'),
+      _card(
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          for (final (who, what, url) in _items)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text.rich(TextSpan(children: [
                   TextSpan(text: '$who  ', style: PHText.body.copyWith(fontWeight: FontWeight.w600)),
-                  TextSpan(text: what, style: PHText.body.copyWith(color: PH.muted)),
+                  numSpans(what, muted), // numbers in Mono
                 ])),
-              ),
-            const SizedBox(height: 8),
-            Text('Made for the NASA Space Apps Challenge. Not an official NASA product.',
-                style: PHText.small.copyWith(color: PH.muted)),
-            const SizedBox(height: 4),
-            Text.rich(
-                TextSpan(children: [
-                  TextSpan(text: 'Version ', style: PHText.small.copyWith(color: PH.muted)),
-                  TextSpan(text: appVersion, style: numStyle(size: 13, color: PH.muted)),
-                ]),
-                key: const ValueKey('learn-version')),
-          ]),
-        ),
-      ]);
+                if (url != null) address(url),
+              ]),
+            ),
+          const SizedBox(height: 12),
+          Semantics(header: true, child: const Text('Use of AI', style: PHText.subtitle)),
+          const SizedBox(height: 4),
+          Text(learnUseOfAi, key: const ValueKey('learn-use-of-ai'), style: muted),
+          const SizedBox(height: 12),
+          Text('Made for the NASA Space Apps Challenge. Not an official NASA product.',
+              style: PHText.small.copyWith(color: PH.muted)),
+          const SizedBox(height: 4),
+          Text.rich(
+              TextSpan(children: [
+                TextSpan(text: 'Version ', style: PHText.small.copyWith(color: PH.muted)),
+                TextSpan(text: appVersion, style: numStyle(size: 13, color: PH.muted)),
+              ]),
+              key: const ValueKey('learn-version')),
+        ]),
+      ),
+    ]);
+  }
 }

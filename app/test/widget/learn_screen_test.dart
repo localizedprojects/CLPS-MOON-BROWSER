@@ -202,4 +202,57 @@ void main() {
     expect(card.width, lessThanOrEqualTo(1040));
     expect(card.center.dx, closeTo(720, 1));
   });
+  testWidgets('credits: the Use of AI note, the data, station and code credits, and named 48 dp addresses',
+      (tester) async {
+    await pumpLearn(tester, w: 1280, h: 4000);
+    await scrollToEnd(tester);
+    // the short disclosure, in line with docs/submission.md "Use of AI"
+    expect(find.text('Use of AI'), findsOneWidget);
+    expect(find.text(learnUseOfAi), findsOneWidget);
+    for (final words in [
+      'built with Claude Code, Anthropic\'s AI coding agent',
+      'Under the team\'s direction it wrote the code, the tests and the documentation',
+      'made the demo videos and their music',
+      'computed by that code from NASA SPICE and LOLA data',
+      'checked against JPL Horizons and the LOLA team\'s maps',
+      'No AI model produces the numbers.',
+    ]) {
+      expect(learnUseOfAi, contains(words));
+    }
+    // it comes before the Space Apps line, which stays
+    final spaceApps = find.text('Made for the NASA Space Apps Challenge. Not an official NASA product.');
+    expect(spaceApps, findsOneWidget);
+    expect(tester.getTopLeft(find.text(learnUseOfAi)).dy, lessThan(tester.getTopLeft(spaceApps).dy));
+    // the credits the README lists
+    for (final who in [
+      'JPL DSN Telecommunications Link Design Handbook (810-005)',
+      'Goldstone, Madrid and Canberra',
+      'Artemis III candidate landing regions',
+      'average Sun and Earth visibility maps',
+      '© Intuitive Machines',
+      'Plotly.js',
+      'MIT licence',
+    ]) {
+      expect(find.textContaining(who), findsWidgets, reason: who);
+    }
+    // the addresses: selectable text, at least 48 dp tall, named for screen readers
+    final semantics = tester.ensureSemantics();
+    await tester.pump();
+    for (final (url, name) in [
+      (learnSourceUrl, 'Web address of the source code, on GitHub'),
+      (
+        'https://www.nasa.gov/news-release/nasa-provides-update-on-artemis-iii-moon-landing-regions/',
+        'Web address of NASA\'s Artemis III landing regions update, on NASA\'s site'
+      ),
+    ]) {
+      final address = find.byKey(ValueKey('credits-url-$url'));
+      expect(address, findsOneWidget, reason: url);
+      expect(find.descendant(of: address, matching: find.byWidgetPredicate((w) => w is SelectableText && w.data == url)),
+          findsOneWidget, reason: url);
+      expect(tester.getSize(address).height, greaterThanOrEqualTo(48), reason: url);
+      expect(find.bySemanticsLabel(name), findsOneWidget, reason: name);
+    }
+    semantics.dispose();
+    expect(learnSourceUrl, 'https://github.com/localizedprojects/CLPS-MOON-BROWSER');
+  });
 }

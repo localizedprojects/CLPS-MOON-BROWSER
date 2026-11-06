@@ -96,7 +96,10 @@ function useSkyFit(root: React.RefObject<HTMLElement | null>, plot: React.RefObj
     if (same && (limit ?? Infinity) >= (fit!.limit ?? Infinity)) return
     setFit({ limit, key, fig })
   })
-  return fit && fit.fig === fig ? fit.limit : null
+  // a new figure starts from the last limit (measured again before paint): at
+  // no limit the plot would commit at the frame's width first, and Plotly
+  // would draw it there (1.13.3 review)
+  return fit ? fit.limit : null
 }
 
 const Glyph = ({ name, counted }: { name: 'Sun' | 'Earth'; counted: boolean }) => (

@@ -7,6 +7,7 @@
  */
 import { describe, expect, it } from 'vitest'
 import skySrc from './SkyView.tsx?raw'
+import plotSrc from './usePlot.ts?raw'
 import { SKY_FIT_MIN_PX, SKY_FIT_RESERVE_PX, skyFitLimit, skyFitSide, skySide } from './skyFit'
 
 // Measured in Chromium on the web build (Malapert peak, Simple view): the
@@ -44,5 +45,17 @@ describe('skyFitSide', () => {
     expect(skySrc).toMatch(/if \(same && el\.scrollHeight <= el\.clientHeight\) return/)
     expect(skySrc).toMatch(/if \(same && \(limit \?\? Infinity\) >= \(fit!\.limit \?\? Infinity\)\) return/)
     expect(skySrc).toMatch(/addEventListener\?\.\('loadingdone', f\)/)
+  })
+  // 1.13.3 review (Playwright, 597 x 604 and 397 x 532): after a new payload or
+  // the Paths toggle, Plotly drew at the frame's width (520) in a 385 px box
+  // and the plot spilled over the toggle and the key line
+  it('a new figure starts from the last limit, not at the frame\'s width', () => {
+    expect(skySrc).toMatch(/return fit \? fit\.limit : null/)
+    expect(skySrc).not.toMatch(/fit\.fig === fig \? fit\.limit/)
+  })
+  it('Plotly redraws when the box differs from the size it drew at, checked on every commit', () => {
+    expect(plotSrc).toMatch(/drawnAt\.current = \{ w: el\.clientWidth, h: el\.clientHeight \}\n\s*const done = Plotly\.react/)
+    expect(plotSrc).toMatch(/el\.clientWidth === at\.w && el\.clientHeight === at\.h/)
+    expect(plotSrc).toMatch(/useLayoutEffect\(\(\) => \{ fitRef\.current\(\) \}\)/)
   })
 })

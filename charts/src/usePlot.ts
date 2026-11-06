@@ -7,7 +7,7 @@
  * follows the time cursor is drawn in a DOM overlay positioned with
  * [plotAxes] (plotGeom.ts).
  */
-import { useEffect, useRef } from 'react'
+import { useEffect, useLayoutEffect, useRef } from 'react'
 // @ts-expect-error - the dist bundle ships without type declarations
 import Plotly from 'plotly.js-basic-dist-min'
 import { post } from './bridge'
@@ -43,27 +43,30 @@ export function usePlot<F extends Fig>(fig: F | null, hooks: PlotHooks<F> = {}) 
   const ro = useRef<ResizeObserver | null>(null)
   const fitRef = useRef<() => void>(() => {})
   const settleRef = useRef<() => void>(() => {})
+  /** The container's size at the last draw (Plotly.react or a resize), px. */
+  const drawnAt = useRef({ w: 0, h: 0 })
 
   useEffect(() => {
     const el = ref.current
     if (!el || !fig) return
     shown.current = fig
+    drawnAt.current = { w: el.clientWidth, h: el.clientHeight }
     const done = Plotly.react(el, fig.data, { ...fig.layout, autosize: true }, CONFIG)
     if (bound.current !== el && el.on) {
       bound.current = el
       el.on('plotly_click', (e: unknown) => hk.current.onClick?.(el, e))
       el.on('plotly_afterplot', () => { if (shown.current) hk.current.onAfterPlot?.(el, shown.current) })
       // the container can change size without a window resize (Flutter layout);
-      // redraw only for a real change (the observer also fires once on observe)
-      let w = el.clientWidth, h = el.clientHeight
+      // redraw only for a real change from the size last drawn at (the
+      // observer also fires once on observe)
       const redraw = () => {
-        w = el.clientWidth
-        h = el.clientHeight
+        drawnAt.current = { w: el.clientWidth, h: el.clientHeight }
         // rejects while the div is not displayed (mid-move): the next settle redraws it
         void Promise.resolve(Plotly.Plots.resize(el)).catch(() => {})
       }
       const fit = () => {
-        if (!el.isConnected || (el.clientWidth === w && el.clientHeight === h)) return
+        const at = drawnAt.current
+        if (!el.isConnected || (el.clientWidth === at.w && el.clientHeight === at.h)) return
         redraw()
       }
       // the host moved this page (full screen and back): redraw at the size it has
@@ -83,6 +86,14 @@ export function usePlot<F extends Fig>(fig: F | null, hooks: PlotHooks<F> = {}) 
     }
     Promise.resolve(done).then(() => { if (shown.current === fig) hk.current.onAfterPlot?.(el, fig) }, () => {})
   }, [fig])
+
+  // A box the view sizes (the sky plot's side) can change and change back
+  // within one task: a new figure first commits at one size, Plotly.react
+  // draws there (React runs the effect before the re-render a layout effect
+  // asks for), then the box takes its measured size. The observer sees no
+  // net change then, so every commit checks the box against the size drawn at
+  // (1.13.3 review: the plot spilled over the toggle and the key line).
+  useLayoutEffect(() => { fitRef.current() })
 
   useEffect(() => () => {
     ro.current?.disconnect()

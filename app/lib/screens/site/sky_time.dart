@@ -103,6 +103,23 @@ double skyFrameHeight(double width, {bool exact = false}) =>
     (width < skyTimeNarrowWidth ? 230.0 + math.max(0.0, (360 - width) * 0.75) : 180.0) +
     (exact ? 200.0 : 0.0);
 
+/// Smallest side of the "Where to look" plot when its frame's height limits
+/// it (charts/src/SkyView.tsx SKY_FIT_MIN_PX): about a 320 px phone's plot.
+const skyFitMinSide = 260.0;
+
+/// Least height of the sky ("Where to look") frame in the wide pane, where
+/// it is otherwise what the timeline beside it and NowStatus under it leave
+/// (397 x 532 px at 1440 x 900, 597 x 604 at 1920 x 1080; Chromium, web
+/// build): shorter than the plot at its width plus the rest, so the chart
+/// fits the plot to the height that is left (SkyView.tsx skyFitLimit), down
+/// to [skyFitMinSide]. This holds that smallest plot with the rest: the
+/// header, the two caption lines, the "Paths over the period" toggle, the key
+/// line and the padding (220 px in the narrowest wide frame, 392 px; 202 at
+/// 597) and the 17 px the chart keeps for a caption line that wraps during
+/// Play. With exact numbers the exact block, the highest hills and the legend
+/// are added, as in [skyFrameHeight].
+double skyWideMinHeight({bool exact = false}) => skyFitMinSide + 240.0 + (exact ? 200.0 : 0.0);
+
 /// What [_panel] adds around a chart on each axis: the card's margin (6 + 6)
 /// and its padding (4 + 4).
 const chartCardChrome = 20.0;
@@ -240,8 +257,8 @@ class _SkyTimeTabState extends State<SkyTimeTab> {
   /// NowStatus keeps its Play height ([_reserve]), so the plot does not
   /// resize on each step. The plot keeps at least [_skyMinHeight]: with large
   /// text the row grows and the pane scrolls instead of squashing it.
-  Widget _skyWithStatus(Widget sky) =>
-      _skyCard(sky, NowStatus(state: widget.state, reserve: _reserve), minChart: _skyMinHeight);
+  Widget _skyWithStatus(Widget sky, {double minChart = _skyMinHeight}) =>
+      _skyCard(sky, NowStatus(state: widget.state, reserve: _reserve), minChart: minChart);
 
   static const _skyMinHeight = 260.0;
 
@@ -481,7 +498,8 @@ class _SkyTimeTabState extends State<SkyTimeTab> {
                               crossAxisAlignment: CrossAxisAlignment.stretch,
                               children: [
                                 Expanded(flex: 7, child: _panel(tl)),
-                                Expanded(flex: 5, child: _skyWithStatus(sky)),
+                                // never shorter than the smallest fitted plot and the rest of "Where to look" need
+                                Expanded(flex: 5, child: _skyWithStatus(sky, minChart: skyWideMinHeight(exact: exact))),
                               ],
                             ),
                           ),

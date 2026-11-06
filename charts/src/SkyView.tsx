@@ -1,15 +1,16 @@
 /**
  * Sky plot view ("Where to look", charts spec 2.2): a one-line header, two
  * caption lines that answer "is it up and where do I look", the square plot
- * sized to the frame width (max 520 px), a "Paths over the period" toggle
- * and the key line. "Exact numbers" adds the degree rings and spokes, the
+ * sized to the frame width (max 520 px) and, in a frame shorter than all of
+ * that (the wide pane), to the height left ([skyFitSide]), a "Paths over the
+ * period" toggle and the key line. "Exact numbers" adds the degree rings and spokes, the
  * legend, the exact block per body and the highest hills.
  *
  * Plotly draws only the static figure (when the payload, the detail mode or
  * the paths toggle changes). A `skyNow` updates the overlay (markers, word
  * labels, path names), the captions and the header time: no Plotly redraw.
  */
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { SkyData } from './bridge'
 import { skyNowData } from './cursor'
 import { DetailToggle, useDetail } from './DetailToggle'
@@ -19,23 +20,25 @@ import { bodyGlyphSvg, drawSkyOverlay } from './skyOverlay'
 import { captionLine, captionText, exactLine, highestHillsText, keyLine, legendNames } from './skyCaption'
 import { C, HOST_CORNER_PX, MONO } from './theme'
 import { usePlot } from './usePlot'
+import { SKY_PAD_PX, skyFitLimit, skySide } from './skyFit'
 import { useExport, useHost, useLatest, useLiveMode, Waiting } from './viewHooks'
 
-/** Largest plot side, px (charts spec 2.2). */
-export const SKY_MAX_PX = 520
+export { SKY_MAX_PX, skySide } from './skyFit'
 /** Side padding of the view, px. */
-const PAD = 12
+const PAD = SKY_PAD_PX
+/** Bottom padding of the view, px. */
+const PAD_B = 8
 
-/** Plot side for a frame [width] px wide: the frame width minus padding, at most 520 px. */
-export const skySide = (width: number) => Math.max(160, Math.min(SKY_MAX_PX, Math.floor(width - 2 * PAD)))
-
-/** Width of [el] (follows Flutter frame resizes, not only window resizes). */
-function useWidth(el: React.RefObject<HTMLElement | null>): number {
-  const [w, setW] = useState(() => window.innerWidth)
+/** Client width and height of [el] (follows Flutter frame resizes, not only window resizes). */
+function useBox(el: React.RefObject<HTMLElement | null>): { w: number; h: number } {
+  const [box, setBox] = useState(() => ({ w: window.innerWidth, h: window.innerHeight }))
   useEffect(() => {
     const node = el.current
     if (!node) return
-    const f = () => setW(node.clientWidth || window.innerWidth)
+    const f = () => {
+      const w = node.clientWidth || window.innerWidth, h = node.clientHeight || window.innerHeight
+      setBox((b) => (b.w === w && b.h === h ? b : { w, h }))
+    }
     f()
     // no ResizeObserver before Chrome 64 (Android 7's WebView is 51): window resizes there
     const ro = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(f)
@@ -46,7 +49,54 @@ function useWidth(el: React.RefObject<HTMLElement | null>): number {
       window.removeEventListener('resize', f)
     }
   })
-  return w
+  return box
+}
+
+/** A plot side limit measured for a frame and a figure. */
+interface SkyFit { limit: number | null; key: string; fig: unknown }
+
+/**
+ * The plot side's limit from the frame's height ([skyFitLimit]), measured
+ * after layout (before paint) with the plot at its current side. It is
+ * measured again when the frame's height or outer width, the figure
+ * (payload, Exact, paths) or the fonts change, but not for a new time: the
+ * plot keeps its size through Play while the caption lines change (a
+ * Plotly resize per step would be slow and jumpy), unless they wrap past
+ * the room kept for that and the frame overflows; then the limit only
+ * shrinks, so it settles. The frame is keyed by its outer width, so a
+ * classic scrollbar coming or going does not count.
+ */
+function useSkyFit(root: React.RefObject<HTMLElement | null>, plot: React.RefObject<HTMLElement | null>, fig: unknown): number | null {
+  const [fit, setFit] = useState<SkyFit | null>(null)
+  const [fonts, setFonts] = useState(0)
+  // the bundled fonts load after the first layout (the fallback font wraps the caption lines otherwise)
+  useEffect(() => {
+    const set = document.fonts
+    if (!set) return
+    let live = true
+    const f = () => { if (live) setFonts((v) => v + 1) }
+    void set.ready.then(f)
+    set.addEventListener?.('loadingdone', f)
+    return () => {
+      live = false
+      set.removeEventListener?.('loadingdone', f)
+    }
+  }, [])
+  useLayoutEffect(() => {
+    const el = root.current, box = plot.current
+    const last = el?.lastElementChild
+    if (!el || !box || !last || !fig) return
+    const key = `${el.clientHeight}|${el.offsetWidth}|${fonts}`
+    const same = !!fit && fit.key === key && fit.fig === fig
+    // measured for this frame and figure: again only if a caption grew past the room kept for it
+    if (same && el.scrollHeight <= el.clientHeight) return
+    const content = last.getBoundingClientRect().bottom - el.getBoundingClientRect().top + el.scrollTop + PAD_B
+    const limit = skyFitLimit(el.clientWidth, el.clientHeight, content - box.offsetHeight)
+    // for the same frame and figure only ever smaller, so it settles (at SKY_FIT_MIN_PX at the latest)
+    if (same && (limit ?? Infinity) >= (fit!.limit ?? Infinity)) return
+    setFit({ limit, key, fig })
+  })
+  return fit && fit.fig === fig ? fit.limit : null
 }
 
 const Glyph = ({ name, counted }: { name: 'Sun' | 'Earth'; counted: boolean }) => (
@@ -116,9 +166,12 @@ export function SkyView() {
   const paths = exact || pathsOn
   const live = useLiveMode(['skyNow'])
   const root = useRef<HTMLDivElement | null>(null)
-  const side = skySide(useWidth(root))
+  const plotBox = useRef<HTMLDivElement | null>(null)
   // static part only (rings, terrain, paths, compass, "hills"); the overlay draws the rest
   const fig = useMemo(() => (m ? buildSky(m.data, { live: true, exact, paths }) : null), [m, exact, paths])
+  // as wide as the frame allows, but no taller than the frame leaves (the wide pane)
+  const limit = useSkyFit(root, plotBox, fig)
+  const side = Math.min(skySide(useBox(root).w), limit ?? Infinity)
   const overlay = useRef<HTMLDivElement | null>(null)
   const [shown, setShown] = useState<SkyData | null>(null)
   const state = useRef({ m, fig, exact, paths })
@@ -147,7 +200,7 @@ export function SkyView() {
   const h = skyHeader(d)
   const range = fig!.range
   return (
-    <div ref={root} className="ph-col4" style={{ height: '100%', overflowY: 'auto', overflowX: 'hidden', boxSizing: 'border-box', padding: `4px ${PAD}px 8px`,
+    <div ref={root} className="ph-col4" style={{ height: '100%', overflowY: 'auto', overflowX: 'hidden', boxSizing: 'border-box', padding: `4px ${PAD}px ${PAD_B}px`,
       display: 'flex', flexDirection: 'column', fontSize: 13, lineHeight: 1.3, color: C.text }}>
       {/* clear of the host's full-screen button: "Exact numbers" sat under it (F3) */}
       <div className="ph-row8" style={{ display: 'flex', alignItems: 'center', minHeight: 40, paddingRight: HOST_CORNER_PX - PAD }}>
@@ -157,7 +210,7 @@ export function SkyView() {
       <div data-captions aria-live={live} className="ph-grid3">
         {exact ? <ExactBlock d={d} /> : <Caption d={d} />}
       </div>
-      <div role="img" aria-label={skyAlt(d)} style={{ position: 'relative', width: side, height: side, flex: 'none', alignSelf: 'center' }}>
+      <div ref={plotBox} role="img" aria-label={skyAlt(d)} style={{ position: 'relative', width: side, height: side, flex: 'none', alignSelf: 'center' }}>
         <div ref={ref} style={{ width: '100%', height: '100%' }} />
         <div ref={overlay} style={{ position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, pointerEvents: 'none', overflow: 'hidden' }} />
       </div>

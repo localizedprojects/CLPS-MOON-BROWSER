@@ -262,6 +262,29 @@ void main() {
     });
   }
 
+  // 1.13.3 browser check: the wide pane's "Where to look" frame (397 x 532 at
+  // 1440 x 900, 597 x 604 at 1920 x 1080) was shorter than its content (to
+  // 593 and 722), which hid the "Paths over the period" toggle and the key
+  // line in its scroll area. The chart now fits its plot to the height left
+  // (SkyView.tsx skyFitLimit, at least skyFitMinSide), and the frame is never
+  // shorter than that smallest plot and the rest need: 220 px measured at the
+  // narrowest wide frame (392 to 397 px), 202 at 597, and 17 for a caption
+  // line that wraps during Play.
+  for (final size in const [Size(1440, 900), Size(1920, 1080), Size(1366, 768)]) {
+    testWidgets('${size.width.round()}x${size.height.round()}: the wide pane\'s Where to look frame holds the smallest fitted plot and the rest', (tester) async {
+      await showMe(tester, size);
+      hubOf(tester).setSimpleView(true);
+      await tester.pump();
+      final where = tester.getRect(chart(whereChartLabel));
+      expect(where.height, greaterThanOrEqualTo(skyWideMinHeight() - 0.5));
+      expect(skyWideMinHeight(), greaterThanOrEqualTo(skyFitMinSide + 220 + 17));
+      expect(skyWideMinHeight(exact: true), skyWideMinHeight() + 200);
+      expect(tester.takeException(), isNull);
+      hubOf(tester).setSimpleView(false);
+      await done(tester);
+    });
+  }
+
   // side pane (1700: about 1172 px, over skyTimeWideWidth)
   for (final size in const [Size(390, 844), Size(844, 390), Size(1400, 900), Size(1700, 1000)]) {
     final name = '${size.width.round()}x${size.height.round()}';
@@ -376,7 +399,7 @@ void main() {
     for (final (simple, label) in const [(false, skyChartLabel), (true, whereChartLabel)]) {
       hubOf(tester).setSimpleView(simple);
       await tester.pump();
-      expect(tester.getRect(chart(label)).height, greaterThanOrEqualTo(240), reason: simple ? 'Simple' : 'classic');
+      expect(tester.getRect(chart(label)).height, greaterThanOrEqualTo(simple ? skyWideMinHeight() - 0.5 : 240), reason: simple ? 'Simple' : 'classic');
       expect(tester.takeException(), isNull);
     }
     if (state.playing) state.togglePlay();

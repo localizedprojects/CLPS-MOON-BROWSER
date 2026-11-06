@@ -17,7 +17,8 @@ import type { PlacedFlag, Span } from './strip'
 import { BAR, buildStrip, buildTimelineExport, DEFAULT_SPAN, flagW, placeFlags, SPANS, spanWindow, stripFlags, stripHeight, stripMargin, windowFor } from './strip'
 import { buildHeights, HEIGHT_NAMES, totalsLine } from './timeline'
 import type { AnswerLine, Glyph, Run } from './timelineAnswer'
-import { answerLines, comingFit, comingMoreText, comingUp, stepBoundary } from './timelineAnswer'
+import { answerLines, comingFitNext, comingMoreText, comingUp, stepBoundary } from './timelineAnswer'
+import type { ComingFitState } from './timelineAnswer'
 import { clickTimeMs, plotAxes, usePlot } from './usePlot'
 import type { PlotlyDiv } from './plotGeom'
 import { C, HOST_CORNER_PX, MONO } from './theme'
@@ -42,15 +43,14 @@ function useWidth() {
   return w
 }
 
-/** A Coming up fit measured with every row drawn: the rows shown, for the frame and rows measured. */
-interface ComingFitState { shown: number; key: string; heights: number[] }
-
 /**
  * The Coming up rows that fit whole below the strip (F1): null while the
  * view measures, with every row and the "more" line drawn (a layout effect,
- * before paint), then the count shown. It is measured again when the frame
- * size, the room above the list, the events or a row's height change, but
- * not again for the same change right after a measure: a change the measure
+ * before paint), then the count shown. It is measured again only when the
+ * frame (its outer width, the rows asked for, the fonts) changes or a row
+ * is drawn at another height than measured, not for new words in a row
+ * (Play changes them on most steps) or a new room above the list, which the
+ * measured heights count again ([comingFitNext]). A change the measure
  * itself makes is kept (1.13.2 browser check: with classic scrollbars every
  * row drawn overflowed the frame, its scrollbar narrowed the rows and the
  * frame, the fit hid the scrollbar again, and the two renders took turns
@@ -58,20 +58,33 @@ interface ComingFitState { shown: number; key: string; heights: number[] }
  * frame keeps its scrollbar's room ([TIMELINE_GUTTER]) and is keyed by its
  * outer width, so a scrollbar coming or going changes neither.
  */
-function useComingFit(listRef: React.RefObject<HTMLElement | null>, rootRef: React.RefObject<HTMLElement | null>, eventsKey: React.RefObject<string>) {
+function useComingFit(listRef: React.RefObject<HTMLElement | null>, rootRef: React.RefObject<HTMLElement | null>, count: React.RefObject<number>) {
   const [fit, setFit] = useState<ComingFitState | null>(null)
   // the frame and rows a measure was last started for
   const measuredFor = useRef('')
   const [, setTick] = useState(0)
-  // a frame resize that keeps the width (Flutter's layout, full screen and back) and late fonts re-check it
+  const [fonts, setFonts] = useState(0)
+  // a frame resize that keeps the width (Flutter's layout, full screen and back) re-checks it
   useEffect(() => {
     const f = () => setTick((v) => v + 1)
     window.addEventListener('resize', f)
     window.addEventListener('ph-settle', f)
-    void document.fonts?.ready.then(f)
     return () => {
       window.removeEventListener('resize', f)
       window.removeEventListener('ph-settle', f)
+    }
+  }, [])
+  // late fonts measure it again (the fallback font wraps the rows differently)
+  useEffect(() => {
+    const set = document.fonts
+    if (!set) return
+    let live = true
+    const f = () => { if (live) setFonts((v) => v + 1) }
+    void set.ready.then(f)
+    set.addEventListener?.('loadingdone', f)
+    return () => {
+      live = false
+      set.removeEventListener?.('loadingdone', f)
     }
   }, [])
   useLayoutEffect(() => {
@@ -81,18 +94,15 @@ function useComingFit(listRef: React.RefObject<HTMLElement | null>, rootRef: Rea
     // from the first row's top: the "Coming up" heading above it stays
     const top = ol.getBoundingClientRect().top - root.getBoundingClientRect().top + root.scrollTop
     const room = root.clientHeight - PAD_B - top
-    const key = `${Math.round(room)}|${root.offsetWidth}|${eventsKey.current}`
+    const frame = `${root.offsetWidth}|${count.current}|${fonts}`
     const heights = Array.prototype.map.call(list.querySelectorAll('li'), (li: HTMLElement) => li.offsetHeight) as number[]
-    if (!fit) {
-      const more = list.querySelector('[data-more]') as HTMLElement | null
-      setFit({ shown: comingFit(room, heights, more ? more.offsetHeight : 0), key, heights })
-      return
+    const more = fit ? null : list.querySelector('[data-more]') as HTMLElement | null
+    const next = comingFitNext(fit, { room, frame, heights, moreH: more ? more.offsetHeight : 0 }, measuredFor.current)
+    if (next.kind === 'fit') setFit(next.fit)
+    else if (next.kind === 'measure') {
+      measuredFor.current = next.pass
+      setFit(null)
     }
-    if (fit.key === key && heights.every((h, i) => h === fit.heights[i])) return
-    const now = `${key}|${heights.join(',')}`
-    if (now === measuredFor.current) return // what the last measure itself changed
-    measuredFor.current = now
-    setFit(null)
   })
   return fit
 }
@@ -175,8 +185,9 @@ export function TimelineView() {
   const [plotVer, setPlotVer] = useState(0)
   const rootRef = useRef<HTMLDivElement | null>(null)
   const comingRef = useRef<HTMLDivElement | null>(null)
-  const eventsKey = useRef('')
-  const fit = useComingFit(comingRef, rootRef, eventsKey)
+  // the rows asked for (3 on a phone, 5 else, fewer near the end of the dates)
+  const eventCount = useRef(0)
+  const fit = useComingFit(comingRef, rootRef, eventCount)
   const range = (m?.data.range ?? [0, 1]) as Run
   // before this view's own cursor ref has filled (it mounts late, e.g. Simple view switched on after
   // the time moved), the newest cursor the page holds: the first window is anchored there (F1)
@@ -225,7 +236,7 @@ export function TimelineView() {
   // all four lines on phones too: the Sun and Earth countdowns ("Sunlight: YES · until …") are the brief's "time remaining"
   const lines = answerLines(d, tNow, true)
   const events = comingUp(d, tNow, narrow ? 3 : 5)
-  eventsKey.current = events.map((e) => `${e.t}${e.key}${e.text}`).join('|')
+  eventCount.current = events.length
   // the rows that fit whole below the strip, and a line for the rest (all of them, and the line, while measuring)
   const shownEvents = fit ? events.slice(0, fit.shown) : events
   const hidden = fit ? events.length - shownEvents.length : events.length

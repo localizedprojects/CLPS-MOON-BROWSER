@@ -246,6 +246,50 @@ export function comingFit(room: number, rowHeights: readonly number[], moreH: nu
   return k
 }
 
+/**
+ * A Coming up fit measured with every row drawn: the rows [shown], for the
+ * [frame] (outer width, rows asked for, fonts) and [room] it was counted for,
+ * every row's height and the "more" line's height.
+ */
+export interface ComingFitState { shown: number; frame: string; room: number; heights: number[]; moreH: number }
+
+/**
+ * What a layout pass reads: the [room] below the list's top, the [frame] key,
+ * the heights of the rows drawn (every row while measuring) and, while
+ * measuring, the "more" line's height.
+ */
+export interface ComingPass { room: number; frame: string; heights: readonly number[]; moreH: number }
+
+/** What the view does after a layout pass: nothing, show [fit], or measure again (every row drawn) for [pass]. */
+export type ComingFitNext = { kind: 'keep' } | { kind: 'fit'; fit: ComingFitState } | { kind: 'measure'; pass: string }
+
+/**
+ * The next step of the Coming up fit after a layout pass, given the [fit]
+ * (null: this pass drew every row to measure them) and the pass a measure
+ * was last started for ([measuredFor]). Measuring costs two extra renders
+ * with every row drawn, so it is done only when the rows that fit could
+ * change and the measured heights cannot tell: another frame (outer width,
+ * rows asked for, fonts) or a row drawn at another height than measured.
+ * A row's new words alone (Play changes them on most steps) are not
+ * measured, nor is a new room (the answer lines above wrapping
+ * differently): the measured heights count the rows again. A change the
+ * last measure itself made is kept, never measured again (1.13.2 browser
+ * check: with classic scrollbars a measure and the fit took turns until
+ * React stopped them, error #185).
+ */
+export function comingFitNext(fit: ComingFitState | null, pass: ComingPass, measuredFor: string): ComingFitNext {
+  const room = Math.round(pass.room)
+  if (!fit) return { kind: 'fit', fit: { shown: comingFit(room, pass.heights, pass.moreH), frame: pass.frame, room, heights: [...pass.heights], moreH: pass.moreH } }
+  if (pass.frame === fit.frame && pass.heights.every((h, i) => h === fit.heights[i])) {
+    if (room === fit.room) return { kind: 'keep' }
+    const shown = comingFit(room, fit.heights, fit.moreH)
+    return shown === fit.shown ? { kind: 'keep' } : { kind: 'fit', fit: { ...fit, room, shown } }
+  }
+  const key = `${pass.frame}|${room}|${pass.heights.join(',')}`
+  if (key === measuredFor) return { kind: 'keep' } // what the last measure itself changed
+  return { kind: 'measure', pass: key }
+}
+
 /** The line under the [shown] Coming up rows that fit, for the [hidden] ones left out (it starts with the number). */
 export function comingMoreText(hidden: number, shown: number): string {
   const them = hidden === 1 ? 'it' : 'them'

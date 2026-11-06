@@ -5,7 +5,8 @@
  */
 import { describe, expect, it } from 'vitest'
 import timelineSrc from './TimelineView.tsx?raw'
-import { comingFit, comingMoreText } from './timelineAnswer'
+import type { ComingFitState, ComingPass } from './timelineAnswer'
+import { comingFit, comingFitNext, comingMoreText } from './timelineAnswer'
 
 /** A Coming up row (48 px target) and the "N more" line, as Chromium draws them. */
 const ROW = 48
@@ -59,7 +60,9 @@ describe('TimelineView keeps Coming up inside its frame', () => {
   it('lists only the rows that fit, measured with every row drawn, and a line for the rest', () => {
     expect(timelineSrc).toMatch(/\{shownEvents\.map\(\(ev\) =>/)
     expect(timelineSrc).not.toMatch(/\{events\.map\(/)
-    expect(timelineSrc).toMatch(/comingFit\(room, heights, more \? more\.offsetHeight : 0\)/)
+    // the "more" line is measured while every row is drawn
+    expect(timelineSrc).toMatch(/const more = fit \? null : list\.querySelector\('\[data-more\]'\)/)
+    expect(timelineSrc).toMatch(/comingFitNext\(fit, \{ room, frame, heights, moreH: more \? more\.offsetHeight : 0 \}, measuredFor\.current\)/)
     expect(timelineSrc).toMatch(/<div data-more /)
     // measured again on a frame resize that keeps the width (Flutter's layout, full screen)
     expect(timelineSrc).toMatch(/window\.addEventListener\('resize', f\)/)
@@ -72,13 +75,70 @@ describe('TimelineView keeps Coming up inside its frame', () => {
     // the frame keeps the scrollbar's room and is keyed by its outer width
     expect(timelineSrc).toMatch(/const TIMELINE_GUTTER = 'stable'/)
     expect(timelineSrc).toMatch(/overflowY: 'auto', scrollbarGutter: TIMELINE_GUTTER/)
-    expect(timelineSrc).toMatch(/const key = `\$\{Math\.round\(room\)\}\|\$\{root\.offsetWidth\}\|/)
+    expect(timelineSrc).toMatch(/const frame = `\$\{root\.offsetWidth\}\|/)
     expect(timelineSrc).not.toMatch(/root\.clientWidth/)
     // and a change the measure itself made is kept rather than measured again
-    expect(timelineSrc).toMatch(/if \(now === measuredFor\.current\) return/)
-    expect(timelineSrc).toMatch(/measuredFor\.current = now\s+setFit\(null\)/)
+    expect(timelineSrc).toMatch(/measuredFor\.current = next\.pass\s+setFit\(null\)/)
+    const F = '563|3|1'
+    const measured = comingFitNext(null, { room: 140, frame: F, heights: [48, 48, 48], moreH: 22 }, '')
+    expect(measured).toMatchObject({ kind: 'fit', fit: { shown: 2 } })
+    // the scrollbar of the measure (every row drawn) gone, the rows drawn another height: measured once more...
+    const pass: ComingPass = { room: 140, frame: F, heights: [47, 47], moreH: 0 }
+    const again = comingFitNext((measured as { fit: ComingFitState }).fit, pass, '')
+    expect(again.kind).toBe('measure')
+    // ...and not again for the same change
+    expect(comingFitNext((measured as { fit: ComingFitState }).fit, pass, (again as { pass: string }).pass)).toEqual({ kind: 'keep' })
   })
 })
+
+// 1.13.3: the fit was measured again (two extra renders with every row
+// drawn) on every cursor change that changed a row's words, i.e. on most
+// steps of Play. Now only what can change the rows that fit measures again.
+describe('Coming up is not measured again for new words during Play', () => {
+  const F = '563|5|1'
+  const fitted = (room: number) => {
+    const r = comingFitNext(null, { room, frame: F, heights: [48, 48, 48, 48, 48], moreH: 22 }, '')
+    if (r.kind !== 'fit') throw new Error('a measuring pass gives a fit')
+    return r.fit
+  }
+  it('keeps the fit while the rows drawn are as tall as measured (their words changing)', () => {
+    const fit = fitted(160) // 2 rows and the line
+    expect(fit.shown).toBe(2)
+    expect(TimelineSrcHasNoWordsKey()).toBe(true)
+    for (let step = 0; step < 50; step++) {
+      expect(comingFitNext(fit, { room: 160, frame: F, heights: [48, 48], moreH: 0 }, '')).toEqual({ kind: 'keep' })
+    }
+  })
+  it('counts a new room again from the measured heights, without measuring', () => {
+    const fit = fitted(160)
+    // the answer lines above wrap differently: more room, one more row
+    const r = comingFitNext(fit, { room: 230, frame: F, heights: [48, 48], moreH: 0 }, '')
+    expect(r).toEqual({ kind: 'fit', fit: { ...fit, room: 230, shown: 4 } })
+    // the same rows: nothing to do
+    expect(comingFitNext(fit, { room: 161, frame: F, heights: [48, 48], moreH: 0 }, '')).toEqual({ kind: 'keep' })
+    // all of them (no "more" line): every measured row
+    expect(comingFitNext(fit, { room: 240, frame: F, heights: [48, 48], moreH: 0 }, '')).toMatchObject({ kind: 'fit', fit: { shown: 5 } })
+  })
+  it('measures again for another frame, other rows asked for, late fonts or a row drawn at another height', () => {
+    const fit = fitted(160)
+    for (const pass of [
+      { room: 160, frame: '600|5|1', heights: [48, 48], moreH: 0 }, // outer width
+      { room: 160, frame: '563|4|1', heights: [48, 48], moreH: 0 }, // rows asked for (the end of the dates)
+      { room: 160, frame: '563|5|2', heights: [48, 48], moreH: 0 }, // fonts loaded
+      { room: 160, frame: F, heights: [48, 65], moreH: 0 }, // a row's words wrap to three lines
+    ]) {
+      const r = comingFitNext(fit, pass, '')
+      expect(r.kind, JSON.stringify(pass)).toBe('measure')
+      // a measure that changes nothing more is not started again
+      expect(comingFitNext(fit, pass, (r as { pass: string }).pass)).toEqual({ kind: 'keep' })
+    }
+  })
+})
+
+/** The fit is keyed by the number of rows, not their words. */
+function TimelineSrcHasNoWordsKey() {
+  return !/e\.text\}`\)\.join/.test(timelineSrc) && /eventCount\.current = events\.length/.test(timelineSrc)
+}
 
 // The browser check's widths, measured in Chromium on the web build (Malapert
 // peak, Simple view, the default dates): the frame's width and height, the

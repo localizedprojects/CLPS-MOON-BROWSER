@@ -77,91 +77,89 @@ const _info = [
 ];
 
 /// The overlaps the placement never accepts (its hard keeps, 1.9.2: 30 frames
-/// at the lander's 2 m, a lunar eclipse in a short view): the rest of [_cats]
-/// are soft keeps a box may go over where no place clear of them fits, and
-/// the chip's last resort (top left, over a body, where no place is clear).
-const _hard = ['other callout', 'readout', 'legend', 'glyph core', 'crosshair', 'chevron words', 'other marker'];
+/// at the lander's 2 m, a lunar eclipse in a short view; none since 1.13.3,
+/// whose last resort there is the Sun's line, else both glyphs, alone): the
+/// rest of [_cats] are soft keeps a box may go over where no place clear of
+/// them fits, and the chip's last resort (top left, over a body, where no
+/// place is clear). The controls are hard keeps since 1.13.3 (the Sun's words
+/// under the "2 m" viewpoint control at text x2, full screen).
+const _hard = [
+  'controls',
+  'other callout',
+  'readout',
+  'legend',
+  'glyph core',
+  'crosshair',
+  'chevron words',
+  'other marker',
+];
 
 /// A box farther than this from its own glyph is counted 'far' (1.11.0: 97 dp
 /// under the glyph, W-V10).
 const _farPx = 48.0;
 
 /// Frames with any overlap, then per category ([_cats], and 'strip on
-/// controls'), at each height: the ceilings (1.11.2, measured 2026-11-02;
-/// 1.11.1's in the comments; 1.11.3, measured 2026-11-03, at 2 m). To stay
+/// controls'), at each height: the ceilings (1.13.3, measured 2026-11-06;
+/// 1.13.2's in the comments; the earlier ones and why in git). To stay
 /// near a minute, raised heights sample every fourth body position (200 m from
 /// the first, 1 km the second, 5 km the third; 1 km and 5 km lay out alike,
 /// the chip's digits being Plex Mono): LANDER_GATE_FULL=1 paints each in full
 /// (no ceilings then). The lander's 2 m is always painted in full.
 const _ceiling = <String, Map<String, int>>{
-  // 2 m: the 1.9.2 gate's 30 hard frames (a lunar eclipse, 392 x 120, glyph core and crosshair); the
-  // controls (D21, D22) are soft keeps. 1.11.2 left every 2 m count as it was. 1.11.3 keeps the bottom
-  // strip off the controls (strip on controls 15,120 to 0: the legend ran under the relief switch in
-  // 352.7 x 176 and 392 x 168, under the viewpoint control and the expand button in 392 x 120, and the
-  // readout under the relief switch in 352.7 x 176): the two-line legend moved in left of them takes sky
-  // the callouts had beside it. Raised from 1.11.2 for that alone (1.11.2's in the comments): in 392 x 120 (any
-  // +222, controls +158, disc +78, glyph edge +4), whose 30 dp legend cannot fit in the 16 dp under the
-  // 48 dp controls, so it moves 104 dp in over the place left of it; and 392 x 168 (any +14, glyph edge
-  // +13, controls +2, disc +1). 352.7 x 176 and every raised count are unchanged (the narrower readout
-  // is left out exactly where it was)
+  // 1.13.3 (measured 2026-11-06): the controls are hard keeps. A placement whose callouts keep clear
+  // of them as soft keeps is as before; otherwise it is placed again with them hard, the words
+  // shortened before a box goes over the viewpoint's chip or the other body's disc, and, with no
+  // words fitting, both glyphs alone. Every count is as before or lower (1.13.2's in the comments):
+  // no frame left over a control (2 m: 1,111), none hard (the 392 x 120 eclipse's 30 at 2 m), and
+  // fewer over a disc or the chip; more words are cut in the short and small views.
   '2 m': {
-    'any': 2244, // 2008
-    'hard': 30,
-    'controls': 1111, // 951
-    'disc': 868, // 789
-    'glyph core': 30,
-    'glyph edge': 384, // 367
-    'crosshair': 30,
-    'strip on controls': 0, // 15120
+    'any': 1163, // 2244
+    'hard': 0, // 30
+    'controls': 0, // 1111
+    'disc': 805, // 868
+    'glyph core': 0, // 30
+    'glyph edge': 364, // 384
+    'crosshair': 0, // 30
+    'strip on controls': 0,
   },
-  // raised (D22), 1.11.2: the callouts placed first, as at 2 m, then the chip clear of them, the bodies
-  // and the crosshair, else the callouts again keeping off the chip in its fallback place (1.11.1: the
-  // chip first, a soft keep given up before the other body's disc). What is left: a callout over the
-  // chip or the controls where the only places clear of them are over the other body's disc or need
-  // shorter words (the short 392 x 120 view and zoomed-in pairs, as at 2 m); the chip over the crosshair
-  // in the 392 x 120 view, whose 24 dp band under the compass strip holds it, and over a body there and,
-  // zoomed in (hfov 10), where a big disc leaves the 352.7 x 176 and 392 x 168 views no place. Raised
-  // from 1.11.1: disc, 200 m +4 and 5 km +12 (full grid 643 to 665): in every frame added (392 x 120,
-  // hfov 45 and 90, a box over a disc in the compass strip) 1.11.1 had a callout over the chip and the
-  // chip on the crosshair
   '200 m': {
-    'any': 936, // 1.11.1: 2730
-    'hard': 6,
-    'chip': 228, // 384
-    'controls': 248, // 310
-    'disc': 149, // 145
-    'glyph core': 6,
-    'glyph edge': 96, // 129
-    'crosshair': 6,
-    'chip on body': 249, // 741
-    'chip on crosshair': 342, // 2310
-    'strip on controls': 0, // 1.11.2: 3673
+    'any': 859, // 936
+    'hard': 0, // 6
+    'chip': 163, // 228
+    'controls': 0, // 248
+    'disc': 148, // 149
+    'glyph core': 0, // 6
+    'glyph edge': 86, // 96
+    'crosshair': 0, // 6
+    'chip on body': 249,
+    'chip on crosshair': 342,
+    'strip on controls': 0,
   },
   '1 km': {
-    'any': 980, // 2716
-    'hard': 6,
-    'chip': 254, // 349
-    'controls': 225, // 271
-    'disc': 184, // 184
-    'glyph core': 6,
-    'glyph edge': 70, // 72
-    'crosshair': 6,
-    'chip on body': 324, // 777
-    'chip on crosshair': 240, // 2355
-    'strip on controls': 0, // 1.11.2: 3677
+    'any': 873, // 980
+    'hard': 0, // 6
+    'chip': 210, // 254
+    'controls': 0, // 225
+    'disc': 169, // 184
+    'glyph core': 0, // 6
+    'glyph edge': 54, // 70
+    'crosshair': 0, // 6
+    'chip on body': 324,
+    'chip on crosshair': 240,
+    'strip on controls': 0,
   },
   '5 km': {
-    'any': 849, // 2379
-    'hard': 9,
-    'chip': 207, // 325
-    'controls': 202, // 224
-    'disc': 181, // 169
-    'glyph core': 9,
-    'glyph edge': 59, // 68
-    'crosshair': 9,
-    'chip on body': 228, // 657
-    'chip on crosshair': 234, // 2040
-    'strip on controls': 0, // 1.11.2: 3390
+    'any': 763, // 849
+    'hard': 0, // 9
+    'chip': 179, // 207
+    'controls': 0, // 202
+    'disc': 175, // 181
+    'glyph core': 0, // 9
+    'glyph edge': 46, // 59
+    'crosshair': 0, // 9
+    'chip on body': 228,
+    'chip on crosshair': 234,
+    'strip on controls': 0,
   },
 };
 

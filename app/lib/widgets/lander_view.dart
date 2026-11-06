@@ -1535,9 +1535,10 @@ class LanderPainter extends CustomPainter {
   /// The boxes of the controls over the view (the viewpoint control, the
   /// expand button, the relief switch: [LanderViewPanel.viewpointRect],
   /// [LanderViewPanel.expandRect], [LanderViewPanel.reliefRect]): the
-  /// callouts keep off them where a place that fits does, and the elevation
-  /// scale's and level's labels and the bottom strip ([bottomStrip],
-  /// [stripRight]; 1.11.3) always.
+  /// callouts keep off them at every size and text scale, their words
+  /// shortened down to the glyph alone where nothing else fits (1.13.3), and
+  /// the elevation scale's and level's labels and the bottom strip
+  /// ([bottomStrip], [stripRight]; 1.11.3) always.
   final List<Rect> reserve;
 
   /// The raised viewpoint's height text ("1 km", D22), null at the lander's
@@ -1743,6 +1744,11 @@ class LanderPainter extends CustomPainter {
   /// Radius (px) of the callout glyph's body; a disc this small or smaller
   /// is drawn under its glyph.
   static const double glyphR = 9;
+
+  /// How many of a callout's [calloutPlace] prefer sets, the first ones, keep
+  /// off the other body's disc and leader: a box whose cost is this or more
+  /// goes over them (or fits nowhere).
+  static const spotSets = 3;
 
   /// The top of the view a raised viewpoint's default pitch keeps the Sun's
   /// and Earth's band under (D22, [landerDefaultPitchDeg]): the compass
@@ -2220,7 +2226,8 @@ class LanderPainter extends CustomPainter {
       bool short = false,
       SkyBody? merged,
       List<List<Rect>> prefer = const [],
-      Map<Object, Map<Rect, List<Rect>>>? memo}) {
+      Map<Object, Map<Rect, List<Rect>>>? memo,
+      bool spotHard = false}) {
     if (a == null) return null;
     final color = isSun ? PH.sun : PH.earth;
     final all = calloutLines(b, isSun), up = all[1].startsWith('in view') || all[1].startsWith('partly hidden');
@@ -2310,7 +2317,8 @@ class LanderPainter extends CustomPainter {
       final (:box, :fits, :cost) = fitsAt(skip);
       return _Callout(
         box: box,
-        fits: fits,
+        // ([spotHard]: a box over the other body's disc is no fit, the words are shortened first)
+        fits: fits && !(spotHard && cost >= spotSets),
         cost: cost,
         words: words,
         leader: leader,
@@ -2609,7 +2617,11 @@ class LanderPainter extends CustomPainter {
     // chevron's tap target is ([preferOf]). Placed with [read] and [strip] (each body's callout, the
     // readout left out where that gives them their place)
     final read0 = read, strip0 = strip;
-    (({Rect? legend, Rect? readout}), TextPainter?, (_Callout?, _Callout?)) placeAll(Rect? chipBox) {
+    // [firm]: hard keeps besides [avoid] (the controls, [placeAll]); [spotHard]: no box over the other
+    // body's disc either ([spotSets]: the words shortened first); [bare]: where no words fit, both
+    // glyphs alone at any text scale (as with text scaled up)
+    (({Rect? legend, Rect? readout}), TextPainter?, (_Callout?, _Callout?)) placeOnce(Rect? chipBox,
+        {List<Rect> firm = const [], bool spotHard = false, bool bare = false}) {
       var read = read0, strip = strip0;
       final soft = [...taps, ...reserve, ?chipBox];
       List<Rect> markerOf(bool isSun) => [
@@ -2673,14 +2685,16 @@ class LanderPainter extends CustomPainter {
         _Callout? sunAt({int? lines, bool word = false, bool short = false, SkyBody? merged, Rect? clearOf}) =>
             sun == null
                 ? null
-                : _callout(canvas, v, sunA, sun!, true, [?earthGlyph, ?clearOf], under, reticle, sunKeep,
-                    lines: lines, word: word, short: short, merged: merged, prefer: merged != null ? sunMergedPrefer : sunPrefer, memo: memo);
+                : _callout(canvas, v, sunA, sun!, true, [?earthGlyph, ?clearOf, ...firm], under, reticle, sunKeep,
+                    lines: lines, word: word, short: short, merged: merged, prefer: merged != null ? sunMergedPrefer : sunPrefer, memo: memo,
+                    spotHard: spotHard);
         final s = sunAt();
         _Callout? e({int? lines, bool word = false, bool short = false, bool first = false, _Callout? by}) =>
             earth == null
                 ? null
-                : _callout(canvas, v, earthA, earth!, false, [if (!first) ?(by ?? s)?.box, ?sunGlyph], under,
-                    reticle, earthKeep, lines: lines, word: word, short: short, prefer: earthPrefer, memo: memo);
+                : _callout(canvas, v, earthA, earth!, false, [if (!first) ?(by ?? s)?.box, ?sunGlyph, ...firm], under,
+                    reticle, earthKeep, lines: lines, word: word, short: short, prefer: earthPrefer, memo: memo,
+                    spotHard: spotHard);
         final two = e();
         // of the pairs that fit, the first one clearest of the soft keeps (the
         // [calloutPlace] prefer sets each box keeps clear of; 1.9.2: a box over
@@ -2734,6 +2748,25 @@ class LanderPainter extends CustomPainter {
 
             return (lone(sun, true, s, sunAt), lone(earth, false, two, e));
           }
+          if (bare && !s.fits) {
+            // ([bare]) no place for the Sun's words in full: its position line alone, else its glyph
+            // alone, Earth's words clear of what is left, as far as they fit
+            for (final short in [false, true]) {
+              final s1 = sunAt(lines: 1, short: short)!;
+              if (!s1.fits) continue;
+              for (final lines in [null, 1]) {
+                final e1 = e(lines: lines, by: s1)!;
+                if (e1.fits) return (s1, e1);
+              }
+              return (s1, e(lines: 0));
+            }
+            final s0 = sunAt(lines: 0);
+            for (final lines in [null, 1]) {
+              final e1 = e(lines: lines, first: true)!;
+              if (e1.fits) return (s0, e1);
+            }
+            return (s0, e(lines: 0));
+          }
           if (two.fits) return (s, two);
           // no place for Earth's words clear of the Sun's (a lunar eclipse puts both
           // at one spot; a short view): its position line alone (no status word),
@@ -2755,7 +2788,7 @@ class LanderPainter extends CustomPainter {
           if (s.fits) return (s, e(lines: 0));
           // with text scaled up (1.13.2: at x2 in a 344 x 168 phone view, wide-angle, the merged
           // callout took most of the view): the Sun's position line alone, else both glyphs alone
-          if (scaledUp) {
+          if (scaledUp || bare) {
             for (final short in [false, true]) {
               final s1 = sunAt(lines: 1, short: short)!;
               if (s1.fits) return (s1, e(lines: 0));
@@ -2806,6 +2839,31 @@ class LanderPainter extends CustomPainter {
         }
       }
       return (strip, read, placed);
+    }
+
+    // no callout over the controls (1.13.3, IM-1 Odysseus full screen at text x2 after "Face the
+    // Sun": the Sun's words ran under the "2 m" viewpoint control, which hid "-7.6°"). Where they
+    // keep clear of them as soft keeps the placement is as before; otherwise placed again with them
+    // as hard keeps: the words shortened rather than a box going over the viewpoint's chip or the
+    // other body's disc, then over the chip rather than the disc, then over the disc (the soft keeps'
+    // order, [preferOf])
+    bool onControls((_Callout?, _Callout?) c) => [?c.$1?.box, ?c.$2?.box].any((b) => reserve.any(b.overlaps));
+    bool allFit((_Callout?, _Callout?) c) => [c.$1, c.$2].every((k) => k == null || k.fits);
+    (({Rect? legend, Rect? readout}), TextPainter?, (_Callout?, _Callout?)) placeAll(Rect? chipBox) {
+      final soft = placeOnce(chipBox);
+      if (!onControls(soft.$3)) return soft;
+      (({Rect? legend, Rect? readout}), TextPainter?, (_Callout?, _Callout?))? last;
+      for (final (firm, spotHard) in [
+        if (chipBox != null) ([...reserve, chipBox], true),
+        (reserve, true),
+        (reserve, false),
+      ]) {
+        final r = placeOnce(chipBox, firm: firm, spotHard: spotHard, bare: !spotHard);
+        if (!onControls(r.$3) && (allFit(r.$3) || !spotHard)) return r;
+        if (!onControls(r.$3)) last ??= r;
+      }
+      // (none clear of them: a tiny view; the last resort as before)
+      return last ?? soft;
     }
 
     // the callouts first, as at the lander's height, then the viewpoint's chip clear of their boxes,

@@ -2012,7 +2012,10 @@ void main() {
       final r = _raisedFrame(phone, LanderViewPanel.controlsIn(phone, inline: true, built: true).all, 17,
           hfov: 10, pitch: -30, eye: '200 m', seeThrough: true);
       expect(r.chip!.overlaps(LanderPainter.reticleBox(phone)), isFalse, reason: 'the chip ${r.chip} off the crosshair');
-      expect(r.chip!.top, greaterThan(LanderPainter.reticleBox(phone).bottom), reason: '${r.chip}: under it');
+      // (1.13.3: the callouts keep off the controls, so the Sun's words go up over the compass strip and
+      // the chip has its first place, under the strip at the left, clear of them)
+      expect(r.chip!.top > LanderPainter.reticleBox(phone).bottom || r.chip!.top == LanderPainter.compassH + 6, isTrue,
+          reason: '${r.chip}: under it, or in its first place');
       expect([...r.callouts, ...r.keepOff].where(r.chip!.overlaps), isEmpty, reason: '${r.chip}: clear');
       var above = 0;
       for (final size in const [Size(352.7, 176), Size(392, 168), Size(360, 223)]) {

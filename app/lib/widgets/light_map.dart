@@ -1892,7 +1892,8 @@ List<Offset> layoutArrowLabels(
 }
 
 /// The arrow-label spots of the last layout, kept by the map between frames
-/// (see [layoutArrowLabels]); a new site, view or map size starts afresh.
+/// (see [layoutArrowLabels]); a new site, view, map size or on-screen part
+/// of the map starts afresh.
 class ArrowLabelMemory {
   Object? _key;
 
@@ -1983,7 +1984,14 @@ class LightFramePainter extends CustomPainter {
   /// map (null: all of it); the Sun and Earth labels keep to it.
   final Rect? shownArea;
 
-  /// The Sun and Earth label boxes of the last paint (for tests).
+  /// Tests: true to record each paint of the map in [lastArrowLabels] (left
+  /// as it was when false, so a release paint builds nothing).
+  @visibleForTesting
+  static bool debugRecord = false;
+
+  /// Tests: the Sun and Earth label boxes of the last paint of a map with
+  /// [debugRecord] on (a snapshot, without site names, leaves it as it was).
+  @visibleForTesting
   static List<Rect> lastArrowLabels = const [];
 
   /// Keeps each arrow label on its spot from frame to frame (Play).
@@ -2164,7 +2172,10 @@ class LightFramePainter extends CustomPainter {
     // arrow labels sit just past their heads, inside the canvas and clear of
     // both arrows, both heads, the site and the other label, so they never
     // overprint when the Sun and Earth point almost the same way
-    labelMemory?.keyedTo((selected.id, closeUp, size, view.ext));
+    // (and a new on-screen part: Play hides the bars, so the labels kept to
+    // the top of the map above the time bar settle by their heads once,
+    // rather than being remembered there for the whole run)
+    labelMemory?.keyedTo((selected.id, closeUp, size, view.ext, shownArea));
     final ats = layoutArrowLabels(
       memory: labelMemory,
       arrows: [for (final a in arrows) (from: p + a.dir * 12, tip: a.tip, size: Size(a.label.width + 4, a.label.height))],
@@ -2184,7 +2195,7 @@ class LightFramePainter extends CustomPainter {
       ?poleBadge,
       for (var i = 0; i < arrows.length; i++) boxAt(arrows[i].label, ats[i]),
     ];
-    lastArrowLabels = [for (var i = 0; i < arrows.length; i++) boxAt(arrows[i].label, ats[i])];
+    if (debugRecord && siteNames) lastArrowLabels = [for (var i = 0; i < arrows.length; i++) boxAt(arrows[i].label, ats[i])];
 
     // every marker on the canvas is kept clear of the neighbours' names
     for (final st in sites) {

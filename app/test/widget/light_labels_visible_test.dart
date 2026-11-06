@@ -17,7 +17,11 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   late AppState state;
 
-  setUpAll(loadPlexFonts);
+  setUpAll(() async {
+    await loadPlexFonts();
+    LightFramePainter.debugRecord = true;
+  });
+  tearDownAll(() => LightFramePainter.debugRecord = false);
   setUp(() async {
     state = AppState();
     await state.init();

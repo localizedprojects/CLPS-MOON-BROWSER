@@ -1016,6 +1016,58 @@ void main() {
     });
   });
 
+  group('arrow labels and the part of the map on screen (1.13.2 review)', () {
+    // paused on a phone the labels keep to the top of the map above the time
+    // bar; Play then hides the bars. Remembered there, a label stayed far
+    // from its head for the whole run and later had to hop (IM-1 Odysseus,
+    // 2026-11-14 06:00 UTC); a new on-screen part starts the memory afresh
+    testWidgets('labels remembered in the top part settle by their heads once the whole map shows', (tester) async {
+      final hill = (await tester.runAsync(() => createTestImage(width: 8, height: 8)))!;
+      addTearDown(hill.dispose);
+      const site = Site(
+          id: 's', name: 'Spot', short: 'Spot', group: 'illumination', kind: 'k', confidence: 'c', notes: '',
+          lat: -89.5, lon: 0, terrainHeightM: 0);
+      const side = 354.0, ext = 100000.0, k = side / ext;
+      final (x, y) = latLonToXY(site.lat, site.lon);
+      final view = (x0: x - side / 2 / k, y0: y + side / 2 / k, ext: ext);
+      Map<String, dynamic> body(double az) => {'az': az, 'el': 4.0, 'hz': 0.0, 'rho': 0.27, 'frac': 1.0, 'visible': true};
+      List<Offset> lay(ArrowLabelMemory m, double az, Rect? shown) {
+        final rec = ui.PictureRecorder();
+        LightFramePainter(
+                hillshade: hill,
+                halfWidthM: 304000,
+                images: null,
+                view: view,
+                sites: const [site],
+                selected: site,
+                now: {'sun': body(az), 'earth': body(az + 25)},
+                closeUp: true,
+                labelMemory: m,
+                shownArea: shown)
+            .paint(Canvas(rec), const Size(side, side));
+        rec.endRecording().dispose();
+        return m.centres;
+      }
+
+      const top = Rect.fromLTRB(0, 0, side, 120);
+      var tried = 0;
+      for (var az = 0.0; az < 360; az += 15) {
+        final fresh = lay(ArrowLabelMemory(), az, null);
+        // only arrows whose labels sit low on the whole map
+        if (fresh.any((c) => c.dy < 150)) continue;
+        tried++;
+        final m = ArrowLabelMemory();
+        final kept = lay(m, az, top);
+        expect(kept.every((c) => c.dy < 120), isTrue, reason: 'az $az: kept to the top part, $kept');
+        // the bars gone: the same arrows, the whole map
+        expect(lay(m, az, null), fresh, reason: 'az $az: settled by the heads');
+        // and from there on remembered as usual
+        expect(lay(m, az, null), fresh);
+      }
+      expect(tried, greaterThan(0));
+    });
+  });
+
   group('arrow labels over the arrows (1.13.1 browser check)', () {
     // while Play runs a label may stay put as the other arrow's head passes
     // under it; drawn after both arrows, its words stay readable on top

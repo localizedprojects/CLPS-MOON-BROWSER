@@ -1579,7 +1579,9 @@ class LanderPainter extends CustomPainter {
   @visibleForTesting
   static ({Rect? legend, Rect? readout})? paintedStrip;
 
-  /// Tests: the "terrain data ends" labels' boxes, as last painted.
+  /// Tests: the "terrain data ends" labels' boxes, as last painted by any
+  /// LanderPainter with [debugRecord] on.
+  @visibleForTesting
   static List<Rect>? paintedDemLabels;
 
   /// Tests: the callouts' text boxes (Sun, Earth) and the elevations the

@@ -1167,6 +1167,7 @@ void main() {
         for (final start in [0.0, 90.0, 180.0, 270.0]) {
           for (final turn in [1.0, -1.0]) {
             final m = ArrowLabelMemory();
+            var last = (centres: <Offset>[], tips: <Offset>[]);
             for (var d = 0.0; d <= 180; d += 3) {
               final sun = start + turn * d;
               final rec = ui.PictureRecorder();
@@ -1192,12 +1193,81 @@ void main() {
                   log.add('Earth $earth°, Sun $sun° (from $start°): ${i == 0 ? 'Earth' : 'Sun'} label $b is ${gap.round()} px '
                       'from its head $t');
                 }
+                // and it gets there in short steps: never more than its
+                // head's move plus a short step (the Play tests' "jump")
+                if (i < last.centres.length) {
+                  final moved = (m.centres[i] - last.centres[i]).distance, head = (t - last.tips[i]).distance;
+                  if (moved > head + arrowLabelStep) {
+                    log.add('Earth $earth°, Sun $sun° (from $start°): ${i == 0 ? 'Earth' : 'Sun'} label jumped '
+                        '${moved.round()} px (head ${head.round()} px)');
+                  }
+                }
               }
+              last = (centres: [...m.centres], tips: [...m.tips]);
             }
           }
         }
       }
       expect(log, isEmpty);
+    });
+
+    // on sunlit ground the blue and amber words alone were close to
+    // unreadable (1.13.2 browser check: Earth 1.13:1, Sun 1.9:1 in their
+    // boxes): each arrow label is drawn on a dark rounded backing
+    testWidgets('each arrow label is drawn on a dark backing that keeps 4.5:1 over white ground', (tester) async {
+      final hill = (await tester.runAsync(() => createTestImage(width: 8, height: 8)))!;
+      addTearDown(hill.dispose);
+      LightFramePainter.debugRecord = true;
+      addTearDown(() => LightFramePainter.debugRecord = false);
+      const site = Site(
+        id: 's',
+        name: 'Spot',
+        short: 'Spot',
+        group: 'illumination',
+        kind: 'k',
+        confidence: 'c',
+        notes: '',
+        lat: -89.5,
+        lon: 0,
+        terrainHeightM: 0,
+      );
+      const side = 560.0, ext = 100000.0, k = side / ext;
+      final (x, y) = latLonToXY(site.lat, site.lon);
+      final view = (x0: x - side / 2 / k, y0: y + side / 2 / k, ext: ext);
+      Map<String, dynamic> body(double az) => {'az': az, 'el': 4.0, 'hz': 0.0, 'rho': 0.27, 'frac': 1.0, 'visible': true};
+      final painter = LightFramePainter(
+        hillshade: hill,
+        halfWidthM: 304000,
+        images: null,
+        view: view,
+        sites: const [site],
+        selected: site,
+        now: {'sun': body(120), 'earth': body(300)},
+        closeUp: true,
+      );
+      final rec = ui.PictureRecorder();
+      painter.paint(Canvas(rec), const Size(side, side));
+      rec.endRecording().dispose();
+      final boxes = LightFramePainter.lastArrowLabels;
+      expect(boxes, hasLength(2));
+      // Earth's label, then the Sun's: each backing just before its words
+      expect(
+        (Canvas c) => painter.paint(c, const Size(side, side)),
+        paints
+          ..rrect(rrect: RRect.fromRectAndRadius(boxes[0].inflate(2), const Radius.circular(4)), color: arrowLabelBacking)
+          ..paragraph()
+          ..rrect(rrect: RRect.fromRectAndRadius(boxes[1].inflate(2), const Radius.circular(4)), color: arrowLabelBacking)
+          ..paragraph(),
+      );
+      // the worst ground (white) seen through the backing
+      final ground = Color.alphaBlend(arrowLabelBacking, Colors.white);
+      double contrast(Color a, Color b) {
+        final la = a.computeLuminance(), lb = b.computeLuminance();
+        return (math.max(la, lb) + 0.05) / (math.min(la, lb) + 0.05);
+      }
+
+      expect(contrast(PH.earth, ground), greaterThanOrEqualTo(4.5));
+      expect(contrast(PH.sun, ground), greaterThanOrEqualTo(4.5));
     });
   });
 

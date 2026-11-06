@@ -1749,6 +1749,14 @@ const arrowLabelSettle = 12.0;
 /// layout's spot by its head.
 const arrowLabelReach = 48.0;
 
+/// The dark rounded backing drawn behind each arrow label (2 px round its
+/// box). On sunlit regolith the labels' colours alone were close to
+/// unreadable (1.13.2 browser check, IM-1 Odysseus: Earth blue 1.13:1 and
+/// Sun amber 1.9:1 against the ground in the label's box, the text shadow
+/// included). At 90 % navy, Earth blue keeps 4.7:1 and Sun amber 8.6:1 even
+/// over white ground (the site names' 85 % backing would leave Earth 4.0:1).
+const arrowLabelBacking = Color(0xE6060B16);
+
 /// One direction arrow for [layoutArrowLabels]: its shaft runs from [from] to
 /// the head at [tip]; [size] is its label's box.
 typedef ArrowLabel = ({Offset from, Offset tip, Size size});
@@ -1948,7 +1956,8 @@ List<Offset> layoutArrowLabels({
       // the map (the IM-1 Odysseus Play run); only with no short step clear
       // of the notes and the site does it take the nearest free spot, and
       // only with none of those does covering one weigh against distance
-      Offset nearest(List<Offset> cs) => cs.reduce((a, b) => (b - target).distance < (a - target).distance ? b : a);
+      Offset nearestTo(Offset to, List<Offset> cs) => cs.reduce((a, b) => (b - to).distance < (a - to).distance ? b : a);
+      Offset nearest(List<Offset> cs) => nearestTo(target, cs);
       Offset cheapest(List<Offset> cs) => cs.reduce((a, b) => cost(b) < cost(a) ? b : a);
       final near = options.where((c) => short(c) && clear(c)).toList();
       final aside = options.where((c) => short(c) && ok(c) && clearOf(box(c), keepClear)).toList();
@@ -1964,8 +1973,25 @@ List<Offset> layoutArrowLabels({
           ? cheapest(free)
           : candidates.first;
       // and when it can get no nearer that way (a label or the site in
-      // between), the fresh layout's spot near its head
-      if (f != null && gap(f) <= arrowLabelReach && gap(at) > arrowLabelReach && gap(at) >= gap(moved) - 1) at = f;
+      // between), towards the fresh layout's spot near its head: there at
+      // once when that is a short step away, otherwise a short step round
+      // what is in between, so it never jumps across the map while its head
+      // barely moves (1.13.2 browser check: a 115 px hop at IM-1 Odysseus
+      // with its head moving 1 px)
+      if (f != null && gap(f) <= arrowLabelReach && gap(at) > arrowLabelReach && gap(at) >= gap(moved) - 1) {
+        if (short(f)) {
+          at = f;
+        } else {
+          // (never onto the site, its name or a note on the way)
+          final d = f - prev, most = headMoved + arrowLabelStep - 1;
+          final ways = [
+            for (final r in [most, most / 2])
+              for (final turn in const [0.0, 0.5, -0.5, 1.0, -1.0, 1.5, -1.5, 2.0, -2.0, 2.5, -2.5])
+                inside(a.size, prev + Offset.fromDirection(d.direction + turn, r)),
+          ].where((c) => short(c) && ok(c) && clearOf(box(c), keepClear) && (f - c).distance < (f - at).distance).toList();
+          if (ways.isNotEmpty) at = nearestTo(f, ways);
+        }
+      }
     }
     placed.add(box(at));
     out.add(at);
@@ -2361,10 +2387,13 @@ class LightFramePainter extends CustomPainter {
       }
     }
     // the labels over both arrows: while Play runs, a label may stay put as
-    // the other arrow's head passes ([layoutArrowLabels]); on top, with its
-    // dark shadow, its words stay readable (1.13.1 browser check: the Sun's
-    // head was drawn over "Earth 13°" at IM-1 Odysseus)
+    // the other arrow's head passes ([layoutArrowLabels]); on top, on a dark
+    // backing ([arrowLabelBacking]), its words stay readable over the heads
+    // (1.13.1 browser check: the Sun's head was drawn over "Earth 13°" at
+    // IM-1 Odysseus) and over sunlit ground
     for (final (i, a) in arrows.indexed) {
+      canvas.drawRRect(RRect.fromRectAndRadius(boxAt(a.label, ats[i]).inflate(2), const Radius.circular(4)),
+          Paint()..color = arrowLabelBacking);
       a.label.paint(canvas, ats[i] - Offset(a.label.width / 2, a.label.height / 2));
     }
     siteLabel.paint(canvas, siteAt - Offset(siteLabel.width / 2, siteLabel.height / 2));

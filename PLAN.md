@@ -100,6 +100,7 @@ pipeline/ (Python: spiceypy, numpy)              app/assets/data/ (committed, ~1
 - **1.12.0** (11-03): the pipeline's 18.6-year averages also leave out the Sun hidden by Earth in lunar eclipses (the Sun shares drop by under 0.1 percentage point).
 - **1.13.0** (11-03): the charts are built for Chrome 51, so they draw in Android 7's stock WebView instead of asking for a newer one.
 - **1.13.1** (11-06): during Play the light map's Sun and Earth labels no longer jump across the map and are drawn above both arrows; the time bar's controls no longer shift as the "Next good stretch" link's wording changes; six more test files pin their dates, so the suite passes on the hackathon and judging days.
+- **1.13.2** (11-06): on phones the light map's Sun and Earth labels keep to the part of the map on screen and settle beside their arrows when Play hides the bars; at text x2 the Lander's view readout, legend and callouts stay clear of the compass strip and the bodies, and the "terrain data ends" labels clear of the callouts; Learn › Credits gains a Use of AI note and the missing credits; the chart's "% = share" note fits narrow pictures; the web app has link-preview tags; a regression test guards screen-reader positions during Play (the Android 7 offset itself is still open).
 
 ## 5. Assumptions (decided without asking)
 

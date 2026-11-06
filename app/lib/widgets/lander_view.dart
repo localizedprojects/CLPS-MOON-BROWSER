@@ -1579,6 +1579,9 @@ class LanderPainter extends CustomPainter {
   @visibleForTesting
   static ({Rect? legend, Rect? readout})? paintedStrip;
 
+  /// Tests: the "terrain data ends" labels' boxes, as last painted.
+  static List<Rect>? paintedDemLabels;
+
   /// Tests: the callouts' text boxes (Sun, Earth) and the elevations the
   /// scale labelled, as last painted by any LanderPainter with [debugRecord] on.
   @visibleForTesting
@@ -2374,6 +2377,9 @@ class LanderPainter extends CustomPainter {
     var chip = viewpoint == null ? null : chipClearOf([...chipOff, reticle]) ?? _chip(viewpoint!, size, chipOff);
     // DEM ends (§3.9): dotted on the drawn skyline where the LOLA map stops
     final demLabels = <Rect>[];
+    if (debugRecord) paintedDemLabels = demLabels;
+    // each label's text, box and the dotted line's point under it: painted once the callouts are placed
+    final demPending = <(TextPainter, Rect, Offset)>[];
     if (m != null) {
       final warn = Paint()
         ..color = PH.warn
@@ -2407,8 +2413,7 @@ class LanderPainter extends CustomPainter {
           }
           final r = Rect.fromLTWH(x - 2, y, t.width + 4, t.height);
           demLabels.add(r);
-          canvas.drawRect(r, Paint()..color = PH.bg.withValues(alpha: 0.7));
-          t.paint(canvas, Offset(x, y));
+          demPending.add((t, r, mid));
         }
       }
     }
@@ -2773,6 +2778,20 @@ class LanderPainter extends CustomPainter {
     read = res.$2;
     final (sunCallout, earthCallout) = placed;
     final sunBox = sunCallout?.box, earthBox = earthCallout?.box;
+    // the DEM ends' labels, the faintest words (1.13.2: at 2 m in portrait one sat behind the Sun's
+    // callout): where each fell, else just under its dotted line, clear of the callouts, the glyphs,
+    // the bottom strip, the chip and the controls over the view; else left out
+    final demKeep = [?sunBox, ?earthBox, ?sunGlyph, ?earthGlyph, ?strip.legend, ?strip.readout, ?chip?.box, ...reserve];
+    demLabels.clear();
+    for (final (t, r, mid) in demPending) {
+      for (final c in [r, Rect.fromLTWH(r.left, mid.dy + 4, r.width, r.height)]) {
+        if (c.top < compassH + 2 - 1e-6 || c.bottom > size.height + 1e-6 || demKeep.any(c.overlaps)) continue;
+        demLabels.add(c);
+        canvas.drawRect(c, Paint()..color = PH.bg.withValues(alpha: 0.7));
+        t.paint(canvas, Offset(c.left + 2, c.top));
+        break;
+      }
+    }
     // (the glyphs too: a callout's glyph sits outside its box and is painted over a label under it;
     // 1.9.2: Earth's over '+5°')
     final boxes = [

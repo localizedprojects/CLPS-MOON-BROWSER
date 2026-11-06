@@ -11,7 +11,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:polar_horizon/core/dem.dart';
-import 'package:polar_horizon/core/lander_view.dart' show LanderMesh, SkyState;
+import 'package:polar_horizon/core/lander_view.dart' show LanderMesh, LanderViewpoint, SkyState, skylineAt;
 import 'package:polar_horizon/core/shadow.dart' show lightEarth, lightSunAny, lightSunFull;
 import 'package:polar_horizon/main.dart';
 import 'package:polar_horizon/screens/site/light_tab.dart';
@@ -399,6 +399,59 @@ void main() {
       await done(tester);
     });
   }
+
+  // 1.13.2: the faint "terrain data ends" label (§3.9) is low priority: it keeps
+  // clear of the bodies' callouts and glyphs, moved under the dotted line or
+  // else left out. On 1.13.1 it was painted where it fell, so at 2 m in
+  // portrait it could sit behind the Sun's callout.
+  testWidgets('Pixel 4 portrait at 2 m: the "terrain data ends" labels keep clear of the callouts', (tester) async {
+    phone(tester, phones.first);
+    await openLander(tester);
+    final st = panelState(tester), m = st.mesh!;
+    final cp = find.byWidgetPredicate((w) => w is CustomPaint && w.painter is LanderPainter);
+    final view = tester.getSize(cp);
+    expect(state.observerHeightM, 2, reason: 'at the lander\'s height');
+    expect(state.landerViewpoint, LanderViewpoint.lander);
+    expect(m.demEnds, isNotEmpty, reason: 'the synthetic DEM ends inside the view\'s range');
+    final sun0 = (tester.widget<CustomPaint>(cp).painter! as LanderPainter).sun!;
+    var labels = 0;
+    final hits = <String>[];
+    for (final e in m.demEnds.take(6)) {
+      final a1 = e.az1 < e.az0 ? e.az1 + 360 : e.az1, az = (e.az0 + a1) / 2;
+      final sky = skylineAt(m.skyline, az);
+      st.cam.set(yaw: az, pitch: sky);
+      await tester.pump(const Duration(milliseconds: 50));
+      final q = tester.widget<CustomPaint>(cp).painter! as LanderPainter;
+      for (final dAz in [-8.0, -4.0, 0.0, 4.0, 8.0]) {
+        for (final dEl in [1.0, 3.0, 6.0]) {
+          final sun = (az: az + dAz, el: sky + dEl, rhoDeg: sun0.rhoDeg, state: SkyState.up);
+          LanderPainter(
+                  cam: q.cam, mesh: q.mesh, proj: q.proj, colors: q.colors, patterns: q.patterns, sun: sun,
+                  earth: q.earth, sunWord: q.sunWord, earthWord: q.earthWord, maskDeg: q.maskDeg,
+                  maskStepDeg: q.maskStepDeg, maskLabel: q.maskLabel, probe: q.probe, probeAt: q.probeAt,
+                  seeThrough: q.seeThrough, status: q.status, textScaler: q.textScaler, reserve: q.reserve,
+                  viewpoint: q.viewpoint)
+              .paint(Canvas(ui.PictureRecorder()), view);
+          final v = st.cam.view(view);
+          final glyphs = [
+            for (final b in [sun, ?q.earth])
+              if (LanderPainter.calloutAnchor(v, b) case final a?)
+                Rect.fromCircle(center: a.glyph, radius: LanderPainter.glyphR)
+          ];
+          for (final d in LanderPainter.paintedDemLabels!) {
+            labels++;
+            expect(d.top >= LanderPainter.compassH && d.bottom <= view.height, isTrue, reason: '$d in $view');
+            for (final b in [...LanderPainter.paintedSky!.callouts, ...glyphs]) {
+              if (d.overlaps(b)) hits.add('yaw ${az.toStringAsFixed(1)} Sun +$dAz/+$dEl: label $d under $b');
+            }
+          }
+        }
+      }
+    }
+    expect(labels, greaterThan(0), reason: 'labels were painted');
+    expect(hits, isEmpty, reason: '${hits.length} of $labels labels:\n${hits.take(5).join('\n')}');
+    await done(tester);
+  });
 
   // phone landscape (the short side-by-side layout): the time bar beside the
   // view; the top bars hide (as for Play), so at least 120 dp of the scene

@@ -1785,6 +1785,13 @@ List<Offset> layoutArrowLabels({
   ArrowLabelMemory? memory,
   Rect? visible,
 }) {
+  // a repaint with nothing changed since the last layout (no Play step: the
+  // same arrows and words, notes and map) keeps every label where it was,
+  // and the pulls back towards the heads below come once an arrow moves, not
+  // on every paint (1.13.3 review: a label kept aside crept 12 px a repaint,
+  // a hover or the "Computing" note, while its arrow stood still)
+  final stepped = memory == null || !memory._sameArrows(arrows);
+  if (memory != null && !stepped && memory._sameAround(canvas, visible, keepClear)) return [...memory.centres];
   final whole = Offset.zero & canvas;
   // the part on screen, when every label fits in it (side by side or stacked)
   final seen = visible?.intersect(whole);
@@ -1902,8 +1909,8 @@ List<Offset> layoutArrowLabels({
         return (a.tip - Offset(a.tip.dx.clamp(r.left, r.right), a.tip.dy.clamp(r.top, r.bottom))).distance;
       }
 
-      final f = ownSeen && gap(moved) > arrowLabelReach ? fresh() : null;
-      final homeward = strict(home) ? towards(home, arrowLabelSettle) : null;
+      final f = stepped && ownSeen && gap(moved) > arrowLabelReach ? fresh() : null;
+      final homeward = stepped && strict(home) ? towards(home, arrowLabelSettle) : null;
       final target = f != null && gap(f) < gap(moved)
           ? towards(f, arrowLabelStep)
           : homeward != null && short(homeward) && clear(homeward)
@@ -1998,8 +2005,11 @@ List<Offset> layoutArrowLabels({
   }
   memory?.centres = out;
   memory?.tips = [for (final a in arrows) a.tip];
+  memory?.froms = [for (final a in arrows) a.from];
   memory?.sizes = [for (final a in arrows) a.size];
-  memory?.kept = keepClear;
+  memory?.kept = [...keepClear];
+  memory?._canvas = canvas;
+  memory?._visible = visible;
   return out;
 }
 
@@ -2009,12 +2019,30 @@ List<Offset> layoutArrowLabels({
 class ArrowLabelMemory {
   Object? _key;
 
-  /// The last layout's label centres and arrow heads (for tests).
-  List<Offset> centres = const [], tips = const [];
+  /// The last layout's label centres, arrow heads and shaft starts (for
+  /// tests).
+  List<Offset> centres = const [], tips = const [], froms = const [];
 
   /// The last layout's label sizes and the areas it kept clear (for tests).
   List<Size> sizes = const [];
   List<Rect> kept = const [];
+  Size? _canvas;
+  Rect? _visible;
+
+  /// Whether [arrows] are the last layout's: the same shafts, heads and
+  /// label sizes (no Play step since).
+  bool _sameArrows(List<ArrowLabel> arrows) =>
+      centres.length == arrows.length &&
+      tips.length == arrows.length &&
+      froms.length == arrows.length &&
+      sizes.length == arrows.length &&
+      [for (var i = 0; i < arrows.length; i++) i].every(
+        (i) => arrows[i].tip == tips[i] && arrows[i].from == froms[i] && arrows[i].size == sizes[i],
+      );
+
+  /// Whether the last layout had this canvas, on-screen part and clear areas.
+  bool _sameAround(Size canvas, Rect? visible, List<Rect> keepClear) =>
+      canvas == _canvas && visible == _visible && listEquals(keepClear, kept);
 
   /// Forgets the spots when [key] differs from the last one.
   void keyedTo(Object key) {
@@ -2024,9 +2052,11 @@ class ArrowLabelMemory {
 
   /// Forgets the spots (Play stopped: the still map gets its ideal layout).
   void clear() {
-    centres = tips = const [];
+    centres = tips = froms = const [];
     sizes = const [];
     kept = const [];
+    _canvas = null;
+    _visible = null;
     _key = null;
   }
 }

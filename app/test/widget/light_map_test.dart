@@ -1211,6 +1211,93 @@ void main() {
       expect(log, isEmpty);
     });
 
+    // the pull back towards the head ran on every layout, not every Play
+    // step (1.13.3 review): a label kept aside crept up to 12 px a repaint
+    // (a hover, the "Computing" note) while its arrow stood still. Here the
+    // same sweep repaints each step three times: no label moves until the
+    // arrows do, and the next step goes on from where the step put it
+    testWidgets('repaints with the same arrows leave every label where the step put it', (tester) async {
+      final hill = (await tester.runAsync(() => createTestImage(width: 8, height: 8)))!;
+      addTearDown(hill.dispose);
+      const site = Site(
+          id: 's', name: 'Spot', short: 'Spot', group: 'illumination', kind: 'k', confidence: 'c', notes: '',
+          lat: -89.5, lon: 0, terrainHeightM: 0);
+      const side = 560.0, ext = 100000.0, k = side / ext;
+      final (x, y) = latLonToXY(site.lat, site.lon);
+      final view = (x0: x - side / 2 / k, y0: y + side / 2 / k, ext: ext);
+      Map<String, dynamic> body(double az) => {'az': az, 'el': 4.0, 'hz': 0.0, 'rho': 0.27, 'frac': 1.0, 'visible': true};
+      void paint(ArrowLabelMemory m, double sun, double earth) {
+        final rec = ui.PictureRecorder();
+        LightFramePainter(
+          hillshade: hill,
+          halfWidthM: 304000,
+          images: null,
+          view: view,
+          sites: const [site],
+          selected: site,
+          now: {'sun': body(sun), 'earth': body(earth)},
+          closeUp: true,
+          labelMemory: m,
+        ).paint(Canvas(rec), const Size(side, side));
+        rec.endRecording().dispose();
+      }
+
+      final log = <String>[];
+      var aside = 0;
+      for (final earth in [0.0, 90.0, 180.0]) {
+        for (final turn in [1.0, -1.0]) {
+          final m = ArrowLabelMemory();
+          for (var d = 0.0; d <= 180; d += 3) {
+            final sun = earth + 90 + turn * d;
+            paint(m, sun, earth);
+            final step = [...m.centres];
+            // (a label kept off its spot just past the head is what the pull
+            // would draw back)
+            final fresh = ArrowLabelMemory();
+            paint(fresh, sun, earth);
+            for (var i = 0; i < step.length; i++) {
+              if ((step[i] - fresh.centres[i]).distance > 1) aside++;
+            }
+            for (var r = 1; r <= 3; r++) {
+              paint(m, sun, earth);
+              for (var i = 0; i < step.length; i++) {
+                final moved = (m.centres[i] - step[i]).distance;
+                if (moved > 1e-9) {
+                  log.add('Earth $earth°, Sun $sun°: ${i == 0 ? 'Earth' : 'Sun'} label moved ${moved.toStringAsFixed(1)} px '
+                      'on repaint $r');
+                }
+              }
+            }
+            // and a note that comes and goes in a corner, away from the
+            // labels, is no reason to pull them either
+            const corner = Rect.fromLTWH(0, side - 6, 6, 6);
+            final boxes = [
+              for (var i = 0; i < step.length; i++)
+                Rect.fromCenter(center: step[i], width: m.sizes[i].width, height: m.sizes[i].height),
+            ];
+            if (!boxes.any(corner.overlaps)) {
+              final noted = layoutArrowLabels(
+                arrows: [for (var i = 0; i < step.length; i++) (from: m.froms[i], tip: m.tips[i], size: m.sizes[i])],
+                canvas: const Size(side, side),
+                keepClear: [...m.kept, corner],
+                memory: m,
+              );
+              for (var i = 0; i < step.length; i++) {
+                final moved = (noted[i] - step[i]).distance;
+                if (moved > 1e-9) {
+                  log.add('Earth $earth°, Sun $sun°: ${i == 0 ? 'Earth' : 'Sun'} label moved ${moved.toStringAsFixed(1)} px '
+                      'when a corner note came');
+                }
+              }
+            }
+          }
+        }
+      }
+      // (the sweep does keep labels aside, so the pull has something to do)
+      expect(aside, greaterThan(0));
+      expect(log, isEmpty);
+    });
+
     // on sunlit ground the blue and amber words alone were close to
     // unreadable (1.13.2 browser check: Earth 1.13:1, Sun 1.9:1 in their
     // boxes): each arrow label is drawn on a dark rounded backing

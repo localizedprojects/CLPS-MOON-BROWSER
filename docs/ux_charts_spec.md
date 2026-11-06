@@ -125,7 +125,7 @@ Dart decides the state. Section 4 adds it to the payload. Use "hills" in short c
    - "Sun + Earth · 40%" (teal, hatched, on top because it is the answer)
    - "Sunlight · 81%" (amber)
    - "Earth in view · 45%" (blue, dotted). With DSN on, the label is "Earth contact (DSN)".
-   - Under the labels, one muted line: "% = share of your chosen dates".
+   - Under the labels, a muted note: "% = share of your chosen dates" (two lines; three short ones on a phone, so that a PNG export, drawn in the system's wider fallback font, still fits the label margin).
    - Row height: **64 px on phones**, 72 px on desktop. The d1 prototype rows (about 230 px each) are too tall.
    - Bars carry their duration in Plex Mono (`12 d`, `102 d+`).
    - A bar cut by the *window* edge shows a small chevron (◂ or ▸) at that edge. Its text and tooltip give the whole run ("whole stretch 102 d 1 h").

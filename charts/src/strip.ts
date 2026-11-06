@@ -35,9 +35,29 @@ export const DEFAULT_SPAN: Span = '2m'
 
 /** Row height, px: 64 on phones, 72 on desktop. */
 export const rowPx = (narrow: boolean) => (narrow ? 64 : 72)
-/** Plot margins, px (the left margin holds the row labels). */
+/**
+ * The "% = share of your chosen dates" note under the row labels, right-aligned 8 px left of the plot.
+ * A PNG export draws its text in the system's fallback font (Inter, Roboto, Segoe UI: the page's IBM
+ * Plex is not inside the picture), which is wider than the Plex that Plotly measured, so the text runs
+ * further left: the two-line note, whose "your chosen dates" is about 90 px in Plex, lost about 8 px
+ * at the left edge of a narrow picture (100 px label margin). On a narrow strip it is three short
+ * lines (the widest, "chosen dates", about 64 px), set a little lower to clear the bottom row's
+ * three-line DSN label, and the bottom margin is made tall enough for it.
+ */
+export const shareNote = (narrow: boolean) => ({
+  lines: narrow ? ['% = share', 'of your', 'chosen dates'] : ['% = share of your', 'chosen dates'],
+  font: 11,
+  /** Its top, px below the plot. */
+  top: narrow ? 10 : 6,
+})
+/** How far the note reaches below the plot, px: Plotly sets lines 1.3 em apart, with a 1 px pad each side. */
+export const shareNoteBottom = (narrow: boolean) => {
+  const n = shareNote(narrow)
+  return n.top + Math.ceil(n.lines.length * 1.3 * n.font) + 2
+}
+/** Plot margins, px (the left margin holds the row labels; the bottom one the ticks and the note). */
 export const stripMargin = (narrow: boolean, live = true) =>
-  ({ l: narrow ? 100 : 168, r: 10, t: live ? 26 : 30, b: 42 })
+  ({ l: narrow ? 100 : 168, r: 10, t: live ? 26 : 30, b: Math.max(42, shareNoteBottom(narrow) + 2) })
 /** Height of the live strip figure, px. */
 export const stripHeight = (narrow: boolean) => {
   const m = stripMargin(narrow)
@@ -197,8 +217,9 @@ export function buildStrip(d: TimelineData, win: Run, opts: StripOptions = {}): 
     ann.push({ xref: 'paper', yref: 'y', x: 0, xshift: -8, y: i + BAR.offset + BAR.width / 2, xanchor: 'right', yanchor: 'middle', align: 'right',
       showarrow: false, text, font: { size: narrow ? 12 : 13, color: l.key === 'both' ? C.both : l.key === 'sun' ? C.sun : C.earth } })
   }
-  ann.push({ xref: 'paper', yref: 'paper', x: 0, xshift: -8, y: 0, yshift: -6, xanchor: 'right', yanchor: 'top', align: 'right', showarrow: false,
-    text: narrow ? '% = share of<br>your chosen dates' : '% = share of your<br>chosen dates', font: { size: 11, color: C.muted } })
+  const note = shareNote(narrow)
+  ann.push({ xref: 'paper', yref: 'paper', x: 0, xshift: -8, y: 0, yshift: -note.top, xanchor: 'right', yanchor: 'top', align: 'right', showarrow: false,
+    text: note.lines.join('<br>'), font: { size: note.font, color: C.muted } })
   // a row with nothing in the window says so, with the next date at the right edge
   const rows: [Run[], number][] = [[d.runs.both, ROW_INDEX.both], [d.runs.sun, ROW_INDEX.sun], [d.runs.earth, ROW_INDEX.earth]]
   for (const [runs, i] of rows) {
@@ -213,7 +234,8 @@ export function buildStrip(d: TimelineData, win: Run, opts: StripOptions = {}): 
       text: head.join('<br>'), font: { size: 15, color: C.text } })
   }
   if (foot.length) {
-    ann.push({ xref: 'paper', yref: 'paper', x: 0, xshift: -m.l + 16, y: 0, yshift: -48, xanchor: 'left', yanchor: 'top', showarrow: false, align: 'left',
+    // below the ticks and the "% = share" note (6 px under the bottom margin; the margin grows to fit it)
+    ann.push({ xref: 'paper', yref: 'paper', x: 0, xshift: -m.l + 16, y: 0, yshift: -(m.b + 6), xanchor: 'left', yanchor: 'top', showarrow: false, align: 'left',
       text: foot.join('<br>'), font: { size: 14, color: C.text } })
   }
   const layout: Record<string, unknown> = {

@@ -7,7 +7,7 @@ import type { TimelineData } from './bridge'
 import sr1Msg from './devdata/timeline.json'
 import haworthMsg from './devdata/timeline_haworth.json'
 import dsnMsg from './devdata/timeline_dsn.json'
-import { buildStrip, buildTimelineExport, EXACT_PLOT_MIN_PX, EXPORT_LINE, fitFlag, fitLabel, flagW, inWindow, placeFlags, ROW_INDEX, rowLabels, rowPx, spanWindow, stripFlags, stripHeight, timelineExportText, windowFor } from './strip'
+import { BAR, buildStrip, buildTimelineExport, EXACT_PLOT_MIN_PX, EXPORT_LINE, fitFlag, fitLabel, flagW, inWindow, placeFlags, ROW_INDEX, rowLabels, rowPx, shareNote, shareNoteBottom, spanWindow, stripFlags, stripHeight, stripMargin, timelineExportText, windowFor } from './strip'
 import type { Span } from './strip'
 import { charsIn } from './compare'
 import { exportHeight } from './plotGeom'
@@ -165,7 +165,9 @@ describe('strip', () => {
   it('rows are 64 px on phones and 72 px on desktop', () => {
     expect(rowPx(true)).toBe(64)
     expect(rowPx(false)).toBe(72)
-    expect(stripHeight(true)).toBe(3 * 64 + 26 + 42)
+    // the phone strip's bottom margin also holds the three-line "% = share" note
+    expect(stripHeight(true)).toBe(3 * 64 + 26 + 57)
+    expect(stripHeight(false)).toBe(3 * 72 + 26 + 42)
   })
 })
 
@@ -346,5 +348,59 @@ describe('the export at the size asked for (F2, 2026-11-03: the full-screen When
     const x = timelineExportText(SR1, t, true, size)
     expect(x.footer.length).toBeGreaterThan(1)
     for (const l of x.footer) expect(plain(l).length * 0.52 * 14, l).toBeLessThanOrEqual(size.width - 100 - 8)
+  })
+})
+
+describe('the "% = share of your chosen dates" note (cut about 8 px at the left of a narrow picture)', () => {
+  type Ann = { text: string; xshift?: number; yshift?: number; xanchor?: string; font?: { size: number } }
+  const anns = (f: { layout: Record<string, unknown> }) => f.layout.annotations as Ann[]
+  // a PNG export draws its text in the system's fallback font (Inter, Roboto, Segoe UI), wider than the
+  // IBM Plex that Plotly measured: up to about 0.62 em a character
+  const EM = 0.62
+  for (const narrow of [true, false]) {
+    it(`fits the label margin in a wider fallback font, and the bottom margin holds it (${narrow ? 'phone' : 'desktop'})`, () => {
+      const n = shareNote(narrow)
+      for (const m of [stripMargin(narrow), stripMargin(narrow, false)]) {
+        for (const l of n.lines) expect(l.length * EM * n.font, l).toBeLessThanOrEqual(m.l - 8)
+        expect(shareNoteBottom(narrow)).toBeLessThanOrEqual(m.b)
+      }
+      expect(n.lines.join(' ')).toBe('% = share of your chosen dates')
+      const f = buildStrip(SR1, SR1.range as Run, { narrow, widthPx: narrow ? 250 : 1000 })
+      const a = anns(f).filter((x) => x.text.startsWith('% = share'))
+      expect(a).toHaveLength(1)
+      expect(a[0]).toMatchObject({ text: n.lines.join('<br>'), xshift: -8, yshift: -n.top, xanchor: 'right', font: { size: n.font } })
+    })
+  }
+  it('on a phone it is three short lines, below the bottom row\'s three-line DSN label at the least row height', () => {
+    const n = shareNote(true)
+    expect(n.lines).toEqual(['% = share', 'of your', 'chosen dates'])
+    // the two-line note's "your chosen dates" needed about 116 px in a fallback font, in a 92 px room
+    expect('your chosen dates'.length * EM * n.font).toBeGreaterThan(stripMargin(true).l - 8)
+    // "Earth contact<br>(DSN)<br>44%" (12 px, 1.3 em lines, 1 px pad) is centred on the bottom bar, which sits
+    // 0.32 of a row above the plot's bottom; an export keeps its rows at least 48 px (timelineExportText)
+    const half = (3 * 1.3 * 12) / 2 + 1
+    const centre = (0.5 + BAR.offset + BAR.width / 2) * 48
+    expect(half - centre).toBeLessThan(n.top)
+    const rows = (size: { width: number; height: number }) => {
+      const f = buildTimelineExport(DSN, OCT11 + 136 * DAY, false, size)
+      const m = f.layout.margin as { t: number; b: number }
+      return (size.height - m.t - m.b) / 3
+    }
+    expect(rows({ width: 391, height: 729 })).toBeGreaterThanOrEqual(48)
+  })
+  it('in an export, Coming up starts below the note and the bottom margin holds both', () => {
+    const t = OCT11 + 136 * DAY
+    for (const size of [{ width: 391, height: 900 }, { width: 360, height: 2000 }, { width: 1600, height: 1000 }]) {
+      const narrow = size.width < 600
+      const x = timelineExportText(SR1, t, false, size)
+      expect(x.footer.length, `${size.width}`).toBeGreaterThan(1)
+      const f = buildTimelineExport(SR1, t, false, size)
+      const foot = anns(f).find((a) => a.text.startsWith('<b>Coming up</b>'))!
+      const top = -(foot.yshift ?? 0)
+      expect(top, `${size.width}`).toBeGreaterThanOrEqual(shareNoteBottom(narrow) + 4)
+      expect((f.layout.margin as { b: number }).b, `${size.width}`).toBeGreaterThanOrEqual(top + EXPORT_LINE * x.footer.length)
+    }
+    // the desktop file keeps its old place for Coming up (48 px under the plot)
+    expect(-(anns(buildTimelineExport(SR1, t, false)).find((a) => a.text.startsWith('<b>Coming up</b>'))!.yshift ?? 0)).toBe(48)
   })
 })

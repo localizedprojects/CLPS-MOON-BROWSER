@@ -85,7 +85,7 @@ pipeline/ (Python: spiceypy, numpy)              app/assets/data/ (committed, ~1
 - **M5:** Explain mode, accessibility, export, polish. **Done** (initial release).
 - **M6:** README, demo script, judge one-pager, web deploy config, and **an Android emulator run with screenshots**. **Done** (initial release); the web app is published from `main` by `deploy-pages.yml`.
 
-**Status (2026-11-05).** M1–M6 were built before the repository's first public commit (`5838d00`, 2026-10-14, history squashed), so there are no separate `M<n>` commits; later work shipped as numbered releases through pull requests:
+**Status (2026-11-06).** M1–M6 were built before the repository's first public commit (`5838d00`, 2026-10-14, history squashed), so there are no separate `M<n>` commits; later work shipped as numbered releases through pull requests:
 - **1.1.0–1.3.1** (2026-10-17 to 10-20): loading screen, Play kept in step with the charts, first-launch tutorial, Android 7 fixes.
 - **1.4.0** (10-20): feature guides on every screen. **1.5.0** (10-25): the *At a glance* overview for every site.
 - **1.6.0–1.7.0** (10-28): terrain and the Explore map's layers out to 75°S, so sites near 80°S (IM-1) get a full light & shadow close-up.

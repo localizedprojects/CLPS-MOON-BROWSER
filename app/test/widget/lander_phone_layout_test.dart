@@ -336,6 +336,70 @@ void main() {
     await done(tester);
   });
 
+  // 1.13.2: the smallest phone portraits at text x2 (PH.maxCanvasTextScale):
+  // the bottom strip stays inside the view, under the compass strip. On
+  // 1.13.1 a status line wrapped above the two-line legend ran up over the
+  // strip and off the view's top (320 x 160 view: top 7), and the legend with
+  // the hatched near ground's line ran off it by itself (280 x 160: top -30)
+  for (final p in <Phone>[
+    (name: '320x640 dp', px: const Size(640, 1280), dpr: 2, top: 48, bottom: 0),
+    (name: '360x640 dp', px: const Size(720, 1280), dpr: 2, top: 48, bottom: 0),
+  ]) {
+    testWidgets('${p.name} portrait at text x2: the centre readout and the legend stay inside the view', (tester) async {
+      phone(tester, p);
+      tester.platformDispatcher.textScaleFactorTestValue = 2;
+      addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+      await openLander(tester);
+      final st = panelState(tester);
+      final cp = find.byWidgetPredicate((w) => w is CustomPaint && w.painter is LanderPainter);
+      final view = tester.getSize(cp);
+      final p0 = tester.widget<CustomPaint>(cp).painter! as LanderPainter;
+      expect(p0.textScaler.scale(10), 20, reason: '${p.name}: text x2 on the canvas');
+      var shown = 0;
+      void check(String when, {String? status, String? probe, bool hatched = false, bool live = false}) {
+        final q = tester.widget<CustomPaint>(cp).painter! as LanderPainter;
+        final n = q.seeThrough?.length ?? q.colors!.length;
+        LanderPainter(
+                cam: q.cam, mesh: q.mesh, proj: q.proj, colors: q.colors, patterns: q.patterns, sun: q.sun,
+                earth: q.earth, sunWord: q.sunWord, earthWord: q.earthWord, maskDeg: q.maskDeg,
+                maskStepDeg: q.maskStepDeg, maskLabel: q.maskLabel, probe: probe ?? q.probe,
+                probeAt: live ? (yaw: q.cam.yaw + 1, pitch: q.cam.pitch) : q.probeAt,
+                seeThrough: hatched ? (Int32List(n)..fillRange(0, n, 0x80FFFFFF)) : q.seeThrough,
+                status: status, textScaler: q.textScaler, reserve: q.reserve, viewpoint: q.viewpoint)
+            .paint(Canvas(ui.PictureRecorder()), view);
+        final strip = LanderPainter.paintedStrip!, why = '${p.name} $when: $strip in $view';
+        expect(strip.legend, isNotNull, reason: why);
+        if (status != null) expect(strip.readout, isNotNull, reason: '$why: a status line is always shown');
+        for (final r in [strip.legend!, ?strip.readout]) {
+          expect(r.top, greaterThanOrEqualTo(LanderPainter.compassH - 0.5), reason: '$why: under the compass strip');
+          expect(r.left >= -0.5 && r.right <= view.width + 0.5 && r.bottom <= view.height + 0.5, isTrue, reason: why);
+        }
+        if (strip.readout case final r?) {
+          shown++;
+          expect(r.overlaps(strip.legend!), isFalse, reason: why);
+        }
+      }
+
+      for (final (yaw, pitch) in [(st.cam.yaw, st.cam.pitch), (0.0, 0.0), (90.0, 10.0), (200.0, -10.0)]) {
+        st.cam.set(yaw: yaw, pitch: pitch);
+        await tester.pump(const Duration(milliseconds: 400));
+        final w = 'yaw ${yaw.toStringAsFixed(0)} pitch ${pitch.toStringAsFixed(0)}';
+        // the near ground hatched (a probe's frame) or not; a status line has no near frame, no hatch
+        for (final h in [false, true]) {
+          final wh = '$w${h ? ' hatched' : ''}';
+          check('$wh probe', hatched: h);
+          check('$wh live', hatched: h, live: true);
+          check('$wh long probe', hatched: h, probe: 'Centre: in shadow of the near terrain · 12.3 km · az 145.0° el +1.5°');
+        }
+        for (final s in ['Building the view…', 'Computing light…', 'The view could not be built: out of memory']) {
+          check('$w status $s', status: s);
+        }
+      }
+      expect(shown, greaterThan(0));
+      await done(tester);
+    });
+  }
+
   // phone landscape (the short side-by-side layout): the time bar beside the
   // view; the top bars hide (as for Play), so at least 120 dp of the scene
   // shows under the 48 dp compass strip and both switches fit in the side

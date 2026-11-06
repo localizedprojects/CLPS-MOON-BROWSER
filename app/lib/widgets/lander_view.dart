@@ -1698,8 +1698,17 @@ class LanderPainter extends CustomPainter {
 
   static final _texts = <String, TextPainter>{};
   /// A canvas label; wider than [maxWidth] it wraps (never cut at the view's edge).
-  TextPainter _text(String s, {double size = 12, Color color = PH.text, bool mono = false, double maxWidth = double.infinity}) {
-    final key = '$s|$size|${color.toARGB32()}|$mono|${textScaler.scale(10)}|$maxWidth';
+  /// [scaler]: another text scale than the view's ([textScaler]); [maxLines]: at most that many
+  /// lines, the last cut with an ellipsis.
+  TextPainter _text(String s,
+      {double size = 12,
+      Color color = PH.text,
+      bool mono = false,
+      double maxWidth = double.infinity,
+      TextScaler? scaler,
+      int? maxLines}) {
+    final sc = scaler ?? textScaler;
+    final key = '$s|$size|${color.toARGB32()}|$mono|${sc.scale(10)}|$maxWidth|$maxLines';
     final hit = _texts[key];
     if (hit != null) return hit;
     if (_texts.length > 96) _texts.clear();
@@ -1710,7 +1719,9 @@ class LanderPainter extends CustomPainter {
                 ? numStyle(size: size, color: color)
                 : TextStyle(fontFamily: PH.sans, fontSize: size, color: color, fontWeight: FontWeight.w500)),
         textDirection: TextDirection.ltr,
-        textScaler: textScaler)
+        textScaler: sc,
+        maxLines: maxLines,
+        ellipsis: maxLines == null ? null : '…')
       ..layout(maxWidth: math.max(0.0, maxWidth));
   }
 
@@ -2429,19 +2440,55 @@ class LanderPainter extends CustomPainter {
         : Size(math.max(a?.width ?? 0, b?.width ?? 0), (a?.height ?? 0) + (b?.height ?? 0));
     var legendSize = boxOf(legend, nearLegend);
     // (the legend as it is with no control over the view: 1.11.2's, for the readout's left-out rule)
-    final freeLegend = legendSize;
+    var freeLegend = legendSize;
+    // the legend's lines wrapped to [mw] ([scaler], [maxLines]: as [_text]'s; below)
+    void layLegend(double mw, {TextScaler? scaler, int? maxLines}) {
+      if (legend != null) {
+        legend = _text(maskLabel, size: 10, color: PH.text, maxWidth: mw, scaler: scaler, maxLines: maxLines);
+      }
+      if (nearLegend != null) {
+        nearLegend =
+            _text(landerSeeThroughLabel, size: 10, color: PH.text, maxWidth: mw, scaler: scaler, maxLines: maxLines);
+      }
+      legendSize = boxOf(legend, nearLegend);
+    }
+
     // the strip keeps off the controls over the view ([reserve]; 1.11.3: in three of the five phone
     // sizes of the release gate the legend or the readout ran under the relief switch, the viewpoint
     // control or the expand button in every frame): beside a control a row of the strip ends 4 dp left
     // of it ([stripRight]), the legend moved in ([bottomStrip]) and, where that leaves it too little
     // room, its lines wrapped there (each its own, in their order)
-    for (var k = 0; k < 3 && legendSize != null; k++) {
-      final l = bottomStrip(size, legendSize, null, reserve: reserve).legend!;
-      if (l.left >= 6 - 1e-6) break;
-      final mw = math.max(40.0, l.right - 36);
-      if (legend != null) legend = _text(maskLabel, size: 10, color: PH.text, maxWidth: mw);
-      if (nearLegend != null) nearLegend = _text(landerSeeThroughLabel, size: 10, color: PH.text, maxWidth: mw);
-      legendSize = boxOf(legend, nearLegend);
+    void fitLegend({TextScaler? scaler, int? maxLines}) {
+      for (var k = 0; k < 3 && legendSize != null; k++) {
+        final l = bottomStrip(size, legendSize, null, reserve: reserve).legend!;
+        if (l.left >= 6 - 1e-6) break;
+        layLegend(math.max(40.0, l.right - 36), scaler: scaler, maxLines: maxLines);
+      }
+    }
+
+    fitLegend();
+    // the legend ends under the compass strip, a status line's room above it (1.13.2: hatched, at text
+    // x2 in a 280 x 160 phone view, its five lines wrapped beside the controls ran off the view's top):
+    // at a smaller text scale, step by step down to x1, else at x1 cut to the lines that fit
+    final line1 = _text('X', size: 11, scaler: TextScaler.noScaling).height;
+    final legendTop = compassH + 2 + (status == null ? 0 : line1 + 6);
+    bool legendOver() =>
+        legendSize != null && bottomStrip(size, legendSize, null, reserve: reserve).legend!.top < legendTop - 1e-6;
+    if (legendOver()) {
+      for (var f = textScaler.scale(10) / 10 - 0.25; f > 1 - 1e-9 && legendOver(); f -= 0.25) {
+        final sc = TextScaler.linear(math.max(1.0, f));
+        layLegend(size.width - 40, scaler: sc);
+        freeLegend = legendSize;
+        fitLegend(scaler: sc);
+      }
+      if (legendOver()) {
+        const sc = TextScaler.noScaling;
+        final n = [?legend, ?nearLegend].length, line = _text('X', size: 10, scaler: sc).height;
+        final lines = math.max(1, ((size.height - 8 - legendTop) / line / n).floor());
+        layLegend(size.width - 40, scaler: sc, maxLines: lines);
+        freeLegend = legendSize;
+        fitLegend(scaler: sc, maxLines: lines);
+      }
     }
     final lh = legend?.height ?? 0;
     // a readout found for another camera (moved since): just the live direction
@@ -2464,15 +2511,45 @@ class LanderPainter extends CustomPainter {
     // beside a control the readout's row is shorter (1.11.3): the readout as [_readout] fits it there
     // (whole, else without its `Centre: ` lead, else wrapped), never under the control; again where
     // that puts it on another row
-    for (var k = 0; k < 3 && msg != null && strip.readout != null; k++) {
-      final r = strip.readout!, right = stripRight(size, r.top, r.bottom, reserve);
-      if (r.right <= right) break;
-      read = _readout(msg, mono: status == null, maxWidth: math.max(40.0, right - 14));
-      strip = bottomStrip(size, legendSize, sz(read), reserve: reserve);
+    // ([scaler], [maxLines]: a status line's, below)
+    void fitRow({TextScaler? scaler, int? maxLines}) {
+      for (var k = 0; k < 3 && msg != null && strip.readout != null; k++) {
+        final r = strip.readout!, right = stripRight(size, r.top, r.bottom, reserve);
+        if (r.right <= right) break;
+        read = _readout(msg, mono: status == null, maxWidth: math.max(40.0, right - 14), scaler: scaler, maxLines: maxLines);
+        strip = bottomStrip(size, legendSize, sz(read), reserve: reserve);
+      }
     }
+
+    fitRow();
     if (status == null && coversGlyph(strip.readout)) {
       read = null;
       strip = bottomStrip(size, legendSize, null, reserve: reserve);
+    }
+    // the readout ends under the compass strip (1.13.2: in a 280 x 160 or 320 x 160 phone view at text
+    // x2, wrapped above a two-line legend, it ran up over the strip and off the view's top). The probe
+    // is secondary: left out there. A status line always shows: at a smaller text scale, step by step
+    // down to x1, else at x1 cut to the lines that fit (its words whole in the view's label, §9)
+    bool overTop() => strip.readout != null && strip.readout!.top < compassH + 2 - 1e-6;
+    if (overTop() && status == null) {
+      read = null;
+      strip = bottomStrip(size, legendSize, null, reserve: reserve);
+    } else if (overTop()) {
+      final from = textScaler.scale(11) / 11;
+      for (var f = from - 0.25; f > 1 - 1e-9 && overTop(); f -= 0.25) {
+        final sc = TextScaler.linear(math.max(1.0, f));
+        read = _readout(msg!, mono: false, maxWidth: size.width - 20, scaler: sc);
+        strip = bottomStrip(size, legendSize, sz(read), reserve: reserve);
+        fitRow(scaler: sc);
+      }
+      if (overTop()) {
+        const sc = TextScaler.noScaling;
+        final r = strip.readout!, room = r.bottom - 4 - (compassH + 2);
+        final lines = math.max(1, (room / line1).floor());
+        read = _readout(msg!, mono: false, maxWidth: size.width - 20, scaler: sc, maxLines: lines);
+        strip = bottomStrip(size, legendSize, sz(read), reserve: reserve);
+        fitRow(scaler: sc, maxLines: lines);
+      }
     }
     // each body's words keep clear of the other's glyph too (an eclipse puts Earth's right over the Sun's)
     Rect? glyphOf(CalloutAnchor? a) {
@@ -2789,12 +2866,13 @@ class LanderPainter extends CustomPainter {
     final lb = strip.legend;
     if (lb != null) {
       canvas.drawRect(lb, Paint()..color = PH.bg.withValues(alpha: 0.8));
-      if (legend != null) {
+      // (locals: [legend] and [nearLegend] are set in closures above, so they are not promoted)
+      if (legend case final legend?) {
         final y = lb.top + 2 + lh / 2;
         _dashedLine(canvas, Offset(lb.left + 4, y), Offset(lb.left + 22, y), dash);
         legend.paint(canvas, Offset(lb.left + 26, lb.top + 2));
       }
-      if (nearLegend != null) {
+      if (nearLegend case final nearLegend?) {
         // a swatch of the hatch
         final sw = Rect.fromLTWH(lb.left + 4, lb.top + 3 + lh, 18, math.max(1.0, nearLegend.height - 2));
         final hp = Paint()
@@ -2811,7 +2889,8 @@ class LanderPainter extends CustomPainter {
     }
     final r = strip.readout;
     if (debugRecord) paintedStrip = (legend: lb, readout: read == null ? null : r);
-    if (read != null && r != null) {
+    // (a local: [read] is set in a closure above, so it is not promoted)
+    if (read case final read? when r != null) {
       canvas.drawRect(r, Paint()..color = PH.bg.withValues(alpha: 0.8));
       canvas.save();
       canvas.clipRect(r);
@@ -2838,13 +2917,15 @@ class LanderPainter extends CustomPainter {
       const [1, 2, 5, 10].firstWhere((k) => k * w / hfovDeg >= 28, orElse: () => 10);
 
   /// The centre readout on one line: the whole [msg], else without its
-  /// `Centre: ` lead; wrapped to [maxWidth] only when even that is too wide.
-  TextPainter _readout(String msg, {required bool mono, required double maxWidth}) {
+  /// `Centre: ` lead; wrapped to [maxWidth] only when even that is too wide
+  /// ([scaler], [maxLines]: as [_text]'s).
+  TextPainter _readout(String msg,
+      {required bool mono, required double maxWidth, TextScaler? scaler, int? maxLines}) {
     for (final m in [msg, if (msg.startsWith('Centre: ')) msg.substring(8)]) {
-      final t = _text(m, size: 11, mono: mono);
+      final t = _text(m, size: 11, mono: mono, scaler: scaler);
       if (t.width <= maxWidth) return t;
     }
-    return _text(msg, size: 11, mono: mono, maxWidth: maxWidth);
+    return _text(msg, size: 11, mono: mono, maxWidth: maxWidth, scaler: scaler, maxLines: maxLines);
   }
 
   /// The bottom strip's boxes in a view of [size] (§5): the reference

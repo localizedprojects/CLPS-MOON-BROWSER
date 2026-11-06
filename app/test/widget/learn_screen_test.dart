@@ -235,6 +235,19 @@ void main() {
     ]) {
       expect(find.textContaining(who), findsWidgets, reason: who);
     }
+    // every number in the credits in Plex Mono, the titles' too ("810-005")
+    final credits = find.byWidgetPredicate((w) => w is RichText && w.text.toPlainText().contains('810-005'));
+    expect(credits, findsOneWidget);
+    final runs = <(String, String?)>[];
+    tester.widget<RichText>(credits).text.visitChildren((s) {
+      if (s is TextSpan && s.text != null) runs.add((s.text!, s.style?.fontFamily));
+      return true;
+    });
+    final digits = [for (final r in runs) if (r.$1.contains(RegExp('[0-9]'))) r];
+    expect(digits.map((r) => r.$1), containsAll(['810', '005']));
+    for (final (text, family) in digits) {
+      expect(family, PH.mono, reason: '"$text" in Plex Mono');
+    }
     // the addresses: selectable text, at least 48 dp tall, named for screen readers
     final semantics = tester.ensureSemantics();
     await tester.pump();

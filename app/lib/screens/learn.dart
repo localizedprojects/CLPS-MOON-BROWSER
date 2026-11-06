@@ -568,8 +568,9 @@ class _Credits extends StatelessWidget {
               padding: const EdgeInsets.symmetric(vertical: 4),
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Text.rich(TextSpan(children: [
-                  TextSpan(text: '$who  ', style: PHText.body.copyWith(fontWeight: FontWeight.w600)),
-                  numSpans(what, muted), // numbers in Mono
+                  // numbers in Mono, in the titles too ("810-005")
+                  numSpans('$who  ', PHText.body.copyWith(fontWeight: FontWeight.w600)),
+                  numSpans(what, muted),
                 ])),
                 if (url != null) address(url),
               ]),

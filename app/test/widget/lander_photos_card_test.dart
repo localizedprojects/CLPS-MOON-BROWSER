@@ -9,6 +9,7 @@ import 'package:polar_horizon/content/lander_photos.dart';
 import 'package:polar_horizon/core/catalog.dart';
 import 'package:polar_horizon/theme.dart';
 import 'package:polar_horizon/widgets/lander_photos_card.dart';
+import 'package:polar_horizon/widgets/web_address.dart';
 
 const _landers = ['im-1-odysseus-landed', 'im-2-athena-landed'];
 
@@ -193,7 +194,7 @@ void main() {
       });
     }
 
-    testWidgets('on the web each address is one text field named by its label (an input takes it as its name)',
+    testWidgets('on the web each address is one text field named by its label and the address (an input takes it as its name)',
         (tester) async {
       final handle = tester.ensureSemantics();
       final p = landerPhotos['im-1-odysseus-landed']!;
@@ -208,7 +209,9 @@ void main() {
         expect(field, hasLength(1), reason: l.title);
         final f = field.single.getSemanticsData();
         expect(f.flagsCollection.isTextField, isTrue, reason: l.title);
-        expect(f.label, landerPhotoUrlSemantics(l), reason: l.title);
+        // the address in the label too: the engine leaves the read-only input empty
+        expect(f.label, '${landerPhotoUrlSemantics(l)}: ${l.url}', reason: l.title);
+        expect(f.label, webAddressWebLabel(landerPhotoUrlSemantics(l), l.url), reason: l.title);
         expect(f.value, l.url, reason: l.title);
         expect(f.hasAction(SemanticsAction.longPress), isTrue, reason: l.title);
         expect(f.rect.height, greaterThanOrEqualTo(48), reason: l.title);

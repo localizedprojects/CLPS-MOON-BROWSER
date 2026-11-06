@@ -18,7 +18,8 @@ class WebAddress extends StatelessWidget {
   final String storageKey;
 
   /// Whether the app runs on the web, where the address is an input that
-  /// takes [name] as its label ([kIsWeb]; a parameter for the tests).
+  /// takes [name] and the address as its label ([kIsWeb]; a parameter for
+  /// the tests).
   final bool web;
 
   const WebAddress({super.key, required this.url, required this.name, required this.storageKey, this.web = kIsWeb});
@@ -28,7 +29,9 @@ class WebAddress extends StatelessWidget {
     // SelectableText is a long-press target: a text field node of its own
     // (RenderEditable is no semantics boundary, hence the container), at
     // least 48 dp tall, named by the page it opens. On the web that node is
-    // an input, which takes the name as its label. On Android a text field
+    // an input, which takes the name as its label, with the address after it
+    // (the engine leaves the read-only input empty, so a screen reader would
+    // not be given the address otherwise). On Android a text field
     // shows only its value below API 28, so there the name is a node of its
     // own around it.
     // Its own storage key: under a PageStorageKey the text field's scroller
@@ -36,7 +39,7 @@ class WebAddress extends StatelessWidget {
     // site_glance_card.dart)
     final address = Semantics(
       container: true,
-      label: web ? name : null,
+      label: web ? webAddressWebLabel(name, url) : null,
       child: ConstrainedBox(
         constraints: const BoxConstraints(minHeight: 48),
         child: KeyedSubtree(
@@ -48,3 +51,6 @@ class WebAddress extends StatelessWidget {
     return web ? address : Semantics(container: true, label: name, child: address);
   }
 }
+
+/// The web input's label: [name], then the address itself.
+String webAddressWebLabel(String name, String url) => '$name: $url';

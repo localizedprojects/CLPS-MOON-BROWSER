@@ -367,13 +367,29 @@ void main() {
     await done(tester);
   });
 
-  test('frame heights: classic timeline 440; simple timeline 640 on phones, sky plot + 230, more with exact numbers', () {
+  test('frame heights: classic timeline 440; simple timeline 680 to 760, sky plot + 230, more with exact numbers', () {
     expect(classicTimelineHeight, 440);
-    expect(timelineFrameHeight(370), 640);
-    expect(timelineFrameHeight(800), 680);
-    expect(timelineFrameHeight(370, exact: true), greaterThan(640));
+    expect(timelineFrameHeight(288), 760);
+    expect(timelineFrameHeight(380), closeTo(723.2, 1e-9));
+    expect(timelineFrameHeight(590), 680);
+    expect(timelineFrameHeight(800), 760);
+    expect(timelineFrameHeight(370, exact: true), timelineFrameHeight(370) + 360);
     expect(skyFrameHeight(370), 370 + 230);
     expect(skyFrameHeight(700), 520 + 180);
     expect(skyFrameHeight(370, exact: true), greaterThan(370 + 230));
   });
+
+  // Where the simple timeline's content ends (the header, answer lines,
+  // presets, strip, note, COMING UP and all its rows, then the 4 px padding),
+  // measured in Chromium on the web build (Malapert peak, the default dates):
+  // the frame holds it, with room for one more wrapped answer line (17 px).
+  // In the wide pane (1440 px) the frame is the pane's height (540 px there)
+  // and the chart keeps only the COMING UP rows that fit (comingFit.test.ts).
+  for (final (screen, frame, content) in const [(320, 288.0, 738.0), (360, 328.0, 719.0), (412, 380.0, 701.0), (700, 668.0, 735.0)]) {
+    test('$screen px wide: the simple timeline frame (${frame.round()} px wide) holds all of COMING UP', () {
+      // the column's padding (6 + 6) and the card's chrome around the chart
+      expect(screen - 12 - chartCardChrome, frame);
+      expect(timelineFrameHeight(frame), greaterThanOrEqualTo(content + 17));
+    });
+  }
 }

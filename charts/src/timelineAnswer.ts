@@ -230,6 +230,29 @@ export function comingUp(d: TimelineData, t: number, n: number): ComingEvent[] {
   return sortedStable(out, (a, b) => a.t - b.t || rank[a.key] - rank[b.key]).slice(0, n)
 }
 
+/**
+ * How many Coming up rows to show in a frame with [room] px left below the
+ * list's top (to the frame's bottom padding), from each row's measured height:
+ * all of them when they fit, else the first rows that fit whole together with
+ * the "N more" line ([moreH] px) under them. Nothing is cut or left in a
+ * scroll area the frame hides (a phone frame, or the wide pane's height).
+ */
+export function comingFit(room: number, rowHeights: readonly number[], moreH: number): number {
+  const slack = 0.5 // sub-pixel rounding of the measured boxes
+  if (rowHeights.reduce((a, h) => a + h, 0) <= room + slack) return rowHeights.length
+  let used = moreH
+  let k = 0
+  while (k < rowHeights.length && used + rowHeights[k] <= room + slack) used += rowHeights[k++]
+  return k
+}
+
+/** The line under the [shown] Coming up rows that fit, for the [hidden] ones left out (it starts with the number). */
+export function comingMoreText(hidden: number, shown: number): string {
+  const them = hidden === 1 ? 'it' : 'them'
+  return shown > 0 ? `${hidden} more later · move the time on to see ${them}`
+    : `${hidden} ${hidden === 1 ? 'change' : 'changes'} ahead · move the time on to see ${them}`
+}
+
 /** Every run boundary (all rows), sorted: ←/→ on the strip step through them. */
 export function boundaries(d: TimelineData): number[] {
   const s = new Set<number>()

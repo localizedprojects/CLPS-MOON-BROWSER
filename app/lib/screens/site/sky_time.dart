@@ -67,13 +67,19 @@ double skyPanelHeight(double width, double? paneHeight) {
   return math.min(h, math.max(320.0, paneHeight - 200));
 }
 
-/// Height of the timeline ("When") frame in the single column: 640 px on a
-/// phone (header, two answer lines, presets, three 64 px rows, axis, COMING
-/// UP, key line), 680 from [skyTimeNarrowWidth] (four answer lines, 72 px
-/// rows, five COMING UP rows). With exact numbers the "Heights" figure is
-/// added under the strip.
+/// Height of the timeline ("When") frame in the single column, sized to what
+/// it holds: the header, the four answer lines, the presets, the strip and
+/// its note, then COMING UP. On a phone (three COMING UP rows) that ended at
+/// 738 px in a 288 px frame (a 320 px screen), 719 at 328 and 701 at 380
+/// (Chromium, web build): the answer lines wrap less as the frame widens, so
+/// 760 at 288 px, 0.4 px less per px wider and at least 680, which leaves
+/// room for one more wrapped line. From [skyTimeNarrowWidth] (two columns of
+/// answer lines, five rows) it ended at 735 (600 to 788 px wide): 760. The
+/// chart shows only the COMING UP rows that fit whole and says how many more
+/// there are, so a shorter frame (the wide pane's height) cuts no row. With
+/// exact numbers the "Heights" figure is added under the strip.
 double timelineFrameHeight(double width, {bool exact = false}) =>
-    (width < skyTimeNarrowWidth ? 640.0 : 680.0) + (exact ? 360.0 : 0.0);
+    (width < skyTimeNarrowWidth ? (760.0 - 0.4 * (width - 288)).clamp(680.0, 760.0) : 760.0) + (exact ? 360.0 : 0.0);
 
 /// Height of the sky ("Where to look") frame in the single column: the plot
 /// (sized to the frame width, at most 520) plus 230 on a phone (180 from

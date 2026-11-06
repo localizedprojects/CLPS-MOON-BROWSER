@@ -8,7 +8,7 @@
  * leaves it). A cursor message re-renders the DOM overlays (answer lines,
  * cursor line, flags, Coming up) at most once per animation frame.
  */
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { post } from './bridge'
 import { heldTimelineCursor, timelineCursor } from './cursor'
 import { DetailToggle, useDetail } from './DetailToggle'
@@ -17,7 +17,7 @@ import type { PlacedFlag, Span } from './strip'
 import { BAR, buildStrip, buildTimelineExport, DEFAULT_SPAN, flagW, placeFlags, SPANS, spanWindow, stripFlags, stripHeight, stripMargin, windowFor } from './strip'
 import { buildHeights, HEIGHT_NAMES, totalsLine } from './timeline'
 import type { AnswerLine, Glyph, Run } from './timelineAnswer'
-import { answerLines, comingUp, stepBoundary } from './timelineAnswer'
+import { answerLines, comingFit, comingMoreText, comingUp, stepBoundary } from './timelineAnswer'
 import { clickTimeMs, plotAxes, usePlot } from './usePlot'
 import type { PlotlyDiv } from './plotGeom'
 import { C, HOST_CORNER_PX, MONO } from './theme'
@@ -26,6 +26,8 @@ import { box, useExport, useHost, useLatest, useLiveMode, Waiting } from './view
 const mono: React.CSSProperties = { fontFamily: MONO, fontVariantNumeric: 'tabular-nums' }
 /** The view's side padding, px. */
 const PAD_X = 12
+/** The view's bottom padding, px. */
+const PAD_B = 4
 
 function useWidth() {
   const [w, setW] = useState(() => window.innerWidth)
@@ -36,6 +38,46 @@ function useWidth() {
     return () => window.removeEventListener('resize', f)
   }, [])
   return w
+}
+
+/** A Coming up fit measured with every row drawn: the rows shown, for the frame and rows measured. */
+interface ComingFitState { shown: number; key: string; heights: number[] }
+
+/**
+ * The Coming up rows that fit whole below the strip (F1): null while the
+ * view measures, with every row and the "more" line drawn (a layout effect,
+ * before paint), then the count shown. It is measured again when the frame
+ * size, the room above the list, the events or a row's height change.
+ */
+function useComingFit(listRef: React.RefObject<HTMLElement | null>, rootRef: React.RefObject<HTMLElement | null>, eventsKey: React.RefObject<string>) {
+  const [fit, setFit] = useState<ComingFitState | null>(null)
+  const [, setTick] = useState(0)
+  // a frame resize that keeps the width (Flutter's layout, full screen and back) and late fonts re-check it
+  useEffect(() => {
+    const f = () => setTick((v) => v + 1)
+    window.addEventListener('resize', f)
+    window.addEventListener('ph-settle', f)
+    void document.fonts?.ready.then(f)
+    return () => {
+      window.removeEventListener('resize', f)
+      window.removeEventListener('ph-settle', f)
+    }
+  }, [])
+  useLayoutEffect(() => {
+    const list = listRef.current, root = rootRef.current
+    const ol = list?.querySelector('ol')
+    if (!list || !root || !ol) return
+    // from the first row's top: the "Coming up" heading above it stays
+    const top = ol.getBoundingClientRect().top - root.getBoundingClientRect().top + root.scrollTop
+    const room = root.clientHeight - PAD_B - top
+    const key = `${Math.round(room)}|${root.clientWidth}|${eventsKey.current}`
+    const heights = Array.prototype.map.call(list.querySelectorAll('li'), (li: HTMLElement) => li.offsetHeight) as number[]
+    if (!fit) {
+      const more = list.querySelector('[data-more]') as HTMLElement | null
+      setFit({ shown: comingFit(room, heights, more ? more.offsetHeight : 0), key, heights })
+    } else if (fit.key !== key || heights.some((h, i) => h !== fit.heights[i])) setFit(null)
+  })
+  return fit
 }
 
 // ---------------------------------------------------------------------------
@@ -114,6 +156,10 @@ export function TimelineView() {
   const [t, setT] = useState<number | null>(null)
   const [win, setWin] = useState<{ span: Span; w: Run } | null>(null)
   const [plotVer, setPlotVer] = useState(0)
+  const rootRef = useRef<HTMLDivElement | null>(null)
+  const comingRef = useRef<HTMLDivElement | null>(null)
+  const eventsKey = useRef('')
+  const fit = useComingFit(comingRef, rootRef, eventsKey)
   const range = (m?.data.range ?? [0, 1]) as Run
   // before this view's own cursor ref has filled (it mounts late, e.g. Simple view switched on after
   // the time moved), the newest cursor the page holds: the first window is anchored there (F1)
@@ -162,6 +208,10 @@ export function TimelineView() {
   // all four lines on phones too: the Sun and Earth countdowns ("Sunlight: YES · until …") are the brief's "time remaining"
   const lines = answerLines(d, tNow, true)
   const events = comingUp(d, tNow, narrow ? 3 : 5)
+  eventsKey.current = events.map((e) => `${e.t}${e.key}${e.text}`).join('|')
+  // the rows that fit whole below the strip, and a line for the rest (all of them, and the line, while measuring)
+  const shownEvents = fit ? events.slice(0, fit.shown) : events
+  const hidden = fit ? events.length - shownEvents.length : events.length
   const sh = stripHeight(narrow)
 
   // overlays from the drawn figure's geometry (plotVer: re-read after every draw)
@@ -192,11 +242,11 @@ export function TimelineView() {
   const pickSpan = (s: Span) => { setSpan(s); setWin({ span: s, w: spanWindow(s, tNow, range) }) }
 
   const coming = (
-    <div style={{ minWidth: 0 }}>
+    <div ref={comingRef} style={{ minWidth: 0 }}>
       <div style={{ color: C.muted, fontSize: 12, fontWeight: 600, margin: '2px 0 2px' }}>Coming up</div>
       {events.length ? (
         <ol style={{ listStyle: 'none', margin: 0, padding: 0 }}>
-          {events.map((ev) => (
+          {shownEvents.map((ev) => (
             <li key={`${ev.t}-${ev.key}-${ev.mark}`}>
               <button type="button" onClick={() => post({ type: 'seek', t: ev.t })} aria-label={`${ev.text}. Move the time there.`}
                 className="ph-row8" style={{ display: 'flex', alignItems: 'center', width: '100%', minHeight: 48, padding: '0 4px', background: 'transparent', border: 0,
@@ -206,10 +256,15 @@ export function TimelineView() {
               </button>
             </li>))}
         </ol>) : <div style={{ color: C.muted, fontSize: 13, minHeight: 32 }}>No more changes in your chosen dates.</div>}
+      {events.length > 0 && hidden > 0 && (
+        <div data-more style={{ borderTop: `1px solid ${C.grid}`, padding: '4px 4px 0', color: C.muted, fontSize: 12, lineHeight: 1.4 }}>
+          {/* measured with its longer wording, so the one shown is never taller */}
+          <span style={mono}>{hidden}</span>{comingMoreText(hidden, fit ? shownEvents.length : 0).slice(String(hidden).length)}
+        </div>)}
     </div>)
 
   return (
-    <div className={narrow ? 'ph-col4' : 'ph-col6'} style={{ ...box, overflowY: 'auto', boxSizing: 'border-box', padding: `4px ${PAD_X}px 4px`, display: 'flex', flexDirection: 'column', fontSize: 13.5, color: C.text }}
+    <div ref={rootRef} className={narrow ? 'ph-col4' : 'ph-col6'} style={{ ...box, overflowY: 'auto', boxSizing: 'border-box', padding: `4px ${PAD_X}px ${PAD_B}px`, display: 'flex', flexDirection: 'column', fontSize: 13.5, color: C.text }}
       aria-label={`${fig.alt} Shown time ${fmtDate(tNow, { year: true })} UTC.`} role="group">
       <div style={{ color: C.muted, fontSize: 12.5 }}>When · all times UTC</div>
       <div aria-live={live} className={narrow ? 'ph-facts' : 'ph-facts-wide'}>

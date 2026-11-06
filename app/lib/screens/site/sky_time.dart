@@ -81,6 +81,15 @@ double skyPanelHeight(double width, double? paneHeight) {
 double timelineFrameHeight(double width, {bool exact = false}) =>
     (width < skyTimeNarrowWidth ? (760.0 - 0.4 * (width - 288)).clamp(680.0, 760.0) : 760.0) + (exact ? 360.0 : 0.0);
 
+/// Least height of the timeline ("When") frame in the wide pane, where the
+/// frame is otherwise the height that is left (540 px at 1440 x 900, which
+/// listed no COMING UP row at all: its first row starts 467 to 509 px down,
+/// Chromium, web build, 560 to 999 px wide frames). 640 holds two 48 px rows
+/// and the "N more later" line under them (22 px) at every such width, so
+/// the pane scrolls a little rather than leaving COMING UP empty. With
+/// exact numbers the "Heights" figure is added above COMING UP.
+double timelineWideMinHeight({bool exact = false}) => 640.0 + (exact ? 360.0 : 0.0);
+
 /// Height of the sky ("Where to look") frame in the single column: the plot
 /// (sized to the frame width, at most 520) plus 230 on a phone (180 from
 /// [skyTimeNarrowWidth]) for the header, the two caption lines, the key line
@@ -432,8 +441,9 @@ class _SkyTimeTabState extends State<SkyTimeTab> {
                 builder: (context, c) {
                   if (c.maxWidth >= skyTimeWideWidth) {
                     // the charts fill the height that is left, but never less
-                    // than 560 px (a shorter pane scrolls rather than
-                    // squashing them); the timeline comes first in reading
+                    // than the timeline needs for two COMING UP rows
+                    // ([timelineWideMinHeight]; a shorter pane scrolls rather
+                    // than squashing them); the timeline comes first in reading
                     // and focus order, so it is on the left
                     return CustomScrollView(
                       controller: _scroll,
@@ -466,7 +476,7 @@ class _SkyTimeTabState extends State<SkyTimeTab> {
                         SliverFillRemaining(
                           hasScrollBody: false,
                           child: ConstrainedBox(
-                            constraints: BoxConstraints(minHeight: exact ? 900 : 560),
+                            constraints: BoxConstraints(minHeight: timelineWideMinHeight(exact: exact) + chartCardChrome),
                             child: Row(
                               crossAxisAlignment: CrossAxisAlignment.stretch,
                               children: [

@@ -47,8 +47,9 @@ describe('comingFit', () => {
   it('says how many more there are, starting with the number (set in Plex Mono)', () => {
     expect(comingMoreText(2, 1)).toBe('2 more later · move the time on to see them')
     expect(comingMoreText(1, 2)).toBe('1 more later · move the time on to see it')
-    expect(comingMoreText(3, 0)).toBe('3 changes ahead · move the time on to see them')
-    expect(comingMoreText(1, 0)).toBe('1 change ahead · move the time on to see it')
+    // with no row shown, moving the time on lists none either (the frame is too short for one)
+    expect(comingMoreText(3, 0)).toBe('3 changes ahead · too little room to list them here')
+    expect(comingMoreText(1, 0)).toBe('1 change ahead · too little room to list it here')
     // the view measures the line with the longer wording, so the shown one is never taller
     for (const n of [1, 2, 3, 5]) expect(comingMoreText(n, 0).length).toBeGreaterThanOrEqual(comingMoreText(n, 1).length)
   })
@@ -63,6 +64,20 @@ describe('TimelineView keeps Coming up inside its frame', () => {
     // measured again on a frame resize that keeps the width (Flutter's layout, full screen)
     expect(timelineSrc).toMatch(/window\.addEventListener\('resize', f\)/)
   })
+  // 1.13.2 browser check: with classic scrollbars the measure (every row
+  // drawn, the frame overflowing, a scrollbar narrowing it) and the fit (the
+  // scrollbar gone) took turns until React stopped them (error #185) and the
+  // "When" chart went blank
+  it('never re-measures in a loop when a scrollbar comes and goes', () => {
+    // the frame keeps the scrollbar's room and is keyed by its outer width
+    expect(timelineSrc).toMatch(/const TIMELINE_GUTTER = 'stable'/)
+    expect(timelineSrc).toMatch(/overflowY: 'auto', scrollbarGutter: TIMELINE_GUTTER/)
+    expect(timelineSrc).toMatch(/const key = `\$\{Math\.round\(room\)\}\|\$\{root\.offsetWidth\}\|/)
+    expect(timelineSrc).not.toMatch(/root\.clientWidth/)
+    // and a change the measure itself made is kept rather than measured again
+    expect(timelineSrc).toMatch(/if \(now === measuredFor\.current\) return/)
+    expect(timelineSrc).toMatch(/measuredFor\.current = now\s+setFit\(null\)/)
+  })
 })
 
 // The browser check's widths, measured in Chromium on the web build (Malapert
@@ -70,14 +85,15 @@ describe('TimelineView keeps Coming up inside its frame', () => {
 // first Coming up row's top, and the rows asked for (3 under 600 px, else 5).
 // The single column's frame heights are timelineFrameHeight (sky_time.dart):
 // 760 at 288 px, 0.4 px less per px wider (at least 680), 760 from 600 px.
-// At 1440 px the When frame is the wide pane's height, 540 px in a 900 px window.
+// At 1440 px the When frame was the wide pane's height, 540 px in a 900 px
+// window, where no row fitted; it is now at least timelineWideMinHeight, 640 px.
 describe('Coming up at the browser check\'s widths (F1)', () => {
   const cases: Array<{ screen: number; frame: number; oldH: number; h: number; top: number; n: number; all: boolean }> = [
     { screen: 320, frame: 288, oldH: 640, h: 760, top: 590, n: 3, all: true },
     { screen: 360, frame: 328, oldH: 640, h: 744, top: 571, n: 3, all: true },
     { screen: 412, frame: 380, oldH: 640, h: 723.2, top: 553, n: 3, all: true },
     { screen: 700, frame: 668, oldH: 680, h: 760, top: 491, n: 5, all: true },
-    { screen: 1440, frame: 563, oldH: 540, h: 540, top: 482, n: 3, all: false },
+    { screen: 1440, frame: 563, oldH: 540, h: 640, top: 482, n: 3, all: true },
   ]
   for (const c of cases) {
     it(`${c.screen} px wide (${c.frame} x ${c.h} frame): ${c.all ? 'every row fits' : 'the rows that fit, and how many more'}, nothing cut`, () => {
@@ -88,6 +104,8 @@ describe('Coming up at the browser check\'s widths (F1)', () => {
         const k = comingFit(h - PAD_B - c.top, rows, MORE)
         expect(end(c.top, k, c.n), `${h} px frame: ${k} of ${c.n} rows`).toBeLessThanOrEqual(h - PAD_B + 0.5)
         if (h === c.h) expect(k === c.n).toBe(c.all)
+        // and at least two rows in the wide pane's frame
+        if (h === c.h) expect(k).toBeGreaterThanOrEqual(2)
       }
     })
   }

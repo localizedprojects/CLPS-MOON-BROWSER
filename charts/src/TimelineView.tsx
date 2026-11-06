@@ -28,6 +28,8 @@ const mono: React.CSSProperties = { fontFamily: MONO, fontVariantNumeric: 'tabul
 const PAD_X = 12
 /** The view's bottom padding, px. */
 const PAD_B = 4
+/** The frame's room for a classic scrollbar, kept whether it shows or not (see useComingFit). */
+const TIMELINE_GUTTER = 'stable'
 
 function useWidth() {
   const [w, setW] = useState(() => window.innerWidth)
@@ -47,10 +49,19 @@ interface ComingFitState { shown: number; key: string; heights: number[] }
  * The Coming up rows that fit whole below the strip (F1): null while the
  * view measures, with every row and the "more" line drawn (a layout effect,
  * before paint), then the count shown. It is measured again when the frame
- * size, the room above the list, the events or a row's height change.
+ * size, the room above the list, the events or a row's height change, but
+ * not again for the same change right after a measure: a change the measure
+ * itself makes is kept (1.13.2 browser check: with classic scrollbars every
+ * row drawn overflowed the frame, its scrollbar narrowed the rows and the
+ * frame, the fit hid the scrollbar again, and the two renders took turns
+ * until React stopped them, error #185, leaving the "When" chart blank). The
+ * frame keeps its scrollbar's room ([TIMELINE_GUTTER]) and is keyed by its
+ * outer width, so a scrollbar coming or going changes neither.
  */
 function useComingFit(listRef: React.RefObject<HTMLElement | null>, rootRef: React.RefObject<HTMLElement | null>, eventsKey: React.RefObject<string>) {
   const [fit, setFit] = useState<ComingFitState | null>(null)
+  // the frame and rows a measure was last started for
+  const measuredFor = useRef('')
   const [, setTick] = useState(0)
   // a frame resize that keeps the width (Flutter's layout, full screen and back) and late fonts re-check it
   useEffect(() => {
@@ -70,12 +81,18 @@ function useComingFit(listRef: React.RefObject<HTMLElement | null>, rootRef: Rea
     // from the first row's top: the "Coming up" heading above it stays
     const top = ol.getBoundingClientRect().top - root.getBoundingClientRect().top + root.scrollTop
     const room = root.clientHeight - PAD_B - top
-    const key = `${Math.round(room)}|${root.clientWidth}|${eventsKey.current}`
+    const key = `${Math.round(room)}|${root.offsetWidth}|${eventsKey.current}`
     const heights = Array.prototype.map.call(list.querySelectorAll('li'), (li: HTMLElement) => li.offsetHeight) as number[]
     if (!fit) {
       const more = list.querySelector('[data-more]') as HTMLElement | null
       setFit({ shown: comingFit(room, heights, more ? more.offsetHeight : 0), key, heights })
-    } else if (fit.key !== key || heights.some((h, i) => h !== fit.heights[i])) setFit(null)
+      return
+    }
+    if (fit.key === key && heights.every((h, i) => h === fit.heights[i])) return
+    const now = `${key}|${heights.join(',')}`
+    if (now === measuredFor.current) return // what the last measure itself changed
+    measuredFor.current = now
+    setFit(null)
   })
   return fit
 }
@@ -264,7 +281,7 @@ export function TimelineView() {
     </div>)
 
   return (
-    <div ref={rootRef} className={narrow ? 'ph-col4' : 'ph-col6'} style={{ ...box, overflowY: 'auto', boxSizing: 'border-box', padding: `4px ${PAD_X}px ${PAD_B}px`, display: 'flex', flexDirection: 'column', fontSize: 13.5, color: C.text }}
+    <div ref={rootRef} className={narrow ? 'ph-col4' : 'ph-col6'} style={{ ...box, overflowY: 'auto', scrollbarGutter: TIMELINE_GUTTER, boxSizing: 'border-box', padding: `4px ${PAD_X}px ${PAD_B}px`, display: 'flex', flexDirection: 'column', fontSize: 13.5, color: C.text }}
       aria-label={`${fig.alt} Shown time ${fmtDate(tNow, { year: true })} UTC.`} role="group">
       <div style={{ color: C.muted, fontSize: 12.5 }}>When · all times UTC</div>
       <div aria-live={live} className={narrow ? 'ph-facts' : 'ph-facts-wide'}>

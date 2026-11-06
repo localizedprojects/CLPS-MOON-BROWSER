@@ -249,8 +249,9 @@ export function comingFit(room: number, rowHeights: readonly number[], moreH: nu
 /** The line under the [shown] Coming up rows that fit, for the [hidden] ones left out (it starts with the number). */
 export function comingMoreText(hidden: number, shown: number): string {
   const them = hidden === 1 ? 'it' : 'them'
+  // with no row shown, moving the time on lists none either: the frame is too short for one
   return shown > 0 ? `${hidden} more later · move the time on to see ${them}`
-    : `${hidden} ${hidden === 1 ? 'change' : 'changes'} ahead · move the time on to see ${them}`
+    : `${hidden} ${hidden === 1 ? 'change' : 'changes'} ahead · too little room to list ${them} here`
 }
 
 /** Every run boundary (all rows), sorted: ←/→ on the strip step through them. */

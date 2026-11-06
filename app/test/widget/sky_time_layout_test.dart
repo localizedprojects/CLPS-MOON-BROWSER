@@ -245,6 +245,23 @@ void main() {
   // NowStatus sits inside the sky chart card, directly under the chart and
   // its legend (user, 2026-10-16/17), as one statement, in both views, on a phone in portrait and landscape, a two-pane window whose Sky &
   // time pane is still one column (1400: about 872 px) and the wide side-by-
+  // the wide pane gave the When frame the height that was left: 540 px at
+  // 1440 x 900, where its COMING UP listed no row at all (1.13.2 browser
+  // check: "3 changes ahead"); it is never shorter than two rows need
+  for (final size in const [Size(1440, 900), Size(1366, 768)]) {
+    testWidgets('${size.width.round()}x${size.height.round()}: the wide pane\'s When frame holds two COMING UP rows', (tester) async {
+      await showMe(tester, size);
+      hubOf(tester).setSimpleView(true);
+      await tester.pump();
+      final when = tester.getRect(chart(whenChartLabel));
+      expect(when.height, greaterThanOrEqualTo(timelineWideMinHeight() - 0.5));
+      // the first row starts at most 509 px down; 48 px rows, the 22 px line, 4 px padding
+      expect(timelineWideMinHeight(), greaterThanOrEqualTo(509 + 2 * 48 + 22 + 4));
+      expect(timelineWideMinHeight(exact: true), timelineWideMinHeight() + 360);
+      await done(tester);
+    });
+  }
+
   // side pane (1700: about 1172 px, over skyTimeWideWidth)
   for (final size in const [Size(390, 844), Size(844, 390), Size(1400, 900), Size(1700, 1000)]) {
     final name = '${size.width.round()}x${size.height.round()}';
@@ -393,8 +410,9 @@ void main() {
   // presets, strip, note, COMING UP and all its rows, then the 4 px padding),
   // measured in Chromium on the web build (Malapert peak, the default dates):
   // the frame holds it, with room for one more wrapped answer line (17 px).
-  // In the wide pane (1440 px) the frame is the pane's height (540 px there)
-  // and the chart keeps only the COMING UP rows that fit (comingFit.test.ts).
+  // In the wide pane (1440 px) the frame is the pane's height, at least
+  // timelineWideMinHeight (640 px), and the chart keeps only the COMING UP
+  // rows that fit (comingFit.test.ts).
   for (final (screen, frame, content) in const [(320, 288.0, 738.0), (360, 328.0, 719.0), (412, 380.0, 701.0), (700, 668.0, 735.0)]) {
     test('$screen px wide: the simple timeline frame (${frame.round()} px wide) holds all of COMING UP', () {
       // the column's padding (6 + 6) and the card's chrome around the chart

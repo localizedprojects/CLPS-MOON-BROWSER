@@ -1757,6 +1757,26 @@ const arrowLabelReach = 48.0;
 /// over white ground (the site names' 85 % backing would leave Earth 4.0:1).
 const arrowLabelBacking = Color(0xE6060B16);
 
+/// The radius of the hole [arrowLabelBackingPath] leaves round an arrow
+/// head, px (the head's dark disc is 8 px).
+const arrowHeadHole = 8.5;
+
+/// The backing behind an arrow label whose box is [label] ([arrowLabelBacking]):
+/// the rounded box 2 px round it, less a disc round each of [heads] it would
+/// cover. While Play runs a label lets the other arrow's head pass under it
+/// rather than hop ([layoutArrowLabels]); the head then stays in sight under
+/// the words, as it did before the backing (1.13.3 browser check: at IM-1
+/// Odysseus on a phone the Sun label's backing hid Earth's head for six steps).
+Path arrowLabelBackingPath(Rect label, Iterable<Offset> heads) {
+  final box = RRect.fromRectAndRadius(label.inflate(2), const Radius.circular(4));
+  var path = Path()..addRRect(box);
+  for (final h in heads) {
+    final hole = Rect.fromCircle(center: h, radius: arrowHeadHole);
+    if (hole.overlaps(box.outerRect)) path = Path.combine(PathOperation.difference, path, Path()..addOval(hole));
+  }
+  return path;
+}
+
 /// One direction arrow for [layoutArrowLabels]: its shaft runs from [from] to
 /// the head at [tip]; [size] is its label's box.
 typedef ArrowLabel = ({Offset from, Offset tip, Size size});
@@ -2420,9 +2440,10 @@ class LightFramePainter extends CustomPainter {
     // the other arrow's head passes ([layoutArrowLabels]); on top, on a dark
     // backing ([arrowLabelBacking]), its words stay readable over the heads
     // (1.13.1 browser check: the Sun's head was drawn over "Earth 13°" at
-    // IM-1 Odysseus) and over sunlit ground
+    // IM-1 Odysseus) and over sunlit ground; the backing leaves a head it
+    // would cover in sight ([arrowLabelBackingPath])
     for (final (i, a) in arrows.indexed) {
-      canvas.drawRRect(RRect.fromRectAndRadius(boxAt(a.label, ats[i]).inflate(2), const Radius.circular(4)),
+      canvas.drawPath(arrowLabelBackingPath(boxAt(a.label, ats[i]), [for (final b in arrows) b.tip]),
           Paint()..color = arrowLabelBacking);
       a.label.paint(canvas, ats[i] - Offset(a.label.width / 2, a.label.height / 2));
     }

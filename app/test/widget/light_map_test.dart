@@ -1337,15 +1337,32 @@ void main() {
       rec.endRecording().dispose();
       final boxes = LightFramePainter.lastArrowLabels;
       expect(boxes, hasLength(2));
-      // Earth's label, then the Sun's: each backing just before its words
+      // Earth's label, then the Sun's: each backing (2 px round its box) just before its words
+      List<Offset> inside(Rect b) => [b.center, Offset(b.left - 1, b.center.dy), Offset(b.right + 1, b.center.dy)];
+      List<Offset> outside(Rect b) => [Offset(b.left - 3, b.center.dy), Offset(b.center.dx, b.bottom + 3)];
+      final order = <String>[], backings = <Path>[];
       expect(
         (Canvas c) => painter.paint(c, const Size(side, side)),
         paints
-          ..rrect(rrect: RRect.fromRectAndRadius(boxes[0].inflate(2), const Radius.circular(4)), color: arrowLabelBacking)
-          ..paragraph()
-          ..rrect(rrect: RRect.fromRectAndRadius(boxes[1].inflate(2), const Radius.circular(4)), color: arrowLabelBacking)
-          ..paragraph(),
+          ..everything((method, args) {
+            if (method == #drawPath && (args[1] as Paint).color.toARGB32() == arrowLabelBacking.toARGB32()) {
+              backings.add(args[0] as Path);
+              order.add('backing');
+            } else if (method == #drawParagraph && order.isNotEmpty) {
+              order.add('words');
+            }
+            return true;
+          }),
       );
+      expect(order.take(4), ['backing', 'words', 'backing', 'words']);
+      for (final (i, b) in boxes.indexed) {
+        for (final o in inside(b)) {
+          expect(backings[i].contains(o), isTrue, reason: 'label $i at $o');
+        }
+        for (final o in outside(b)) {
+          expect(backings[i].contains(o), isFalse, reason: 'label $i at $o');
+        }
+      }
       // the worst ground (white) seen through the backing
       final ground = Color.alphaBlend(arrowLabelBacking, Colors.white);
       double contrast(Color a, Color b) {
@@ -1355,6 +1372,28 @@ void main() {
 
       expect(contrast(PH.earth, ground), greaterThanOrEqualTo(4.5));
       expect(contrast(PH.sun, ground), greaterThanOrEqualTo(4.5));
+    });
+
+    // 1.13.3 browser check (IM-1 Odysseus, 360 x 800, Play 27-28 Nov): the
+    // Sun label, letting Earth's head pass under it rather than hop, hid that
+    // head under its backing for six steps
+    test('a label\'s backing leaves an arrow head it covers in sight, under the words', () {
+      const label = Rect.fromLTWH(100, 100, 120, 18);
+      const head = Offset(150, 108), away = Offset(400, 400);
+      final p = arrowLabelBackingPath(label, [head, away]);
+      expect(p.contains(head), isFalse);
+      expect(p.contains(head + const Offset(arrowHeadHole - 1, 0)), isFalse);
+      expect(p.contains(head + const Offset(0, -arrowHeadHole + 1)), isFalse);
+      expect(p.contains(label.center + const Offset(40, 0)), isTrue);
+      expect(p.contains(Offset(label.left - 1, label.center.dy)), isTrue);
+      // a head clear of the box leaves the backing whole
+      final whole = arrowLabelBackingPath(label, [away]);
+      expect(whole.getBounds(), label.inflate(2));
+      expect(whole.contains(head), isTrue);
+      // a head just past the box's edge cuts only its rim
+      final edge = arrowLabelBackingPath(label, [Offset(label.right + 6, label.center.dy)]);
+      expect(edge.contains(Offset(label.right - 1, label.center.dy)), isFalse);
+      expect(edge.contains(label.center), isTrue);
     });
   });
 

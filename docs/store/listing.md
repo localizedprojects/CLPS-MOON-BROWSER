@@ -1,7 +1,7 @@
-# Store listing texts and form answers (Lunar Horizon 1.13.2)
+# Store listing texts and form answers (Lunar Horizon 1.13.3)
 
 Everything to paste into Google Play Console and App Store Connect for the first upload of
-version 1.13.2 (build 23). Nothing here has been uploaded: the store accounts are opened by a parent
+version 1.13.3 (build 24). Nothing here has been uploaded: the store accounts are opened by a parent
 or guardian ([release_checklist.md](../release_checklist.md#accounts)). The form answers follow the
 checklist's [Store forms](../release_checklist.md#store-forms) section.
 
@@ -87,13 +87,12 @@ Made for the NASA Space Apps Challenge. Not an official NASA product.
 | Privacy policy | <https://localizedprojects.github.io/CLPS-MOON-BROWSER/privacy/> |
 | Price | Owner's choice (the app has no ads and no in-app purchases) |
 
-### What's new in 1.13.2 (418/500)
-From the 1.13.2 release notes, shortened.
+### What's new in 1.13.3 (477/500)
+From the 1.13.3 release notes, shortened.
 ```text
-• Light & shadow map on phones: the Sun and Earth labels stay in the part of the map you can see, and settle beside their arrows when Play hides the bars.
-• Lander's view with large text: the readout, legend and labels no longer cover the compass strip, the Sun or Earth.
-• Learn › Credits: a note on the use of AI, and every data source and software credit.
-• Chart pictures: the "% = share" note fits narrow screens.
+• Light & shadow map: during Play the Sun and Earth labels follow their arrows round the site, step round what is in their way instead of hopping, and sit on a dark backing that keeps them readable without hiding the other arrow's head.
+• Simple view: "When" no longer cuts off a Coming up row, and "Where to look" fits its plot, Paths toggle and key on every screen size.
+• Lander's view: the Sun and Earth labels stay clear of the buttons over the view, even with large text.
 ```
 
 ### Data safety (Play Console › App content › Data safety)
@@ -108,7 +107,7 @@ the time controls are hidden, which short guides were seen) stay on the device. 
 files go to the share sheet only when the user asks, which Play does not count as collection or
 sharing.
 
-Permissions in the 1.13.2 APK (`aapt2 dump permissions`): only AndroidX's internal
+Permissions in the 1.13.3 APK (`aapt2 dump permissions`): only AndroidX's internal
 `<package>.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION`, the app's own signature permission, which users
 never see or grant. There is no `INTERNET` permission in release builds (only the debug and profile
 manifests add it).

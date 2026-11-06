@@ -46,7 +46,7 @@
 **Next steps.** Refine near-field terrain with 20 m LOLA data, check the 2 m Earth numbers at peaks and ridges (Malapert peak's 56% rises to 78% with a 10 m mast).
 
 **Links.** Code: <https://github.com/localizedprojects/CLPS-MOON-BROWSER>. Web app: <https://localizedprojects.github.io/CLPS-MOON-BROWSER/>.
-<!-- TODO once the v1.13.2 release is published and <https://github.com/localizedprojects/CLPS-MOON-BROWSER/releases/latest/download/lunar-horizon.apk> serves it with the SHA-256 in its release notes (docs/release_checklist.md): add "Android app (APK, Android 7.0 or newer): <that link>." to the Links line. Until then that link serves v1.2.0 (17 October 2026), which is older than the charts in Android 7's stock WebView, so it stays out of this brief. -->
+<!-- TODO once the v1.13.3 release is published and <https://github.com/localizedprojects/CLPS-MOON-BROWSER/releases/latest/download/lunar-horizon.apk> serves it with the SHA-256 in its release notes (docs/release_checklist.md): add "Android app (APK, Android 7.0 or newer): <that link>." to the Links line. Until then that link serves v1.2.0 (17 October 2026), which is older than the charts in Android 7's stock WebView, so it stays out of this brief. -->
 <!-- TODO at submission: add the demo video's public link to the Links line. -->
 
 <!--

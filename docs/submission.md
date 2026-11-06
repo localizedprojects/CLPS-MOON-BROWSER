@@ -66,7 +66,7 @@ Music: "South Pole Light", an original piano piece composed for Lunar Horizon by
 
 > **Team check.** Add the demo video's public link to this list once it is uploaded. The APK
 > link serves the latest GitHub release, which is still v1.2.0 (17 October 2026). The web app
-> is 1.13.2. Publish a 1.13.2 release with `lunar-horizon.apk` before submitting, or this link
+> is 1.13.3. Publish a 1.13.3 release with `lunar-horizon.apk` before submitting, or this link
 > gives judges the old app.
 
 ## Project details
@@ -328,5 +328,9 @@ Claude Code (Anthropic's AI coding agent) wrote the code, tests and documentatio
 - 6 November 2026: app version 1.13.2 committed to `main`: on phones the light map's labels keep
   to the part of the map on screen, the Lander's view stays readable at large text, and Learn ›
   Credits gains a Use of AI note and the missing credits. The demo videos stay as recorded on 1.13.0.
+- 6 November 2026: app version 1.13.3 committed to `main`: the light map's labels follow their
+  arrows during Play and stay readable, Simple view's timeline and sky frames never cut their
+  content, and the Lander's view callouts stay clear of its buttons. The demo videos stay as
+  recorded on 1.13.0.
 - All 46 commits on `main` up to `06be9e4` carry a `Co-authored-by: Claude` trailer.
 - The NASA Space Apps Challenge 2026 hackathon is on 14–15 November 2026.

@@ -1739,6 +1739,16 @@ class _Swatch extends CustomPainter {
 /// near is clear of the site, its name and the notes.
 const arrowLabelStep = 48.0;
 
+/// How far a remembered arrow label is drawn back towards its spot just past
+/// its head on each layout, once nothing keeps it aside ([layoutArrowLabels]).
+const arrowLabelSettle = 12.0;
+
+/// How far a remembered arrow label's edge may be from its arrow head (it
+/// is 11 px just past it; a label stacked beside the other one is a row or
+/// two further) before [layoutArrowLabels] draws it back towards the fresh
+/// layout's spot by its head.
+const arrowLabelReach = 48.0;
+
 /// One direction arrow for [layoutArrowLabels]: its shaft runs from [from] to
 /// the head at [tip]; [size] is its label's box.
 typedef ArrowLabel = ({Offset from, Offset tip, Size size});
@@ -1760,12 +1770,13 @@ typedef ArrowLabel = ({Offset from, Offset tip, Size size});
 /// little and the label words changing on every step) does not make a label
 /// jump between spots while one a short step away is clear of the site, its
 /// name and the notes.
-List<Offset> layoutArrowLabels(
-    {required List<ArrowLabel> arrows,
-    required Size canvas,
-    List<Rect> keepClear = const [],
-    ArrowLabelMemory? memory,
-    Rect? visible}) {
+List<Offset> layoutArrowLabels({
+  required List<ArrowLabel> arrows,
+  required Size canvas,
+  List<Rect> keepClear = const [],
+  ArrowLabelMemory? memory,
+  Rect? visible,
+}) {
   final whole = Offset.zero & canvas;
   // the part on screen, when every label fits in it (side by side or stacked)
   final seen = visible?.intersect(whole);
@@ -1773,12 +1784,14 @@ List<Offset> layoutArrowLabels(
   final stack = arrows.fold(0.0, (m, a) => m + a.size.height + 6);
   final area = seen != null && seen.width >= widest + 4 && seen.height >= stack + 4 ? seen : whole;
   Offset inside(Size s, Offset c) => Offset(
-      c.dx.clamp(area.left + s.width / 2 + 2, math.max(area.left + s.width / 2 + 2, area.right - s.width / 2 - 2)),
-      c.dy.clamp(area.top + s.height / 2 + 2, math.max(area.top + s.height / 2 + 2, area.bottom - s.height / 2 - 2)));
+    c.dx.clamp(area.left + s.width / 2 + 2, math.max(area.left + s.width / 2 + 2, area.right - s.width / 2 - 2)),
+    c.dy.clamp(area.top + s.height / 2 + 2, math.max(area.top + s.height / 2 + 2, area.bottom - s.height / 2 - 2)),
+  );
   final heads = [for (final a in arrows) Rect.fromCircle(center: a.tip, radius: 9)];
   final shafts = <Offset>[
     for (final a in arrows)
-      for (var t = 0.0, n = math.max(1, (a.tip - a.from).distance ~/ 4); t <= 1.0001; t += 1 / n) Offset.lerp(a.from, a.tip, t)!,
+      for (var t = 0.0, n = math.max(1, (a.tip - a.from).distance ~/ 4); t <= 1.0001; t += 1 / n)
+        Offset.lerp(a.from, a.tip, t)!,
   ];
   final placed = <Rect>[];
   final out = <Offset>[];
@@ -1792,7 +1805,19 @@ List<Offset> layoutArrowLabels(
     final a0 = 11 + support, along = h + 4;
     final across = perp.dx.abs() * w + perp.dy.abs() * h + 4;
     final candidates = <Offset>[
-      for (final (k, s) in const [(0, 0), (0, 1), (0, -1), (1, 0), (1, 1), (1, -1), (0, 2), (0, -2), (2, 0), (2, 1), (2, -1)])
+      for (final (k, s) in const [
+        (0, 0),
+        (0, 1),
+        (0, -1),
+        (1, 0),
+        (1, 1),
+        (1, -1),
+        (0, 2),
+        (0, -2),
+        (2, 0),
+        (2, 1),
+        (2, -1),
+      ])
         a.tip + dir * (a0 + k * along) + perp * (s * across),
       // last resort: beside the shaft, short of the head (a head just under
       // a corner note at the map's edge leaves nothing free past it)
@@ -1805,9 +1830,11 @@ List<Offset> layoutArrowLabels(
     // with the first spot (a head off the map's edge, under the corner note,
     // leaves nothing else free)
     final c0 = candidates.first;
-    candidates.addAll([
-      for (final r in keepClear) ...[Offset(c0.dx, r.top - h / 2 - 3), Offset(c0.dx, r.bottom + h / 2 + 3)],
-    ].map((c) => inside(a.size, c)));
+    candidates.addAll(
+      [
+        for (final r in keepClear) ...[Offset(c0.dx, r.top - h / 2 - 3), Offset(c0.dx, r.bottom + h / 2 + 3)],
+      ].map((c) => inside(a.size, c)),
+    );
     Rect box(Offset c) => Rect.fromCenter(center: c, width: w, height: h);
     bool clearOf(Rect r, Iterable<Rect> others) => !others.any(r.overlaps);
     bool strict(Offset c) {
@@ -1818,14 +1845,17 @@ List<Offset> layoutArrowLabels(
     bool relaxed(Offset c) => clearOf(box(c), [...placed, ...heads]);
     // clear of notes and labels but touching a shaft beats covering a note
     bool clearOfNotes(Offset c) => clearOf(box(c), [...placed, ...heads, ...keepClear]);
+    // the layout with nothing remembered: just past the head when free
+    Offset fresh() =>
+        candidates.where(strict).firstOrNull ??
+        candidates.where(clearOfNotes).firstOrNull ??
+        candidates.where(relaxed).firstOrNull ??
+        candidates.where((c) => clearOf(box(c), placed)).firstOrNull ??
+        candidates.first;
     final prev = memory?.centres.elementAtOrNull(out.length);
     Offset at;
     if (prev == null) {
-      at = candidates.where(strict).firstOrNull ??
-          candidates.where(clearOfNotes).firstOrNull ??
-          candidates.where(relaxed).firstOrNull ??
-          candidates.where((c) => clearOf(box(c), placed)).firstOrNull ??
-          candidates.first;
+      at = fresh();
     } else {
       // near where the label was: it moves on only as far as it must. It
       // never covers its own head or a label; covering the other arrow's
@@ -1834,22 +1864,78 @@ List<Offset> layoutArrowLabels(
       // spots
       final i = out.length;
       final prevTip = memory!.tips.elementAtOrNull(i);
-      // where it was, moved with its head, and short steps round that (to
-      // let a head or a label pass without a hop across the map)
+      // where it was, moved with its head
       final moved = prevTip == null ? prev : prev + (a.tip - prevTip);
-      final options = [
-        for (final (dx, dy) in const [(0, 0), (1, 0), (-1, 0), (0, 1), (0, -1), (1, 1), (-1, 1), (1, -1), (-1, -1), (2, 0), (-2, 0), (0, 2), (0, -2)])
-          inside(a.size, moved + Offset(dx * 24.0, dy * 20.0)),
-        ...candidates,
-      ];
+      final headMoved = prevTip == null ? 0.0 : (a.tip - prevTip).distance;
       // (a head at or past the map's edge, which a label pinned to that edge
       // cannot get out of the way of, only weighs too)
       final ownHead = heads[i];
       final ownSeen = area.deflate(1).contains(ownHead.topLeft) && area.deflate(1).contains(ownHead.bottomRight);
       bool ok(Offset c) => clearOf(box(c), placed) && !(ownSeen && box(c).overlaps(ownHead));
+      bool short(Offset c) => (c - prev).distance <= headMoved + arrowLabelStep;
+      bool clear(Offset c) => ok(c) && clearOf(box(c), [...heads, ...keepClear]);
+      Offset towards(Offset to, double most) {
+        final d = to - moved;
+        return d.distance <= most ? to : moved + d / d.distance * most;
+      }
+
+      // and drawn after its arrow as that turns: left far from its head
+      // (more than about twice its own distance past it), towards the fresh
+      // layout's spot by up to a short step at a time (1.13.2 browser check:
+      // moved only with its head, the Sun's label stayed below the site
+      // while its arrow swung round to the other side); otherwise a few
+      // pixels a step back towards its own spot just past the head, while
+      // that spot is free and the step there is clear (never squeezing in
+      // beside a label or the site it would have to hop round later)
+      final home = candidates.first;
+      // (how far the label's edge is from the head: 11 px just past it)
+      double gap(Offset c) {
+        final r = box(c);
+        return (a.tip - Offset(a.tip.dx.clamp(r.left, r.right), a.tip.dy.clamp(r.top, r.bottom))).distance;
+      }
+
+      final f = ownSeen && gap(moved) > arrowLabelReach ? fresh() : null;
+      final homeward = strict(home) ? towards(home, arrowLabelSettle) : null;
+      final target = f != null && gap(f) < gap(moved)
+          ? towards(f, arrowLabelStep)
+          : homeward != null && short(homeward) && clear(homeward)
+          ? homeward
+          : moved;
+      // short steps round that (to let a head or a label pass without a hop
+      // across the map), and the spots just past the edges of the site, its
+      // name, a note or a label in line with it (so a label whose words grow
+      // wider steps just clear of what it would cover)
+      final options = [
+        for (final o in {moved, target})
+          for (final (dx, dy) in const [
+            (0, 0),
+            (1, 0),
+            (-1, 0),
+            (0, 1),
+            (0, -1),
+            (1, 1),
+            (-1, 1),
+            (1, -1),
+            (-1, -1),
+            (2, 0),
+            (-2, 0),
+            (0, 2),
+            (0, -2),
+          ])
+            inside(a.size, o + Offset(dx * 24.0, dy * 20.0)),
+        for (final r in [...placed, ...keepClear])
+          for (final c in [
+            Offset(moved.dx, r.top - h / 2 - 3),
+            Offset(moved.dx, r.bottom + h / 2 + 3),
+            Offset(r.left - w / 2 - 3, moved.dy),
+            Offset(r.right + w / 2 + 3, moved.dy),
+          ])
+            inside(a.size, c),
+        ...candidates,
+      ];
       double cost(Offset c) {
         final r = box(c);
-        return (c - prev).distance +
+        return (c - target).distance +
             (clearOf(r, heads) ? 0 : 60) +
             (clearOf(r, keepClear) ? 0 : 24) +
             (shafts.any(r.inflate(1).contains) ? 8 : 0);
@@ -1862,10 +1948,7 @@ List<Offset> layoutArrowLabels(
       // the map (the IM-1 Odysseus Play run); only with no short step clear
       // of the notes and the site does it take the nearest free spot, and
       // only with none of those does covering one weigh against distance
-      final headMoved = prevTip == null ? 0.0 : (a.tip - prevTip).distance;
-      bool short(Offset c) => (c - prev).distance <= headMoved + arrowLabelStep;
-      bool clear(Offset c) => ok(c) && clearOf(box(c), [...heads, ...keepClear]);
-      Offset nearest(List<Offset> cs) => cs.reduce((a, b) => (b - moved).distance < (a - moved).distance ? b : a);
+      Offset nearest(List<Offset> cs) => cs.reduce((a, b) => (b - target).distance < (a - target).distance ? b : a);
       Offset cheapest(List<Offset> cs) => cs.reduce((a, b) => cost(b) < cost(a) ? b : a);
       final near = options.where((c) => short(c) && clear(c)).toList();
       final aside = options.where((c) => short(c) && ok(c) && clearOf(box(c), keepClear)).toList();
@@ -1874,12 +1957,15 @@ List<Offset> layoutArrowLabels(
       at = near.isNotEmpty
           ? nearest(near)
           : aside.isNotEmpty
-              ? cheapest(aside)
-              : far.isNotEmpty
-                  ? nearest(far)
-                  : free.isNotEmpty
-                      ? cheapest(free)
-                      : candidates.first;
+          ? cheapest(aside)
+          : far.isNotEmpty
+          ? nearest(far)
+          : free.isNotEmpty
+          ? cheapest(free)
+          : candidates.first;
+      // and when it can get no nearer that way (a label or the site in
+      // between), the fresh layout's spot near its head
+      if (f != null && gap(f) <= arrowLabelReach && gap(at) > arrowLabelReach && gap(at) >= gap(moved) - 1) at = f;
     }
     placed.add(box(at));
     out.add(at);

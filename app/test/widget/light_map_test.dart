@@ -1125,6 +1125,82 @@ void main() {
     });
   });
 
+  group('arrow labels follow their arrows round the site (1.13.2 browser check)', () {
+    setUpAll(loadPlexFonts);
+
+    // while Play runs on a desktop close-up the Sun's arrow swung round the
+    // site and its label stayed below the site, 118 to 174 px from the
+    // head (IM-1 Odysseus, Shackleton rim SR1): the remembered spot only
+    // moved with the head, and a spot blocked by the site or its name kept
+    // it where it was. Here the Sun sweeps half way round the site, a few
+    // degrees a step, past the Earth's arrow, and both labels keep near
+    // their heads on every step (a label's edge within 96 px, two short
+    // steps, of its head; it was up to 312 px on 1.13.2's first build)
+    testWidgets('the Sun sweeping 180° round the site: each label stays near its head', (tester) async {
+      final hill = (await tester.runAsync(() => createTestImage(width: 8, height: 8)))!;
+      addTearDown(hill.dispose);
+      const site = Site(
+        id: 's',
+        name: 'Spot',
+        short: 'Spot',
+        group: 'illumination',
+        kind: 'k',
+        confidence: 'c',
+        notes: '',
+        lat: -89.5,
+        lon: 0,
+        terrainHeightM: 0,
+      );
+      const side = 560.0, ext = 100000.0, k = side / ext;
+      final (x, y) = latLonToXY(site.lat, site.lon);
+      final view = (x0: x - side / 2 / k, y0: y + side / 2 / k, ext: ext);
+      Map<String, dynamic> body(double az) => {
+        'az': az,
+        'el': 4.0,
+        'hz': 0.0,
+        'rho': 0.27,
+        'frac': 1.0,
+        'visible': true,
+      };
+      final log = <String>[];
+      for (final earth in [0.0, 60.0, 90.0, 180.0, 270.0]) {
+        for (final start in [0.0, 90.0, 180.0, 270.0]) {
+          for (final turn in [1.0, -1.0]) {
+            final m = ArrowLabelMemory();
+            for (var d = 0.0; d <= 180; d += 3) {
+              final sun = start + turn * d;
+              final rec = ui.PictureRecorder();
+              LightFramePainter(
+                hillshade: hill,
+                halfWidthM: 304000,
+                images: null,
+                view: view,
+                sites: const [site],
+                selected: site,
+                now: {'sun': body(sun), 'earth': body(earth)},
+                closeUp: true,
+                labelMemory: m,
+              ).paint(Canvas(rec), const Size(side, side));
+              rec.endRecording().dispose();
+              for (var i = 0; i < m.centres.length; i++) {
+                final b = Rect.fromCenter(center: m.centres[i], width: m.sizes[i].width, height: m.sizes[i].height);
+                final t = m.tips[i];
+                // from the head to the nearest point of the label's box
+                // (just past the head: 11 px)
+                final gap = (t - Offset(t.dx.clamp(b.left, b.right), t.dy.clamp(b.top, b.bottom))).distance;
+                if (gap > 96) {
+                  log.add('Earth $earth°, Sun $sun° (from $start°): ${i == 0 ? 'Earth' : 'Sun'} label $b is ${gap.round()} px '
+                      'from its head $t');
+                }
+              }
+            }
+          }
+        }
+      }
+      expect(log, isEmpty);
+    });
+  });
+
   group('lander legend', () {
     testWidgets('"Near ground, see-through" is keyed by the view\'s hatch, not an amber band', (tester) async {
       const key = ValueKey('swatch');

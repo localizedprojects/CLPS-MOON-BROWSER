@@ -21,6 +21,7 @@ import 'how_calculated.dart';
 import 'validation_page.dart';
 import '../widgets/feature_guide.dart';
 import '../widgets/focus_semantics.dart';
+import '../widgets/licence_page.dart';
 
 /// The views explained under "What each view shows", in app order.
 const learnViews = [explainExplore, explainOverview, explainSky, explainTimeline, explainLight, explainLander, explainCompare];
@@ -590,7 +591,8 @@ class _Credits extends StatelessWidget {
           // the chart bundle's React and Plotly.js)
           OutlinedButton.icon(
             key: const ValueKey('credits-licences'),
-            onPressed: () => showLicensePage(context: context, applicationName: 'Lunar Horizon', applicationVersion: appVersion),
+            // Escape closes it and a focused row has the ice ring (licence_page.dart)
+            onPressed: () => showAppLicences(context),
             icon: const Icon(Icons.description_outlined, size: 20),
             label: const Text('Open-source licences',
                 semanticsLabel: 'Open-source licences: the licence texts of the software and fonts in this app'),

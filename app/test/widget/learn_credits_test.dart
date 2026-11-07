@@ -1,5 +1,6 @@
-// Learn › Credits: the licence texts that must go with the app (L2), and the
-// card read as text with its own headings, not as one big heading (A5).
+// Learn › Credits: the licence texts that must go with the app (L2), the
+// card read as text with its own headings, not as one big heading (A5), and
+// the open-source credit naming the libraries the pipeline imports (X4).
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -105,6 +106,20 @@ void main() {
       final ai = tester.getSemantics(find.byKey(const ValueKey('learn-use-of-ai')));
       expect(ai.flagsCollection.isHeader, isFalse, reason: 'the Use of AI paragraph is not a heading');
       semantics.dispose();
+    });
+  });
+
+  group('open-source credit (X4)', () {
+    testWidgets('it names the libraries the pipeline imports and no SciPy, which nothing imports', (tester) async {
+      await pumpLearn(tester);
+      final credit = find.byWidgetPredicate(
+          (w) => w is RichText && w.text.toPlainText().startsWith('Open-source software  '));
+      expect(credit, findsOneWidget);
+      final text = tester.widget<RichText>(credit).text.toPlainText();
+      for (final lib in ['SpiceyPy', 'NumPy', 'Pillow', 'Requests']) {
+        expect(text, contains(lib), reason: '$lib is imported by pipeline/');
+      }
+      expect(text, isNot(contains('SciPy')), reason: 'no pipeline module imports SciPy');
     });
   });
 }

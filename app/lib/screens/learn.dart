@@ -546,8 +546,8 @@ class _Credits extends StatelessWidget {
     ('IBM Plex', 'IBM Plex Sans and IBM Plex Mono typefaces, SIL Open Font License 1.1.', null),
     (
       'Open-source software',
-      'Flutter and Dart packages; React and Plotly.js (MIT licence) for the charts; SpiceyPy (NAIF CSPICE), NumPy '
-          'and SciPy for the data; the Roboto web font (Apache License 2.0).',
+      'Flutter and Dart packages; React and Plotly.js (MIT licence) for the charts; SpiceyPy (NAIF CSPICE), NumPy, '
+          'Pillow and Requests for the data; the Roboto web font (Apache License 2.0).',
       null
     ),
     (

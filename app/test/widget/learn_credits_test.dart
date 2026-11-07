@@ -79,9 +79,9 @@ void main() {
     });
 
     // 1.13.4 review: the chart bundle also compiles in Plotly's d3 modules
-    // (BSD-3-Clause and ISC, not MIT), and the app ships the Material Icons
-    // font (CC BY 4.0) and, on the web, the engine's Roboto (Apache 2.0)
-    test('the page also holds the d3 modules\' BSD and ISC notices, Material Icons and (web) Roboto', () async {
+    // (BSD-3-Clause, not MIT), and the app ships the Material Icons font
+    // (CC BY 4.0) and, on the web, the engine's Roboto (Apache 2.0)
+    test('the page also holds the d3 modules\' BSD notices, Material Icons and (web) Roboto', () async {
       final entries = await appLicenses(web: true).toList();
       String textOf(String package) => entries
           .where((e) => e.packages.contains(package))
@@ -90,20 +90,15 @@ void main() {
           .join('\n');
       expect(textOf('@plotly/d3'), contains('Copyright (c) 2010-2016, Michael Bostock'));
       expect(textOf('@plotly/d3'), contains('Redistributions in binary form must reproduce'));
-      for (final (package, line) in [
-        ('d3-format', 'Copyright 2010-2015 Mike Bostock'),
-        ('d3-time', 'Copyright 2010-2016 Mike Bostock'),
-        ('d3-time-format', 'Copyright 2010-2017 Mike Bostock'),
+      expect(textOf('@plotly/d3'), contains('3.8.2'));
+      for (final (package, version, line) in [
+        ('d3-format', '1.4.5', 'Copyright 2010-2015 Mike Bostock'),
+        ('d3-time', '1.1.0', 'Copyright 2010-2016 Mike Bostock'),
+        ('d3-time-format', '2.3.0', 'Copyright 2010-2017 Mike Bostock'),
       ]) {
         expect(textOf(package), contains(line), reason: package);
+        expect(textOf(package), contains('$package $version'), reason: package);
         expect(textOf(package), contains('Redistributions in binary form must reproduce'), reason: package);
-      }
-      for (final (package, line) in [
-        ('d3-interpolate', 'Copyright 2010-2021 Mike Bostock'),
-        ('d3-color', 'Copyright 2010-2022 Mike Bostock'),
-      ]) {
-        expect(textOf(package), contains(line), reason: package);
-        expect(textOf(package), contains('Permission to use, copy, modify, and/or distribute'), reason: package);
       }
       expect(textOf('Material Icons'), contains('Google'));
       expect(textOf('Material Icons'), contains('Attribution 4.0 International'));
@@ -112,6 +107,65 @@ void main() {
       final android = await appLicenses(web: false).toList();
       expect(android.any((e) => e.packages.contains('Roboto')), isFalse);
       expect(android.any((e) => e.packages.contains('Material Icons')), isTrue);
+    });
+
+    // the chart-bundle list of THIRD_PARTY_NOTICES.md (verified against the
+    // unminified plotly.js-basic-dist 4.1.2 build): d3-interpolate and
+    // d3-color are not in the bundle; the maplibre-gl stylesheet (BSD
+    // 3-Clause), gl-mat4 (zlib) and 13 small MIT packages are
+    test('the chart-bundle entries match THIRD_PARTY_NOTICES.md', () async {
+      final entries = await appLicenses(web: true).toList();
+      final packages = {for (final e in entries) ...e.packages};
+      String textOf(String package) => entries
+          .where((e) => e.packages.contains(package))
+          .expand((e) => e.paragraphs)
+          .map((p) => p.text)
+          .join('\n');
+      expect(packages, isNot(contains('d3-interpolate')));
+      expect(packages, isNot(contains('d3-color')));
+      expect(entries.expand((e) => e.paragraphs).any((p) => p.text.contains('ISC License')), isFalse,
+          reason: 'no ISC code is left in the bundle');
+
+      final maplibre = textOf('maplibre-gl');
+      expect(maplibre, contains('maplibre-gl 6.11.2'));
+      expect(maplibre, contains('stylesheet'));
+      expect(maplibre, contains('Copyright (c) 2023, MapLibre contributors'));
+      expect(maplibre, contains('Neither the name of MapLibre GL JS nor the names of its contributors'));
+      expect(maplibre, contains('Contains code from mapbox-gl-js v1.13 and earlier'));
+      expect(maplibre, contains('Copyright (c) 2020, Mapbox'));
+      expect(maplibre, contains('Neither the name of Mapbox GL JS nor the names of its contributors'));
+      expect('Redistributions in binary form must reproduce'.allMatches(maplibre), hasLength(2),
+          reason: 'both BSD texts of its LICENSE.txt');
+
+      final glMat4 = textOf('gl-mat4');
+      expect(glMat4, contains('zlib License'));
+      expect(glMat4, contains('gl-mat4 1.2.0'));
+      expect(glMat4, contains('Copyright (c) 2013 Brandon Jones, Colin MacKenzie IV'));
+      expect(glMat4, contains("This software is provided 'as-is', without any express or implied warranty."));
+      expect(glMat4, contains('This notice may not be removed or altered from any source distribution.'));
+
+      for (final (package, version, holder) in const [
+        ('culori', '4.0.2', 'Dan Burzo'),
+        ('world-calendars', '1.0.4', 'alexcjohnson'),
+        ('is-mobile', '5.0.0', 'Julian Gruber'),
+        ('fast-isnumeric', '1.1.4', 'Alex Johnson'),
+        ('is-string-blank', '1.0.1', 'Alex Johnson'),
+        ('base64-arraybuffer', '1.0.2', 'Niklas von Hertzen'),
+        ('events', '3.3.0', 'Joyent, Inc. and other Node contributors'),
+        ('is-browser', '2.1.0', 'Forbes Lindesay'),
+        ('has-hover', '1.0.1', 'Dima Yv'),
+        ('has-passive-events', '1.0.0', 'Dmitry Ivanov'),
+        ('mouse-event-offset', '3.0.2', 'Matt DesLauriers'),
+        ('parse-svg-path', '0.2.0', 'Jake Rosoman'),
+        ('point-in-polygon', '1.1.0', 'James Halliday'),
+      ]) {
+        final text = textOf(package);
+        expect(text, contains('MIT License'), reason: package);
+        expect(text, contains('$package $version'), reason: package);
+        expect(text, contains(holder), reason: package);
+        expect(text, contains('Permission is hereby granted'), reason: package);
+      }
+      expect(textOf('world-calendars'), contains('Calendars for jQuery 2.0.2, written by Keith Wood'));
     });
 
     test('registerAppLicenses puts them in Flutter\'s LicenseRegistry', () async {

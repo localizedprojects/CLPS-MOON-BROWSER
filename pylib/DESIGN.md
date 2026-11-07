@@ -42,7 +42,7 @@ Sources it is built from (read them; do not edit them):
   (PyPI availability was not checked; check before the first upload.)
 - **Version:** `0.1.0`, single-sourced in `lunarhorizon/__init__.py` as `__version__`
   and read by `pyproject.toml` via `[tool.setuptools.dynamic] version = {attr = "lunarhorizon.__version__"}`.
-- **Licence:** MIT, the repo's `LICENSE` (Copyright (c) 2026 Rihansh Singh), copied to
+- **Licence:** MIT, the repo's `LICENSE` (Copyright (c) 2026 NASASTARS), copied to
   `pylib/LICENSE`. The bundled data are NASA products (LOLA, NAIF SPICE derived),
   public domain; `_bundled/README.md` says so and gives provenance.
 - **Python:** `>=3.10`. No 3.11+ features (no `enum.StrEnum`, `typing.Self`, `tomllib`,

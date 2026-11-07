@@ -303,9 +303,10 @@ Claude Code (Anthropic's AI coding agent) wrote the code, tests and documentatio
 
 ## Team and challenge
 
-> **Team check.** Fill in the team name and the challenge title in the form. Use a team name
-> or handles, not the real names of team members under 18. Copy the exact challenge title
-> from the official challenge page.
+**Team name:** NASASTARS
+
+> **Team check.** Copy the exact challenge title from the official challenge page into the
+> form. Use the team name or handles, not the real names of team members under 18.
 
 ## Development history (draft for the team)
 

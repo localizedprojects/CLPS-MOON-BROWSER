@@ -10,7 +10,7 @@ readme = "README.md"
 requires-python = ">=3.10"
 license = "MIT"
 license-files = ["LICENSE"]
-authors = [{ name = "Rihansh Singh" }]
+authors = [{ name = "NASASTARS" }]
 keywords = ["moon", "lunar south pole", "SPICE", "LOLA", "illumination", "horizon", "Artemis", "DSN", "landing site"]
 classifiers = [
     "Programming Language :: Python :: 3",

@@ -35,6 +35,7 @@
 **Use of AI.** Claude Code (Anthropic's AI coding agent) wrote the code, tests and documentation, researched the site sources (fact-checked by separate AI agents) and made the demo videos and their music, under the team's direction and review. The results are not AI output: every visibility number, chart and map is computed by that code from NASA SPICE and LOLA data and checked as above ([details](submission.md#use-of-ai)).
 
 **Limitations.**
+- Scope is the south pole only (south of 80°S, where the LOLA polar DEMs give the terrain horizons). Apollo and other near-equator sites would need global terrain data and are left out on purpose. Custom spots can be typed in by coordinates (Explore › *Add a spot by coordinates…*).
 - Geometry is airless and refraction-free. Terrain within 120 m of a preset site is excluded because the 80 m DEM cannot resolve it (600 m for custom sites on the 400 m DEM).
 - Custom sites use a 400 m grid. At four test sites their horizons differ from the 80 m masks by 0.46°–1.41° on average (up to 6.14°), so they are labelled lower-fidelity.
 - Power is a proxy (1361 W/m² × (1 au/r)² × visible disk fraction). Comms means line of sight, not a link budget. Neither is a hazard assessment.

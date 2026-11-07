@@ -300,6 +300,8 @@ The calculations answer one question: when do sunlight and a line of sight to Ea
 - **mission metrics:** power proxy, DSN contact, durations, score and wording (§7–11);
 - **validation** (§13).
 
+Scope is the south pole only (south of 80°S, where the LOLA polar DEMs give the terrain horizons). Apollo and other near-equator sites would need global terrain data and are left out on purpose. Custom spots can be typed in by coordinates (Explore › *Add a spot by coordinates…*).
+
 The app does **not** model surface composition, water ice, temperature, dust, boulders, roughness below the DEM resolution, or landing safety. Slope is a diagnostic only, not a hazard assessment.
 
 **Model**

@@ -112,7 +112,7 @@ the app.
   a glossary and a Learn section.
 - **Open and light:** free and open source (MIT), with no account and no server needed. The
   same calculations are also a Python library (`pylib/`).
-- **Scope:** it is a planning and teaching aid. It does not assess landing hazards, ice,
+- **Scope:** Scope is the south pole only (south of 80°S, where the LOLA polar DEMs give the terrain horizons). Apollo and other near-equator sites would need global terrain data and are left out on purpose. Custom spots can be typed in by coordinates (Explore › Add a spot by coordinates…). It is a planning and teaching aid. It does not assess landing hazards, ice,
   temperature or link budgets.
 
 **Tools.** Claude Code, Anthropic's AI coding agent (see Use of AI); Git and

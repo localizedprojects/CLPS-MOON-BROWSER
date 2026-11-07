@@ -285,6 +285,11 @@ The third-party notices are in the README, under Data sources and credits:
 
 ## Use of AI
 
+> **Form label.** The 2026 FAQ uses "Super Intelligence (SI)" for AI: "Each team's project
+> submission must include a description of how SI tools were used during the development of
+> their project." (<https://www.spaceappschallenge.org/resources/participant-faqs/>, read 7 November 2026). If the form labels this field "SI", paste
+> the same answer there. The answers below keep the word "AI".
+
 ```text
 Lunar Horizon was built with Claude Code, Anthropic's AI coding agent. The team set the goals, chose the features and options, and reviewed the results. Claude Code wrote essentially all of the code (the Flutter/Dart app and its science core, the Python data pipeline, the React charts, the Python library, the tests and the CI workflows) and the documentation, including the app's own text (Learn, the glossary and the explanations). It also ran the tests, the Android emulator checks and independent AI review passes. Claude Code research agents found the preset sites' published coordinates and sources by web search, and separate AI agents fact-checked them; the same process drafted the site descriptions shown in the app, each listed with its sources. The app's icon and logo are drawn by a script that Claude Code wrote, and Claude Code agents captured the screenshots from the real app.
 
@@ -307,7 +312,30 @@ Claude Code (Anthropic's AI coding agent) wrote the code, tests and documentatio
 <https://www.spaceappschallenge.org/2026/challenges/lunar-landing-site-navigator/>
 
 > **Team check.** The challenge title above was copied from the official challenge page on
-> 7 November 2026; pick that challenge in the form. Use the team name or handles, not the real names of team members under 18.
+> 7 November 2026; pick that challenge in the form.
+
+> **Rules for the team.** From the Participant FAQ (<https://www.spaceappschallenge.org/resources/participant-faqs/>), the
+> home page (<https://www.spaceappschallenge.org/2026/>) and the Terms
+> (<https://www.spaceappschallenge.org/legal/>), all read on 7 November 2026:
+>
+> - **When:** submission opens on Saturday 14 November at 9:00 AM and closes on Sunday
+>   15 November at 11:59 PM local time. Submit "according to the ending time of your Local
+>   Event", from the Project tab of the team's page.
+> - **Read first:** the Project Submission Guide, the Judging and Awards Guide and the
+>   challenge's resources come out on 13 November. Cite any resource you use: "You must cite
+>   every source that is used in the creation of your project, even if it is open source or
+>   freely available."
+> - **Team:** "Teams may have no more than six (6) members". A Universal Event team needs "at
+>   least two (2)" people to be eligible for global judging. "You may only be on one team and
+>   teams are only permitted to work on one challenge."
+> - **Under 18:** such participants "must be registered for the event by a parent or legal
+>   guardian and must be accompanied by a parent or legal guardian at all times during the
+>   event". They should not "Upload a photo of themselves as their Avatar or as part of their
+>   Team page", nor "Use photo, video, voices, or likenesses of themselves or others under the
+>   age of 18 in their project demonstration or project submission". The Terms add:
+>   "Recognizable names, voices, and likenesses of persons under the age of 18 should not be
+>   included in any submission." Use the team name or handles in the submission, not real
+>   names.
 
 ## Development history (draft for the team)
 

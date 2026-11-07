@@ -57,7 +57,6 @@ Build tools, not shipped: `vite` 8.3.4, `@vitejs/plugin-react` 6.1.2, `vite-plug
 |---|---|
 | SpiceyPy 8.2.0 (wraps NAIF's CSPICE toolkit, whose terms are NAIF's rules above) | MIT |
 | NumPy 2.5.3 | BSD-3-Clause AND 0BSD AND MIT AND Zlib AND CC0-1.0 |
-| SciPy 1.18.1 (installed by `requirements.txt`; not imported by the current code) | BSD 3-Clause |
 | Pillow 12.3.0 | MIT-CMU |
 | Requests 2.34.2 | Apache 2.0 |
 | pytest 9.1.1 | MIT |
@@ -69,4 +68,4 @@ Build tools, not shipped: `vite` 8.3.4, `@vitejs/plugin-react` 6.1.2, `vite-plug
 
 ## Tools (used, not shipped)
 
-Flutter <https://flutter.dev> (BSD 3-Clause); Node.js <https://nodejs.org> (MIT); Python <https://www.python.org> (PSF-2.0); Blender 5.1 <https://www.blender.org> (GPL-2.0-or-later); FFmpeg 6.1.1 <https://ffmpeg.org> (LGPL-2.1-or-later; the Ubuntu build used is configured with `--enable-gpl`); FluidSynth 2.3.4 (LGPL-2.1-or-later); Playwright (Apache 2.0) with Chromium (BSD 3-Clause); mido 1.3.3 and pyloudnorm 0.2.0 (MIT).
+Flutter <https://flutter.dev> (BSD 3-Clause); Node.js <https://nodejs.org> (MIT); Python <https://www.python.org> (PSF-2.0); Blender 5.1 <https://www.blender.org> (GPL-2.0-or-later); FFmpeg 6.1.1 <https://ffmpeg.org> (LGPL-2.1-or-later; the Ubuntu build used is configured with `--enable-gpl`); FluidSynth 2.3.4 (LGPL-2.1-or-later); Playwright (Apache 2.0) with Chromium (BSD 3-Clause); mido 1.3.3 and pyloudnorm 0.2.0 (MIT) and SciPy <https://scipy.org> (BSD 3-Clause), used by the demo-video audio scripts, which are not in the repository.

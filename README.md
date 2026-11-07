@@ -271,10 +271,11 @@ Each DOI is taken from the source itself: the LOLA volume's `CATALOG/REF.CAT` (M
 
 **Main libraries**
 
-- Pipeline: SpiceyPy 8.2 (the NAIF CSPICE toolkit), NumPy, SciPy, Pillow, Requests, pytest. Exact versions are in `pipeline/requirements.txt`.
+- Pipeline: SpiceyPy 8.2 (the NAIF CSPICE toolkit), NumPy, Pillow, Requests, pytest. Exact versions are in `pipeline/requirements.txt`.
 - App: Flutter / Dart, `provider`, `webview_flutter`, `archive`, `share_plus`, `intl`, `web`.
 - Charts: React 19, Plotly (`plotly.js-basic-dist-min`), Vite with `vite-plugin-singlefile`, TypeScript, Vitest.
 - Validation only: Blender 5.1 (Cycles) renders the independent skyline check.
+- Tool websites: Flutter <https://flutter.dev> and Dart <https://dart.dev>, React <https://react.dev>, Plotly.js <https://plotly.com/javascript/>, Vite <https://vite.dev>, Node.js <https://nodejs.org>, Python <https://www.python.org>, Blender <https://www.blender.org>, FFmpeg <https://ffmpeg.org>, Playwright <https://playwright.dev> with Chromium <https://www.chromium.org>, FluidSynth <https://www.fluidsynth.org>, mido <https://mido.readthedocs.io>, pyloudnorm <https://github.com/csteinmetz1/pyloudnorm>, SciPy <https://scipy.org> (the demo-video audio scripts only) and matplotlib <https://matplotlib.org> (the optional `plot` extra of `pylib/`).
 
 **Licence.** The code is under the MIT licence ([LICENSE](LICENSE)). Every third-party package, font, data set and tool, with its licence, is listed in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). Third-party material keeps its own terms: the IBM Plex fonts are under the SIL Open Font License 1.1 (licence files in `app/assets/fonts/`), the Roboto web font under the Apache License 2.0 (`app/web/fonts/roboto/LICENSE.txt`), and the NASA data used by the pipeline are credited above. They are public NASA data: the LOLA products come from NASA's Planetary Data System, and NAIF's rules (<https://naif.jpl.nasa.gov/naif/rules.html>) let anyone download and use its SPICE kernels and redistribute them unmodified. The repository holds none of the kernels or DEMs, only the 48 cached JPL Horizons responses. The files in `app/assets/data/` are this project's output, derived from that data, under the MIT licence.
 

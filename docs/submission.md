@@ -146,8 +146,9 @@ with Android emulators.
   `shared_preferences`, `share_plus`, `archive`, `intl` and `web` (`app/pubspec.yaml`).
 - Charts: React 19, Plotly.js (`plotly.js-basic-dist-min`), Vite with
   `vite-plugin-singlefile`, TypeScript and Vitest (`charts/package.json`).
-- Pipeline: SpiceyPy 8.2.0 (the NAIF CSPICE toolkit), NumPy 2.5.3, SciPy 1.18.1, Pillow
-  12.3.0, Requests 2.34.2 and pytest 9.1.1 (`pipeline/requirements.txt`).
+- Pipeline: SpiceyPy 8.2.0 (the NAIF CSPICE toolkit), NumPy 2.5.3, Pillow 12.3.0, Requests
+  2.34.2 and pytest 9.1.1 (`pipeline/requirements.txt`).
+- Tool websites: Flutter <https://flutter.dev> and Dart <https://dart.dev>, React <https://react.dev>, Plotly.js <https://plotly.com/javascript/>, Vite <https://vite.dev>, Node.js <https://nodejs.org>, Python <https://www.python.org>, Blender <https://www.blender.org>, FFmpeg <https://ffmpeg.org>, Playwright <https://playwright.dev> with Chromium <https://www.chromium.org>, FluidSynth <https://www.fluidsynth.org>, mido <https://mido.readthedocs.io>, pyloudnorm <https://github.com/csteinmetz1/pyloudnorm>, SciPy <https://scipy.org> (the demo-video audio scripts only) and matplotlib <https://matplotlib.org> (the optional `plot` extra of `pylib/`).
 - Fonts: IBM Plex Sans and IBM Plex Mono; Roboto in the web build.
 - Licences are listed under References.
 
@@ -285,7 +286,7 @@ site's sources, with notes, are in `app/assets/data/sites.json`.
 - Pipeline: SpiceyPy (MIT), on NAIF's CSPICE toolkit, cited as its authors ask: Annex et al.
   (2020), "SpiceyPy: a Pythonic Wrapper for the SPICE Toolkit", *Journal of Open Source
   Software* 5(46):2050, doi:10.21105/joss.02050: <https://doi.org/10.21105/joss.02050>;
-  NumPy (BSD 3-Clause); SciPy (BSD); Pillow (MIT-CMU); Requests (Apache 2.0); pytest (MIT).
+  NumPy (BSD 3-Clause); Pillow (MIT-CMU); Requests (Apache 2.0); pytest (MIT).
 - Used as tools only (none of them ships with the app): Blender 5.1 (Cycles) for the skyline
   cross-check; Playwright (Apache 2.0) with headless Chromium, FFmpeg 6.1.1 and FluidSynth
   2.3.4 (LGPL 2.1 or later) for the demo videos.

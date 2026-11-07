@@ -1,5 +1,6 @@
 // Keyboard focus on the bottom navigation bar: a focused destination shows
-// the 2 px ice ring (CLAUDE.md), not only a tint. Only Explore is visited:
+// the 2 px ice ring (CLAUDE.md), not only a tint; and the Tab order from the
+// page's first focus starts at the top of the screen. Only Explore is visited:
 // Site and Compare host web views, which widget tests cannot run.
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -72,6 +73,40 @@ void main() {
         }
         await tab(tester);
       }
+      await settleTimers(tester);
+    });
+
+    testWidgets('${w.round()} wide: from the page, Tab starts at the top bar and Shift+Tab at the last destination (A3)',
+        (tester) async {
+      await pumpAt(tester, w, h);
+      // the page node holds the first focus (for Site's shortcuts); it is no tab stop
+      final page = FocusManager.instance.primaryFocus!;
+      expect(page.debugLabel, 'page');
+      await tab(tester);
+      final first = FocusManager.instance.primaryFocus!;
+      expect(first.context!.findAncestorWidgetOfExactType<AppBar>(), isNotNull,
+          reason: 'the first Tab lands in the top bar, not in the page (${first.debugLabel})');
+      // then on into the page, and the top bar is not met again before the bottom bar
+      var sawPage = false;
+      for (var i = 0; i < 150 && focusedDest(tester) < 0; i++) {
+        await tab(tester);
+        final f = FocusManager.instance.primaryFocus!;
+        if (f.context!.findAncestorWidgetOfExactType<AppBar>() == null) {
+          sawPage = true;
+        } else {
+          expect(sawPage, isFalse, reason: 'the top bar comes once, first (${f.debugLabel})');
+        }
+      }
+      expect(sawPage, isTrue);
+      expect(focusedDest(tester), 0);
+      // back on the page node (as after Esc on Site): Shift+Tab goes to the end, the last destination
+      page.requestFocus();
+      await tester.pump();
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
+      await tester.pump();
+      expect(focusedDest(tester), 3, reason: 'Shift+Tab from the page lands on Learn');
       await settleTimers(tester);
     });
   }

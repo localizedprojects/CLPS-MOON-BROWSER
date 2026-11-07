@@ -71,9 +71,30 @@ class _AppShellState extends State<AppShell> {
   /// Site's shortcuts, which never steal keys from a focused control (WCAG
   /// 2.1.1): they act only while the page itself has focus, and Esc gives it back.
   KeyEventResult _onKey(FocusNode node, KeyEvent e, AppState s) {
-    if (s.dest != Dest.site) return KeyEventResult.ignored;
     if (e is! KeyDownEvent && e is! KeyRepeatEvent) return KeyEventResult.ignored;
     final k = e.logicalKey;
+    // Tab from the page node (the first focus, and after Esc) starts at the
+    // top of the screen, Shift+Tab at its end: the node sorts below the top
+    // bar, so a plain Tab went into the page and reached the top bar last
+    final keys = HardwareKeyboard.instance;
+    if (k == LogicalKeyboardKey.tab &&
+        FocusManager.instance.primaryFocus == _page &&
+        !keys.isControlPressed &&
+        !keys.isAltPressed &&
+        !keys.isMetaPressed) {
+      final back = keys.isShiftPressed;
+      final policy = FocusTraversalGroup.maybeOf(context) ?? ReadingOrderTraversalPolicy();
+      final to = back
+          ? policy.findLastFocus(_page, ignoreCurrentFocus: true)
+          : policy.findFirstFocus(_page, ignoreCurrentFocus: true);
+      if (to != null && to != _page) {
+        policy.requestFocusCallback(to,
+            alignmentPolicy:
+                back ? ScrollPositionAlignmentPolicy.keepVisibleAtStart : ScrollPositionAlignmentPolicy.keepVisibleAtEnd);
+        return KeyEventResult.handled;
+      }
+    }
+    if (s.dest != Dest.site) return KeyEventResult.ignored;
     if (k == LogicalKeyboardKey.escape) {
       _page.requestFocus();
       return KeyEventResult.handled;

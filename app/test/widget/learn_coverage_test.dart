@@ -63,6 +63,13 @@ void main() {
     expect(find.textContaining('moving a few hundred metres, or landing a few days later, can turn a sunlit spot into a '
         'dark one'), findsOneWidget);
     expect(find.textContaining('lunar day lasts about 29.5 Earth days'), findsOneWidget);
+    // the seasons (the challenge: "how conditions change across different lunar days or seasons"); SPICE with the
+    // app's kernels gives a ±1.59° swing of the Sun's centre at the pole, with 343.6-348.2 d (mean 346.3 d) between
+    // upward crossings over 2025-2035, i.e. the eclipse year of 346.6 d
+    expect(find.textContaining('spin axis is tilted only about 1.5° to the plane of Earth\'s orbit, so the pole also '
+        'has small seasons: over a cycle of about 346.6 days the Sun\'s height at the pole drifts between about 1.5° '
+        'above and 1.5° below a level horizon, so the same site can do better in some months than in others.'),
+        findsOneWidget);
     expect(find.textContaining('no twilight and no refraction'), findsOneWidget);
     expect(find.textContaining('libration'), findsWidgets);
   });

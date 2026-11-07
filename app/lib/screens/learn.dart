@@ -158,6 +158,9 @@ class _Coverage extends StatelessWidget {
   static const whyHard = 'Near the pole the Sun skims the horizon, so hills kilometres away cast shadows tens of '
       'kilometres long, and a lunar day lasts about 29.5 Earth days, so a shaded spot can stay dark for days or weeks. '
       'So moving a few hundred metres, or landing a few days later, can turn a sunlit spot into a dark one. '
+      'The Moon\'s spin axis is tilted only about 1.5° to the plane of Earth\'s orbit, so the pole also has small '
+      'seasons: over a cycle of about 346.6 days the Sun\'s height at the pole drifts between about 1.5° above and '
+      '1.5° below a level horizon, so the same site can do better in some months than in others. '
       'With no air there is no twilight and no refraction, and Earth stays low in roughly the same direction, only '
       'bobbing up and down with libration.';
 

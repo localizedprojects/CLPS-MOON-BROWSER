@@ -160,7 +160,8 @@ with Android emulators.
   (DSS-43), from the JPL *DSN Telecommunications Link Design Handbook* (810-005), module 301.
 - **Site coordinates:** NASA's Artemis III candidate regions (update of 28 October 2024) and
   LRO LROC images of the IM-1 and IM-2 landers, with the other published sources listed per
-  site in `app/assets/data/sites.json`.
+  site in `app/assets/data/sites.json`. Every source URL behind the sites is listed in
+  `docs/references.md`.
 - **Lander photos (linked, not bundled):** the IM-1 and IM-2 site pages link to NASA's pages
   with each lander's own surface photos (© Intuitive Machines) and LRO's photos of the landers
   from orbit (NASA/Goddard/Arizona State University).
@@ -209,8 +210,11 @@ File paths below are in the repository, <https://github.com/localizedprojects/CL
 - JPL, *DSN Telecommunications Link Design Handbook* (810-005), module 301: the DSS-14, DSS-63
   and DSS-43 positions.
 
-**Site coordinates** (each site's full source list, with URLs and notes, is in
-`app/assets/data/sites.json`)
+**Site coordinates.** The main sources are below. Every source URL in `sites.json` and
+`curated_sites.json` (98 in all: the sources of the coordinates and of the site descriptions,
+and the IAU feature names) is listed with the sites it supports in `docs/references.md`:
+<https://github.com/localizedprojects/CLPS-MOON-BROWSER/blob/main/docs/references.md>. Each
+site's sources, with notes, are in `app/assets/data/sites.json`.
 
 - NASA, "NASA Provides Update on Artemis III Moon Landing Regions" (28 October 2024):
   <https://www.nasa.gov/news-release/nasa-provides-update-on-artemis-iii-moon-landing-regions/>

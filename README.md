@@ -253,7 +253,7 @@ flutter test integration_test/map_75s_test.dart -d emulator-5554    # the Explor
 > - The overlays are the LOLA team's long-term average Sun and Earth visibility, and the permanently shadowed regions (where AVGVISIB = 0), at 480 m inside 80°S and 960 m in the ring beyond it.
 > - The light and shadow map draws its computed shadows and slope shading on top of this relief. Those layers use the real Sun and Earth directions for the selected moment.
 
-**Site coordinates.** NASA (Artemis III regions update, 28 Oct 2024), Henriksen et al. (2023) and LROC NAC mosaics, De Rosa et al. (2012), LROC images of IM-1 and IM-2, and Beyer et al. (2025) for VIPER. Each site's full source list, with URLs and notes, is in `app/assets/data/sites.json`.
+**Site coordinates.** NASA (Artemis III regions update, 28 Oct 2024), Henriksen et al. (2023) and LROC NAC mosaics, De Rosa et al. (2012), LROC images of IM-1 and IM-2, and Beyer et al. (2025) for VIPER. Each site's full source list, with URLs and notes, is in `app/assets/data/sites.json`. Every source URL in `sites.json` and `curated_sites.json` (98 in all), with the sites it supports, is listed in [docs/references.md](docs/references.md). `docs/make_references.py` writes that list, and a pipeline test fails if a URL is missing from it.
 
 **Lander photos.** The IM-1 and IM-2 site pages link to real photos on NASA's pages and never bundle them: the landers' surface photos (© Intuitive Machines) and LRO's photos of each lander from orbit (NASA/Goddard/Arizona State University). The links, dates and credits are in `app/lib/content/lander_photos.dart`.
 
@@ -523,7 +523,8 @@ pipeline/
   blender/                  bpy scripts for the site renders (skyline cross-check) and the region turntable
   research/                 curation of the preset-site catalogue and the fact-checked At a glance text
 pylib/                      lunar-horizon: the same calculations as a reusable Python library (import lunarhorizon)
-docs/                       UX spec, build contracts, demo script and the judges' one-page brief
+docs/                       UX spec, build contracts, demo script, the judges' one-page brief and references.md
+                            (every site source URL, written by make_references.py)
 .github/workflows/          ci.yml, deploy-pages.yml
 formula.md                  every formula in the code, with file:line references and measured accuracies
 PLAN.md                     architecture, milestones, assumptions
@@ -579,5 +580,6 @@ To enable it, go to the repository's *Settings › Pages* once and set the sourc
 - [PLAN.md](PLAN.md): architecture, milestones and the assumptions decided along the way
 - [CLAUDE.md](CLAUDE.md): science conventions and repository rules
 - [docs/submission.md](docs/submission.md): the Space Apps form answers, including the [use of AI](docs/submission.md#use-of-ai) and the references
+- [docs/references.md](docs/references.md): every source URL behind the preset sites, with the sites it supports
 - [docs/ux_spec.md](docs/ux_spec.md) and [docs/ux_build_contracts.md](docs/ux_build_contracts.md): the UX design behind the screens
 - [pipeline/blender/README.md](pipeline/blender/README.md): the Blender renders behind the skyline cross-check

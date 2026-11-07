@@ -87,10 +87,10 @@ Made for the NASA Space Apps Challenge. Not an official NASA product.
 | Privacy policy | <https://localizedprojects.github.io/CLPS-MOON-BROWSER/privacy/> |
 | Price | Owner's choice (the app has no ads and no in-app purchases) |
 
-### What's new in 1.13.4 (473/500)
+### What's new in 1.13.4 (486/500)
 From the 1.13.4 release notes, shortened.
 ```text
-• Keyboard and screen readers: Tab reaches the web links, goal cards, bottom bar and time controls with a clear focus ring and starts at the top bar, Escape closes the licence and Validation pages, and the Site views are read as tabs.
+• Keyboard and screen readers: Tab starts at the top bar and shows a clear focus ring on the goal cards, bottom bar and time controls (and reaches the web links), Escape closes the licence and Validation pages, and the Site views are read as tabs.
 • Lander's view: the seven controls fit in one row on most phones and in two even rows on the smallest.
 • Learn › Credits opens every open-source licence the app uses.
 • The status line makes the Sun's height and the countdowns stand out.

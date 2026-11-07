@@ -45,8 +45,12 @@ class ContextPill extends StatelessWidget {
     );
     void open() => showMissionSettings(context);
     // the wrapper replaces the button's own semantics, so it carries the tap
-    // action too (screen readers activate this node, not the button)
+    // action too (screen readers activate this node, not the button). A node
+    // of its own: on phones the pill's row is outside the app bar, and an
+    // annotation would label the whole two-row header (logo, Share and
+    // Validation included) as Mission settings.
     return Semantics(
+      container: true,
       button: true,
       label: 'Mission settings: $text',
       hint: 'Change the dates, lander or mast height and rules',

@@ -3,8 +3,9 @@
 // control's semantics node says it is focused, so on the web the browser's
 // focus (and a screen reader) goes back to it too; it went to the page's
 // first heading (1.13.4 review, a11y).
+import 'dart:ui' show Tristate;
+
 import 'package:flutter/material.dart';
-import 'package:flutter/semantics.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:polar_horizon/state/app_state.dart';
@@ -62,7 +63,7 @@ void main() {
   }
 
   bool focusedNode(WidgetTester tester, Finder opener) =>
-      tester.getSemantics(opener).getSemanticsData().hasFlag(SemanticsFlag.isFocused);
+      tester.getSemantics(opener).getSemanticsData().flagsCollection.isFocused == Tristate.isTrue;
 
   // Tab to [opener], open it with Enter, check [open], close it with Escape
   Future<void> openAndEscape(WidgetTester tester, Finder opener, Finder open) async {

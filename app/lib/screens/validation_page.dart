@@ -9,6 +9,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show rootBundle;
 
 import '../theme.dart';
+import '../widgets/escape_closes.dart';
 import 'how_calculated.dart';
 
 class ValidationPage extends StatelessWidget {
@@ -36,7 +37,8 @@ class ValidationPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    // Escape closes the page, as it closes the sheets and dialogs
+    return EscapeCloses(child: Scaffold(
       // the title shrinks to fit narrow bars and large text instead of being cut
       appBar: AppBar(
         title: const FittedBox(
@@ -178,7 +180,7 @@ class ValidationPage extends StatelessWidget {
           });
         },
       ),
-    );
+    ));
   }
 
   /// The larger of two arcminute errors, e.g. "0.0016′".

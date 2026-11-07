@@ -28,13 +28,11 @@ LOLA team's own visibility maps.
 
 ## Demo video
 
-> **Upload the labelled files.** Upload the 30-second cut of 5 November 2026
-> (`lunar-horizon-demo-30s-v1.13.0.mp4`, 29.97 s), whose end card reads "Made with AI
-> assistance (Claude Code)", as a public video and paste its link under Links. The 4 November
-> file of the same name has no label. The optional tour (`lunar-horizon-tour-v1.13.0.mp4`,
-> 3:16, captions in `lunar-horizon-tour-v1.13.0.srt`) can be uploaded the same way; use its
-> 5 November file too, which ends on the same label. Check each file before uploading:
-> `ffprobe -v error -show_entries format_tags=keywords <file>` must list "AI-assisted".
+> **Hosted.** The labelled 30-second cut (`lunar-horizon-demo-30s-v1.13.0.mp4`, 29.97 s, end card
+> "Made with AI assistance (Claude Code)") and the tour are attached to the v1.13.3 GitHub release:
+> <https://github.com/localizedprojects/CLPS-MOON-BROWSER/releases/download/v1.13.3/lunar-horizon-demo-30s-v1.13.0.mp4>. That link needs no login but downloads the file rather than playing it in the
+> page; a YouTube or Google Drive upload of the same file, with the title and description below,
+> plays in the browser. Use whichever link the form accepts.
 
 **Title:** Lunar Horizon: which Moon south-pole site, and when? (30-second demo)
 
@@ -53,7 +51,7 @@ Made with AI assistance: Claude Code (Anthropic's AI coding agent) recorded this
 Music: "South Pole Light", an original piano piece composed for Lunar Horizon by Claude Code, which wrote its notes as code. Piano sound: FluidR3_GM SoundFont by Frank Wen (MIT License). UI sounds: synthesised for this video by AI-written code.
 ```
 
-**Line for the optional tour** (add its link): `Full tour (3:16), with captions: the question, when to land, Sky & time, light & shadow, Compare, your own spot and Learn. <tour link>`
+**Line for the optional tour:** `Full tour (3:16), with captions: the question, when to land, Sky & time, light & shadow, Compare, your own spot and Learn. https://github.com/localizedprojects/CLPS-MOON-BROWSER/releases/download/v1.13.3/lunar-horizon-tour-v1.13.0.mp4`
 
 ## Links
 
@@ -61,13 +59,13 @@ Music: "South Pole Light", an original piano piece composed for Lunar Horizon by
 - Web app: <https://localizedprojects.github.io/CLPS-MOON-BROWSER/>
 - Android app (APK, Android 7.0 or newer):
   <https://github.com/localizedprojects/CLPS-MOON-BROWSER/releases/latest/download/lunar-horizon.apk>
+- Demo video (30 s): <https://github.com/localizedprojects/CLPS-MOON-BROWSER/releases/download/v1.13.3/lunar-horizon-demo-30s-v1.13.0.mp4>
+- Full tour (3:16): <https://github.com/localizedprojects/CLPS-MOON-BROWSER/releases/download/v1.13.3/lunar-horizon-tour-v1.13.0.mp4>
 - Brief for judges:
   <https://github.com/localizedprojects/CLPS-MOON-BROWSER/blob/main/docs/judge_one_pager.md>
 
-> **Team check.** Add the demo video's public link to this list once it is uploaded. The APK
-> link serves the latest GitHub release, which is still v1.2.0 (17 October 2026). The web app
-> is 1.13.3. Publish a 1.13.3 release with `lunar-horizon.apk` before submitting, or this link
-> gives judges the old app.
+> The APK link serves the latest GitHub release, v1.13.3 (7 November 2026), the same version as
+> the web app.
 
 ## Project details
 
@@ -317,7 +315,7 @@ Claude Code (Anthropic's AI coding agent) wrote the code, tests and documentatio
 - Planning and set-up began on 8 October 2026 (`PLAN.md`, section 1).
 - First commit in the public repository: `5838d00`, 14 October 2026.
 - GitHub releases (Android APK): v1.0.0 on 15 October 2026; v1.1.0 and v1.2.0 on 17 October
-  2026. v1.2.0 is still the latest GitHub release.
+  2026; v1.13.3 on 7 November 2026, with the APK and both demo videos, now the latest.
 - `main` at `06be9e4` (4 November 2026, UTC+5:30; 3 November, 19:45 UTC): app version 1.13.0.
   The web app is deployed from this commit.
 - The demo videos were recorded on 4 November 2026 from the 1.13.0 web build, with the app's

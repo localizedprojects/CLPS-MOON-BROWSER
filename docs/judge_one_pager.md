@@ -45,9 +45,7 @@
 
 **Next steps.** Refine near-field terrain with 20 m LOLA data, check the 2 m Earth numbers at peaks and ridges (Malapert peak's 56% rises to 78% with a 10 m mast).
 
-**Links.** Code: <https://github.com/localizedprojects/CLPS-MOON-BROWSER>. Web app: <https://localizedprojects.github.io/CLPS-MOON-BROWSER/>.
-<!-- TODO once the v1.13.3 release is published and <https://github.com/localizedprojects/CLPS-MOON-BROWSER/releases/latest/download/lunar-horizon.apk> serves it with the SHA-256 in its release notes (docs/release_checklist.md): add "Android app (APK, Android 7.0 or newer): <that link>." to the Links line. Until then that link serves v1.2.0 (17 October 2026), which is older than the charts in Android 7's stock WebView, so it stays out of this brief. -->
-<!-- TODO at submission: add the demo video's public link to the Links line. -->
+**Links.** Code: <https://github.com/localizedprojects/CLPS-MOON-BROWSER>. Web app: <https://localizedprojects.github.io/CLPS-MOON-BROWSER/>. Android app (APK, Android 7.0 or newer): <https://github.com/localizedprojects/CLPS-MOON-BROWSER/releases/latest/download/lunar-horizon.apk>. Demo video (30 s): <https://github.com/localizedprojects/CLPS-MOON-BROWSER/releases/download/v1.13.3/lunar-horizon-demo-30s-v1.13.0.mp4>; full tour (3:16): <https://github.com/localizedprojects/CLPS-MOON-BROWSER/releases/download/v1.13.3/lunar-horizon-tour-v1.13.0.mp4>.
 
 <!--
 Sources for every number in this brief (paths relative to the repository root; values read on 2026-10-10, re-checked for 1.9.1 on 2026-10-30, UI references re-checked on 2026-10-11, landing-window and chart wording on 2026-10-12, the 1.12.0 and 1.13.0 additions and the links on 2026-11-05):
@@ -81,5 +79,5 @@ Sources for every number in this brief (paths relative to the repository root; v
 - Screenshot from 1.11.0: docs/screenshots/ last changed in 94c0f45 (2026-11-01).
 - Eclipses in the 18.6-year averages (1.12.0, 7c4af07): pipeline/lunarsp/sites.py (the 2 m shares use eclipses=True; the 0 m cross-check against the LOLA maps stays terrain-only, so validation.json and the 1.98/1.78 figures are unchanged). "Under 0.1 percentage point": longTermLabel in app/lib/widgets/about_site.dart.
 - Charts on Android 7's stock WebView (1.13.0, a4d4497): charts/vite.config.ts (build.target es2015, chrome51) and app/lib/widgets/chart_bridge.dart (chartMinChromeMajor = 51); the Android 7.0 emulator run is in docs/release_checklist.md (Testing status).
-- No APK link yet (see the TODO under Links): on 2026-11-05 the GitHub releases API lists v1.2.0 (2026-10-17) as the latest release.
+- APK and video links: GitHub release v1.13.3, published 2026-11-07 and listed as latest by the releases API; lunar-horizon.apk SHA-256 87c2e6684805aef466d33b53a01306b916612794878ed08891601443f3abdda9 (the 1.13.3 build).
 -->

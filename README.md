@@ -11,6 +11,8 @@ The same Flutter code runs as a web app and on Android.
 
 > **Status.** Complete: Explore (the map with every site ranked), Site (Overview, Sky & time with the classic sky plot and timeline, and the light & shadow map with the 3D *Lander's view*, which also opens full screen), Compare and Learn, plus the *best landing window* finder. Suggested landings keep the Sun and Earth at least 0.25° above the skyline. The Sun's visible fraction allows for lunar eclipses (Earth in front of the Sun), and the sites include the NASA CLPS landers' positions (IM-1, IM-2, with links to their real photos) and the VIPER area, plus planned international sites (Chang'e-7, Chandrayaan-5/LUPEX). Code: [localizedprojects/CLPS-MOON-BROWSER](https://github.com/localizedprojects/CLPS-MOON-BROWSER). Web app: <https://localizedprojects.github.io/CLPS-MOON-BROWSER/>.
 
+**Demo video:** [30-second demo](https://github.com/localizedprojects/CLPS-MOON-BROWSER/releases/download/v1.13.3/lunar-horizon-demo-30s-v1.13.0.mp4) and [full tour, 3:16](https://github.com/localizedprojects/CLPS-MOON-BROWSER/releases/download/v1.13.3/lunar-horizon-tour-v1.13.0.mp4) (MP4 files attached to the [v1.13.3 release](https://github.com/localizedprojects/CLPS-MOON-BROWSER/releases/tag/v1.13.3)).
+
 **Space Apps submission:** [docs/submission.md](docs/submission.md) (summary, project details, NASA data used, references, [use of AI](#use-of-ai), links).
 
 ### Get the app
@@ -18,7 +20,7 @@ The same Flutter code runs as a web app and on Android.
 Scan the code with your phone's camera. It opens <https://localizedprojects.github.io/CLPS-MOON-BROWSER/get/>, which picks the right install for the device:
 
 - **Android:** downloads [lunar-horizon.apk](https://github.com/localizedprojects/CLPS-MOON-BROWSER/releases/latest/download/lunar-horizon.apk) from the [latest release](https://github.com/localizedprojects/CLPS-MOON-BROWSER/releases/latest). Open it and allow installing from your browser when Android asks (Android 7.0 or newer; signed with a development key, so it is installed directly, not from the Play Store). If you later switch to the Play Store version (or a build signed with a different key), uninstall this one first; Android will not update across signing keys. The latest release can be older than the web app, which is always the newest version; the release page names its version.
-  <!-- On 2026-11-06 the latest release is v1.2.0 (17 October 2026) and the web app is 1.13.3. -->
+  <!-- On 2026-11-07 the latest release is v1.13.3, the same version as the web app. -->
 - **iPhone and iPad:** opens the web app in Safari; use Share, then *Add to Home Screen* to keep it as an app. (Installing an iOS app file needs a paid Apple Developer account; the page has one switch, `IOS_URL` in `app/web/get/index.html`, for a TestFlight or App Store link later, and the QR code stays the same.) With a Mac you can build and run the native app yourself in Xcode: [docs/xcode.md](docs/xcode.md).
 - **Computers:** <https://localizedprojects.github.io/CLPS-MOON-BROWSER/>
 - **Privacy:** no accounts, no analytics, no ads, no tracking; see the [privacy policy](https://localizedprojects.github.io/CLPS-MOON-BROWSER/privacy/).

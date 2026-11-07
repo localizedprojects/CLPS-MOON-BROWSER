@@ -78,8 +78,8 @@ For the Space Apps entry and anyone installing from the QR code. This APK is not
       `lunar-horizon.apk`, and mark it **latest**.
 - [ ] Check that <https://github.com/localizedprojects/CLPS-MOON-BROWSER/releases/latest/download/lunar-horizon.apk>
       downloads the new file (same SHA-256), then install it over the previous version on a phone.
-- [ ] Only then add the APK link to the Links line of `docs/judge_one_pager.md` (see the TODO there):
-      until this release exists, that link serves v1.2.0, so it stays out of the judges' brief.
+- [ ] Check that the APK and demo video links on the Links line of `docs/judge_one_pager.md` and in
+      `docs/submission.md` still work (v1.13.3 was published on 7 November 2026 with the APK and both videos).
 - [ ] Scan the QR code (`docs/get-app-qr.png`): it must open
       <https://localizedprojects.github.io/CLPS-MOON-BROWSER/get/>, which sends Android to the APK and
       iPhone/iPad to the web app.

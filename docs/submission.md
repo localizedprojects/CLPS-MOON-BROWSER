@@ -339,9 +339,13 @@ Claude Code (Anthropic's AI coding agent) wrote the code, tests and documentatio
 
 ## Development history (draft for the team)
 
-> **Draft, not for pasting yet.** Confirm with the Local Lead before the event whether this
-> project can be entered, given the rule against starting work before the hackathon begins,
-> and whether and how to state these facts in the submission.
+> **Draft, not for pasting yet.** The Participant FAQ says: "Teams are not allowed to begin
+> working on the challenges prior to the hackathon."
+> (<https://www.spaceappschallenge.org/resources/participant-faqs/>, read 7 November 2026.)
+> The dates below are before the hackathon of 14–15 November 2026. Before the event, ask the
+> Local Lead, or the NASA Space Apps GO Team at info@spaceappschallenge.org, whether this
+> project can be entered, and whether and how to state these facts in the submission. That
+> is the team's decision. Keep every fact below unchanged and visible.
 
 - Planning and set-up began on 8 October 2026 (`PLAN.md`, section 1).
 - First commit in the public repository: `5838d00`, 14 October 2026.

@@ -229,6 +229,36 @@ void main() {
   // together. Tab and a screen reader follow the rows as drawn ([order]), and
   // every target stays 48 dp and can be tapped once scrolled to.
   group('A2: the Lander controls at 360 and 320 dp', () {
+    // 1.13.4 review: a probe read the row's nodes as 48x42 at 360x800; that
+    // was the page's scroll clip (the row starts just above the fold), not
+    // the row: scrolled to, each control's node and hit box is 48 x 48
+    for (final p in [
+      (name: '360x800 dp', px: const Size(1080, 2400), dpr: 3.0, top: 72.0, bottom: 0.0),
+      (name: '320x640 dp', px: const Size(640, 1280), dpr: 2.0, top: 48.0, bottom: 0.0),
+    ]) {
+      testWidgets('${p.name}: scrolled to, every control\'s semantics node is 48 x 48', (tester) async {
+        final h = tester.ensureSemantics();
+        phone(tester, p);
+        await openLander(tester);
+        Rect global(SemanticsNode n) {
+          var r = n.rect;
+          for (SemanticsNode? m = n; m != null; m = m.parent) {
+            if (m.transform != null) r = MatrixUtils.transformRect(m.transform!, r);
+          }
+          return Rect.fromLTRB(r.left / p.dpr, r.top / p.dpr, r.right / p.dpr, r.bottom / p.dpr);
+        }
+
+        for (final l in _buttons) {
+          await tester.ensureVisible(find.byTooltip(l));
+          await tester.pump(const Duration(milliseconds: 400));
+          final r = global(tester.getSemantics(find.byTooltip(l)));
+          expect(r.width >= 48 - 0.01 && r.height >= 48 - 0.01, isTrue, reason: '$l: $r');
+          expect(hittable(tester, find.byTooltip(l)), isTrue, reason: l);
+        }
+        h.dispose();
+        await done(tester);
+      });
+    }
     Future<List<Rect>> controls(WidgetTester tester, Phone p, List<String> order) async {
       phone(tester, p);
       await openLander(tester);

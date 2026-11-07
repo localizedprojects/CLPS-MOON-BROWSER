@@ -120,6 +120,9 @@ void main() {
           matchesSemantics(
               isButton: true,
               hasTapAction: true,
+              // a keyboard stop for the screen reader too (focus_semantics_test)
+              isFocusable: true,
+              hasFocusAction: true,
               label: 'Time shown: ${utcLabel(state.cursorMs)}. Choose an exact date and time'));
       handle.dispose();
     });

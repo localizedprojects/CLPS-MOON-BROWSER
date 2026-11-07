@@ -409,7 +409,7 @@ The files in each package are owned by that package alone. P0 runs first, becaus
 ### P1: timeline ("When")
 **Files:** `charts/src/timeline.ts` (the Heights figure), new `charts/src/strip.ts`, new `charts/src/timelineAnswer.ts`, `charts/src/TimelineView.tsx`, `charts/src/timeline.test.ts`, new `charts/src/strip.test.ts`.
 
-**Work:** section 2.1. Port d1's `strip.ts` and `answer.ts` logic from `scratchpad/charts_design/d1/charts/src/`, then apply every change listed here:
+**Work:** section 2.1. Port d1's `strip.ts` and `answer.ts` logic from the d1 prototype (the design session's working files, not in the repository), then apply every change listed here:
 - shorter rows
 - slate gaps and Earth gaps
 - flags
@@ -438,7 +438,7 @@ Do not copy d1's `vite.config.ts` changes (`outDir`, `server.fs.allow`).
 ### P2: sky ("Where to look")
 **Files:** `charts/src/sky.ts`, `charts/src/skyOverlay.ts`, new `charts/src/skyCaption.ts`, `charts/src/SkyView.tsx`, `charts/src/sky.test.ts`.
 
-**Work:** section 2.2. Port d2's simple sky (`scratchpad/charts_design/d2/charts/src/`) with:
+**Work:** section 2.2. Port d2's simple sky (the d2 prototype, not in the repository) with:
 - d1's caption form and key line, including the provenance and the stretch disclosure;
 - paths off by default behind a toggle;
 - no ring labels in Simple view;

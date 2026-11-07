@@ -5,7 +5,7 @@ every correction from the integrity check (C1 to C11). Where the earlier drafts 
 wins. The UX bar is `docs/ux_review_rubric.md`; the science rules are in `CLAUDE.md`.
 
 Mock (static HTML, marked MOCK): a session scratchpad file, not in the repository (`landing/ux/mock.html?s=idle|computing|result|nofit|error|stale`).
-Screenshots are in the same folder (`.../scratchpad/landing/ux/`, listed in section 3.8). **The mock
+Screenshots are in the same folder (the design session's working files, not in the repository, listed in section 3.8). **The mock
 predates the integrity check.** Where its copy differs from section 3 (verdict words, "nearest hour",
 "8,425 hours", one landing time instead of a span, no FidelityBadge), follow section 3.
 
@@ -233,7 +233,7 @@ of the first call when cheap; recomputing is acceptable, about 4 ms).
    tail = run into b − 1 (cut at a) if b − 1 is off, interior = the longest run fully inside, kept by a
    monotone deque over runs (push run k once re[k] <= b, pop smaller from the back; pop the front
    while rs < a). Each run is pushed and popped once: O(n + runs). The probe's reference code is in
-   `.../scratchpad/landing/sci/landing_probe_test.dart`.
+   a probe test in the design session's working files (not in the repository).
 3. `slidingMin` (monotone deque) for the margin, sunFrac, earthFrac and power arrays.
 4. Score every candidate with `scoreTerms` into a Float64List; apply section 2.4.
 

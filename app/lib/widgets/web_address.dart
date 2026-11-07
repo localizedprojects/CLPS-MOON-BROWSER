@@ -8,7 +8,7 @@ import 'package:flutter/material.dart';
 
 import '../theme.dart';
 
-class WebAddress extends StatelessWidget {
+class WebAddress extends StatefulWidget {
   final String url;
 
   /// What a screen reader calls the address, e.g. "Web address of …".
@@ -25,6 +25,40 @@ class WebAddress extends StatelessWidget {
   const WebAddress({super.key, required this.url, required this.name, required this.storageKey, this.web = kIsWeb});
 
   @override
+  State<WebAddress> createState() => _WebAddressState();
+}
+
+class _WebAddressState extends State<WebAddress> {
+  // its own focus node: SelectableText's default one skips Tab, so a keyboard
+  // never reached the address (Shift+Tab went from the top bar straight past
+  // both Learn › Credits addresses); focused, Ctrl+A and Ctrl+C copy it
+  late final FocusNode _focus = FocusNode(debugLabel: 'WebAddress')..addListener(_update);
+
+  /// Whether the 2 px ice focus ring shows: keyboard focus, as on buttons
+  /// (not a long-press or a tap to select).
+  bool _ring = false;
+
+  void _update() {
+    final ring = _focus.hasFocus && FocusManager.instance.highlightMode == FocusHighlightMode.traditional;
+    if (ring != _ring && mounted) setState(() => _ring = ring);
+  }
+
+  void _modeChanged(FocusHighlightMode _) => _update();
+
+  @override
+  void initState() {
+    super.initState();
+    FocusManager.instance.addHighlightModeListener(_modeChanged);
+  }
+
+  @override
+  void dispose() {
+    FocusManager.instance.removeHighlightModeListener(_modeChanged);
+    _focus.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     // SelectableText is a long-press target: a text field node of its own
     // (RenderEditable is no semantics boundary, hence the container), at
@@ -39,16 +73,27 @@ class WebAddress extends StatelessWidget {
     // site_glance_card.dart)
     final address = Semantics(
       container: true,
-      label: web ? webAddressWebLabel(name, url) : null,
+      label: widget.web ? webAddressWebLabel(widget.name, widget.url) : null,
       child: ConstrainedBox(
         constraints: const BoxConstraints(minHeight: 48),
-        child: KeyedSubtree(
-          key: PageStorageKey(storageKey),
-          child: SelectableText(url, style: numStyle(size: 12, color: PH.muted)),
+        // the focus ring drawn just outside, so focus moves nothing
+        child: DecoratedBox(
+          key: const ValueKey('web-address-ring'),
+          position: DecorationPosition.foreground,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(PH.radius),
+            border: _ring
+                ? Border.all(color: PH.ice, width: 2, strokeAlign: BorderSide.strokeAlignOutside)
+                : null,
+          ),
+          child: KeyedSubtree(
+            key: PageStorageKey(widget.storageKey),
+            child: SelectableText(widget.url, focusNode: _focus, style: numStyle(size: 12, color: PH.muted)),
+          ),
         ),
       ),
     );
-    return web ? address : Semantics(container: true, label: name, child: address);
+    return widget.web ? address : Semantics(container: true, label: widget.name, child: address);
   }
 }
 

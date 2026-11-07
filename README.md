@@ -266,7 +266,7 @@ flutter test integration_test/map_75s_test.dart -d emulator-5554    # the Explor
 - Charts: React 19, Plotly (`plotly.js-basic-dist-min`), Vite with `vite-plugin-singlefile`, TypeScript, Vitest.
 - Validation only: Blender 5.1 (Cycles) renders the independent skyline check.
 
-**Licence.** The code is under the MIT licence ([LICENSE](LICENSE)). Third-party material keeps its own terms: the IBM Plex fonts are under the SIL Open Font License 1.1 (licence files in `app/assets/fonts/`), the Roboto web font under the Apache License 2.0 (`app/web/fonts/roboto/LICENSE.txt`), and the NASA/JPL and LOLA data products used by the pipeline are credited above and remain under their providers' terms.
+**Licence.** The code is under the MIT licence ([LICENSE](LICENSE)). Every third-party package, font, data set and tool, with its licence, is listed in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). Third-party material keeps its own terms: the IBM Plex fonts are under the SIL Open Font License 1.1 (licence files in `app/assets/fonts/`), the Roboto web font under the Apache License 2.0 (`app/web/fonts/roboto/LICENSE.txt`), and the NASA/JPL and LOLA data products used by the pipeline are credited above and remain under their providers' terms.
 
 **Third-party code in the chart bundle.** The committed `app/assets/charts/index.html` inlines these packages (see `charts/package.json`), whose licences require this notice to accompany copies:
 

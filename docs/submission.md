@@ -280,7 +280,7 @@ File paths below are in the repository, <https://github.com/localizedprojects/CL
 - Claude Code, by Anthropic: <https://claude.com/claude-code>
 
 **Code licence:** MIT (<https://github.com/localizedprojects/CLPS-MOON-BROWSER/blob/main/LICENSE>).
-The third-party notices are in the README, under Data sources and credits:
+The full list of third-party licences is in <https://github.com/localizedprojects/CLPS-MOON-BROWSER/blob/main/THIRD_PARTY_NOTICES.md>, and the README credits the data under Data sources and credits:
 <https://github.com/localizedprojects/CLPS-MOON-BROWSER#data-sources-and-credits>
 
 ## Use of AI

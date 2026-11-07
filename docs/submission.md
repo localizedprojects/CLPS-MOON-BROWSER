@@ -195,15 +195,34 @@ File paths below are in the repository, <https://github.com/localizedprojects/CL
 - NASA/JPL NAIF SPICE generic kernels: <https://naif.jpl.nasa.gov/pub/naif/generic_kernels>
   (`naif0012.tls`, `pck00011.tpc`, `moon_de440_250416.tf`, `moon_pa_de440_200625.bpc`,
   `de440s.bsp`, `earth_1962_260806_2126_combined.bpc`, `de442s.bsp`).
-- LRO LOLA, from the PDS Geosciences Node:
+  - SPICE, as NAIF asks to cite it (<https://naif.jpl.nasa.gov/naif/credit.html>): Acton, C. H.
+    (1996), "Ancillary Data Services of NASA's Navigation and Ancillary Information Facility",
+    *Planetary and Space Science* 44(1):65–70, doi:10.1016/0032-0633(95)00107-7:
+    <https://doi.org/10.1016/0032-0633(95)00107-7>; and Acton, C., Bachman, N., Semenov, B.,
+    Wright, E. (2018), "A look toward the future in the handling of space science mission
+    geometry", *Planetary and Space Science* 150:9–12, doi:10.1016/j.pss.2017.02.013:
+    <https://doi.org/10.1016/j.pss.2017.02.013>
+  - DE440: Park, R. S., Folkner, W. M., Williams, J. G., Boggs, D. H. (2021), "The JPL
+    Planetary and Lunar Ephemerides DE440 and DE441", *The Astronomical Journal* 161(3):105,
+    doi:10.3847/1538-3881/abd414: <https://doi.org/10.3847/1538-3881/abd414> (the reference
+    in the comments of `de440s.bsp` and `moon_de440_250416.tf`).
+- LRO LOLA, from the PDS Geosciences Node. All five products are in the PDS data set
+  `LRO-L-LOLA-4-GDR-V1.0` (volume `LROLOL_1XXX`), whose catalogue gives its citation as
+  "Neumann, G.A., 2009 Lunar Orbiter Laser Altimeter Raw Data Set, LRO-L-LOLA-4-GDR-V1.0, NASA
+  Planetary Data System, 2010."
+  - The instrument: Smith, D. E., Zuber, M. T., Jackson, G. B., et al. (2010), "The Lunar
+    Orbiter Laser Altimeter Investigation on the Lunar Reconnaissance Orbiter Mission",
+    *Space Science Reviews* 150:209–241 (cited as `SMITHETAL2009` in the volume's
+    `CATALOG/REF.CAT`, which gives no DOI).
   - `LDEM_80S_80M`: <https://pds-geosciences.wustl.edu/lro/lro-l-lola-3-rdr-v1/lrolol_1xxx/data/lola_gdr/polar/img/ldem_80s_80m.img>
   - `LDEM_75S_240M`: <https://pds-geosciences.wustl.edu/lro/lro-l-lola-3-rdr-v1/lrolol_1xxx/data/lola_gdr/polar/img/ldem_75s_240m.img>
   - `LDEM_75S_120M`: <https://pds-geosciences.wustl.edu/lro/lro-l-lola-3-rdr-v1/lrolol_1xxx/data/lola_gdr/polar/img/ldem_75s_120m.img>
   - `AVGVISIB_75S_120M_201608` (Sun): <https://pds-geosciences.wustl.edu/lro/lro-l-lola-3-rdr-v1/lrolol_1xxx/extras/illumination/img/avgvisib_75s_120m_201608.img>
   - `AVGVISIB_75S_120M_201608_EARTH`: <https://pds-geosciences.wustl.edu/lro/lro-l-lola-3-rdr-v1/lrolol_1xxx/extras/illumination/img/avgvisib_75s_120m_201608_earth.img>
   - The same maps are on the LOLA team's mirror: <https://imbrium.mit.edu/EXTRAS/ILLUMINATION/IMG>
-  - The maps follow the method of Mazarico, E., et al. (2011), "Illumination conditions of
-    the lunar polar regions using LOLA topography", *Icarus* 211:1066–1081,
+  - The maps follow the method of Mazarico, E., Neumann, G. A., Smith, D. E., Zuber, M. T.,
+    Torrence, M. H. (2011), "Illumination conditions of the lunar polar regions using LOLA
+    topography", *Icarus* 211(2):1066–1081,
     doi:10.1016/j.icarus.2010.10.030: <https://doi.org/10.1016/j.icarus.2010.10.030>
 - JPL Horizons API: <https://ssd.jpl.nasa.gov/api/horizons.api> (48 responses cached in
   `pipeline/validation/horizons_cache/`).
@@ -254,8 +273,10 @@ site's sources, with notes, are in `app/assets/data/sites.json`.
   `plotly.js-basic-dist-min` (MIT, Copyright (c) Plotly Technologies Inc.). Build tools:
   Vite, `@vitejs/plugin-react`, `vite-plugin-singlefile` and Vitest (MIT), and TypeScript
   (Apache 2.0).
-- Pipeline: SpiceyPy (MIT), on NAIF's CSPICE toolkit; NumPy (BSD 3-Clause); SciPy (BSD);
-  Pillow (MIT-CMU); Requests (Apache 2.0); pytest (MIT).
+- Pipeline: SpiceyPy (MIT), on NAIF's CSPICE toolkit, cited as its authors ask: Annex et al.
+  (2020), "SpiceyPy: a Pythonic Wrapper for the SPICE Toolkit", *Journal of Open Source
+  Software* 5(46):2050, doi:10.21105/joss.02050: <https://doi.org/10.21105/joss.02050>;
+  NumPy (BSD 3-Clause); SciPy (BSD); Pillow (MIT-CMU); Requests (Apache 2.0); pytest (MIT).
 - Used as tools only (none of them ships with the app): Blender 5.1 (Cycles) for the skyline
   cross-check; Playwright (Apache 2.0) with headless Chromium, FFmpeg 6.1.1 and FluidSynth
   2.3.4 (LGPL 2.1 or later) for the demo videos.

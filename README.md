@@ -246,6 +246,16 @@ flutter test integration_test/map_75s_test.dart -d emulator-5554    # the Explor
 
 **DSN stations.** The Goldstone (DSS-14), Madrid (DSS-63) and Canberra (DSS-43) coordinates come from the JPL *DSN Telecommunications Link Design Handbook* (810-005), module 301 (see `DSN_COMPLEXES` in `pipeline/lunarsp/config.py`).
 
+**Citations for the data and tools.** The five LOLA products are in the PDS data set `LRO-L-LOLA-4-GDR-V1.0` (volume `LROLOL_1XXX`; the `DATA_SET_ID` in each product's label). The data set's catalogue file (`CATALOG/GDR_DS.CAT`) gives its citation as "Neumann, G.A., 2009 Lunar Orbiter Laser Altimeter Raw Data Set, LRO-L-LOLA-4-GDR-V1.0, NASA Planetary Data System, 2010."
+
+- LOLA: Smith, D. E., Zuber, M. T., Jackson, G. B., et al. (2010), "The Lunar Orbiter Laser Altimeter Investigation on the Lunar Reconnaissance Orbiter Mission", *Space Science Reviews* 150:209–241. The LOLA volume's `CATALOG/REF.CAT` cites it as `SMITHETAL2009` (online 16 May 2009) and gives no DOI.
+- The average-visibility maps: Mazarico, E., Neumann, G. A., Smith, D. E., Zuber, M. T., Torrence, M. H. (2011), "Illumination conditions of the lunar polar regions using LOLA topography", *Icarus* 211(2):1066–1081, doi:[10.1016/j.icarus.2010.10.030](https://doi.org/10.1016/j.icarus.2010.10.030).
+- DE440: Park, R. S., Folkner, W. M., Williams, J. G., Boggs, D. H. (2021), "The JPL Planetary and Lunar Ephemerides DE440 and DE441", *The Astronomical Journal* 161(3):105, doi:[10.3847/1538-3881/abd414](https://doi.org/10.3847/1538-3881/abd414).
+- SPICE, as NAIF asks (<https://naif.jpl.nasa.gov/naif/credit.html>): Acton, C. H. (1996), "Ancillary Data Services of NASA's Navigation and Ancillary Information Facility", *Planetary and Space Science* 44(1):65–70, doi:[10.1016/0032-0633(95)00107-7](https://doi.org/10.1016/0032-0633(95)00107-7); and Acton, C., Bachman, N., Semenov, B., Wright, E. (2018), "A look toward the future in the handling of space science mission geometry", *Planetary and Space Science* 150:9–12, doi:[10.1016/j.pss.2017.02.013](https://doi.org/10.1016/j.pss.2017.02.013).
+- SpiceyPy: Annex et al. (2020), "SpiceyPy: a Pythonic Wrapper for the SPICE Toolkit", *Journal of Open Source Software* 5(46):2050, doi:[10.21105/joss.02050](https://doi.org/10.21105/joss.02050).
+
+Each DOI is taken from the source itself: the LOLA volume's `CATALOG/REF.CAT` (Mazarico), the comments in `de440s.bsp` (Park), NAIF's credit page (Acton) and SpiceyPy's PyPI page (Annex).
+
 > **The map is not a photograph.** The base map is shaded relief computed from LOLA laser altimetry (`pipeline/lunarsp/basemap.py`):
 > - `LDEM_80S_80M` is averaged to 320 m.
 > - The full-resolution base map stops at 80°S. Beyond it, out to about 75°S, the Explore map shows a coarser ring (map.json `outer`): relief at 480 m from `LDEM_75S_120M` (4 × 4 block means) and the overlays at 960 m, loaded only when the map is zoomed out or dragged past 80°S (`python -m lunarsp.basemap outer`). The 400 m DEM used for custom-site horizons and the light & shadow map reaches further: inside 80°S it is `LDEM_80S_80M` block-averaged (unchanged), beyond 80°S it is `LDEM_75S_120M` area-averaged, to about 75°S. Where the two overlap just inside 80°S they differ by 0.03 m on average (standard deviation 0.95 m, max 18.5 m).

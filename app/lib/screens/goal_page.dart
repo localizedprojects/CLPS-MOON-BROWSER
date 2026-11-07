@@ -7,6 +7,7 @@
 /// load (its progress shows under the cards).
 library;
 
+import 'package:flutter/foundation.dart' show defaultTargetPlatform;
 import 'package:flutter/material.dart';
 
 import '../core/ranking.dart';
@@ -92,7 +93,7 @@ class GoalPage extends StatelessWidget {
   }
 }
 
-class _GoalCard extends StatelessWidget {
+class _GoalCard extends StatefulWidget {
   final Goal goal;
   final Widget icon;
 
@@ -102,11 +103,33 @@ class _GoalCard extends StatelessWidget {
   const _GoalCard({required this.goal, required this.icon, required this.last, required this.onTap});
 
   @override
+  State<_GoalCard> createState() => _GoalCardState();
+}
+
+class _GoalCardState extends State<_GoalCard> {
+  // The card's own focus node: excludeSemantics drops the InkWell's focus
+  // semantics, so the card's one node says it is focusable and focused itself
+  // and takes focus from a screen reader (on the web: a DOM tabindex).
+  final _focus = FocusNode(debugLabel: 'goal card');
+  bool _focused = false;
+
+  @override
+  void dispose() {
+    _focus.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final goal = widget.goal, icon = widget.icon, last = widget.last, onTap = widget.onTap;
     final label = goalLabel(goal);
     return Semantics(
       button: true,
       selected: last,
+      focusable: true,
+      focused: _focused,
+      // as Focus does: not on iOS (flutter/flutter#150030)
+      onFocus: defaultTargetPlatform != TargetPlatform.iOS ? _focus.requestFocus : null,
       label: '$label. ${GoalChips.hintFor(goal)}${last ? '. Your last choice' : ''}',
       excludeSemantics: true,
       onTap: onTap,
@@ -114,11 +137,17 @@ class _GoalCard extends StatelessWidget {
         color: last ? PH.panelHi : PH.panel,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(PH.radiusInner),
-          side: BorderSide(color: last ? PH.ice : PH.line, width: last ? 1.5 : 1),
+          // keyboard focus is the 2 px ice ring; the last choice keeps a
+          // stronger navy hairline (never ice) and its "Last time" label
+          side: _focused
+              ? const BorderSide(color: PH.ice, width: 2)
+              : BorderSide(color: last ? PH.lineStrong : PH.line, width: last ? 1.5 : 1),
         ),
         clipBehavior: Clip.antiAlias,
         child: InkWell(
           key: ValueKey('goal-${goal.name}'),
+          focusNode: _focus,
+          onFocusChange: (f) => setState(() => _focused = f),
           onTap: onTap,
           child: ConstrainedBox(
             constraints: const BoxConstraints(minHeight: 72),

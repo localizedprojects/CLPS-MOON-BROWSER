@@ -5,8 +5,8 @@
  */
 import { describe, expect, it } from 'vitest'
 import timelineSrc from './TimelineView.tsx?raw'
-import type { ComingFitState, ComingPass } from './timelineAnswer'
-import { comingFit, comingFitNext, comingMoreText } from './timelineAnswer'
+import type { ComingFitState, ComingPass, FrameScroll } from './timelineAnswer'
+import { comingFit, comingFitNext, comingMoreText, frameScrollNext, timelineScrollStyle } from './timelineAnswer'
 
 /** A Coming up row (48 px target) and the "N more" line, as Chromium draws them. */
 const ROW = 48
@@ -72,11 +72,9 @@ describe('TimelineView keeps Coming up inside its frame', () => {
   // scrollbar gone) took turns until React stopped them (error #185) and the
   // "When" chart went blank
   it('never re-measures in a loop when a scrollbar comes and goes', () => {
-    // the frame keeps the scrollbar's room and is keyed by its outer width
-    expect(timelineSrc).toMatch(/const TIMELINE_GUTTER = 'stable'/)
-    expect(timelineSrc).toMatch(/overflowY: 'auto', scrollbarGutter: TIMELINE_GUTTER/)
+    // the frame is keyed by its outer width (the scrollbar's room: 'the frame's classic scrollbar' below)
     expect(timelineSrc).toMatch(/const frame = `\$\{root\.offsetWidth\}\|/)
-    expect(timelineSrc).not.toMatch(/root\.clientWidth/)
+    expect(timelineSrc).not.toMatch(/const frame = `\$\{root\.clientWidth/)
     // and a change the measure itself made is kept rather than measured again
     expect(timelineSrc).toMatch(/measuredFor\.current = next\.pass\s+setFit\(null\)/)
     const F = '563|3|1'
@@ -169,4 +167,101 @@ describe('Coming up at the browser check\'s widths (F1)', () => {
       }
     })
   }
+})
+
+// K3 (1.13.4): with classic scrollbars the frame kept a scrollbar's room
+// (scrollbar-gutter: stable) all the time: at 1440 x 900 the When frame was
+// 563 px wide outside and 548 inside, with nothing to scroll. It keeps the
+// room now only while it scrolls. The passes below are the view's layout
+// effect (comingFitNext, then frameScrollNext once the rows that fit are
+// drawn) over a frame laid out as Chromium does: a classic scrollbar (15 px)
+// shows when the content is taller than the frame, takes the room kept for it
+// (stable), and none is drawn with scrollbar-width: none.
+describe("the frame's classic scrollbar (K3)", () => {
+  interface Frame { W: number; H: number; bar: number; top: (cw: number) => number; row: (cw: number) => number; n: number }
+  interface Pass { cw: number; measuring: boolean; scrolls: boolean; over: boolean; gutter: string }
+  interface State { fit: ComingFitState | null; scroll: FrameScroll; measuredFor: string }
+  const start: State = { fit: null, scroll: { scrolls: false, flips: 0 }, measuredFor: '' }
+  /** Layout passes (each one a render and its layout effect) until one changes nothing; React stops at 50. */
+  function settle(f: Frame, from: State = start) {
+    let { fit, scroll, measuredFor } = from
+    const passes: Pass[] = []
+    for (let i = 0; i < 50; i++) {
+      const st = timelineScrollStyle(!fit, scroll.scrolls)
+      const drawn = fit ? Math.min(fit.shown, f.n) : f.n
+      const end = (cw: number) => f.top(cw) + drawn * f.row(cw) + (drawn < f.n ? MORE : 0) + PAD_B
+      const room = st.scrollbarWidth === 'none' || f.bar === 0 ? 0
+        : st.scrollbarGutter === 'stable' || end(f.W) > f.H ? f.bar : 0
+      const cw = f.W - room
+      const over = end(cw) > f.H
+      passes.push({ cw, measuring: !fit, scrolls: scroll.scrolls, over, gutter: st.scrollbarGutter })
+      const next = comingFitNext(fit, { room: f.H - PAD_B - f.top(cw), frame: `${f.W}|${f.n}|1`, heights: Array(drawn).fill(f.row(cw)), moreH: fit ? 0 : MORE }, measuredFor)
+      let changed = next.kind !== 'keep'
+      const shownFit = fit
+      if (next.kind === 'fit') fit = next.fit
+      else if (next.kind === 'measure') { measuredFor = next.pass; fit = null }
+      if (shownFit) {
+        const s = frameScrollNext(scroll, over, room > 0)
+        if (s.scrolls !== scroll.scrolls) changed = true
+        scroll = s
+      }
+      if (!changed) return { passes, state: { fit, scroll, measuredFor }, last: passes[passes.length - 1] }
+    }
+    throw new Error('the passes never settle (React error #185)')
+  }
+  // the 1440 x 900 wide pane's When frame: 563 x 640, its first Coming up row 482 px down (548 px inside);
+  // the answer lines wrap a little less when the frame is wider
+  const pane: Frame = { W: 563, H: 640, bar: 15, top: (cw) => (cw >= 563 ? 470 : 482), row: () => ROW, n: 3 }
+
+  it('a frame where nothing scrolls keeps no room: the timeline has its full width', () => {
+    const r = settle(pane)
+    expect(r.last).toMatchObject({ cw: 563, scrolls: false, over: false, gutter: 'auto' })
+    // measured as wide as shown: one measure, one fit, no measure again
+    expect(r.passes.map((p) => p.cw)).toEqual([563, 563])
+    expect(r.state.fit?.shown).toBe(3)
+    // the old frame (the room kept all the time) was 15 px narrower inside
+    expect(settle({ ...pane, bar: 0 }).last.cw - 15).toBe(548)
+  })
+  it('a frame that scrolls keeps the room, so the measure and the rows shown are as wide', () => {
+    const exact: Frame = { ...pane, top: (cw) => (cw >= 563 ? 860 : 900) } // Heights under the strip: taller than the frame
+    const r = settle(exact)
+    expect(r.last).toMatchObject({ cw: 548, scrolls: true, over: true, gutter: 'stable' })
+    expect(r.passes.length).toBeLessThanOrEqual(6)
+    // and gives it back when it no longer scrolls (Exact numbers off)
+    const back = settle(pane, r.state)
+    expect(back.last).toMatchObject({ cw: 563, scrolls: false, over: false, gutter: 'auto' })
+  })
+  it('rows that wrap differently 15 px narrower are measured at the width they are shown at', () => {
+    const wraps: Frame = { ...pane, row: (cw) => (cw < 560 ? 65 : ROW) }
+    const r = settle(wraps)
+    expect(r.last.cw).toBe(563)
+    expect(r.state.fit?.heights).toEqual([ROW, ROW, ROW])
+    expect(r.passes.every((p) => p.cw === 563)).toBe(true)
+  })
+  it('overlay scrollbars (phones, macOS) take no room and never ask for it', () => {
+    for (const top of [pane.top, () => 900]) {
+      const r = settle({ ...pane, bar: 0, top })
+      expect(r.last).toMatchObject({ cw: 563, scrolls: false, gutter: 'auto' })
+    }
+  })
+  it('a layout that would take turns settles: at most two changes in a row', () => {
+    // taller than the frame only at its full width (nothing lays out like this; the guard holds anyway)
+    const odd: Frame = { ...pane, top: (cw) => (cw >= 563 ? 700 : 300) }
+    expect(() => settle(odd)).not.toThrow()
+    let s: FrameScroll = { scrolls: false, flips: 0 }
+    const seen: boolean[] = []
+    for (let i = 0; i < 10; i++) {
+      s = frameScrollNext(s, !s.scrolls, true) // every pass asks for the other choice
+      seen.push(s.scrolls)
+    }
+    expect(seen).toEqual([true, false, false, false, false, false, false, false, false, false])
+    // a settled pass starts the count again
+    expect(frameScrollNext({ scrolls: false, flips: 2 }, false, false)).toEqual({ scrolls: false, flips: 0 })
+  })
+  it('the styles: a scroll box always; the room only while it scrolls; no scrollbar drawn while measuring a frame that does not', () => {
+    expect(timelineScrollStyle(false, false)).toEqual({ overflowY: 'auto', scrollbarGutter: 'auto' })
+    expect(timelineScrollStyle(true, false)).toEqual({ overflowY: 'auto', scrollbarGutter: 'auto', scrollbarWidth: 'none' })
+    expect(timelineScrollStyle(false, true)).toEqual({ overflowY: 'auto', scrollbarGutter: 'stable' })
+    expect(timelineScrollStyle(true, true)).toEqual({ overflowY: 'auto', scrollbarGutter: 'stable' })
+  })
 })

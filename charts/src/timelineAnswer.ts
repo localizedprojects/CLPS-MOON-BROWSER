@@ -290,6 +290,42 @@ export function comingFitNext(fit: ComingFitState | null, pass: ComingPass, meas
   return { kind: 'measure', pass: key }
 }
 
+/**
+ * Whether the timeline frame keeps a classic scrollbar's room
+ * (scrollbar-gutter: stable): [scrolls], and how many passes in a row
+ * changed that, [flips].
+ */
+export interface FrameScroll { scrolls: boolean; flips: number }
+
+/**
+ * The frame's scrollbar room after a pass that drew the Coming up rows that
+ * fit, from what it read: the content is taller than the frame ([over]), a
+ * scrollbar or its room narrows the frame ([bar]). The frame used to keep the
+ * room all the time, 15 px of a frame where nothing scrolled (K3, 1.13.4).
+ * Without it, a scrollbar that shows asks for it (an overlay scrollbar takes
+ * no room and never does); with it, content that fits gives it back. Then the
+ * rows are measured as wide as they are shown, with the scrollbar or without
+ * it. At most two changes in a row, with no settled pass between, so a layout
+ * that would take turns cannot loop (React error #185).
+ */
+export function frameScrollNext(s: FrameScroll, over: boolean, bar: boolean): FrameScroll {
+  const want = s.scrolls ? over : over && bar
+  if (want === s.scrolls) return s.flips ? { scrolls: s.scrolls, flips: 0 } : s
+  return s.flips < 2 ? { scrolls: want, flips: s.flips + 1 } : s
+}
+
+/**
+ * The timeline frame's scroll styles: always a scroll box (styles.css keeps
+ * the items of a ph-col box at content height, as the box scrolls instead),
+ * with a classic scrollbar's room only while it [scrolls]. While [measuring]
+ * (every Coming up row drawn, often more than the frame holds) a frame that
+ * does not scroll draws no scrollbar, so the rows are measured at the width
+ * they are shown at.
+ */
+export function timelineScrollStyle(measuring: boolean, scrolls: boolean): { overflowY: 'auto'; scrollbarGutter: 'stable' | 'auto'; scrollbarWidth?: 'none' } {
+  return { overflowY: 'auto', scrollbarGutter: scrolls ? 'stable' : 'auto', ...(measuring && !scrolls ? { scrollbarWidth: 'none' as const } : {}) }
+}
+
 /** The line under the [shown] Coming up rows that fit, for the [hidden] ones left out (it starts with the number). */
 export function comingMoreText(hidden: number, shown: number): string {
   const them = hidden === 1 ? 'it' : 'them'

@@ -17,7 +17,7 @@ import type { PlacedFlag, Span } from './strip'
 import { BAR, buildStrip, buildTimelineExport, DEFAULT_SPAN, flagW, placeFlags, SPANS, spanWindow, stripFlags, stripHeight, stripMargin, windowFor } from './strip'
 import { buildHeights, HEIGHT_NAMES, totalsLine } from './timeline'
 import type { AnswerLine, Glyph, Run } from './timelineAnswer'
-import { answerLines, comingFitNext, comingMoreText, comingUp, stepBoundary } from './timelineAnswer'
+import { answerLines, comingFitNext, comingMoreText, comingUp, frameScrollNext, stepBoundary, timelineScrollStyle } from './timelineAnswer'
 import type { ComingFitState } from './timelineAnswer'
 import { clickTimeMs, plotAxes, usePlot } from './usePlot'
 import type { PlotlyDiv } from './plotGeom'
@@ -29,8 +29,6 @@ const mono: React.CSSProperties = { fontFamily: MONO, fontVariantNumeric: 'tabul
 const PAD_X = 12
 /** The view's bottom padding, px. */
 const PAD_B = 4
-/** The frame's room for a classic scrollbar, kept whether it shows or not (see useComingFit). */
-const TIMELINE_GUTTER = 'stable'
 
 function useWidth() {
   const [w, setW] = useState(() => window.innerWidth)
@@ -55,13 +53,20 @@ function useWidth() {
  * row drawn overflowed the frame, its scrollbar narrowed the rows and the
  * frame, the fit hid the scrollbar again, and the two renders took turns
  * until React stopped them, error #185, leaving the "When" chart blank). The
- * frame keeps its scrollbar's room ([TIMELINE_GUTTER]) and is keyed by its
- * outer width, so a scrollbar coming or going changes neither.
+ * frame is keyed by its outer width, which a scrollbar coming or going does
+ * not change, and the rows are measured as wide as they are shown: while the
+ * frame scrolls it keeps a classic scrollbar's room, else the measure draws
+ * no scrollbar ([scrolls], [frameScrollNext], [timelineScrollStyle]; K3,
+ * 1.13.4: the room was kept all the time, 15 px of a frame where nothing
+ * scrolled).
  */
 function useComingFit(listRef: React.RefObject<HTMLElement | null>, rootRef: React.RefObject<HTMLElement | null>, count: React.RefObject<number>) {
   const [fit, setFit] = useState<ComingFitState | null>(null)
   // the frame and rows a measure was last started for
   const measuredFor = useRef('')
+  // the frame keeps a classic scrollbar's room (it scrolls), and the passes in a row that changed that
+  const [scrolls, setScrolls] = useState(false)
+  const flips = useRef(0)
   const [, setTick] = useState(0)
   const [fonts, setFonts] = useState(0)
   // a frame resize that keeps the width (Flutter's layout, full screen and back) re-checks it
@@ -103,8 +108,14 @@ function useComingFit(listRef: React.RefObject<HTMLElement | null>, rootRef: Rea
       measuredFor.current = next.pass
       setFit(null)
     }
+    // the rows that fit are drawn: does the frame scroll, and does its scrollbar take room?
+    if (fit) {
+      const s = frameScrollNext({ scrolls, flips: flips.current }, root.scrollHeight > root.clientHeight, root.offsetWidth > root.clientWidth)
+      flips.current = s.flips
+      if (s.scrolls !== scrolls) setScrolls(s.scrolls)
+    }
   })
-  return fit
+  return { fit, scrolls }
 }
 
 // ---------------------------------------------------------------------------
@@ -187,7 +198,7 @@ export function TimelineView() {
   const comingRef = useRef<HTMLDivElement | null>(null)
   // the rows asked for (3 on a phone, 5 else, fewer near the end of the dates)
   const eventCount = useRef(0)
-  const fit = useComingFit(comingRef, rootRef, eventCount)
+  const { fit, scrolls } = useComingFit(comingRef, rootRef, eventCount)
   const range = (m?.data.range ?? [0, 1]) as Run
   // before this view's own cursor ref has filled (it mounts late, e.g. Simple view switched on after
   // the time moved), the newest cursor the page holds: the first window is anchored there (F1)
@@ -292,7 +303,7 @@ export function TimelineView() {
     </div>)
 
   return (
-    <div ref={rootRef} className={narrow ? 'ph-col4' : 'ph-col6'} style={{ ...box, overflowY: 'auto', scrollbarGutter: TIMELINE_GUTTER, boxSizing: 'border-box', padding: `4px ${PAD_X}px ${PAD_B}px`, display: 'flex', flexDirection: 'column', fontSize: 13.5, color: C.text }}
+    <div ref={rootRef} className={narrow ? 'ph-col4' : 'ph-col6'} style={{ ...box, ...timelineScrollStyle(!fit, scrolls), boxSizing: 'border-box', padding: `4px ${PAD_X}px ${PAD_B}px`, display: 'flex', flexDirection: 'column', fontSize: 13.5, color: C.text }}
       aria-label={`${fig.alt} Shown time ${fmtDate(tNow, { year: true })} UTC.`} role="group">
       <div style={{ color: C.muted, fontSize: 12.5 }}>When · all times UTC</div>
       <div aria-live={live} className={narrow ? 'ph-facts' : 'ph-facts-wide'}>

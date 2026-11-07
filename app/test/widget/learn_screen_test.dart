@@ -193,7 +193,9 @@ void main() {
   });
 
   testWidgets('desktop: two columns centred, at most 1040 wide', (tester) async {
-    await pumpLearn(tester, w: 1440, h: 1200);
+    // (tall enough that the lazy list builds Start here below the intro and
+    // the coverage card)
+    await pumpLearn(tester, w: 1440, h: 1600);
     final start = tester.getRect(find.text('Start here'));
     final trust = tester.getRect(find.text('Can I trust these numbers?'));
     expect(trust.left, greaterThan(start.left + 400), reason: 'trust card in the right column');

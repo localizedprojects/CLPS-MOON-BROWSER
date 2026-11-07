@@ -123,7 +123,8 @@ const customMaxLat = customMaxLatDeg;
 /// Why a spot north of [customMaxLat] is refused (a tap on the map's ring, the
 /// coordinates dialog, AppState.addCustomSite).
 const customSpotEdgeText = 'Custom spots must be south of 80°S (80.01°S or further). The terrain on this device '
-    'ends at about 75°S, so a spot further north would miss the hills just north of it.';
+    'ends at about 75°S, so a spot further north would miss the hills just north of it. Apollo and other sites near '
+    'the equator are outside this south-pole tool.';
 
 /// What the base map is, in words (shown under the map).
 const baseMapCaption = 'Shaded relief computed from NASA LOLA laser-altimeter elevations (320 m per pixel), '

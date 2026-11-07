@@ -59,6 +59,9 @@ void main() {
     expect(find.textContaining('not official landing points'), findsOneWidget);
     expect(find.textContaining('Add a spot by coordinates…'), findsOneWidget);
     expect(find.textContaining('the Sun skims the horizon, so hills kilometres away'), findsOneWidget);
+    // why small changes matter (the challenge: "explain why small location or date changes have large effects")
+    expect(find.textContaining('moving a few hundred metres, or landing a few days later, can turn a sunlit spot into a '
+        'dark one'), findsOneWidget);
     expect(find.textContaining('lunar day lasts about 29.5 Earth days'), findsOneWidget);
     expect(find.textContaining('no twilight and no refraction'), findsOneWidget);
     expect(find.textContaining('libration'), findsWidgets);

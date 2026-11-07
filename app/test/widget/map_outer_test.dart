@@ -271,6 +271,11 @@ void main() {
     await tester.enterText(find.byType(TextFormField).first, '-79');
     await tester.pump();
     expect(find.textContaining(customSpotEdgeText), findsOneWidget);
+    // Apollo 11's latitude: told that equatorial sites are outside this tool
+    await tester.enterText(find.byType(TextFormField).first, '0.67');
+    await tester.pump();
+    expect(find.textContaining('Apollo and other sites near the equator are outside this south-pole tool'),
+        findsOneWidget);
     expect(find.textContaining('Custom spots go inside the region this map shows'), findsNothing);
   });
 

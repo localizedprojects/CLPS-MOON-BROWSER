@@ -1,7 +1,7 @@
 # Pre-store release checklist
 
 ## Accounts
-- [ ] Store accounts are opened by a **parent or guardian** (the developer is under 18): Google Play
+- [ ] Store accounts are opened by an **adult account owner** (a parent or guardian where needed): Google Play
       Console (one-time fee) and Apple Developer Program (yearly fee). They own the accounts; the
       app can list the developer as the author.
 

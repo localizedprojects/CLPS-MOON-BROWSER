@@ -1,8 +1,8 @@
 # Store listing texts and form answers (Lunar Horizon 1.13.3)
 
 Everything to paste into Google Play Console and App Store Connect for the first upload of
-version 1.13.3 (build 24). Nothing here has been uploaded: the store accounts are opened by a parent
-or guardian ([release_checklist.md](../release_checklist.md#accounts)). The form answers follow the
+version 1.13.3 (build 24). Nothing here has been uploaded: the store accounts are opened by an adult
+account owner ([release_checklist.md](../release_checklist.md#accounts)). The form answers follow the
 checklist's [Store forms](../release_checklist.md#store-forms) section.
 
 Every claim below is checked against the app (its Learn texts and `app/lib`), the

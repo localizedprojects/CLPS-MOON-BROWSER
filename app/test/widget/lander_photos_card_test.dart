@@ -1,5 +1,6 @@
 // "Real photos from this lander" (user decision 2026-11-01): the content
 // (links to NASA's pages, nothing bundled) and the card on its own.
+import 'dart:ui' show Tristate;
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -194,7 +195,7 @@ void main() {
       });
     }
 
-    testWidgets('on the web each address is one text field named by its label and the address (an input takes it as its name)',
+    testWidgets('on the web each address is one focusable node of text named by its label and the address (no disabled textarea)',
         (tester) async {
       final handle = tester.ensureSemantics();
       final p = landerPhotos['im-1-odysseus-landed']!;
@@ -208,12 +209,13 @@ void main() {
         final field = children(linkNodes[i]);
         expect(field, hasLength(1), reason: l.title);
         final f = field.single.getSemanticsData();
-        expect(f.flagsCollection.isTextField, isTrue, reason: l.title);
-        // the address in the label too: the engine leaves the read-only input empty
+        // not a text field: the engine renders a read-only one as a disabled
+        // textarea, which takes no DOM focus (1.13.4 review)
+        expect(f.flagsCollection.isTextField, isFalse, reason: l.title);
         expect(f.label, '${landerPhotoUrlSemantics(l)}: ${l.url}', reason: l.title);
         expect(f.label, webAddressWebLabel(landerPhotoUrlSemantics(l), l.url), reason: l.title);
-        expect(f.value, l.url, reason: l.title);
-        expect(f.hasAction(SemanticsAction.longPress), isTrue, reason: l.title);
+        expect(f.flagsCollection.isFocused, isNot(Tristate.none), reason: 'focusable: ${l.title}');
+        expect(f.hasAction(SemanticsAction.focus), isTrue, reason: l.title);
         expect(f.rect.height, greaterThanOrEqualTo(48), reason: l.title);
         expect(children(field.single), isEmpty, reason: l.title);
       }

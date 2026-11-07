@@ -1,6 +1,12 @@
 // K8: a web address (Learn › Credits, the lander photo links) is in the Tab
-// order, and keyboard focus shows the 2 px ice ring round it.
+// order, and keyboard focus shows the 2 px ice ring round it. On the web it is
+// one focusable node of text, not the engine's disabled textarea, so the
+// browser's focus (and a screen reader) follows the ring; the address is
+// centred in its 48 dp box (1.13.4 review).
+import 'dart:ui' show Tristate;
+
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:polar_horizon/theme.dart';
@@ -9,7 +15,9 @@ import 'package:polar_horizon/widgets/web_address.dart';
 void main() {
   const url = 'https://github.com/localizedprojects/CLPS-MOON-BROWSER';
 
-  Future<void> pump(WidgetTester tester) async {
+  const name = 'Web address of the source code, on GitHub';
+
+  Future<void> pump(WidgetTester tester, {bool web = false}) async {
     await tester.pumpWidget(MaterialApp(
       theme: buildTheme(),
       home: Scaffold(
@@ -17,7 +25,7 @@ void main() {
           padding: const EdgeInsets.all(16),
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             TextButton(onPressed: () {}, child: const Text('Before')),
-            const WebAddress(url: url, name: 'Web address of the source code, on GitHub', storageKey: 'a', web: false),
+            WebAddress(url: url, name: name, storageKey: 'a', web: web),
             TextButton(onPressed: () {}, child: const Text('After')),
           ]),
         ),
@@ -57,5 +65,48 @@ void main() {
     await tester.pump();
     expect(addressFocused(tester), isTrue, reason: 'Shift+Tab comes back to the address');
     expect(ring(tester), isNotNull);
+  });
+
+  for (final web in [false, true]) {
+    testWidgets('the address is centred in its 48 dp box (web: $web)', (tester) async {
+      await pump(tester, web: web);
+      final box = tester.getRect(find.byKey(const ValueKey('web-address-ring')));
+      expect(box.height, greaterThanOrEqualTo(48));
+      final editable = tester.allRenderObjects.whereType<RenderEditable>().single;
+      final glyphs = editable
+          .getBoxesForSelection(const TextSelection(baseOffset: 0, extentOffset: url.length))
+          .map((b) => MatrixUtils.transformRect(editable.getTransformTo(null), b.toRect()))
+          .reduce((a, b) => a.expandToInclude(b));
+      expect(glyphs.height, lessThan(box.height - 20), reason: 'one line of 12 px text');
+      expect((glyphs.center.dy - box.center.dy).abs(), lessThan(1.5),
+          reason: 'as much room above the address as below it');
+    });
+  }
+
+  testWidgets('on the web: one focusable node of text named by the address, which says when it has focus',
+      (tester) async {
+    final handle = tester.ensureSemantics();
+    await pump(tester, web: true);
+    final node = tester.getSemantics(find.bySemanticsLabel(webAddressWebLabel(name, url)));
+    SemanticsData data() => node.getSemanticsData();
+    expect(data().flagsCollection.isTextField, isFalse, reason: 'no disabled textarea on the web');
+    expect(data().flagsCollection.isFocused, Tristate.isFalse, reason: 'focusable: the browser\'s focus can follow');
+    expect(data().hasAction(SemanticsAction.focus), isTrue);
+    expect(node.mergeAllDescendantsIntoThisNode || node.childrenCount == 0, isTrue, reason: 'no text field node under it');
+    expect(data().rect.height, greaterThanOrEqualTo(48));
+    await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+    await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+    await tester.pump();
+    expect(addressFocused(tester), isTrue);
+    expect(data().flagsCollection.isFocused, Tristate.isTrue, reason: 'the node says it has the focus, so the DOM focus moves');
+    expect(ring(tester), isNotNull);
+    // a screen reader's focus action gives the address the keyboard focus
+    await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+    await tester.pump();
+    expect(addressFocused(tester), isFalse);
+    node.owner!.performAction(node.id, SemanticsAction.focus);
+    await tester.pump();
+    expect(addressFocused(tester), isTrue);
+    handle.dispose();
   });
 }

@@ -298,9 +298,10 @@ ThemeData buildTheme() {
       }),
       iconTheme: WidgetStateProperty.resolveWith(
           (s) => IconThemeData(size: 24, color: s.contains(WidgetState.selected) ? PH.text : PH.muted)),
-      // the focused destination's indicator fills with ice (keyboard focus)
+      // keyboard focus: the 2 px ice ring round the indicator (NavFocusIcon in
+      // the shell) over a faint ice tint, so it never reads as the selection
       overlayColor: WidgetStateProperty.resolveWith((s) {
-        if (s.contains(WidgetState.focused)) return PH.ice.withValues(alpha: 0.28);
+        if (s.contains(WidgetState.focused)) return PH.ice.withValues(alpha: 0.12);
         if (s.contains(WidgetState.pressed)) return PH.ice.withValues(alpha: 0.12);
         if (s.contains(WidgetState.hovered)) return Colors.white.withValues(alpha: 0.05);
         return null;

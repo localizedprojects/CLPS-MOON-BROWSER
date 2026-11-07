@@ -372,7 +372,7 @@ class _AppShellState extends State<AppShell> {
             selectedIndex: s.dest.index,
             onDestinationSelected: go,
             destinations: [
-              for (final (_, icon, label) in _dests) NavigationDestination(icon: Icon(icon), label: label),
+              for (final (_, icon, label) in _dests) NavigationDestination(icon: NavFocusIcon(icon), label: label),
             ],
           ),
           ),
@@ -445,6 +445,36 @@ class _AppShellState extends State<AppShell> {
         const SizedBox(width: 8),
       ],
       bottom: inPage ? null : PreferredSize(preferredSize: const Size.fromHeight(2), child: _progress(context, s)),
+    );
+  }
+}
+
+/// A bottom-bar destination's icon. Keyboard focus on the destination shows
+/// as the 2 px ice ring around its indicator pill (the ink's tint alone read
+/// like the selected pill). It is built inside the destination's ink well, so
+/// it reads that well's focus, and it is the pill's own 64 x 32, so the ring
+/// is never clipped.
+class NavFocusIcon extends StatelessWidget {
+  final IconData icon;
+  const NavFocusIcon(this.icon, {super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final focused = Focus.maybeOf(context)?.hasFocus ?? false;
+    const ring = BorderSide(color: PH.ice, width: 2);
+    final pill = NavigationBarTheme.of(context).indicatorShape;
+    return SizedBox(
+      width: 64,
+      height: 32,
+      child: DecoratedBox(
+        position: DecorationPosition.foreground,
+        decoration: ShapeDecoration(
+          shape: focused
+              ? (pill is OutlinedBorder ? pill.copyWith(side: ring) : const StadiumBorder(side: ring))
+              : const StadiumBorder(),
+        ),
+        child: Center(child: Icon(icon)),
+      ),
     );
   }
 }

@@ -303,8 +303,11 @@ Claude Code (Anthropic's AI coding agent) wrote the code, tests and documentatio
 
 **Team name:** NASASTARS
 
-> **Team check.** Copy the exact challenge title from the official challenge page into the
-> form. Use the team name or handles, not the real names of team members under 18.
+**Challenge:** Lunar Landing Site Navigator (NASA Space Apps Challenge 2026):
+<https://www.spaceappschallenge.org/2026/challenges/lunar-landing-site-navigator/>
+
+> **Team check.** The challenge title above was copied from the official challenge page on
+> 7 November 2026; pick that challenge in the form. Use the team name or handles, not the real names of team members under 18.
 
 ## Development history (draft for the team)
 

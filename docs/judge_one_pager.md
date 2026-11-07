@@ -1,5 +1,7 @@
 # Lunar Horizon: brief for judges
 
+**Challenge.** NASA Space Apps Challenge 2026, [*Lunar Landing Site Navigator*](https://www.spaceappschallenge.org/2026/challenges/lunar-landing-site-navigator/).
+
 **Challenge question.** Which lunar south-pole site, on which dates, gives a lander the best solar power (Sun above the local terrain horizon) and direct-to-Earth contact (Earth above it)? At the pole the Sun stays within about 1.6° of the horizon, so the surrounding terrain largely decides both.
 
 **The answer path (target: under 10 seconds and 3 clicks).** On opening, the app ranks all 19 preset sites for the next 12 months (UTC). With no click, once the ranking finishes (its progress is shown), Explore names the top pick, how often Sun and Earth are both up there, and its longest stretch with both, above a computed light snapshot of that moment. Click 1 (*See this site*) opens the site's Overview with its best time to be here; click 2 (*Show me*) opens the Sky & time view with the time set to the start of that window, or (*See the light at that moment*) opens the light and shadow map at that time. The 10 seconds is a design target; it has not been timed.
@@ -49,6 +51,7 @@
 
 <!--
 Sources for every number in this brief (paths relative to the repository root; values read on 2026-10-10, re-checked for 1.9.1 on 2026-10-30, UI references re-checked on 2026-10-11, landing-window and chart wording on 2026-10-12, the 1.12.0 and 1.13.0 additions and the links on 2026-11-05):
+- Challenge title and link: the official challenge page, https://www.spaceappschallenge.org/2026/challenges/lunar-landing-site-navigator/ (read 2026-11-07).
 - "within about 1.6° of the horizon": PLAN.md section 6, risk table.
 - 19 preset sites; 80 m near / 240 m far DEM out to 600 km; Artemis III presets are approximate region centres: app/assets/data/sites.json (sites, dem, groups[0].note).
 - "next 12 months": app/lib/state/app_state.dart (default range is 365 days from today, UTC).

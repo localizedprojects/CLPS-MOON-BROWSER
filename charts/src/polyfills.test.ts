@@ -97,6 +97,6 @@ describe('polyfills for Chrome 51 (Android 7.0 WebView)', () => {
     const src = import.meta.glob(['./**/*.tsx', '!./**/*.test.tsx'], { query: '?raw', import: 'default', eager: true }) as Record<string, string>
     const uses = Object.entries(src).flatMap(([f, s]) => s.split('\n').filter((l) => /ph-col[46]/.test(l)).map((l) => [f, l] as const))
     expect(uses.map(([f]) => f).sort()).toEqual(['./SkyView.tsx', './TimelineView.tsx'])
-    for (const [f, l] of uses) expect(l, f).toMatch(/overflowY: 'auto'/)
+    // and both render them as scroll boxes (overflow-y: auto): viewsRender.test.ts
   })
 })

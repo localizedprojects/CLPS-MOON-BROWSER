@@ -575,6 +575,17 @@ class _Credits extends StatelessWidget {
                 if (url != null) address(url),
               ]),
             ),
+          const SizedBox(height: 8),
+          // the licence texts that must go with the app: Flutter's NOTICES
+          // (the Dart and Flutter packages) and lib/licenses.dart (the fonts,
+          // the chart bundle's React and Plotly.js)
+          OutlinedButton.icon(
+            key: const ValueKey('credits-licences'),
+            onPressed: () => showLicensePage(context: context, applicationName: 'Lunar Horizon', applicationVersion: appVersion),
+            icon: const Icon(Icons.description_outlined, size: 20),
+            label: const Text('Open-source licences',
+                semanticsLabel: 'Open-source licences: the licence texts of the software and fonts in this app'),
+          ),
           const SizedBox(height: 12),
           Semantics(header: true, child: const Text('Use of AI', style: PHText.subtitle)),
           const SizedBox(height: 4),

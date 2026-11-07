@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import 'licenses.dart';
 import 'screens/shell.dart';
 import 'state/app_state.dart';
 import 'state/chart_hub.dart';
@@ -14,6 +15,7 @@ Future<void> main() async {
   // chart web views pick how they are composited from it (android7-timeline)
   await loadAndroidSdk();
   initSaveFiles(); // iPad share popover anchors at the last tap
+  registerAppLicenses(); // the fonts' and the chart bundle's notices, beside Flutter's (Learn › Credits)
   runApp(
     ChangeNotifierProvider(
       create: (_) {

@@ -1,7 +1,5 @@
 // Learn › Credits: the licence texts that must go with the app (L2), and the
 // card read as text with its own headings, not as one big heading (A5).
-import 'dart:ui' show SemanticsFlag;
-
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -98,14 +96,14 @@ void main() {
       final rows = ['NASA/JPL NAIF SPICE', 'LRO LOLA', 'JPL Horizons', 'IBM Plex', 'Source code'];
       for (final who in rows) {
         final node = tester.getSemantics(find.byWidgetPredicate((w) => w is RichText && w.text.toPlainText().startsWith('$who  ')));
-        expect(node.hasFlag(SemanticsFlag.isHeader), isFalse, reason: '"$who" is read as text, not as a heading');
+        expect(node.flagsCollection.isHeader, isFalse, reason: '"$who" is read as text, not as a heading');
         expect(node.label, contains(who));
         for (final other in rows.where((o) => o != who)) {
           expect(node.label, isNot(contains('$other  ')), reason: '"$who" is its own node, without "$other"');
         }
       }
       final ai = tester.getSemantics(find.byKey(const ValueKey('learn-use-of-ai')));
-      expect(ai.hasFlag(SemanticsFlag.isHeader), isFalse, reason: 'the Use of AI paragraph is not a heading');
+      expect(ai.flagsCollection.isHeader, isFalse, reason: 'the Use of AI paragraph is not a heading');
       semantics.dispose();
     });
   });

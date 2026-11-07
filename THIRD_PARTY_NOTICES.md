@@ -9,7 +9,7 @@ Built with the Flutter SDK 3.44.6 (BSD 3-Clause) from the dependency graph of `a
 | Package | Licence |
 |---|---|
 | Flutter SDK (`flutter`, `flutter_web_plugins`, `sky_engine`) | BSD 3-Clause |
-| `archive` 4.3.0 | MIT; parts derived from zlib.js (MIT), JZlib and bzip2 (BSD-style), see its `LICENSE-other.md` |
+| `archive` 4.3.0 | MIT; parts derived from zlib.js (MIT), JZlib and bzip2 (BSD-style) and PointyCastle (Bouncy Castle, MIT), see its `LICENSE-other.md` |
 | `provider` 6.1.5+1 | MIT |
 | `intl` 0.20.3, `share_plus` 13.3.1, `shared_preferences` 2.5.6, `web` 1.1.1, `webview_flutter` 4.14.1, `webview_flutter_android` 4.14.1 | BSD 3-Clause |
 

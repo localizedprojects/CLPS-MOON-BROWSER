@@ -18,7 +18,6 @@ step and no `pod install` (if `flutter doctor` suggests installing CocoaPods, th
 ```bash
 git clone https://github.com/localizedprojects/CLPS-MOON-BROWSER
 cd CLPS-MOON-BROWSER
-git checkout xcode-ready        # only until this branch is merged into main
 bash tools/xcode_setup.sh
 ```
 
@@ -42,7 +41,7 @@ twice does no harm.
 4. Pick a simulator or a connected iPhone or iPad in the bar at the top, and press **Run** (Cmd+R).
 5. Release: pick **Any iOS Device (arm64)**, then **Product > Archive**, then **Distribute App** in the
    Organizer. The version and build number come from `version:` in `app/pubspec.yaml`
-   (`1.11.2+18` becomes 1.11.2 (18)); run the setup script after changing it.
+   (for example `1.13.3+24` becomes 1.13.3 (24)); run the setup script after changing it.
 
 To install a release build on every connected device from the Terminal instead, use
 `bash tools/install_ios.sh` (see the README).
@@ -98,5 +97,6 @@ bash tools/xcode_setup.sh
 
 `.github/workflows/ios.yml` repeats these steps on a macOS runner (no signing, no secrets): the setup
 script, the same Xcode build as Run with a simulator, `flutter build ios --release --no-codesign`, and
-one integration test on an iPhone simulator. It runs on pushes to `xcode-ready`, on pull requests that
-touch `app/ios`, `app/pubspec.*` or the script, and by hand from the Actions tab.
+one integration test on an iPhone simulator. It runs on pull requests that touch `app/ios`, `app/pubspec.*`
+or the script, and by hand from the Actions tab. (Its trigger for pushes to the old `xcode-ready`
+branch is unused: that branch stopped at 1.11.2, and its work has been in `main` since 1.11.3.)

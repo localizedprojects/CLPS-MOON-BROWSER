@@ -1,6 +1,6 @@
 # Lunar Horizon: brief for judges
 
-**Challenge.** NASA Space Apps Challenge 2026, [*Lunar Landing Site Navigator*](https://www.spaceappschallenge.org/2026/challenges/lunar-landing-site-navigator/).
+**Challenge.** NASA Space Apps Challenge 2026, [*Lunar Landing Site Navigator*](https://www.spaceappschallenge.org/2026/challenges/lunar-landing-site-navigator/). Not an official NASA product.
 
 **Challenge question.** Which lunar south-pole site, on which dates, gives a lander the best solar power (Sun above the local terrain horizon) and direct-to-Earth contact (Earth above it)? At the pole the Sun stays within about 1.6° of the horizon, so the surrounding terrain largely decides both.
 

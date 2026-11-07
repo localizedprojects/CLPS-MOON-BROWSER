@@ -1,6 +1,6 @@
 # Lunar Horizon
 
-**A lunar south-pole site and date planner.** It is an entry for the NASA Space Apps Challenge 2026 challenge [*Lunar Landing Site Navigator*](https://www.spaceappschallenge.org/2026/challenges/lunar-landing-site-navigator/).
+**A lunar south-pole site and date planner.** It is an entry for the NASA Space Apps Challenge 2026 challenge [*Lunar Landing Site Navigator*](https://www.spaceappschallenge.org/2026/challenges/lunar-landing-site-navigator/). Not an official NASA product.
 
 Lunar Horizon answers one question: *which south-pole landing site, on which dates, gives the best solar power and direct-to-Earth communication?* For each site it works out when the Sun and the Earth are above the real terrain horizon. It uses NASA/JPL SPICE ephemerides and Lunar Reconnaissance Orbiter (LRO) LOLA elevation data, and turns the results into rankings, charts, a light-and-shadow map and plain-language summaries. It is built for:
 

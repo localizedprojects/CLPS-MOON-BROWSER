@@ -16,6 +16,7 @@ import '../context_pill.dart' show heightLabel;
 import '../site_card.dart' show FocusRingInkWell;
 import 'explain_sheet.dart';
 import 'sheet_frame.dart';
+import '../focus_semantics.dart';
 
 Future<void> showMissionSettings(BuildContext context) => showPhSheet<void>(context, (_) => const MissionSettingsSheet());
 
@@ -143,14 +144,13 @@ class MissionSettingsSheet extends StatelessWidget {
               selected: nextYear,
               inMutuallyExclusiveGroup: true,
               label: 'Next 12 months, starting today',
-              excludeSemantics: true,
               onTap: nextYear ? null : nextTwelveMonths,
-              child: ChoiceChip(
+              child: FocusSemantics(child: ChoiceChip(
                 label: const Text('Next 12 months'),
                 selected: nextYear,
                 materialTapTargetSize: MaterialTapTargetSize.padded,
                 onSelected: (_) => nextYear ? null : nextTwelveMonths(),
-              ),
+              )),
             ),
             // the wrapper replaces the chip's semantics, so it carries the tap too
             Semantics(
@@ -158,16 +158,15 @@ class MissionSettingsSheet extends StatelessWidget {
               selected: !nextYear,
               inMutuallyExclusiveGroup: true,
               label: 'Period: ${periodDates(s.rangeStartMs, s.rangeEndMs)}. Pick dates',
-              excludeSemantics: true,
               onTap: man == null ? null : pickDates,
-              child: ChoiceChip(
+              child: FocusSemantics(child: ChoiceChip(
                 avatar: const Icon(Icons.date_range, size: 18),
                 label: Text(nextYear ? 'Pick dates…' : periodDates(s.rangeStartMs, s.rangeEndMs)),
                 selected: !nextYear,
                 showCheckmark: false,
                 materialTapTargetSize: MaterialTapTargetSize.padded,
                 onSelected: man == null ? null : (_) => pickDates(),
-              ),
+              )),
             ),
           ]),
           Padding(
@@ -265,9 +264,8 @@ class _ChoiceCard extends StatelessWidget {
         selected: selected,
         inMutuallyExclusiveGroup: true,
         label: '$title. $body',
-        excludeSemantics: true,
         onTap: onTap,
-        child: Material(
+        child: FocusSemantics(child: Material(
           color: selected ? PH.selected : PH.panelHi,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(PH.radiusCard),
@@ -295,7 +293,7 @@ class _ChoiceCard extends StatelessWidget {
               ),
             ),
           ),
-        ),
+        )),
       );
 }
 
@@ -312,9 +310,8 @@ class _OptionTile extends StatelessWidget {
         selected: selected,
         inMutuallyExclusiveGroup: true,
         label: '$title. $body',
-        excludeSemantics: true,
         onTap: onTap,
-        child: ListTile(
+        child: FocusSemantics(child: ListTile(
           contentPadding: const EdgeInsets.symmetric(horizontal: 4),
           minTileHeight: 56,
           selected: selected,
@@ -326,7 +323,7 @@ class _OptionTile extends StatelessWidget {
           title: Text(title, style: PHText.body),
           subtitle: Text(body, style: PHText.small.copyWith(color: PH.muted)),
           onTap: onTap,
-        ),
+        )),
       );
 }
 

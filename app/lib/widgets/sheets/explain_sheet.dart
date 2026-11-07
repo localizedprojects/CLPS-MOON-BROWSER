@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 import '../../theme.dart';
 import '../explain.dart' show glossary;
 import 'sheet_frame.dart';
+import '../focus_semantics.dart';
 
 /// Opens the glossary entry for [term] (a key of [glossary]).
 Future<void> showExplain(BuildContext context, String term) =>
@@ -67,13 +68,12 @@ class _ExplainSheetState extends State<ExplainSheet> {
               Semantics(
                 button: true,
                 label: 'Explain $k',
-                excludeSemantics: true,
                 onTap: () => setState(() => _term = k),
-                child: ActionChip(
+                child: FocusSemantics(child: ActionChip(
                   label: Text(k),
                   materialTapTargetSize: MaterialTapTargetSize.padded,
                   onPressed: () => setState(() => _term = k),
-                ),
+                )),
               ),
           ]),
         ),

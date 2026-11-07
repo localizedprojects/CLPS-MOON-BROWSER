@@ -16,6 +16,7 @@ import '../theme.dart';
 import 'glyphs.dart';
 import 'stat_bar.dart';
 import 'terrain_thumb.dart';
+import 'focus_semantics.dart';
 
 /// "Longest night: 22.6 days" (the longest stretch without sunlight).
 String longestNightText(SiteMetrics m) =>
@@ -113,14 +114,13 @@ class SiteCard extends StatelessWidget {
           child: Semantics(
             button: true,
             label: 'Remove ${site.short} (a spot you placed)',
-            excludeSemantics: true,
             onTap: () => s.removeCustomSite(site.id),
-            child: TextButton.icon(
+            child: FocusSemantics(child: TextButton.icon(
               style: TextButton.styleFrom(minimumSize: const Size(48, 48)),
               onPressed: () => s.removeCustomSite(site.id),
               icon: const Icon(Icons.delete_outline, size: 18),
               label: const Text('Remove'),
-            ),
+            )),
           ),
         ),
       CompareToggle(id: site.id, name: site.short, inCompare: inCompare, full: full),
@@ -147,16 +147,15 @@ class SiteCard extends StatelessWidget {
             selected: sel,
             label: siteCardLabel(site, m, rank: rank, requireDsn: dsn, selected: sel),
             hint: 'Opens the site',
-            excludeSemantics: true,
             onTap: () => s.openSite(site.id),
-            child: FocusRingInkWell(
+            child: FocusSemantics(child: FocusRingInkWell(
               onTap: () => s.openSite(site.id),
               borderRadius: const BorderRadius.vertical(top: Radius.circular(PH.radiusCard)),
               child: ConstrainedBox(
                 constraints: const BoxConstraints(minHeight: 48),
                 child: Padding(padding: const EdgeInsets.fromLTRB(16, 16, 16, 4), child: body),
               ),
-            ),
+            )),
           ),
           Padding(padding: const EdgeInsets.fromLTRB(8, 0, 8, 8), child: actions),
         ]),
@@ -230,9 +229,8 @@ class CompareToggle extends StatelessWidget {
       toggled: inCompare,
       enabled: enabled,
       label: label,
-      excludeSemantics: true,
       onTap: enabled ? toggle : null,
-      child: button,
+      child: FocusSemantics(enabled: enabled, child: button),
     );
   }
 }

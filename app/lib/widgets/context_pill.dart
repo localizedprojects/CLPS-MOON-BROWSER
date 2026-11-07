@@ -10,6 +10,7 @@ import '../core/wording.dart';
 import '../state/app_state.dart';
 import '../theme.dart';
 import 'sheets/mission_settings_sheet.dart';
+import 'focus_semantics.dart';
 
 /// "2 m lander" / "10 m mast" for an observer height in metres.
 String heightLabel(double h) {
@@ -55,8 +56,7 @@ class ContextPill extends StatelessWidget {
       label: 'Mission settings: $text',
       hint: 'Change the dates, lander or mast height and rules',
       onTap: open,
-      excludeSemantics: true,
-      child: OutlinedButton(
+      child: FocusSemantics(child: OutlinedButton(
         style: OutlinedButton.styleFrom(
           shape: multiline
               ? RoundedRectangleBorder(borderRadius: BorderRadius.circular(PH.radiusInner))
@@ -75,7 +75,7 @@ class ContextPill extends StatelessWidget {
           const SizedBox(width: 4),
           const Icon(Icons.expand_more, size: 18, color: PH.muted),
         ]),
-      ),
+      )),
     );
   }
 }

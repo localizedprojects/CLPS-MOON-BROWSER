@@ -19,6 +19,7 @@ import 'chart_focus.dart';
 import 'glyphs.dart';
 import 'ranked_cards.dart' show bothShareLabel;
 import 'stat_bar.dart';
+import 'focus_semantics.dart';
 
 /// Payload for the React comparison chart. The weights are whole percent in
 /// the formula's terms: Score = rest% × [power% Power + comms% Comms] + both% × Both.
@@ -311,26 +312,24 @@ class CompareNumbers extends StatelessWidget {
           container: true,
           button: true,
           label: 'Save the scorecard as a CSV file',
-          excludeSemantics: true,
           onTap: onSaveScorecard,
-          child: ConstrainedBox(
+          child: FocusSemantics(child: ConstrainedBox(
             constraints: const BoxConstraints(minHeight: 48),
             child: FilledButton.tonalIcon(
                 onPressed: onSaveScorecard, icon: const Icon(Icons.table_chart_outlined, size: 20), label: const Text('Save scorecard (CSV)')),
-          ),
+          )),
         ),
       if (onSaveChart != null)
         Semantics(
           container: true,
           button: true,
           label: 'Save the comparison chart as a PNG image',
-          excludeSemantics: true,
           onTap: onSaveChart,
-          child: ConstrainedBox(
+          child: FocusSemantics(child: ConstrainedBox(
             constraints: const BoxConstraints(minHeight: 48),
             child: FilledButton.tonalIcon(
                 onPressed: onSaveChart, icon: const Icon(Icons.image_outlined, size: 20), label: const Text('Save chart (PNG)')),
-          ),
+          )),
         ),
     ]);
 

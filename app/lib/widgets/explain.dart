@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import '../theme.dart';
 import 'sheets/explain_sheet.dart';
 import 'site_card.dart' show FocusRingInkWell;
+import 'focus_semantics.dart';
 
 const glossary = <String, String>{
   'Azimuth': 'Compass direction along the horizon, measured clockwise from north (0°) through east (90°). '
@@ -52,10 +53,9 @@ class Term extends StatelessWidget {
       // the wrapper replaces the InkWell's semantics, so it carries the tap too
       child: Semantics(
         button: true,
-        excludeSemantics: true,
         label: '$name: show definition',
         onTap: open,
-        child: FocusRingInkWell(
+        child: FocusSemantics(child: FocusRingInkWell(
           borderRadius: BorderRadius.circular(PH.radius),
           onTap: open,
           child: ConstrainedBox(
@@ -74,7 +74,7 @@ class Term extends StatelessWidget {
               ),
             ),
           ),
-        ),
+        )),
       ),
     );
   }

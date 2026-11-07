@@ -15,6 +15,7 @@ import '../glyphs.dart';
 import '../site_glance_card.dart' show numSpans;
 import '../stat_bar.dart';
 import 'sheet_frame.dart';
+import '../focus_semantics.dart';
 
 /// Opens the picker. Returns the chosen ids (one in single mode, in the
 /// order they were picked in multi mode), or null when the sheet was closed
@@ -290,13 +291,12 @@ class _SiteRow extends StatelessWidget {
       checked: multi ? picked : null,
       enabled: !blocked,
       label: label,
-      excludeSemantics: true,
       onTap: blocked ? null : onTap,
       // Own Material so the selected tile colour and ink are painted inside
       // the list's viewport and clipped with it. On the sheet's Material they
       // leaked over the pinned header while a picked row sat in the cache
       // extent just above the viewport (flutter#86584, a11y-1).
-      child: Material(
+      child: FocusSemantics(enabled: !blocked, child: Material(
         type: MaterialType.transparency,
         child: ListTile(
         minTileHeight: 56,
@@ -321,7 +321,7 @@ class _SiteRow extends StatelessWidget {
               ),
         onTap: blocked ? null : onTap,
         ),
-      ),
+      )),
     );
   }
 }

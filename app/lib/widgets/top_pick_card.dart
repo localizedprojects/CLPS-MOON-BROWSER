@@ -16,6 +16,7 @@ import '../theme.dart';
 import 'light_snapshot.dart';
 import 'stat_bar.dart';
 import 'feature_guide.dart';
+import 'focus_semantics.dart';
 
 /// "Best spot for the next 12 months" (the default period), else
 /// "Best spot for 1 Jan 2027 – 31 Jan 2027"; the goal is named when it is
@@ -105,38 +106,35 @@ class TopPickCard extends StatelessWidget {
               container: true,
               button: true,
               label: 'See this site: ${site.short}',
-              excludeSemantics: true,
               onTap: () => s.openSite(site.id),
-              child: FilledButton(
+              child: FocusSemantics(child: FilledButton(
                 style: FilledButton.styleFrom(minimumSize: const Size(48, 48)),
                 onPressed: () => s.openSite(site.id),
                 child: const Text('See this site'),
-              ),
+              )),
             ),
             if (top3.length >= 2)
               Semantics(
                 container: true,
                 button: true,
                 label: 'Compare the top ${top3.length} sites',
-                excludeSemantics: true,
                 onTap: () => _compareTop(s, top3),
-                child: FilledButton.tonal(
+                child: FocusSemantics(child: FilledButton.tonal(
                   style: FilledButton.styleFrom(minimumSize: const Size(48, 48)),
                   onPressed: () => _compareTop(s, top3),
                   child: Text('Compare top ${top3.length}'),
-                ),
+                )),
               ),
             Semantics(
               container: true,
               link: true,
               label: 'How is this ranked? Opens Learn',
-              excludeSemantics: true,
               onTap: () => s.goTo(Dest.learn),
-              child: TextButton(
+              child: FocusSemantics(child: TextButton(
                 style: TextButton.styleFrom(minimumSize: const Size(48, 48)),
                 onPressed: () => s.goTo(Dest.learn),
                 child: const Text('How is this ranked?'),
-              ),
+              )),
             ),
           ]),
             ]),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'widgets/focus_semantics.dart';
 
 /// Lunar Horizon design tokens: calm deep navy. Depth comes from tone (darker
 /// page, lighter cards, lighter still for raised parts), not from hairlines or
@@ -601,10 +602,9 @@ class _FidelityBadgeState extends State<FidelityBadge> {
       padding: const EdgeInsets.only(top: 8),
       child: Semantics(
         label: 'Approximation: $full',
-        excludeSemantics: true,
         button: more,
         onTap: more ? () => setState(() => _open = !_open) : null,
-        child: more
+        child: FocusSemantics(child: more
             ? Material(
                 color: Colors.transparent,
                 child: InkWell(
@@ -613,7 +613,7 @@ class _FidelityBadgeState extends State<FidelityBadge> {
                   child: body,
                 ),
               )
-            : body,
+            : body),
       ),
     );
   }

@@ -8,6 +8,7 @@ import 'package:provider/provider.dart';
 
 import '../state/app_state.dart';
 import '../theme.dart';
+import 'focus_semantics.dart';
 
 /// "Compare 3 sites →" / "Pick one more site to compare" (null when empty).
 String? compareTrayText(int n) => switch (n) {
@@ -39,13 +40,12 @@ class CompareTray extends StatelessWidget {
         ? Semantics(
             button: true,
             label: 'Compare ${ids.length} sites',
-            excludeSemantics: true,
             onTap: () => s.goTo(Dest.compare),
-            child: FilledButton(
+            child: FocusSemantics(child: FilledButton(
               style: FilledButton.styleFrom(minimumSize: const Size(48, 48)),
               onPressed: () => s.goTo(Dest.compare),
               child: Text(text),
-            ),
+            )),
           )
         : Text(text, style: PHText.body);
     return Material(

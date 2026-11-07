@@ -13,6 +13,7 @@ import '../core/summary.dart';
 import '../core/wording.dart' show earthMetricLabel;
 import '../theme.dart';
 import 'stat_bar.dart';
+import 'focus_semantics.dart';
 
 class WinnerCard extends StatelessWidget {
   /// The shortlist ranked under [weights], best first (at least one site).
@@ -258,14 +259,13 @@ class WinnerCard extends StatelessWidget {
           container: true,
           button: true,
           label: 'See $name',
-          excludeSemantics: true,
           onTap: tap,
-          child: ConstrainedBox(
+          child: FocusSemantics(child: ConstrainedBox(
             constraints: const BoxConstraints(minHeight: 48),
             child: filled
                 ? FilledButton(onPressed: tap, child: Text(text))
                 : OutlinedButton(onPressed: tap, child: Text(text)),
-          ),
+          )),
         );
     final openSite = onOpenSite;
     final openBest = onOpen ?? (openSite == null ? null : () => openSite(best.id));

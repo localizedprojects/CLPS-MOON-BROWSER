@@ -29,6 +29,7 @@ import 'glyphs.dart';
 import '../state/light_loop.dart' show lightFrameEclipse, lightFrameEclipsed, lightRequestFor;
 import 'light_map.dart' show landerFidelityText;
 import 'no_page_swipe.dart';
+import 'focus_semantics.dart';
 
 typedef SkyBody = ({double az, double el, double rhoDeg, SkyState state});
 
@@ -1003,8 +1004,7 @@ class LanderViewPanelState extends State<LanderViewPanel> with TickerProviderSta
       label: LanderViewPanel.reliefLabel,
       hint: LanderViewPanel.reliefHint,
       onTap: _toggleRelief,
-      excludeSemantics: true,
-      child: IconButton(
+      child: FocusSemantics(child: IconButton(
         key: const ValueKey('lander-relief'),
         tooltip: on ? 'Relief shading: on' : 'Relief shading: off',
         onPressed: _toggleRelief,
@@ -1029,7 +1029,7 @@ class LanderViewPanelState extends State<LanderViewPanel> with TickerProviderSta
                 foregroundPainter: _SlashPainter(PH.text),
                 child: Icon(Icons.terrain_outlined, size: 20)
               )
-      )
+      ))
     );
   }
 

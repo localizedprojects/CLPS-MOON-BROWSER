@@ -24,6 +24,7 @@ import '../widgets/sheets/site_picker_sheet.dart';
 import '../widgets/shortlist_bar.dart';
 import '../widgets/winner_card.dart';
 import '../widgets/feature_guide.dart';
+import '../widgets/focus_semantics.dart';
 
 /// Content width from which Compare uses two columns.
 const compareWideWidth = 900.0;
@@ -262,12 +263,11 @@ class _PickMore extends StatelessWidget {
               container: true,
               button: true,
               label: semantic,
-              excludeSemantics: true,
               onTap: () => s.setCompare([...s.compareIds, ...add]),
-              child: ConstrainedBox(
+              child: FocusSemantics(child: ConstrainedBox(
                 constraints: const BoxConstraints(minHeight: 48),
                 child: FilledButton(onPressed: () => s.setCompare([...s.compareIds, ...add]), child: Text(label)),
-              ),
+              )),
             )),
           ],
         ]),

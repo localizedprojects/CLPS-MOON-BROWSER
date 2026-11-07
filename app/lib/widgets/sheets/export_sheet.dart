@@ -11,6 +11,7 @@ import '../../state/app_state.dart';
 import '../../state/chart_hub.dart';
 import '../../theme.dart';
 import 'sheet_frame.dart';
+import '../focus_semantics.dart';
 
 Future<void> showExportSheet(BuildContext context) => showPhSheet<void>(context, (_) => const ExportSheet());
 
@@ -169,9 +170,8 @@ class _ExportTile extends StatelessWidget {
       button: true,
       enabled: enabled,
       label: enabled ? '$title. $ready' : '$title. Not available yet: $blocker',
-      excludeSemantics: true,
       onTap: enabled ? onTap : null,
-      child: ListTile(
+      child: FocusSemantics(enabled: enabled, child: ListTile(
         minTileHeight: 64,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(PH.radiusInner)),
         leading: Icon(icon),
@@ -180,7 +180,7 @@ class _ExportTile extends StatelessWidget {
         trailing: enabled ? const Icon(Icons.download_outlined, size: 20) : const Icon(Icons.block, size: 18, color: PH.muted),
         enabled: enabled,
         onTap: onTap,
-      ),
+      )),
     );
   }
 }

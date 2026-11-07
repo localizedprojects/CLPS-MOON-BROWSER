@@ -13,6 +13,7 @@ import '../theme.dart';
 import 'glyphs.dart';
 import 'site_card.dart' show longestNightText;
 import 'stat_bar.dart';
+import 'focus_semantics.dart';
 
 /// Label of the combined share: "Sun and Earth" (both up together), or with
 /// the DSN rule on, "Sunlight and Earth contact (DSN)" (sunlit while Earth is
@@ -166,12 +167,11 @@ class _RankCard extends StatelessWidget {
                 container: true,
                 button: true,
                 label: 'See ${r.name}',
-                excludeSemantics: true,
                 onTap: onOpen,
-                child: ConstrainedBox(
+                child: FocusSemantics(child: ConstrainedBox(
                   constraints: const BoxConstraints(minHeight: 48),
                   child: FilledButton.tonal(onPressed: onOpen, child: const Text('See this site')),
-                ),
+                )),
               ),
             ),
           ],

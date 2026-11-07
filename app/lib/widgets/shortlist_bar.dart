@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import '../core/catalog.dart';
 import '../theme.dart';
 import 'feature_guide.dart';
+import 'focus_semantics.dart';
 
 class ShortlistBar extends StatelessWidget {
   /// The shortlisted sites, in shortlist order.
@@ -46,17 +47,16 @@ class ShortlistBar extends StatelessWidget {
             container: true,
             button: true,
             label: full ? 'Add site. The shortlist is full: remove a site first' : 'Add site to the comparison',
-            excludeSemantics: true,
             enabled: !full,
             onTap: full ? null : onAdd,
-            child: ConstrainedBox(
+            child: FocusSemantics(enabled: !full, child: ConstrainedBox(
               constraints: const BoxConstraints(minHeight: 48),
               child: FilledButton.tonalIcon(
                 onPressed: full ? null : onAdd,
                 icon: const Icon(Icons.add_rounded, size: 20),
                 label: const Text('Add site'),
               ),
-            ),
+            )),
           )),
       ]),
     ]);

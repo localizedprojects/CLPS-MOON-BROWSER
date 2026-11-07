@@ -17,6 +17,7 @@ import 'chart_bridge.dart' show utcLabel;
 import 'hide_on_scroll.dart';
 import 'no_page_swipe.dart';
 import 'feature_guide.dart';
+import 'focus_semantics.dart';
 
 /// The cursor time on two lines: "17 Sep 2027" and "20:00 UTC".
 (String, String) utcTwoLines(double ms) {
@@ -415,9 +416,8 @@ class _TimeScrubberState extends State<TimeScrubber> {
           final time = Semantics(
             button: true,
             label: 'Time shown: $label. Choose an exact date and time',
-            excludeSemantics: true,
             onTap: _pickTime,
-            child: Tooltip(
+            child: FocusSemantics(child: Tooltip(
               message: 'Choose an exact date and time (UTC)',
               excludeFromSemantics: true,
               child: TextButton(
@@ -452,7 +452,7 @@ class _TimeScrubberState extends State<TimeScrubber> {
                       style: labelStyle.copyWith(height: 1.3)),
                 ),
               ),
-            ),
+            )),
           );
           final nextIcon = GuideTarget(id: 'time-next', child: IconButton(tooltip: nextText, onPressed: goNext, icon: const Icon(Icons.skip_next)));
           final nextButton = _nextLink(
@@ -548,9 +548,8 @@ class _TimeStripState extends State<TimeStrip> {
                 button: true,
                 label: 'Show the time controls',
                 value: 'Time shown: ${utcLabel(s.cursorMs)}',
-                excludeSemantics: true,
                 onTap: show,
-                child: TextButton.icon(
+                child: FocusSemantics(child: TextButton.icon(
                   key: const ValueKey('time-show'),
                   focusNode: widget.showFocus,
                   style: const ButtonStyle(
@@ -564,7 +563,7 @@ class _TimeStripState extends State<TimeStrip> {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: numStyle(size: 13.5)),
-                ),
+                )),
               ),
             ),
           ),

@@ -11,6 +11,7 @@ import '../core/ranking.dart';
 import '../state/app_state.dart';
 import '../theme.dart';
 import 'feature_guide.dart';
+import 'focus_semantics.dart';
 
 class GoalChips extends StatelessWidget {
   /// Show the "What matters most?" heading above the chips.
@@ -39,16 +40,15 @@ class GoalChips extends StatelessWidget {
             hint: hintFor(g),
             selected: active == g,
             inMutuallyExclusiveGroup: true,
-            excludeSemantics: true,
             button: true,
             onTap: () => context.read<AppState>().setGoal(g),
-            child: ChoiceChip(
+            child: FocusSemantics(child: ChoiceChip(
               label: Text(goalLabel(g)),
               selected: active == g,
               showCheckmark: true,
               materialTapTargetSize: MaterialTapTargetSize.padded,
               onSelected: (_) => context.read<AppState>().setGoal(g),
-            ),
+            )),
           ),
       ])),
       if (active == null)

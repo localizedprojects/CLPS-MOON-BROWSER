@@ -16,6 +16,7 @@ import '../core/metrics.dart' show Interval;
 import '../theme.dart';
 import 'glyphs.dart';
 import 'site_card.dart' show FocusRingInkWell;
+import 'focus_semantics.dart';
 
 const calendarTitle = 'Which days work?';
 const calendarHelp = 'Each square is one UTC day. Good day = Sun and Earth up together at least half the day.';
@@ -311,9 +312,8 @@ class _MonthTiles extends StatelessWidget {
         button: true,
         selected: on,
         label: '${_monthLong.format(first)}: $good good ${good == 1 ? 'day' : 'days'} of ${m.days}',
-        excludeSemantics: true,
         onTap: () => onPick(key),
-        child: Material(
+        child: FocusSemantics(child: Material(
           color: on ? PH.selected : PH.panelHi,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(PH.radiusInner),
@@ -339,7 +339,7 @@ class _MonthTiles extends StatelessWidget {
               ),
             ),
           ),
-        ),
+        )),
       ),
     );
   }

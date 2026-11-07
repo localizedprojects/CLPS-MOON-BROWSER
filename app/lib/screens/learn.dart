@@ -20,6 +20,7 @@ import '../widgets/web_address.dart';
 import 'how_calculated.dart';
 import 'validation_page.dart';
 import '../widgets/feature_guide.dart';
+import '../widgets/focus_semantics.dart';
 
 /// The views explained under "What each view shows", in app order.
 const learnViews = [explainExplore, explainOverview, explainSky, explainTimeline, explainLight, explainLander, explainCompare];
@@ -238,10 +239,9 @@ class _StartCard extends StatelessWidget {
         clipBehavior: Clip.antiAlias,
         child: Semantics(
           button: true,
-          excludeSemantics: true,
           label: '$title. $body $action',
           onTap: onTap,
-          child: FocusRingInkWell(
+          child: FocusSemantics(child: FocusRingInkWell(
             onTap: onTap,
             borderRadius: BorderRadius.circular(PH.radiusCard),
             child: ConstrainedBox(
@@ -273,7 +273,7 @@ class _StartCard extends StatelessWidget {
                 ]),
               ),
             ),
-          ),
+          )),
         ),
       );
 }

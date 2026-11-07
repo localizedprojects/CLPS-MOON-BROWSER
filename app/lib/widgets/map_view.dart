@@ -22,6 +22,7 @@ import '../core/wording.dart';
 import '../theme.dart';
 import 'sheets/sheet_frame.dart';
 import 'feature_guide.dart';
+import 'focus_semantics.dart';
 
 class MapLayers {
   final ui.Image hillshade;
@@ -977,16 +978,15 @@ class _MapViewState extends State<MapView> with SingleTickerProviderStateMixin {
               button: true,
               enabled: enabled,
               label: label,
-              excludeSemantics: true,
               onTap: enabled ? onTap : null,
-              child: IconButton(
+              child: FocusSemantics(enabled: enabled, child: IconButton(
                 onPressed: enabled ? onTap : null,
                 tooltip: label,
                 icon: Icon(icon, size: 20),
                 color: PH.text,
                 disabledColor: PH.muted.withValues(alpha: 0.5),
                 constraints: const BoxConstraints.tightFor(width: 48, height: 48),
-              ),
+              )),
             );
         return Semantics(
           label: 'South pole map. Tap a site marker to open it, or tap or hold terrain to check a spot of your own. '
@@ -1111,26 +1111,24 @@ class _MapViewState extends State<MapView> with SingleTickerProviderStateMixin {
           GuideTarget(id: 'map-layers', child: Semantics(
             button: true,
             label: 'Map layers: ${overlayName(overlay)}${labels ? ', names shown' : ''}',
-            excludeSemantics: true,
             onTap: _openLayers,
-            child: FilledButton.tonalIcon(
+            child: FocusSemantics(child: FilledButton.tonalIcon(
               style: FilledButton.styleFrom(minimumSize: const Size(48, 48)),
               onPressed: _openLayers,
               icon: const Icon(Icons.layers_outlined, size: 18),
               label: Text('Layers · ${overlayName(overlay)}'),
-            ),
+            )),
           )),
           Semantics(
             button: true,
             label: 'Add a spot by coordinates',
-            excludeSemantics: true,
             onTap: _askCoordinates,
-            child: TextButton.icon(
+            child: FocusSemantics(child: TextButton.icon(
               style: TextButton.styleFrom(minimumSize: const Size(48, 48)),
               onPressed: _askCoordinates,
               icon: const Icon(Icons.add_location_alt_outlined, size: 18),
               label: const Text('Add a spot by coordinates…'),
-            ),
+            )),
           ),
         ]),
         FidelityBadge(text: overlayCaption(overlay, widget.layers.outer)),

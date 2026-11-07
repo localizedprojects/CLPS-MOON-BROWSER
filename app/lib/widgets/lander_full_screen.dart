@@ -35,6 +35,7 @@ import 'light_map.dart' show LightLayerSwitch, LightLegend, LightMap, lightEclip
 import 'sheets/sheet_frame.dart';
 import 'sheets/site_picker_sheet.dart';
 import 'time_bar.dart';
+import 'focus_semantics.dart';
 
 /// Opens the Lander's view full screen over [context]'s route, on [layer];
 /// a layer chosen there goes to [onLayer] (and to the host route's
@@ -283,10 +284,9 @@ class LanderFullScreenPageState extends State<LanderFullScreenPage> {
             child: Semantics(
               button: true,
               label: 'Change site. Current site: ${site.short}',
-              excludeSemantics: true,
               // excludeSemantics drops the TextButton's own action: keep it here
               onTap: _pickSite,
-              child: TextButton(
+              child: FocusSemantics(child: TextButton(
                 key: const ValueKey('lander-full-site'),
                 style: TextButton.styleFrom(
                   minimumSize: const Size(48, 48),
@@ -304,7 +304,7 @@ class LanderFullScreenPageState extends State<LanderFullScreenPage> {
                     const Icon(Icons.arrow_drop_down, size: 20),
                   ],
                 ),
-              ),
+              )),
             ),
           ),
           if (around != null) step(around.next, next: true),
@@ -354,13 +354,12 @@ class LanderFullScreenPageState extends State<LanderFullScreenPage> {
         Semantics(
           button: true,
           label: 'Try the light again',
-          excludeSemantics: true,
           onTap: _retry,
-          child: TextButton(
+          child: FocusSemantics(child: TextButton(
             style: TextButton.styleFrom(minimumSize: const Size(48, 48)),
             onPressed: _retry,
             child: const Text('Try again'),
-          ),
+          )),
         ),
       ],
     );

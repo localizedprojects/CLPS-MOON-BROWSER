@@ -99,17 +99,34 @@ class ChartFocusButton extends StatelessWidget {
     } on ProviderNotFoundException {
       return const SizedBox.shrink();
     }
-    return IconButton(
-      key: ValueKey('chart-focus-${controller.view}'),
-      tooltip: 'Open the $title full screen',
-      onPressed: () => openChartFocus(context,
-          hub: hub, controller: controller, title: title, semanticsLabel: semanticsLabel, landscape: landscape),
-      style: IconButton.styleFrom(
-        backgroundColor: const Color(0xCC0C1528),
-        foregroundColor: PH.text,
-        minimumSize: const Size(48, 48),
+    // Tab forward reveals each stop at the pane's bottom edge and never
+    // scrolls back up, so over the top corner of a chart taller than its pane
+    // (Sky & time's When chart, Simple view at 1440 x 900) this button was
+    // left above the pane once the chart's own bottom had been revealed, with
+    // only a sliver of its focus ring showing (1.13.4). When it takes the
+    // focus above the pane, the pane scrolls back just far enough to show it;
+    // anywhere else nothing moves. This node itself is never a stop.
+    return Focus(
+      canRequestFocus: false,
+      skipTraversal: true,
+      includeSemantics: false,
+      onFocusChange: (has) {
+        if (has && context.mounted) {
+          Scrollable.ensureVisible(context, alignmentPolicy: ScrollPositionAlignmentPolicy.keepVisibleAtStart);
+        }
+      },
+      child: IconButton(
+        key: ValueKey('chart-focus-${controller.view}'),
+        tooltip: 'Open the $title full screen',
+        onPressed: () => openChartFocus(context,
+            hub: hub, controller: controller, title: title, semanticsLabel: semanticsLabel, landscape: landscape),
+        style: IconButton.styleFrom(
+          backgroundColor: const Color(0xCC0C1528),
+          foregroundColor: PH.text,
+          minimumSize: const Size(48, 48),
+        ),
+        icon: const Icon(Icons.open_in_full, size: 20),
       ),
-      icon: const Icon(Icons.open_in_full, size: 20),
     );
   }
 }

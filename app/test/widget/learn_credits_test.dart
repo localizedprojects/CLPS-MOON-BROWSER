@@ -78,6 +78,42 @@ void main() {
       }
     });
 
+    // 1.13.4 review: the chart bundle also compiles in Plotly's d3 modules
+    // (BSD-3-Clause and ISC, not MIT), and the app ships the Material Icons
+    // font (CC BY 4.0) and, on the web, the engine's Roboto (Apache 2.0)
+    test('the page also holds the d3 modules\' BSD and ISC notices, Material Icons and (web) Roboto', () async {
+      final entries = await appLicenses(web: true).toList();
+      String textOf(String package) => entries
+          .where((e) => e.packages.contains(package))
+          .expand((e) => e.paragraphs)
+          .map((p) => p.text)
+          .join('\n');
+      expect(textOf('@plotly/d3'), contains('Copyright (c) 2010-2016, Michael Bostock'));
+      expect(textOf('@plotly/d3'), contains('Redistributions in binary form must reproduce'));
+      for (final (package, line) in [
+        ('d3-format', 'Copyright 2010-2015 Mike Bostock'),
+        ('d3-time', 'Copyright 2010-2016 Mike Bostock'),
+        ('d3-time-format', 'Copyright 2010-2017 Mike Bostock'),
+      ]) {
+        expect(textOf(package), contains(line), reason: package);
+        expect(textOf(package), contains('Redistributions in binary form must reproduce'), reason: package);
+      }
+      for (final (package, line) in [
+        ('d3-interpolate', 'Copyright 2010-2021 Mike Bostock'),
+        ('d3-color', 'Copyright 2010-2022 Mike Bostock'),
+      ]) {
+        expect(textOf(package), contains(line), reason: package);
+        expect(textOf(package), contains('Permission to use, copy, modify, and/or distribute'), reason: package);
+      }
+      expect(textOf('Material Icons'), contains('Google'));
+      expect(textOf('Material Icons'), contains('Attribution 4.0 International'));
+      expect(textOf('Roboto'), contains('Apache License'));
+      // Android draws with its own Roboto: the entry is the web build's only
+      final android = await appLicenses(web: false).toList();
+      expect(android.any((e) => e.packages.contains('Roboto')), isFalse);
+      expect(android.any((e) => e.packages.contains('Material Icons')), isTrue);
+    });
+
     test('registerAppLicenses puts them in Flutter\'s LicenseRegistry', () async {
       registerAppLicenses();
       final packages = <String>{};

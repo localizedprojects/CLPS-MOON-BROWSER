@@ -92,6 +92,11 @@ flutter:
     # the fonts' licence texts, for the app's licence page (lib/licenses.dart)
     - assets/fonts/LICENSE-IBMPlexSans.txt
     - assets/fonts/LICENSE-IBMPlexMono.txt
+    # the Material Icons font's (a copy of the Flutter SDK's
+    # material_fonts/MaterialIcons_LICENSE.txt) and, for the web build, the
+    # engine's Roboto (its licence file beside the font in web/fonts/roboto/)
+    - assets/fonts/LICENSE-MaterialIcons.txt
+    - web/fonts/roboto/LICENSE.txt
 
   # To add assets to your application, add an assets section, like this:
   # assets:

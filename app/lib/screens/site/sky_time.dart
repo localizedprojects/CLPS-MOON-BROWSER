@@ -183,6 +183,10 @@ class _SkyTimeTabState extends State<SkyTimeTab> {
   /// The single column's scroll position.
   final _scroll = ScrollController();
 
+  /// Whether the wide Simple pane still scrolls further down: its
+  /// [MoreBelowCue] shows only then.
+  final _moreBelow = ValueNotifier<bool>(false);
+
   /// Whether this tab was the one showing at the last AppState change, and
   /// the cursor then.
   bool _wasShown = false;
@@ -220,7 +224,35 @@ class _SkyTimeTabState extends State<SkyTimeTab> {
   void dispose() {
     widget.state.removeListener(_onState);
     _scroll.dispose();
+    _moreBelow.dispose();
     super.dispose();
+  }
+
+  /// The wide Simple pane's own scroll metrics (not a chart's or a card's
+  /// inside it) after each scroll and each change of size: more than
+  /// [moreBelowSlack] still below shows the cue, the end hides it.
+  bool _noteScroll(Notification n) {
+    final (metrics, depth) = switch (n) {
+      ScrollMetricsNotification(:final metrics, :final depth) => (metrics, depth),
+      ScrollNotification(:final metrics, :final depth) => (metrics, depth),
+      _ => (null, -1),
+    };
+    if (metrics != null && depth == 0 && metrics.axis == Axis.vertical && metrics.hasContentDimensions) {
+      _moreBelow.value = metrics.extentAfter > moreBelowSlack;
+    }
+    return false;
+  }
+
+  /// The cue's action: the pane to its end, so COMING UP and NowStatus end
+  /// above the time bar; at once when animations are off.
+  void _toEnd() {
+    if (!_scroll.hasClients) return;
+    final end = _scroll.position.maxScrollExtent, d = motionDuration(context);
+    if (d == Duration.zero) {
+      _scroll.jumpTo(end);
+    } else {
+      _scroll.animateTo(end, duration: d, curve: Curves.easeOutCubic);
+    }
   }
 
   bool get _shown => widget.state.dest == Dest.site && widget.state.siteTab == SiteTab.skyTime;
@@ -463,7 +495,12 @@ class _SkyTimeTabState extends State<SkyTimeTab> {
                     // ([timelineWideMinHeight]; a shorter pane scrolls rather
                     // than squashing them); the timeline comes first in reading
                     // and focus order, so it is on the left
-                    return CustomScrollView(
+                    // the two frames keep their least heights, so a pane
+                    // shorter than they need (1440 x 900: 596 px for 648)
+                    // scrolls: the "More below" cue says so while it can
+                    return NotificationListener<Notification>(
+                      onNotification: _noteScroll,
+                      child: CustomScrollView(
                       controller: _scroll,
                       slivers: [
                         SliverToBoxAdapter(
@@ -472,10 +509,22 @@ class _SkyTimeTabState extends State<SkyTimeTab> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.stretch,
                               children: [
-                                // the switch stays at the top right; NowStatus is in the sky plot's card
-                                Align(
-                                  alignment: Alignment.centerRight,
-                                  child: SizedBox(width: simpleSwitchWidth, child: _switch(hub, true)),
+                                // the switch stays at the top right; NowStatus is in the sky plot's card.
+                                // The cue is in the row's empty left: the row keeps the switch's height
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: Align(
+                                        alignment: Alignment.centerLeft,
+                                        child: ValueListenableBuilder<bool>(
+                                          valueListenable: _moreBelow,
+                                          builder: (context, more, _) =>
+                                              more ? MoreBelowCue(onPressed: _toEnd) : const SizedBox.shrink(),
+                                        ),
+                                      ),
+                                    ),
+                                    SizedBox(width: simpleSwitchWidth, child: _switch(hub, true)),
+                                  ],
                                 ),
                                 ...notes,
                                 if (s.explainInline)
@@ -506,6 +555,7 @@ class _SkyTimeTabState extends State<SkyTimeTab> {
                           ),
                         ),
                       ],
+                    ),
                     );
                   }
                   // the bar is pinned below this scroll view (never over it),
@@ -534,6 +584,40 @@ class _SkyTimeTabState extends State<SkyTimeTab> {
 
 /// Width of the "Simple view" switch at the top of a wide pane.
 const simpleSwitchWidth = 240.0;
+
+/// The [MoreBelowCue]'s words, its accessible name and its tooltip.
+const moreBelowText = 'More below';
+const moreBelowLabel = 'More below: Coming up and the status line';
+const moreBelowTip = 'Scroll down to Coming up and the status line';
+
+/// The wide Simple pane shows the [MoreBelowCue] while more than this (px)
+/// is still below; the last pixels of rounding never show it.
+const moreBelowSlack = 8.0;
+
+/// Sky & time's "More below" cue (1.13.4): the wide Simple pane keeps the
+/// least heights of its frames ([timelineWideMinHeight], [skyWideMinHeight];
+/// shorter, they cut COMING UP rows and the "Where to look" key), so a short
+/// window (1440 x 900) scrolls, and COMING UP and NowStatus start below the
+/// fold. A 48 dp button in the empty left of the switch row (no height of its
+/// own, over nothing) says so, while the pane still scrolls down, and takes
+/// it to its end. Never on a phone's single column, nor where all fits.
+class MoreBelowCue extends StatelessWidget {
+  final VoidCallback onPressed;
+  const MoreBelowCue({super.key, required this.onPressed});
+
+  // the theme's text button: 48 dp, IBM Plex Sans, the 2 px ice focus ring;
+  // an arrow and words, so colour is not the cue
+  @override
+  Widget build(BuildContext context) => Tooltip(
+        message: moreBelowTip,
+        excludeFromSemantics: true, // the label already says where it goes
+        child: TextButton.icon(
+          onPressed: onPressed,
+          icon: const Icon(Icons.arrow_downward, size: 20),
+          label: const Text(moreBelowText, semanticsLabel: moreBelowLabel),
+        ),
+      );
+}
 
 /// Sky & time's "Simple view" switch: off (the default) shows the classic
 /// sky plot and timeline, on shows the simple views. A full-width row at

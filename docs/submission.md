@@ -105,6 +105,15 @@ the app.
   power and a direct line of sight to Earth. The landing-window finder, the longest night,
   the longest time without Earth and the exportable numbers support early site and date
   selection and first power and communication budgets.
+- **When the date or the site moves.** A launch slip or a hardware problem can move a landing
+  by weeks or months, or to another site. At the pole the Sun goes round the sky once per solar
+  day (29.53 days on average), and its height above a level horizon swings between about −1.6°
+  and +1.6° over a cycle of about 347 days, so light and the view of Earth change from week to
+  week and season to season. The landing-window card gives the span of landing times that still
+  fits (or says that only one exact time fits), and *Next window that fits* gives the next one.
+  *Mission settings › Pick dates…* moves the period anywhere in 2025–2035, re-ranks the sites
+  and marks an older landing answer "Out of date". The good-days calendar and Compare (two to
+  four sites, with good days by month) help pick a new date or a backup site.
 - **Trust is checkable.** The Sun and Earth directions agree with JPL Horizons to within
   0.0016′, and the long-term visibility is compared with the LOLA team's maps. The app shows
   these checks on its *Validation & assumptions* page.

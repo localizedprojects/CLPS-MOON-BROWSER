@@ -104,14 +104,15 @@ double skyFrameHeight(double width, {bool exact = false}) =>
     (exact ? 200.0 : 0.0);
 
 /// Smallest side of the "Where to look" plot when its frame's height limits
-/// it (charts/src/SkyView.tsx SKY_FIT_MIN_PX): about a 320 px phone's plot.
+/// it (charts/src/skyFit.ts SKY_FIT_MIN_PX; sky_fit_parity_test checks the
+/// two agree): about a 320 px phone's plot.
 const skyFitMinSide = 260.0;
 
 /// Least height of the sky ("Where to look") frame in the wide pane, where
 /// it is otherwise what the timeline beside it and NowStatus under it leave
 /// (397 x 532 px at 1440 x 900, 597 x 604 at 1920 x 1080; Chromium, web
 /// build): shorter than the plot at its width plus the rest, so the chart
-/// fits the plot to the height that is left (SkyView.tsx skyFitLimit), down
+/// fits the plot to the height that is left (skyFit.ts skyFitLimit), down
 /// to [skyFitMinSide]. This holds that smallest plot with the rest: the
 /// header, the two caption lines, the "Paths over the period" toggle, the key
 /// line and the padding (220 px in the narrowest wide frame, 392 px; 202 at

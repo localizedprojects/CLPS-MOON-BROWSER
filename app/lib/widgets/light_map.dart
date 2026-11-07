@@ -975,7 +975,9 @@ class _LightMapState extends State<LightMap> {
     // [landerFit]: the stacked layouts (a phone in portrait), where [side] is the
     // card's full width: the height on screen the lander's view and its buttons
     // fit in (LanderViewPanel.fitHeight; null: the page scrolls)
-    Widget mapBox(double side, {bool bottomMayHide = false, Size? landerSize, double? landerFit}) {
+    // [landerBleed]: how far the lander's row of buttons reaches into the
+    // card's side padding each side (LanderViewPanel.bleed)
+    Widget mapBox(double side, {bool bottomMayHide = false, Size? landerSize, double? landerFit, double landerBleed = 0}) {
       _images.update(side: side, dpr: MediaQuery.devicePixelRatioOf(context));
       if (kind == LightViewKind.lander && _fullOpen) {
         // the full-screen view has the mesh and the camera meanwhile (never two
@@ -1001,6 +1003,7 @@ class _LightMapState extends State<LightMap> {
                 width: landerSize?.width ?? side,
                 meshOut: _landerMesh,
                 fitHeight: landerFit,
+                bleed: landerBleed,
                 // a phone in portrait scrolls: the view keeps its full height there
                 maxHeight: bottomMayHide ? double.infinity : (landerSize?.height ?? side)));
       }
@@ -1187,13 +1190,19 @@ class _LightMapState extends State<LightMap> {
     final pick = widget.sideNoteFor, note = pick != null ? pick(kind) : widget.sideNote;
     // a phone in portrait: the lander's view and its seven 48 dp buttons take
     // 8 dp more of the card's padding each side, so the buttons fit on one row
-    // (7 x 48 = 336 dp) from a 376 dp wide screen
+    // (7 x 48 = 336 dp) from a 376 dp wide screen; the buttons alone also take
+    // the other 8 dp (the stacked layouts below: [bleed], LanderViewPanel.bleed),
+    // so they fit one row from 360 dp. Everything else keeps those 8 dp
     final landerBleed = kind == LightViewKind.lander && MediaQuery.sizeOf(context).width < 440;
+    final bleed = landerBleed ? 8.0 : 0.0;
+    Widget inset(Widget child) => bleed == 0 ? child : Padding(padding: EdgeInsets.symmetric(horizontal: bleed), child: child);
     return Card(
       margin: const EdgeInsets.all(6), // part of LightMap._inset
       child: Padding(
-        padding: EdgeInsets.symmetric(horizontal: landerBleed ? 8 : 16, vertical: 16),
-        child: LayoutBuilder(builder: (context, c) {
+        padding: EdgeInsets.symmetric(horizontal: landerBleed ? 0 : 16, vertical: 16),
+        child: LayoutBuilder(builder: (context, c0) {
+          // the card's inner box, as wide as before [bleed]
+          final c = c0.deflate(EdgeInsets.symmetric(horizontal: bleed));
           // the lander's view in phone landscape (a window under
           // shortScreenMaxHeight, where the shell's bar hides too) hides the
           // app's top bars (as Play does), so it is tall enough to read under
@@ -1230,7 +1239,7 @@ class _LightMapState extends State<LightMap> {
                   : null;
               final map = mapBox(side, landerSize: lander);
               if (lander != null) side = lander.width;
-              return Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              return inset(Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 map,
                 const SizedBox(width: 16),
                 Expanded(
@@ -1260,9 +1269,9 @@ class _LightMapState extends State<LightMap> {
                     ),
                   ]),
                 ),
-              ]);
+              ]));
             }
-            return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+            return inset(Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
               header((icons: true, short: false, rows: 1), title: true),
               const SizedBox(height: 12),
               Expanded(
@@ -1286,7 +1295,7 @@ class _LightMapState extends State<LightMap> {
                   ]);
                 }),
               ),
-            ]);
+            ]));
           }
           // the view and layer switches always come first (on screen: the
           // demo's "Switch to Both"), on one row where short labels make that
@@ -1326,10 +1335,11 @@ class _LightMapState extends State<LightMap> {
           final room = c.maxHeight - LightMap.controlsHeightEstimate(fit.rows, textScale) - 12;
           if (c.maxHeight.isFinite && room >= pinFloor) {
             return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-              controls,
+              inset(controls),
               const SizedBox(height: 12),
               Expanded(
-                child: LayoutBuilder(builder: (context, c2) {
+                child: LayoutBuilder(builder: (context, c20) {
+                  final c2 = c20.deflate(EdgeInsets.symmetric(horizontal: bleed));
                   // room for the one-line note too when there is enough;
                   // otherwise the whole map, the note just under it
                   final withNote = c2.maxHeight - LightMap.shortNoteReserve;
@@ -1346,9 +1356,10 @@ class _LightMapState extends State<LightMap> {
                       : math.min(c2.maxWidth, withNote >= usable ? withNote : math.max(c2.maxHeight, pinFloor));
                   return SingleChildScrollView(
                     child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, mainAxisSize: MainAxisSize.min, children: [
-                      Center(child: mapBox(side, bottomMayHide: fullWidth, landerFit: lander ? c2.maxHeight : null)),
-                      lander ? badge : shortNote,
-                      ...below(),
+                      Center(
+                          child: mapBox(side,
+                              bottomMayHide: fullWidth, landerFit: lander ? c2.maxHeight : null, landerBleed: bleed)),
+                      for (final b in [lander ? badge : shortNote, ...below()]) inset(b),
                     ]),
                   );
                 }),
@@ -1362,14 +1373,14 @@ class _LightMapState extends State<LightMap> {
           final side =
               c.maxHeight.isFinite && !phoneFull ? math.min(c.maxWidth, math.max(room, usable)) : c.maxWidth;
           final stacked = Column(crossAxisAlignment: CrossAxisAlignment.stretch, mainAxisSize: MainAxisSize.min, children: [
-            controls,
+            inset(controls),
             const SizedBox(height: 12),
             Center(
                 child: mapBox(side,
                     bottomMayHide: phoneFull || !c.maxHeight.isFinite,
-                    landerFit: lander ? (c.maxHeight.isFinite ? room : widget.scrollSlotHeight) : null)),
-            if (lander) badge,
-            ...below(),
+                    landerFit: lander ? (c.maxHeight.isFinite ? room : widget.scrollSlotHeight) : null,
+                    landerBleed: bleed)),
+            for (final b in [if (lander) badge, ...below()]) inset(b),
           ]);
           return c.maxHeight.isFinite ? SingleChildScrollView(child: stacked) : stacked;
         }),

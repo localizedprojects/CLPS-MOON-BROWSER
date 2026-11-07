@@ -9,6 +9,8 @@ import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart' show SemanticsNode;
+import 'package:flutter/services.dart' show LogicalKeyboardKey;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:polar_horizon/core/dem.dart';
 import 'package:polar_horizon/core/lander_view.dart' show LanderMesh, LanderViewpoint, SkyState, skylineAt;
@@ -149,7 +151,9 @@ void main() {
   /// The lander's view is usable: as wide as the card, landscape-shaped and
   /// at least [LanderViewPanel.minFitViewHeightFor] tall, its centre readout
   /// painted clear of the legend and the crosshair, and all seven 48 dp
-  /// controls on screen above the pinned time bar, where they can be tapped.
+  /// controls on screen above the pinned time bar, where they can be tapped,
+  /// beside the view or (LanderViewPanel.bleed) in the card's side padding
+  /// next to it, never past the card.
   Rect expectUsable(WidgetTester tester, String name, {bool portrait = true}) {
     final map = tester.getRect(find.byType(LightMap));
     final view = tester.getRect(find.byKey(const ValueKey('lander-view')));
@@ -178,7 +182,10 @@ void main() {
       expect(f, findsOneWidget, reason: '$name $label');
       final r = tester.getRect(f);
       expect(r.width >= 48 && r.height >= 48, isTrue, reason: '$name $label: $r');
-      expect(r.left >= view.left - 0.5 && r.right <= view.right + 0.5, isTrue, reason: '$name $label: $r beside $view');
+      final bleed = panelState(tester).widget.bleed;
+      expect(r.left >= view.left - bleed - 0.5 && r.right <= view.right + bleed + 0.5, isTrue,
+          reason: '$name $label: $r beside $view (or $bleed dp past it)');
+      expect(r.left >= map.left + 6 - 0.5 && r.right <= map.right - 6 + 0.5, isTrue, reason: '$name $label: $r in $map');
       expect(r.bottom, lessThanOrEqualTo(bottom + 0.5), reason: '$name $label: $r above $bottom');
       expect(hittable(tester, f), isTrue, reason: '$name $label: $r can be tapped');
     }
@@ -215,6 +222,111 @@ void main() {
       await done(tester);
     });
   }
+
+  // A2: the seven 48 dp controls also take the card's side padding
+  // (LanderViewPanel.bleed), so they make one row on a 360 dp phone; where
+  // even that is too narrow (320 dp), two balanced rows that keep the pairs
+  // together. Tab and a screen reader take them in the one row's order either
+  // way, and every target stays 48 dp and can be tapped once scrolled to.
+  group('A2: the Lander controls at 360 and 320 dp', () {
+    Future<List<Rect>> controls(WidgetTester tester, Phone p) async {
+      phone(tester, p);
+      await openLander(tester);
+      await tester.ensureVisible(find.byTooltip(_buttons.last));
+      await tester.ensureVisible(find.byTooltip(_buttons.first));
+      await tester.pump(const Duration(milliseconds: 400));
+      final map = tester.getRect(find.byType(LightMap));
+      final view = tester.getRect(find.byKey(const ValueKey('lander-view')));
+      final rects = [for (final l in _buttons) tester.getRect(find.byTooltip(l))];
+      // ignore: avoid_print
+      print('${p.name}: view $view, card ${map.deflate(6)}; controls ${[for (final r in rects) '(${r.left}, ${r.top})']}');
+      for (var i = 0; i < 7; i++) {
+        final r = rects[i];
+        expect(r.width >= 48 && r.height >= 48, isTrue, reason: '${p.name} ${_buttons[i]}: $r');
+        expect(r.left >= map.left + 6 - 0.5 && r.right <= map.right - 6 + 0.5, isTrue, reason: '${_buttons[i]}: $r in $map');
+        expect(hittable(tester, find.byTooltip(_buttons[i])), isTrue, reason: '${p.name} ${_buttons[i]}: $r');
+        expect(tester.getSemantics(find.byTooltip(_buttons[i])).tooltip, _buttons[i]);
+      }
+      // Tab from Turn left: the one row's order
+      Focus.of(tester.element(find.descendant(of: find.byTooltip(_buttons.first), matching: find.byType(Icon))))
+          .requestFocus();
+      await tester.pump();
+      String? focused() => FocusManager.instance.primaryFocus?.context?.findAncestorWidgetOfExactType<Tooltip>()?.message;
+      final tabbed = [focused()];
+      for (var i = 1; i < 7; i++) {
+        await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+        await tester.pump();
+        tabbed.add(focused());
+      }
+      expect(tabbed, _buttons, reason: '${p.name}: Tab order');
+      // and a screen reader's
+      final handle = tester.ensureSemantics();
+      await tester.pump();
+      String name(SemanticsNode n) {
+        final d = n.getSemanticsData();
+        return d.tooltip.isNotEmpty ? d.tooltip : d.label;
+      }
+      final read = [for (final n in tester.semantics.simulatedAccessibilityTraversal()) name(n)]
+          .where(_buttons.contains)
+          .toList();
+      expect(read, _buttons, reason: '${p.name}: screen reader order');
+      handle.dispose();
+      expect(panelState(tester).widget.bleed, 8);
+      expect(view.left - (map.left + 6), closeTo(8, 0.5), reason: '${p.name}: the view keeps 8 dp of the padding');
+      return rects;
+    }
+
+    testWidgets('360x800 dp: all seven on one row across the card, 8 dp past the view each side', (tester) async {
+      final rects = await controls(tester, (name: '360x800 dp', px: const Size(1080, 2400), dpr: 3, top: 72, bottom: 0));
+      final view = tester.getRect(find.byKey(const ValueKey('lander-view')));
+      expect(view.width, closeTo(320, 0.5));
+      for (var i = 0; i < 7; i++) {
+        expect(rects[i].top, closeTo(rects.first.top, 0.5), reason: '${_buttons[i]} on the first row');
+        expect(rects[i].left, closeTo(view.left - 8 + 48.0 * i, 0.5), reason: '${_buttons[i]} in order');
+      }
+      await done(tester);
+    });
+
+    testWidgets('320x640 dp: two balanced rows, the turns either side of the faces, then level and the zooms',
+        (tester) async {
+      final rects = await controls(tester, (name: '320x640 dp', px: const Size(640, 1280), dpr: 2, top: 48, bottom: 0));
+      final view = tester.getRect(find.byKey(const ValueKey('lander-view')));
+      expect(view.width, closeTo(280, 0.5));
+      for (final (row, members) in [(0, [0, 1, 2, 6]), (1, [3, 4, 5])]) {
+        for (var k = 0; k < members.length; k++) {
+          final r = rects[members[k]];
+          expect(r.top, closeTo(rects.first.top + 48.0 * row, 0.5), reason: '${_buttons[members[k]]} on row ${row + 1}');
+          expect(r.left, closeTo(view.center.dx - 24.0 * members.length + 48.0 * k, 0.5),
+              reason: '${_buttons[members[k]]}: place ${k + 1} of row ${row + 1}, centred');
+        }
+      }
+      await done(tester);
+    });
+
+    // wider: one row inside the view's width, as before (the desktop's text buttons too)
+    for (final (name, px, dpr) in [('412x915 dp', const Size(412 * 2.625, 915 * 2.625), 2.625), ('1440x900', const Size(1440, 900), 1.0)]) {
+      testWidgets('$name: one row inside the view\'s width', (tester) async {
+        phone(tester, (name: name, px: px, dpr: dpr, top: dpr == 1 ? 0 : 24 * dpr, bottom: 0));
+        await openLander(tester);
+        Finder f(String l) => find.byTooltip(l).evaluate().isNotEmpty ? find.byTooltip(l) : find.widgetWithText(TextButton, l);
+        await tester.ensureVisible(f(_buttons.first));
+        await tester.pump(const Duration(milliseconds: 400));
+        final view = tester.getRect(find.byKey(const ValueKey('lander-view')));
+        final rects = [for (final l in _buttons) tester.getRect(f(l))];
+        // ignore: avoid_print
+        print('$name: view $view; controls ${[for (final r in rects) '(${r.left}, ${r.top}, ${r.width})']}');
+        for (var i = 0; i < 7; i++) {
+          final r = rects[i];
+          expect(r.top, closeTo(rects.first.top, 0.5), reason: '$name ${_buttons[i]} on the one row');
+          if (i > 0) expect(r.left, greaterThanOrEqualTo(rects[i - 1].right - 0.5), reason: '$name ${_buttons[i]} in order');
+          expect(r.width >= 48 && r.height >= 48, isTrue, reason: '$name ${_buttons[i]}: $r');
+          expect(r.left >= view.left - 0.5 && r.right <= view.right + 0.5, isTrue, reason: '$name ${_buttons[i]}: $r in $view');
+          expect(hittable(tester, f(_buttons[i])), isTrue, reason: '$name ${_buttons[i]}: $r');
+        }
+        await done(tester);
+      });
+    }
+  });
 
   // W17: in Lander mode the first note under the view is the lander's own
   // badge (§6), not the 2D map's short note; while playing, one play note

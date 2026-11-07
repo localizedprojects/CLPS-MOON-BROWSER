@@ -323,10 +323,16 @@ class LanderViewPanel extends StatefulWidget {
   /// buttons, in portrait and landscape alike, and the notes scroll under
   /// them (the full-screen view).
   final bool fill;
+
+  /// How far the row of seven buttons reaches past each side of the view (a
+  /// phone in portrait: into the light card's side padding), so they fit one
+  /// row in a [width] down to [buttonsWidth] - 2 x [bleed]. The panel is that
+  /// much wider each side; the view and the notes keep to [width].
+  final double bleed;
   const LanderViewPanel(
       {super.key, required this.state, required this.near, required this.layer, required this.width,
       this.maxHeight = double.infinity, this.fitHeight, this.demForTest, this.meshOut, this.onExpand,
-      this.fill = false});
+      this.fill = false, this.bleed = 0});
 
   /// The expand button's tooltip and accessible name.
   static const expandLabel = "Open the Lander's view full screen";
@@ -378,10 +384,23 @@ class LanderViewPanel extends StatefulWidget {
   /// [minFitViewHeight], or half of [width] where that is more.
   static double minFitViewHeightFor(double width) => math.max(minFitViewHeight, 0.5 * width);
 
-  /// Rows of 48 dp buttons the seven controls take in [width] (they wrap,
-  /// never clipped).
-  static int buttonRows(double width) =>
-      width >= buttonsWidth ? 1 : (7 / math.max(1, (width / 48).floor())).ceil();
+  /// Rows of 48 dp buttons the seven controls take in a row [width] wide
+  /// (never clipped): one where all seven fit, two balanced rows where four
+  /// do ([balancedRows]), else as many as they wrap to.
+  static int buttonRows(double width) => width >= buttonsWidth
+      ? 1
+      : width >= 4 * 48.0
+          ? 2
+          : (7 / math.max(1, (width / 48).floor())).ceil();
+
+  /// The two balanced rows, as indices into the one row's order (Turn left,
+  /// Face the Sun, Face Earth, Level, Zoom out, Zoom in, Turn right): the
+  /// turns either side of the two faces, then level and the zooms. Tab and a
+  /// screen reader still take them in the one row's order.
+  static const balancedRows = [
+    [0, 1, 2, 6],
+    [3, 4, 5]
+  ];
 
   @override
   State<LanderViewPanel> createState() => LanderViewPanelState();
@@ -1110,7 +1129,7 @@ class LanderViewPanelState extends State<LanderViewPanel> with TickerProviderSta
     final s = _s;
     if (s.eph == null) return const SizedBox.shrink();
     if (_siteKey != _meshKey) WidgetsBinding.instance.addPostFrameCallback((_) => mounted ? _ensureMesh() : null);
-    final w = widget.width, rows = LanderViewPanel.buttonRows(w);
+    final w = widget.width, bleed = widget.bleed, rows = LanderViewPanel.buttonRows(w + 2 * bleed);
     final scaler = MediaQuery.textScalerOf(context);
     final wide = w >= 600 && scaler.scale(14) <= 18;
     final sun = _body(true), earth = _body(false), words = _precise;
@@ -1325,41 +1344,61 @@ class LanderViewPanelState extends State<LanderViewPanel> with TickerProviderSta
       )
     );
 
-    Widget btn(IconData icon, String label, VoidCallback f, {bool text = false}) => text
-        ? TextButton.icon(
-            onPressed: () => press(f),
-            icon: Icon(icon, size: 18),
-            label: Text(label),
-            style: TextButton.styleFrom(minimumSize: const Size(48, 48)))
-        : IconButton(tooltip: label, onPressed: () => press(f), icon: Icon(icon));
+    // two balanced rows (LanderViewPanel.balancedRows), where Tab and a screen
+    // reader keep the one row's order: [i] is the button's place in it
+    final balanced = rows == 2;
+    Widget btn(int i, IconData icon, String label, VoidCallback f, {bool text = false}) {
+      // the place for a screen reader, merged into the button's own node
+      Widget glyph(double? size) =>
+          balanced ? Semantics(sortKey: OrdinalSortKey(i.toDouble()), child: Icon(icon, size: size)) : Icon(icon, size: size);
+      final b = text
+          ? TextButton.icon(
+              onPressed: () => press(f),
+              icon: glyph(18),
+              label: Text(label),
+              style: TextButton.styleFrom(minimumSize: const Size(48, 48)))
+          : IconButton(tooltip: label, onPressed: () => press(f), icon: glyph(null));
+      return balanced ? FocusTraversalOrder(order: NumericFocusOrder(i.toDouble()), child: b) : b;
+    }
     final controls = [
-      btn(Icons.rotate_left, 'Turn left 15°', () => turnBy(-15)),
-      btn(Icons.wb_sunny_outlined, 'Face the Sun', faceSun, text: wide),
-      btn(Icons.public, 'Face Earth', faceEarth, text: wide),
-      btn(Icons.horizontal_rule, 'Level', level, text: wide),
-      btn(Icons.zoom_out, 'Zoom out', () => zoom(1.25)),
-      btn(Icons.zoom_in, 'Zoom in', () => zoom(1 / 1.25)),
-      btn(Icons.rotate_right, 'Turn right 15°', () => turnBy(15))
+      btn(0, Icons.rotate_left, 'Turn left 15°', () => turnBy(-15)),
+      btn(1, Icons.wb_sunny_outlined, 'Face the Sun', faceSun, text: wide),
+      btn(2, Icons.public, 'Face Earth', faceEarth, text: wide),
+      btn(3, Icons.horizontal_rule, 'Level', level, text: wide),
+      btn(4, Icons.zoom_out, 'Zoom out', () => zoom(1.25)),
+      btn(5, Icons.zoom_in, 'Zoom in', () => zoom(1 / 1.25)),
+      btn(6, Icons.rotate_right, 'Turn right 15°', () => turnBy(15))
     ];
-    // all seven on [rows] rows (never clipped); in a short box they stay on
-    // screen under the view and only the notes scroll
-    final wrap = Wrap(alignment: WrapAlignment.center, children: controls);
+    // all seven on [rows] rows (never clipped), across the view's width and
+    // [bleed] each side: one row, else the two balanced rows, else as they
+    // wrap; in a short box they stay on screen under the view and only the
+    // notes scroll
+    final wrap = balanced
+        ? FocusTraversalGroup(
+            policy: OrderedTraversalPolicy(),
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+              for (final row in LanderViewPanel.balancedRows)
+                Row(mainAxisAlignment: MainAxisAlignment.center, children: [for (final i in row) controls[i]])
+            ]))
+        : Wrap(alignment: WrapAlignment.center, children: controls);
     final buttons = scroll ? SizedBox(height: 48.0 * rows, child: wrap) : wrap;
+    // the view and the notes keep to the view's width
+    Widget inset(Widget child) => bleed == 0 ? child : Padding(padding: EdgeInsets.symmetric(horizontal: bleed), child: child);
     final below = [
       if (!scroll) buttons,
       for (final n in notes)
-        Text(
+        inset(Text(
           n,
           style: PHText.small.copyWith(color: PH.muted),
           maxLines: noteLines,
           overflow: noteLines == null ? null : TextOverflow.ellipsis
-        )
+        ))
     ];
     return SizedBox(
-      width: w,
+      width: w + 2 * bleed,
       height: scroll ? widget.maxHeight : null,
       child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-        ClipRRect(
+        inset(ClipRRect(
             borderRadius: BorderRadius.circular(PH.radiusInner),
             child: SizedBox(
               height: viewH,
@@ -1387,7 +1426,7 @@ class LanderViewPanelState extends State<LanderViewPanel> with TickerProviderSta
                               ),
                               icon: const Icon(Icons.open_in_full, size: 20),
                             )),
-                      ]))),
+                      ])))),
         const SizedBox(height: 4),
         if (scroll) buttons,
         if (scroll)

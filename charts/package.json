@@ -1,7 +1,8 @@
 {
-  "name": "polar-horizon-charts",
+  "name": "lunar-horizon-charts",
   "private": true,
   "version": "0.1.0",
+  "license": "MIT",
   "type": "module",
   "description": "React + Plotly chart views (sky plot, timeline, comparison) embedded in the Lunar Horizon Flutter app. Render-only: all science comes from the Dart core via the bridge.",
   "scripts": {

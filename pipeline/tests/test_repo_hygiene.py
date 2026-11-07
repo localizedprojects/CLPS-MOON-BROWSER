@@ -149,7 +149,10 @@ def test_ios_workflow_builds_like_xcode():
     assert "-workspace app/ios/Runner.xcworkspace -scheme Runner" in text
     assert "CODE_SIGNING_ALLOWED=NO" in text
     assert "flutter build ios --release --no-codesign" in text
-    assert "branches: [xcode-ready]" in text
+    # it runs on pull requests and by hand; the old xcode-ready branch has been in main since 1.11.3
+    triggers = text.split("\non:\n", 1)[1].split("\npermissions:", 1)[0]
+    assert "  pull_request:" in triggers and "  workflow_dispatch:" in triggers
+    assert "xcode-ready" not in text and "  push:" not in triggers
     # every step that builds or runs on the simulator has its own timeout, and so does the job
     assert text.count("timeout-minutes:") >= 5
 

@@ -98,5 +98,5 @@ bash tools/xcode_setup.sh
 `.github/workflows/ios.yml` repeats these steps on a macOS runner (no signing, no secrets): the setup
 script, the same Xcode build as Run with a simulator, `flutter build ios --release --no-codesign`, and
 one integration test on an iPhone simulator. It runs on pull requests that touch `app/ios`, `app/pubspec.*`
-or the script, and by hand from the Actions tab. (Its trigger for pushes to the old `xcode-ready`
-branch is unused: that branch stopped at 1.11.2, and its work has been in `main` since 1.11.3.)
+or the script, and by hand from the Actions tab. (The old `xcode-ready` branch stopped at 1.11.2; its
+work has been in `main` since 1.11.3, so the workflow no longer runs on pushes to it.)

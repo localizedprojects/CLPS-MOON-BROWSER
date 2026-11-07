@@ -5,6 +5,8 @@
 /// narrower, one tab shows at a time and a sideways swipe turns to the next.
 library;
 
+import 'dart:ui' show SemanticsRole;
+
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -263,12 +265,21 @@ class _TabChips extends StatelessWidget {
     final narrow = MediaQuery.sizeOf(context).width < 360;
     return Padding(
       padding: EdgeInsets.symmetric(horizontal: narrow ? 4 : 10, vertical: 4),
-      child: Wrap(spacing: narrow ? 4 : 6, runSpacing: 4, children: [
+      // one choice among the views: a tab bar of tabs with a selected state.
+      // A ChoiceChip alone is a checkbox on the web (aria-checked); the tab
+      // role takes precedence there, and the chips look the same
+      child: Semantics(
+        role: SemanticsRole.tabBar,
+        container: true,
+        explicitChildNodes: true,
+        child: Wrap(spacing: narrow ? 4 : 6, runSpacing: 4, children: [
           for (final (i, t) in tabs.indexed)
             // one node per chip: the hint is merged into the chip's own
             // button node, never a separate "Site tab" stop before it
             MergeSemantics(
               child: Semantics(
+                role: SemanticsRole.tab,
+                selected: selected == t,
                 hint: siteTabHint(i, tabs.length),
                 child: ChoiceChip(
                   padding: EdgeInsets.symmetric(horizontal: narrow ? 3 : 6, vertical: 8),
@@ -280,6 +291,7 @@ class _TabChips extends StatelessWidget {
               ),
             ),
         ]),
+      ),
     );
   }
 }

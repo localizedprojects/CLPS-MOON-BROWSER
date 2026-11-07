@@ -5,6 +5,7 @@ library;
 
 import 'dart:math' as math;
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart' hide Interval;
 import 'package:flutter/semantics.dart' show SemanticsService;
 
@@ -18,6 +19,16 @@ import 'hide_on_scroll.dart';
 import 'no_page_swipe.dart';
 import 'feature_guide.dart';
 import 'focus_semantics.dart';
+import 'keyboard_focus_ring.dart';
+
+/// The time slider's name for screen readers.
+const timeSliderName = 'Time shown';
+
+/// The time slider's spoken value at [ms]: the UTC time. On the web the
+/// engine gives the page's range input only this value (aria-valuetext); the
+/// slider's name lands on the element round the input, which a screen reader
+/// does not read with it, so there the value also carries the name.
+String timeSliderValue(double ms, {required bool web}) => web ? '$timeSliderName: ${utcLabel(ms)}' : utcLabel(ms);
 
 /// The cursor time on two lines: "17 Sep 2027" and "20:00 UTC".
 (String, String) utcTwoLines(double ms) {
@@ -367,17 +378,28 @@ class _TimeScrubberState extends State<TimeScrubber> {
     );
     final max = math.max(last, s.rangeStartMs + 1);
     // its own small overlay: the value indicator's (empty) semantics node then
-    // covers the slider, not the whole window and the chart frames under it
-    final slider = Overlay.wrap(
-      alwaysSizeToContent: true,
-      clipBehavior: Clip.none,
-      child: Slider(
-        min: s.rangeStartMs,
-        max: max,
-        value: s.cursorMs.clamp(s.rangeStartMs, max),
-        label: label,
-        semanticFormatterCallback: (v) => 'Time ${utcLabel(v)}',
-        onChanged: s.setCursor,
+    // covers the slider, not the whole window and the chart frames under it.
+    // The 2 px ice ring shows keyboard focus (the Slider's own cue is a faint
+    // halo round the thumb). The slider's node is named "Time shown": merged
+    // with the Slider's own node, whose label is the value bubble's date
+    // (needed until the bubble has faded out)
+    final slider = KeyboardFocusRing(
+      child: Overlay.wrap(
+        alwaysSizeToContent: true,
+        clipBehavior: Clip.none,
+        child: MergeSemantics(
+          child: Semantics(
+            label: timeSliderName,
+            child: Slider(
+              min: s.rangeStartMs,
+              max: max,
+              value: s.cursorMs.clamp(s.rangeStartMs, max),
+              label: label,
+              semanticFormatterCallback: (v) => timeSliderValue(v, web: kIsWeb),
+              onChanged: s.setCursor,
+            ),
+          ),
+        ),
       ),
     );
     // the whole bar is the Sky & time guide's "Play and the time bar"

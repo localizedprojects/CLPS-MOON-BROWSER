@@ -23,6 +23,7 @@ import '../../widgets/explain.dart';
 import '../../widgets/now_status.dart';
 import '../../widgets/time_bar.dart';
 import '../../widgets/feature_guide.dart';
+import '../../widgets/keyboard_focus_ring.dart';
 
 /// The sky plot's explanation (the shared Learn card; a hollow marker means
 /// "does not count" under the user's rules).
@@ -628,12 +629,17 @@ class SimpleViewSwitch extends StatelessWidget {
   const SimpleViewSwitch({super.key, required this.on, required this.onChanged});
 
   @override
-  Widget build(BuildContext context) => GuideTarget(id: 'simple-view', child: SwitchListTile(
-        value: on,
-        onChanged: onChanged,
-        dense: true,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 8),
-        title: const Text(simpleViewLabel),
-        subtitle: Text(on ? 'Answers in words; off for the full charts' : 'Answers in words instead of the full charts'),
+  // the 2 px ice ring shows keyboard focus (the row's own cue is only a
+  // lighter fill), round the row's rounded shape
+  Widget build(BuildContext context) => GuideTarget(id: 'simple-view', child: KeyboardFocusRing(
+        radius: PH.radiusInner,
+        child: SwitchListTile(
+          value: on,
+          onChanged: onChanged,
+          dense: true,
+          contentPadding: const EdgeInsets.symmetric(horizontal: 8),
+          title: const Text(simpleViewLabel),
+          subtitle: Text(on ? 'Answers in words; off for the full charts' : 'Answers in words instead of the full charts'),
+        ),
       ));
 }

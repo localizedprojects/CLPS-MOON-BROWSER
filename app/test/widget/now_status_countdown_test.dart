@@ -160,6 +160,36 @@ void main() {
       semantics.dispose();
     });
 
+    // F2 (challenge: "solar elevation ... displaying this prominently",
+    // "clearly communicate time remaining before sunset or Earthset"): the
+    // Sun's height and both countdowns in the text colour, only the asides muted
+    testWidgets('the Sun\'s height and the countdowns are in the text colour, the asides muted', (tester) async {
+      for (final dt in [0.0, 5 * 86400e3, 12 * 86400e3]) {
+        state.setCursor(state.rangeStartMs + dt);
+        await pump(tester, w: 360);
+        final colours = <String, Color?>{};
+        final line = tester.widget<Text>(find.byKey(const ValueKey('nowCountdown'))).textSpan!;
+        // each part's own style (numSpans puts the part's words under one span)
+        for (final part in (line as TextSpan).children!.cast<TextSpan>()) {
+          colours[part.toPlainText().replaceAll('\u00A0', ' ')] = part.style?.color;
+        }
+        final shownLine = shown(tester);
+        final sunAt = colours.keys.firstWhere((k) => k.startsWith('Sun ') || k.startsWith('Earth hides'), orElse: () => '');
+        expect(sunAt, isNotEmpty, reason: shownLine);
+        expect(colours[sunAt], PH.text, reason: 'the Sun\'s height in "$shownLine"');
+        final next = colours.keys.where((k) => RegExp(r'(sunset|sunrise|Earthset|Earthrise|Earth contact)').hasMatch(k));
+        expect(next, isNotEmpty, reason: shownLine);
+        for (final k in next) {
+          expect(colours[k], PH.text, reason: '"$k" in "$shownLine"');
+        }
+        final asides = colours.keys.where((k) => k.startsWith(' ('));
+        expect(asides, isNotEmpty, reason: shownLine);
+        for (final k in asides) {
+          expect(colours[k], PH.muted, reason: '"$k" in "$shownLine"');
+        }
+      }
+    });
+
     testWidgets('the live region stays the same within a minute while playing, and changes with the minute', (tester) async {
       final semantics = tester.ensureSemantics();
       final t = minuteOf(state.rangeStartMs + 3 * 86400e3);

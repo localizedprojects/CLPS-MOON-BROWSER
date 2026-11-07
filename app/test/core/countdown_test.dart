@@ -199,4 +199,47 @@ void main() {
         'Sun 1.2 degrees above level (1 degree above the hills), sunset in 3 days 1 hour (21 October 18:00 UTC), '
         'Earthset in 11 hours 20 minutes, 1300 watts per square metre');
   });
+
+  group('countdownParts (F2: the news in the text colour, the asides muted)', () {
+    String joined(List<(String, bool)> p) => p.map((e) => e.$1).join();
+    test('the Sun\'s height and the countdowns are news; the hills, clock times and separators asides', () {
+      const line = 'Sun 1.2° above level (0.8° above the hills) · sunset in 3 d 4 h (21 Oct 18:00 UTC) · Earthset in 11 h';
+      final p = countdownParts(line);
+      expect(joined(p), line);
+      expect(p, [
+        ('Sun 1.2° above level', false),
+        (' (0.8° above the hills)', true),
+        (' · ', true),
+        ('sunset in 3 d 4 h', false),
+        (' (21 Oct 18:00 UTC)', true),
+        (' · ', true),
+        ('Earthset in 11 h', false),
+      ]);
+    });
+    test('an eclipse, the power proxy and "no sunset in your dates" keep their words as news', () {
+      const line = 'Sun 0.4° below level (0.2° above the hills), Earth covers 40% of it (lunar eclipse) · '
+          'no sunset in your dates · Earthrise in 2 d · 905 W/m² on a Sun-facing panel (proxy)';
+      final p = countdownParts(line);
+      expect(joined(p), line);
+      final news = [for (final (t, aside) in p) if (!aside) t];
+      expect(news, [
+        'Sun 0.4° below level',
+        ', Earth covers 40% of it',
+        'no sunset in your dates',
+        'Earthrise in 2 d',
+        '905 W/m² on a Sun-facing panel',
+      ]);
+    });
+    test('every line countdownLine writes splits and joins back', () {
+      for (final sun in [true, false]) {
+        final c = countdownAt(series(200, (i) => sun ? i < 120 : i > 80, (i) => i < 60), t0 + 10 * step);
+        final line = countdownLine(c, dateOf: (_) => '21 Oct 18:00 UTC', power: true);
+        final p = countdownParts(line);
+        expect(joined(p), line);
+        expect(p.first.$2, isFalse);
+        expect(p.first.$1, startsWith('Sun '));
+        expect(p.where((e) => e.$2).every((e) => e.$1 == ' · ' || (e.$1.startsWith(' (') && e.$1.endsWith(')'))), isTrue);
+      }
+    });
+  });
 }

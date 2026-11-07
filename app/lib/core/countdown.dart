@@ -192,6 +192,50 @@ String countdownLine(Countdown c, {required String Function(double ms) dateOf, b
   return '$head · $sunNext · $earthNext$p';
 }
 
+/// [countdownLine] in parts, each with whether it is an aside: the Sun's
+/// height and the time left before sunset or Earthset are the line's news
+/// (the challenge's "solar elevation ... prominently" and "time remaining
+/// before sunset or Earthset"); the parentheses (the height above the hills,
+/// the clock time, "(proxy)") and the " · " between the parts are asides.
+/// The parts join back into [line].
+List<(String, bool)> countdownParts(String line) {
+  final parts = <(String, bool)>[];
+  final b = StringBuffer();
+  void flush(bool aside) {
+    if (b.isEmpty) return;
+    parts.add((b.toString(), aside));
+    b.clear();
+  }
+
+  var depth = 0;
+  for (var i = 0; i < line.length; i++) {
+    final ch = line[i];
+    if (depth == 0 && (ch == '(' || line.startsWith(' (', i))) {
+      // an aside starts, with the space before it
+      flush(false);
+      depth = 1;
+      if (ch == ' ') {
+        b.write(' (');
+        i++;
+      } else {
+        b.write(ch);
+      }
+    } else if (depth > 0) {
+      b.write(ch);
+      if (ch == '(') depth++;
+      if (ch == ')' && --depth == 0) flush(true);
+    } else if (line.startsWith(' · ', i)) {
+      flush(false);
+      parts.add((' · ', true));
+      i += 2;
+    } else {
+      b.write(ch);
+    }
+  }
+  flush(depth > 0);
+  return parts;
+}
+
 const _months = {
   'Jan': 'January', 'Feb': 'February', 'Mar': 'March', 'Apr': 'April', 'May': 'May', 'Jun': 'June',
   'Jul': 'July', 'Aug': 'August', 'Sep': 'September', 'Oct': 'October', 'Nov': 'November', 'Dec': 'December',

@@ -262,10 +262,16 @@ class NowStatus extends StatelessWidget {
           dateOf: (ms) => shownTimeLabel(ms, refMs: s.rangeStartMs), requireDsn: o.requireDsn, power: s.expert);
     }
     if (cd != null) {
-      final style = PHText.body.copyWith(color: PH.muted);
+      // the Sun's height and the time left before sunset and Earthset in the
+      // text colour, the asides (the hills, the clock times) muted
+      final muted = PHText.body.copyWith(color: PH.muted);
       Widget cdLine(String text) => Padding(
           padding: const EdgeInsets.only(left: 26, top: 2),
-          child: Text.rich(numSpans(text, style), key: text == cd ? const ValueKey('nowCountdown') : null));
+          child: Text.rich(
+              TextSpan(children: [
+                for (final (part, aside) in countdownParts(text)) numSpans(part, aside ? muted : PHText.body),
+              ]),
+              key: text == cd ? const ValueKey('nowCountdown') : null));
       Widget c = cdLine(cd);
       if (reserve) {
         c = Stack(children: [

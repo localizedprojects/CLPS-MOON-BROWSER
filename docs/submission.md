@@ -351,8 +351,7 @@ Claude Code (Anthropic's AI coding agent) wrote the code, tests and documentatio
 - First commit in the public repository: `5838d00`, 14 October 2026.
 - GitHub releases (Android APK): v1.0.0 on 15 October 2026; v1.1.0 and v1.2.0 on 17 October
   2026; v1.13.3 on 7 November 2026, with the APK and both demo videos, now the latest.
-- `main` at `06be9e4` (4 November 2026, UTC+5:30; 3 November, 19:45 UTC): app version 1.13.0.
-  The web app is deployed from this commit.
+- 1.13.0 was `main` at `06be9e4` (4 November 2026, UTC+5:30; 3 November, 19:45 UTC).
 - The demo videos were recorded on 4 November 2026 from the 1.13.0 web build, with the app's
   clock set to 2 November 2026 (UTC). On 5 November 2026 both gained the end-card label "Made
   with AI assistance (Claude Code)" and AI metadata; nothing else in them changed.
@@ -366,5 +365,8 @@ Claude Code (Anthropic's AI coding agent) wrote the code, tests and documentatio
   arrows during Play and stay readable, Simple view's timeline and sky frames never cut their
   content, and the Lander's view callouts stay clear of its buttons. The demo videos stay as
   recorded on 1.13.0.
-- All 46 commits on `main` up to `06be9e4` carry a `Co-authored-by: Claude` trailer.
+- 7 November 2026: `main` at `6f80997` (07:27 UTC), app version 1.13.3. The web app is
+  deployed from `main`, so it always runs the newest version.
+- All 80 commits on `main` up to `6f80997` (7 November 2026) carry a `Co-authored-by: Claude`
+  trailer.
 - The NASA Space Apps Challenge 2026 hackathon is on 14–15 November 2026.

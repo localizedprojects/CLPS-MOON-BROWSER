@@ -226,10 +226,10 @@ void main() {
   // A2: the seven 48 dp controls also take the card's side padding
   // (LanderViewPanel.bleed), so they make one row on a 360 dp phone; where
   // even that is too narrow (320 dp), two balanced rows that keep the pairs
-  // together. Tab and a screen reader take them in the one row's order either
-  // way, and every target stays 48 dp and can be tapped once scrolled to.
+  // together. Tab and a screen reader follow the rows as drawn ([order]), and
+  // every target stays 48 dp and can be tapped once scrolled to.
   group('A2: the Lander controls at 360 and 320 dp', () {
-    Future<List<Rect>> controls(WidgetTester tester, Phone p) async {
+    Future<List<Rect>> controls(WidgetTester tester, Phone p, List<String> order) async {
       phone(tester, p);
       await openLander(tester);
       await tester.ensureVisible(find.byTooltip(_buttons.last));
@@ -247,7 +247,7 @@ void main() {
         expect(hittable(tester, find.byTooltip(_buttons[i])), isTrue, reason: '${p.name} ${_buttons[i]}: $r');
         expect(tester.getSemantics(find.byTooltip(_buttons[i])).tooltip, _buttons[i]);
       }
-      // Tab from Turn left: the one row's order
+      // Tab from Turn left: the rows as drawn
       Focus.of(tester.element(find.descendant(of: find.byTooltip(_buttons.first), matching: find.byType(Icon))))
           .requestFocus();
       await tester.pump();
@@ -258,7 +258,7 @@ void main() {
         await tester.pump();
         tabbed.add(focused());
       }
-      expect(tabbed, _buttons, reason: '${p.name}: Tab order');
+      expect(tabbed, order, reason: '${p.name}: Tab order');
       // and a screen reader's
       final handle = tester.ensureSemantics();
       await tester.pump();
@@ -269,7 +269,7 @@ void main() {
       final read = [for (final n in tester.semantics.simulatedAccessibilityTraversal()) name(n)]
           .where(_buttons.contains)
           .toList();
-      expect(read, _buttons, reason: '${p.name}: screen reader order');
+      expect(read, order, reason: '${p.name}: screen reader order');
       handle.dispose();
       expect(panelState(tester).widget.bleed, 8);
       expect(view.left - (map.left + 6), closeTo(8, 0.5), reason: '${p.name}: the view keeps 8 dp of the padding');
@@ -277,7 +277,8 @@ void main() {
     }
 
     testWidgets('360x800 dp: all seven on one row across the card, 8 dp past the view each side', (tester) async {
-      final rects = await controls(tester, (name: '360x800 dp', px: const Size(1080, 2400), dpr: 3, top: 72, bottom: 0));
+      final rects =
+          await controls(tester, (name: '360x800 dp', px: const Size(1080, 2400), dpr: 3, top: 72, bottom: 0), _buttons);
       final view = tester.getRect(find.byKey(const ValueKey('lander-view')));
       expect(view.width, closeTo(320, 0.5));
       for (var i = 0; i < 7; i++) {
@@ -289,7 +290,9 @@ void main() {
 
     testWidgets('320x640 dp: two balanced rows, the turns either side of the faces, then level and the zooms',
         (tester) async {
-      final rects = await controls(tester, (name: '320x640 dp', px: const Size(640, 1280), dpr: 2, top: 48, bottom: 0));
+      // row 1 then row 2, as drawn
+      final rects = await controls(tester, (name: '320x640 dp', px: const Size(640, 1280), dpr: 2, top: 48, bottom: 0),
+          [for (final row in LanderViewPanel.balancedRows) for (final i in row) _buttons[i]]);
       final view = tester.getRect(find.byKey(const ValueKey('lander-view')));
       expect(view.width, closeTo(280, 0.5));
       for (final (row, members) in [(0, [0, 1, 2, 6]), (1, [3, 4, 5])]) {

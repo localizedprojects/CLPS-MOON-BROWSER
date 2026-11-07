@@ -396,7 +396,7 @@ class LanderViewPanel extends StatefulWidget {
   /// The two balanced rows, as indices into the one row's order (Turn left,
   /// Face the Sun, Face Earth, Level, Zoom out, Zoom in, Turn right): the
   /// turns either side of the two faces, then level and the zooms. Tab and a
-  /// screen reader still take them in the one row's order.
+  /// screen reader follow the rows as drawn.
   static const balancedRows = [
     [0, 1, 2, 6],
     [3, 4, 5]
@@ -1345,41 +1345,33 @@ class LanderViewPanelState extends State<LanderViewPanel> with TickerProviderSta
     );
 
     // two balanced rows (LanderViewPanel.balancedRows), where Tab and a screen
-    // reader keep the one row's order: [i] is the button's place in it
+    // reader follow the rows as drawn
     final balanced = rows == 2;
-    Widget btn(int i, IconData icon, String label, VoidCallback f, {bool text = false}) {
-      // the place for a screen reader, merged into the button's own node
-      Widget glyph(double? size) =>
-          balanced ? Semantics(sortKey: OrdinalSortKey(i.toDouble()), child: Icon(icon, size: size)) : Icon(icon, size: size);
-      final b = text
-          ? TextButton.icon(
-              onPressed: () => press(f),
-              icon: glyph(18),
-              label: Text(label),
-              style: TextButton.styleFrom(minimumSize: const Size(48, 48)))
-          : IconButton(tooltip: label, onPressed: () => press(f), icon: glyph(null));
-      return balanced ? FocusTraversalOrder(order: NumericFocusOrder(i.toDouble()), child: b) : b;
-    }
+    Widget btn(IconData icon, String label, VoidCallback f, {bool text = false}) => text
+        ? TextButton.icon(
+            onPressed: () => press(f),
+            icon: Icon(icon, size: 18),
+            label: Text(label),
+            style: TextButton.styleFrom(minimumSize: const Size(48, 48)))
+        : IconButton(tooltip: label, onPressed: () => press(f), icon: Icon(icon));
     final controls = [
-      btn(0, Icons.rotate_left, 'Turn left 15°', () => turnBy(-15)),
-      btn(1, Icons.wb_sunny_outlined, 'Face the Sun', faceSun, text: wide),
-      btn(2, Icons.public, 'Face Earth', faceEarth, text: wide),
-      btn(3, Icons.horizontal_rule, 'Level', level, text: wide),
-      btn(4, Icons.zoom_out, 'Zoom out', () => zoom(1.25)),
-      btn(5, Icons.zoom_in, 'Zoom in', () => zoom(1 / 1.25)),
-      btn(6, Icons.rotate_right, 'Turn right 15°', () => turnBy(15))
+      btn(Icons.rotate_left, 'Turn left 15°', () => turnBy(-15)),
+      btn(Icons.wb_sunny_outlined, 'Face the Sun', faceSun, text: wide),
+      btn(Icons.public, 'Face Earth', faceEarth, text: wide),
+      btn(Icons.horizontal_rule, 'Level', level, text: wide),
+      btn(Icons.zoom_out, 'Zoom out', () => zoom(1.25)),
+      btn(Icons.zoom_in, 'Zoom in', () => zoom(1 / 1.25)),
+      btn(Icons.rotate_right, 'Turn right 15°', () => turnBy(15))
     ];
     // all seven on [rows] rows (never clipped), across the view's width and
     // [bleed] each side: one row, else the two balanced rows, else as they
     // wrap; in a short box they stay on screen under the view and only the
     // notes scroll
     final wrap = balanced
-        ? FocusTraversalGroup(
-            policy: OrderedTraversalPolicy(),
-            child: Column(mainAxisSize: MainAxisSize.min, children: [
-              for (final row in LanderViewPanel.balancedRows)
-                Row(mainAxisAlignment: MainAxisAlignment.center, children: [for (final i in row) controls[i]])
-            ]))
+        ? Column(mainAxisSize: MainAxisSize.min, children: [
+            for (final row in LanderViewPanel.balancedRows)
+              Row(mainAxisAlignment: MainAxisAlignment.center, children: [for (final i in row) controls[i]])
+          ])
         : Wrap(alignment: WrapAlignment.center, children: controls);
     final buttons = scroll ? SizedBox(height: 48.0 * rows, child: wrap) : wrap;
     // the view and the notes keep to the view's width

@@ -64,8 +64,9 @@ Music: "South Pole Light", an original piano piece composed for Lunar Horizon by
 - Brief for judges:
   <https://github.com/localizedprojects/CLPS-MOON-BROWSER/blob/main/docs/judge_one_pager.md>
 
-> The APK link serves the latest GitHub release, v1.13.3 (7 November 2026), the same version as
-> the web app.
+> The APK link serves the latest GitHub release, v1.13.3 (7 November 2026); the web app is
+> 1.13.4. Publish a 1.13.4 release with `lunar-horizon.apk` before submitting, or this link
+> serves an older version than the web app.
 
 ## Project details
 
@@ -402,6 +403,10 @@ Claude Code (Anthropic's AI coding agent) wrote the code, tests and documentatio
   recorded on 1.13.0.
 - 7 November 2026: `main` at `6f80997` (07:27 UTC), app version 1.13.3. The web app is
   deployed from `main`, so it always runs the newest version.
+- 7 November 2026: app version 1.13.4 committed to `main`: keyboard and screen-reader fixes
+  throughout (focus rings, Tab order, Escape, the Site views read as tabs), the Lander's view
+  controls fit phones, and Learn › Credits opens every open-source licence. The demo videos stay
+  as recorded on 1.13.0.
 - All 80 commits on `main` up to `6f80997` (7 November 2026) carry a `Co-authored-by: Claude`
   trailer.
 - The NASA Space Apps Challenge 2026 hackathon is on 14–15 November 2026.

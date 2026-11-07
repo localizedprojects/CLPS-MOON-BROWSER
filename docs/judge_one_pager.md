@@ -86,5 +86,5 @@ Sources for every number in this brief (paths relative to the repository root; v
 - Screenshot from 1.11.0: docs/screenshots/ last changed in 94c0f45 (2026-11-01).
 - Eclipses in the 18.6-year averages (1.12.0, 7c4af07): pipeline/lunarsp/sites.py (the 2 m shares use eclipses=True; the 0 m cross-check against the LOLA maps stays terrain-only, so validation.json and the 1.98/1.78 figures are unchanged). "Under 0.1 percentage point": longTermLabel in app/lib/widgets/about_site.dart.
 - Charts on Android 7's stock WebView (1.13.0, a4d4497): charts/vite.config.ts (build.target es2015, chrome51) and app/lib/widgets/chart_bridge.dart (chartMinChromeMajor = 51); the Android 7.0 emulator run is in docs/release_checklist.md (Testing status).
-- APK and video links: GitHub release v1.13.3, published 2026-11-07 and listed as latest by the releases API; lunar-horizon.apk SHA-256 87c2e6684805aef466d33b53a01306b916612794878ed08891601443f3abdda9 (the 1.13.3 build).
+- APK and video links: GitHub release v1.13.3, published 2026-11-07 and listed as latest by the releases API; lunar-horizon.apk SHA-256 87c2e6684805aef466d33b53a01306b916612794878ed08891601443f3abdda9 (the 1.13.3 build). The web app is 1.13.4 (7 November 2026); until a v1.13.4 release is published, the APK is one patch older.
 -->

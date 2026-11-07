@@ -563,17 +563,22 @@ class _Credits extends StatelessWidget {
       _heading('Credits'),
       _card(
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          // each credit its own node (its words, then its address), so a
+          // screen reader steps through them one by one
           for (final (who, what, url) in _items)
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 4),
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text.rich(TextSpan(children: [
-                  // numbers in Mono, in the titles too ("810-005")
-                  numSpans('$who  ', PHText.body.copyWith(fontWeight: FontWeight.w600)),
-                  numSpans(what, muted),
-                ])),
-                if (url != null) address(url),
-              ]),
+              child: Semantics(
+                container: true,
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text.rich(TextSpan(children: [
+                    // numbers in Mono, in the titles too ("810-005")
+                    numSpans('$who  ', PHText.body.copyWith(fontWeight: FontWeight.w600)),
+                    numSpans(what, muted),
+                  ])),
+                  if (url != null) address(url),
+                ]),
+              ),
             ),
           const SizedBox(height: 8),
           // the licence texts that must go with the app: Flutter's NOTICES
@@ -587,7 +592,9 @@ class _Credits extends StatelessWidget {
                 semanticsLabel: 'Open-source licences: the licence texts of the software and fonts in this app'),
           ),
           const SizedBox(height: 12),
-          Semantics(header: true, child: const Text('Use of AI', style: PHText.subtitle)),
+          // its own node: a header without one turned the whole card into a
+          // heading (the web read all of Credits as one <header>)
+          Semantics(container: true, header: true, child: const Text('Use of AI', style: PHText.subtitle)),
           const SizedBox(height: 4),
           Text(learnUseOfAi, key: const ValueKey('learn-use-of-ai'), style: muted),
           const SizedBox(height: 12),

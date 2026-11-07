@@ -1,5 +1,7 @@
 // Learn › Credits: the licence texts that must go with the app (L2), and the
 // card read as text with its own headings, not as one big heading (A5).
+import 'dart:ui' show SemanticsFlag;
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -84,6 +86,27 @@ void main() {
         packages.addAll(e.packages);
       }
       expect(packages, containsAll(['IBM Plex Sans', 'IBM Plex Mono', 'react', 'plotly.js']));
+    });
+  });
+
+  group('Credits semantics (A5)', () {
+    testWidgets('the card is not one heading: its title and "Use of AI" are, each credit is its own node', (tester) async {
+      final semantics = tester.ensureSemantics();
+      await pumpLearn(tester);
+      expect(tester.getSemantics(find.text('Credits')), isSemantics(isHeader: true, label: 'Credits'));
+      expect(tester.getSemantics(find.text('Use of AI')), isSemantics(isHeader: true, label: 'Use of AI'));
+      final rows = ['NASA/JPL NAIF SPICE', 'LRO LOLA', 'JPL Horizons', 'IBM Plex', 'Source code'];
+      for (final who in rows) {
+        final node = tester.getSemantics(find.byWidgetPredicate((w) => w is RichText && w.text.toPlainText().startsWith('$who  ')));
+        expect(node.hasFlag(SemanticsFlag.isHeader), isFalse, reason: '"$who" is read as text, not as a heading');
+        expect(node.label, contains(who));
+        for (final other in rows.where((o) => o != who)) {
+          expect(node.label, isNot(contains('$other  ')), reason: '"$who" is its own node, without "$other"');
+        }
+      }
+      final ai = tester.getSemantics(find.byKey(const ValueKey('learn-use-of-ai')));
+      expect(ai.hasFlag(SemanticsFlag.isHeader), isFalse, reason: 'the Use of AI paragraph is not a heading');
+      semantics.dispose();
     });
   });
 }

@@ -25,7 +25,13 @@ never committed); its full source is stored in each golden file under
   lander's view (1.9.0) restructured `shadow.dart` (a shared `blockMeanRow`) and added a far
   frame to `light_engine.dart`: the probe was rerun at `db2bdd8`, all 23,681 golden values and
   hashes and both close-up shade blobs came out identical, and only `provenance` (`sha256` of
-  those two files, `gitHead`, `generatedUtc`) was updated,
+  those two files, `gitHead`, `generatedUtc`) was updated. On 2026-11-08 `light_engine.dart`
+  gained `@visibleForTesting` marks on its test-only counters (1.13.5, no change in what it
+  computes): the probe was rerun over `04b6b1f` (`gitDirty: true`; the uncommitted edits were the
+  1.13.5 version number and docs), all golden values and the close-up shade and flag blobs came
+  out identical, and only `provenance` was updated (`sha256` and `assetSha256` of every recorded
+  file, which also brings `metrics.dart` and `sites.json` up to date, `gitHead`, `gitDirty`,
+  `generatedUtc`),
 - the SHA-256 of `landing.dart`, `timeseries.dart`, `visibility.dart`, `eclipse.dart` (pinned
   since 2026-10-29), `shadow.dart` and the other core files and of `light_engine.dart`, and of
   the asset files used,

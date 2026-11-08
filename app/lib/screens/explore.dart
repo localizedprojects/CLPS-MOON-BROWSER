@@ -18,6 +18,7 @@ import '../state/app_state.dart';
 import '../theme.dart';
 import '../widgets/compare_tray.dart';
 import '../widgets/explain.dart' show explainExplore;
+import '../widgets/focus_rings.dart';
 import '../widgets/goal_chips.dart';
 import '../widgets/map_focus.dart';
 import '../widgets/map_view.dart';
@@ -268,14 +269,23 @@ class _ListHeader extends StatelessWidget {
   }
 }
 
-/// The site group filter: "All sites" or one group.
-class _GroupMenu extends StatelessWidget {
+/// The site group filter: "All sites" or one group. A 2 px ice ring while
+/// it has keyboard focus (CLAUDE.md), as the Lander's viewpoint menu: the
+/// menu's ink well showed only its faint focus tint (1.13.5 review).
+class _GroupMenu extends StatefulWidget {
   final AppState state;
   const _GroupMenu({required this.state});
 
   @override
+  State<_GroupMenu> createState() => _GroupMenuState();
+}
+
+class _GroupMenuState extends State<_GroupMenu> {
+  bool _focused = false;
+
+  @override
   Widget build(BuildContext context) {
-    final s = state;
+    final s = widget.state;
     final groups = <(String, String)>[
       for (final g in s.catalog!.groups) (g.id, g.name),
       if (s.customSites.isNotEmpty || s.groupFilter == 'custom') ('custom', 'Your custom spots'),
@@ -300,7 +310,25 @@ class _GroupMenu extends StatelessWidget {
         ),
       ),
     );
-    return ConstrainedBox(constraints: const BoxConstraints(maxWidth: 240), child: menu);
+    return ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: 240),
+      // observes the menu button's focus; never takes it, never a Tab stop.
+      // The ring is drawn over the button (no layout change), keyboard
+      // focus only (FocusRings)
+      child: Focus(
+        canRequestFocus: false,
+        skipTraversal: true,
+        onFocusChange: (f) => setState(() => _focused = f),
+        child: DecoratedBox(
+          position: DecorationPosition.foreground,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(PH.radius),
+            border: _focused && FocusRings.of(context) ? Border.all(color: PH.ice, width: 2) : null,
+          ),
+          child: menu,
+        ),
+      ),
+    );
   }
 }
 

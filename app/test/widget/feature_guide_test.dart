@@ -4,8 +4,11 @@
 // Learn replays them. Also Android back, screen readers, a 320 px phone at
 // 2x text, a control taller than its view, and hosts that do not ask for
 // guides.
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart' show SemanticsAction;
+import 'package:flutter/services.dart' show LogicalKeyboardKey;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:polar_horizon/content/guides.dart';
 import 'package:polar_horizon/screens/shell.dart';
@@ -455,6 +458,59 @@ void main() {
     await settle(tester);
     expect(state.activeGuide, isNull);
     expect(scroll.offset, 0, reason: 'the map\'s top (pole badge, notes) still shows after Done');
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('after Done the page is back where it was: a phone sees the top pick again', (tester) async {
+    // audit 1.13.5: Explore ended on 'All 19 sites, best first', its top-pick
+    // card scrolled away above the view
+    await show(tester, size: const Size(360, 800));
+    await settle(tester);
+    await settle(tester);
+    expect(state.activeGuide, 'explore');
+    final see = find.widgetWithText(FilledButton, 'See this site').first;
+    final scroll = tester.state<ScrollableState>(find.ancestor(of: see, matching: find.byType(Scrollable)).first);
+    expect(scroll.position.pixels, 0);
+    final before = tester.getRect(see);
+    var moved = 0.0;
+    void note() => moved = math.max(moved, scroll.position.pixels);
+    scroll.position.addListener(note);
+    addTearDown(() => scroll.position.removeListener(note));
+    expect(await walk(tester), isNotEmpty);
+    await settle(tester);
+    expect(state.activeGuide, isNull);
+    expect(moved, greaterThan(0), reason: 'a step below the fold scrolled the page');
+    expect(scroll.position.pixels, 0, reason: 'the page is back at its top');
+    expect(tester.getRect(see), before, reason: 'the top pick is where it was before the guide');
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('turned down (back on its first step) after a scroll: the page jumps back too', (tester) async {
+    await show(tester, size: const Size(360, 800), still: true);
+    await settle(tester);
+    await settle(tester);
+    expect(state.activeGuide, 'explore');
+    final see = find.widgetWithText(FilledButton, 'See this site').first;
+    final scroll = tester.state<ScrollableState>(find.ancestor(of: see, matching: find.byType(Scrollable)).first);
+    // Next until a step has scrolled the page, then Back to the first step
+    // and Escape there: no more of this guide
+    var steps = 0;
+    for (; scroll.position.pixels == 0 && find.byKey(_next).evaluate().isNotEmpty && steps < 12; steps++) {
+      await tester.tap(find.byKey(_next));
+      await settle(tester);
+    }
+    expect(scroll.position.pixels, greaterThan(0), reason: 'a step below the fold scrolled the page');
+    expect(state.activeGuide, 'explore');
+    for (var i = 0; i < steps && find.byKey(_back).evaluate().isNotEmpty; i++) {
+      await tester.tap(find.byKey(_back));
+      await settle(tester);
+    }
+    expect(state.activeGuide, 'explore');
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await settle(tester);
+    expect(state.activeGuide, isNull);
+    expect(state.guidesSeen, containsAll(keys('explore')), reason: 'turned down: none of it shows again');
+    expect(scroll.position.pixels, 0, reason: 'with animations off it jumps back');
     await tester.pumpWidget(const SizedBox());
   });
 

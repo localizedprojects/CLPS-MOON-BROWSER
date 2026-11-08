@@ -119,6 +119,9 @@ class _FeatureGuideLayerState extends State<FeatureGuideLayer> with WidgetsBindi
   Rect? _hole; // the current control, in this layer's coordinates
   final _next = FocusNode(debugLabel: 'guide-next');
   int _measureGen = 0;
+  // the vertical scrolls this guide moved, each with where it stood before
+  // the guide first moved it (see [_scrollBack])
+  final _startedAt = <ScrollableState, double>{};
 
   @override
   void initState() {
@@ -180,10 +183,12 @@ class _FeatureGuideLayerState extends State<FeatureGuideLayer> with WidgetsBindi
         // the scroll is awaited to its end: a fixed wait could measure it
         // short of its place, a tall control below the view still out of it
         // (At a glance, then More, on a 320 px phone at 2x text)
+        _remember(at.target);
         await Scrollable.maybeOf(at.target, axis: Axis.vertical)
             ?.position
             .ensureVisible(at.target.findRenderObject()!, duration: wait);
       } else {
+        _remember(at.target);
         await Scrollable.ensureVisible(at.target,
             duration: wait,
             alignmentPolicy: at.rect.bottom > at.view.bottom
@@ -245,7 +250,36 @@ class _FeatureGuideLayerState extends State<FeatureGuideLayer> with WidgetsBindi
     return first;
   }
 
+  /// Note where each vertical scroll around [target] stands, before the
+  /// guide first moves it.
+  void _remember(BuildContext target) {
+    for (var s = Scrollable.maybeOf(target); s != null; s = Scrollable.maybeOf(s.context)) {
+      final at = s.position;
+      if (at.axis == Axis.vertical && at.hasPixels) _startedAt.putIfAbsent(s, () => at.pixels);
+    }
+  }
+
+  /// The guide is over (Done, or turned down): each page it scrolled down
+  /// goes back up to where it stood before the guide, so the screen's
+  /// answer-first top shows again rather than its last step's spot. A page
+  /// the guide scrolled up (a tall control's top brought back) stays.
+  void _scrollBack() {
+    final still = MediaQuery.disableAnimationsOf(context);
+    for (final MapEntry(key: s, value: was) in _startedAt.entries) {
+      if (!s.mounted || !s.position.hasPixels || s.position.pixels <= was) continue;
+      final p = s.position;
+      final to = was.clamp(p.minScrollExtent, p.maxScrollExtent);
+      if (still) {
+        p.jumpTo(to);
+      } else {
+        unawaited(p.animateTo(to, duration: const Duration(milliseconds: 250), curve: Curves.easeOutCubic));
+      }
+    }
+    _startedAt.clear();
+  }
+
   void _go(int i) {
+    if (i < 0 || i >= (_steps?.length ?? 0)) _scrollBack();
     if (i < 0) return widget.state.dismissGuide(); // back from the first step: no more of this guide
     if (i >= (_steps?.length ?? 0)) return widget.state.finishGuide();
     setState(() => _i = i);

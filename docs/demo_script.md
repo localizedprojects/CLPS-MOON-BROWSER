@@ -17,7 +17,9 @@ own spot) and 2:49 (7 · Learn). Beyond this script it also shows *At a glance* 
 the Lander's view full screen with its site arrows (chapter 4) and *How it's calculated*
 (chapter 7). From 3:11 it ends on the same logo card as the 30 s cut: "Lunar Horizon" and
 "Made with AI assistance (Claude Code)". It was recorded on 4 November 2026 from the 1.13.0
-web build, with the app's clock on 2 November 2026 (UTC).
+web build, with the app's clock on 2 November 2026 (UTC). Later versions (to 1.13.5) change small details
+only, for example the light map's labels now sit on dark backings. The numbers on screen (such
+as 43% and 62 / 100) follow the chosen dates, so the live app shows slightly different values.
 
 **What it should look like** (version 1.11.0 web build of 1 November 2026; the dates will differ
 on the day): the [landing window and Sky & time](screenshots/site-landing-sky-desktop.webp)

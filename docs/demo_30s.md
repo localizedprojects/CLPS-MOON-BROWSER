@@ -11,7 +11,9 @@ the app's animated logo. Record it from the web build
 - `lunar-horizon-demo-30s-v1.13.0.mp4`: 29.97 s (899 frames at 30 fps), 1440 × 1040 (the
   1440 × 900 app picture above the caption band), H.264 video with AAC stereo sound. It was
   recorded on 4 November 2026 from the 1.13.0 web build, with the app's clock on 2 November
-  2026 (UTC). Upload notes and the video description: [submission.md](submission.md#demo-video).
+  2026 (UTC). Later versions (to 1.13.5) change small details only, and the numbers on screen
+  follow the chosen dates, so the live app shows slightly different values. Upload notes and the
+  video description: [submission.md](submission.md#demo-video).
 - Sound: "South Pole Light", an original slow piano piece, with soft tap and whoosh sounds
   on the taps and cuts. The credits are in [submission.md](submission.md) (Soundtrack of the
   demo videos).

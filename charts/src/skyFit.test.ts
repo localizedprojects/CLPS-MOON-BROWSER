@@ -6,8 +6,6 @@
  * column) keep the plot at its width.
  */
 import { describe, expect, it } from 'vitest'
-import skySrc from './SkyView.tsx?raw'
-import plotSrc from './usePlot.ts?raw'
 import { SKY_FIT_MIN_PX, SKY_FIT_RESERVE_PX, skyFitLimit, skyFitSide, skySide } from './skyFit'
 
 // Measured in Chromium on the web build (Malapert peak, Simple view): the
@@ -40,22 +38,6 @@ describe('skyFitSide', () => {
     expect(skyFitSide(397, 300, 220)).toBe(SKY_FIT_MIN_PX)
     for (let h = 200; h <= 900; h += 7) for (const w of [288, 397, 597, 800]) expect(skyFitSide(w, h, 210)).toBeLessThanOrEqual(skySide(w))
   })
-  it('is measured for the frame and the figure, not for every time (Play), and only shrinks for the same frame', () => {
-    expect(skySrc).toMatch(/const key = `\$\{el\.clientHeight\}\|\$\{el\.offsetWidth\}\|\$\{fonts\}`/)
-    expect(skySrc).toMatch(/if \(same && el\.scrollHeight <= el\.clientHeight\) return/)
-    expect(skySrc).toMatch(/if \(same && \(limit \?\? Infinity\) >= \(fit!\.limit \?\? Infinity\)\) return/)
-    expect(skySrc).toMatch(/addEventListener\?\.\('loadingdone', f\)/)
-  })
-  // 1.13.3 review (Playwright, 597 x 604 and 397 x 532): after a new payload or
-  // the Paths toggle, Plotly drew at the frame's width (520) in a 385 px box
-  // and the plot spilled over the toggle and the key line
-  it('a new figure starts from the last limit, not at the frame\'s width', () => {
-    expect(skySrc).toMatch(/return fit \? fit\.limit : null/)
-    expect(skySrc).not.toMatch(/fit\.fig === fig \? fit\.limit/)
-  })
-  it('Plotly redraws when the box differs from the size it drew at, checked on every commit', () => {
-    expect(plotSrc).toMatch(/drawnAt\.current = \{ w: el\.clientWidth, h: el\.clientHeight \}\n\s*const done = Plotly\.react/)
-    expect(plotSrc).toMatch(/el\.clientWidth === at\.w && el\.clientHeight === at\.h/)
-    expect(plotSrc).toMatch(/useLayoutEffect\(\(\) => \{ fitRef\.current\(\) \}\)/)
-  })
+  // the view's measure (for the frame and the figure, not for Play; only shrinking for the same
+  // frame; a new figure from the last limit): viewsLive.test.ts. Plotly's redraw: plotRedraw.test.ts
 })

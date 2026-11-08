@@ -4,7 +4,6 @@
  * 1440 px window the frame cut the list, the rest in a scroll area the frame hid).
  */
 import { describe, expect, it } from 'vitest'
-import timelineSrc from './TimelineView.tsx?raw'
 import type { ComingFitState, ComingPass, FrameScroll } from './timelineAnswer'
 import { comingFit, comingFitNext, comingMoreText, frameScrollNext, timelineScrollStyle } from './timelineAnswer'
 
@@ -57,26 +56,13 @@ describe('comingFit', () => {
 })
 
 describe('TimelineView keeps Coming up inside its frame', () => {
-  it('lists only the rows that fit, measured with every row drawn, and a line for the rest', () => {
-    expect(timelineSrc).toMatch(/\{shownEvents\.map\(\(ev\) =>/)
-    expect(timelineSrc).not.toMatch(/\{events\.map\(/)
-    // the "more" line is measured while every row is drawn
-    expect(timelineSrc).toMatch(/const more = fit \? null : list\.querySelector\('\[data-more\]'\)/)
-    expect(timelineSrc).toMatch(/comingFitNext\(fit, \{ room, frame, heights, moreH: more \? more\.offsetHeight : 0 \}, measuredFor\.current\)/)
-    expect(timelineSrc).toMatch(/<div data-more /)
-    // measured again on a frame resize that keeps the width (Flutter's layout, full screen)
-    expect(timelineSrc).toMatch(/window\.addEventListener\('resize', f\)/)
-  })
+  // rendered, with the frame's layout set: viewsLive.test.ts (K6, 1.13.5)
   // 1.13.2 browser check: with classic scrollbars the measure (every row
   // drawn, the frame overflowing, a scrollbar narrowing it) and the fit (the
   // scrollbar gone) took turns until React stopped them (error #185) and the
   // "When" chart went blank
   it('never re-measures in a loop when a scrollbar comes and goes', () => {
-    // the frame is keyed by its outer width (the scrollbar's room: 'the frame's classic scrollbar' below)
-    expect(timelineSrc).toMatch(/const frame = `\$\{root\.offsetWidth\}\|/)
-    expect(timelineSrc).not.toMatch(/const frame = `\$\{root\.clientWidth/)
-    // and a change the measure itself made is kept rather than measured again
-    expect(timelineSrc).toMatch(/measuredFor\.current = next\.pass\s+setFit\(null\)/)
+    // the view keys the frame by its outer width and keeps what a measure changed: viewsLive.test.ts
     const F = '563|3|1'
     const measured = comingFitNext(null, { room: 140, frame: F, heights: [48, 48, 48], moreH: 22 }, '')
     expect(measured).toMatchObject({ kind: 'fit', fit: { shown: 2 } })
@@ -102,7 +88,6 @@ describe('Coming up is not measured again for new words during Play', () => {
   it('keeps the fit while the rows drawn are as tall as measured (their words changing)', () => {
     const fit = fitted(160) // 2 rows and the line
     expect(fit.shown).toBe(2)
-    expect(TimelineSrcHasNoWordsKey()).toBe(true)
     for (let step = 0; step < 50; step++) {
       expect(comingFitNext(fit, { room: 160, frame: F, heights: [48, 48], moreH: 0 }, '')).toEqual({ kind: 'keep' })
     }
@@ -132,11 +117,6 @@ describe('Coming up is not measured again for new words during Play', () => {
     }
   })
 })
-
-/** The fit is keyed by the number of rows, not their words. */
-function TimelineSrcHasNoWordsKey() {
-  return !/e\.text\}`\)\.join/.test(timelineSrc) && /eventCount\.current = events\.length/.test(timelineSrc)
-}
 
 // The browser check's widths, measured in Chromium on the web build (Malapert
 // peak, Simple view, the default dates): the frame's width and height, the

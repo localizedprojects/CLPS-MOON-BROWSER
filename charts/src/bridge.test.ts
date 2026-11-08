@@ -3,7 +3,6 @@ import type { BodyNow, ChartEvent, HostMessage } from './bridge'
 import { ACK_FALLBACK_CAP_MS, ACK_FALLBACK_MS, dispatchForTests, installBridge, latest, resetBridgeForTests, subscribe, viewFromLocation } from './bridge'
 import { heldTimelineCursor, skyNowData, timelineCursor } from './cursor'
 import { DEFAULT_SPAN, inWindow, spanWindow } from './strip'
-import timelineSrc from './TimelineView.tsx?raw'
 
 const body = (o: Partial<BodyNow> = {}): BodyNow => ({ az: 10, el: 1, rho: 0.27, frac: 1, hz: 0.2, visible: true, ...o })
 const skyData = (now = { sun: body(), earth: body({ az: 200, visible: false }) }) => ({
@@ -64,10 +63,8 @@ describe('cursor before the plot mounts (async-1, web-2)', () => {
     // a newer payload (another site) wins over the older cursor message
     dispatchForTests(tl(200 * DAY))
     expect(heldTimelineCursor(latest('timeline')!)).toBe(200 * DAY)
-    // and the view uses it: its first render anchors there, and a payload (one that comes after the
-    // cursor message too) moves the window to the shown time
-    expect(timelineSrc).toMatch(/const tNow = t \?\? \(m \? heldTimelineCursor\(m\) : range\[0\]\)/)
-    expect(timelineSrc).toMatch(/useEffect\(\(\) => \{ if \(m\) apply\(\) \}, \[m\]\)/)
+    // and the view uses it: its first window is there, and a payload (one that comes after the
+    // cursor message too) moves the window to the shown time (viewsLive.test.ts)
   })
   it('a newer payload (another site) wins over an older cursor message', () => {
     const got: HostMessage[] = []

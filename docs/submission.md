@@ -76,7 +76,7 @@ Brief for judges: https://github.com/localizedprojects/CLPS-MOON-BROWSER/blob/ma
 ```
 
 > **Release.** The APK link serves the latest GitHub release. On 8 November 2026 that is
-> v1.13.3 (7 November 2026), while the web app is 1.13.4; no v1.13.4 release was published.
+> v1.13.3 (7 November 2026), while the web app is 1.13.5; no v1.13.4 release was published.
 > Publish v1.13.5 with `lunar-horizon.apk` and `SHA256SUMS.txt` before submitting, or this link
 > serves an older version than the web app. None of the links above change when v1.13.5 is
 > published: the APK link then serves 1.13.5, and the two video links keep pointing at the
@@ -298,9 +298,9 @@ Challenge: Lunar Landing Site Navigator (NASA Space Apps Challenge 2026): https:
   as recorded on 1.13.0.
 - 8 November 2026: app version 1.13.5 committed to `main`: during Play the light map's labels
   glide instead of hopping, the Lander's view labels keep off the Sun's and Earth's glyphs, focus
-  rings follow the keyboard, the Site Overview gains a line with the Sun's height and the time
-  left before sunset and Earthset, and these documents are brought up to date for the
-  submission. The demo videos stay as recorded on 1.13.0.
+  rings follow the keyboard, the Site Overview gains a line with the Sun's height and when the
+  Sun and Earth next set or rise, a feature guide takes the page back to where it was, and these
+  documents are brought up to date for the submission. The demo videos stay as recorded on 1.13.0.
 - Every commit on `main` carries a `Co-authored-by: Claude` trailer (checked on 8 November 2026:
   all 137 commits up to `004ee16`; on 7 November, all 80 up to `6f80997`).
 - The NASA Space Apps Challenge 2026 hackathon is on 14–15 November 2026.

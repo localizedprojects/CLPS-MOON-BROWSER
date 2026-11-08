@@ -87,12 +87,13 @@ Made for the NASA Space Apps Challenge. Not an official NASA product.
 | Privacy policy | <https://localizedprojects.github.io/CLPS-MOON-BROWSER/privacy/> |
 | Price | Owner's choice (the app has no ads and no in-app purchases) |
 
-### What's new in 1.13.4 (486/500)
-From the 1.13.4 release notes, shortened. No v1.13.4 release was published; for the 1.13.5 upload,
-add the main 1.13.5 changes from its release notes and keep the text within 500 characters.
+### What's new in 1.13.5 (463/500)
+From the 1.13.5 release notes (the changes since v1.13.3, the last published release), shortened.
 ```text
-• Keyboard and screen readers: Tab starts at the top bar and shows a clear focus ring on the goal cards, bottom bar and time controls (and reaches the web links), Escape closes the licence and Validation pages, and the Site views are read as tabs.
-• Lander's view: the seven controls fit in one row on most phones and in two even rows on the smallest.
+• Light map: during Play the Sun and Earth labels glide with their arrows instead of hopping.
+• Site › Overview gives the Sun's height and when the Sun and Earth next set or rise.
+• Lander's view: labels keep clear of the Sun and Earth, and the controls fit phones.
+• After a feature guide, the page goes back to where you were.
 • Learn › Credits opens every open-source licence the app uses.
 • The status line makes the Sun's height and the countdowns stand out.
 ```
@@ -109,7 +110,7 @@ the time controls are hidden, which short guides were seen) stay on the device. 
 files go to the share sheet only when the user asks, which Play does not count as collection or
 sharing.
 
-Permissions in the 1.13.4 APK (`aapt2 dump permissions`; run it again on the 1.13.5 APK before uploading): only AndroidX's internal
+Permissions in the 1.13.5 APK (`aapt2 dump permissions`, 8 November 2026): only AndroidX's internal
 `<package>.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION`, the app's own signature permission, which users
 never see or grant. There is no `INTERNET` permission in release builds (only the debug and profile
 manifests add it).

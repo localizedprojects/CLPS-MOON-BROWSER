@@ -31,19 +31,19 @@ Scan the code with your phone's camera. It opens <https://localizedprojects.gith
 
 ### Screenshots
 
-Version 1.11.0 web build, 1 November 2026. Later versions, through 1.13.5, keep these layouts with small changes: the light map's labels sit on dark backings, and on narrow phones the Lander's view can put its controls on two rows and the *Change site* button can show only its icon. The numbers depend on the chosen dates. Settings: Next 12 months, 2 m lander, default rules, Balanced goal, time shown 1 November 2026 00:00 UTC. The two Lander's view shots are drawn from the 1 km viewpoint with relief shading on.
+Version 1.13.5 web build; numbers as of 14 November 2026, 12:00 UTC. On narrower phones the Lander's view can put its controls on two rows and the *Change site* button can show only its icon. The numbers depend on the chosen dates. Settings: Next 12 months, 2 m lander, default rules, Balanced goal, time shown 14 November 2026 00:00 UTC (the start of the period). The two Lander's view shots are drawn from the 1 km viewpoint with relief shading on.
 
 | Explore | Malapert peak (MP1): best landing window and Sky & time |
 |---|---|
-| ![Explore: the top pick of the 19 ranked preset sites (Malapert peak, MP1: Sun and Earth both up 43% of the time) with its computed light snapshot, the sites on the LOLA terrain map, and the selected-site card](docs/screenshots/explore-desktop.webp) | ![Site: the best 14-day landing window for MP1 (suggested landing 17 Nov 2026 02:00 UTC) next to the Sky & time view with the sky plot, timeline and time bar](docs/screenshots/site-landing-sky-desktop.webp) |
+| ![Explore: the top pick of the 19 ranked preset sites (Malapert peak, MP1: Sun and Earth both up 45% of the time) with its computed light snapshot, the sites on the LOLA terrain map, and the selected-site card](docs/screenshots/explore-desktop.webp) | ![Site: the best 14-day landing window for MP1 (suggested landing 17 Nov 2026 02:00 UTC) next to the Sky & time view with the sky plot, timeline and time bar](docs/screenshots/site-landing-sky-desktop.webp) |
 
 | Compare | Phone: landing window | Phone: Sky & time |
 |---|---|---|
-| ![Compare: the top 3 sites with the winner card (MP1 and IM-1 Odysseus tied at 62 / 100), the worked score and the side-by-side chart](docs/screenshots/compare-desktop.webp) | ![Phone: the best 14-day landing window card for MP1](docs/screenshots/landing-phone.webp) | ![Phone: Sky & time with the sky plot of the terrain skyline and the Sun and Earth paths, and the time bar with the next good stretch](docs/screenshots/sky-phone.webp) |
+| ![Compare: a shortlist of three sites (MP1, IM-1 Odysseus and LUPEX / Chandrayaan-5) with the winner card (MP1 at 63 / 100, almost tied with IM-1 Odysseus at 62), the worked score and the side-by-side chart](docs/screenshots/compare-desktop.webp) | ![Phone: the Overview for MP1 with the Sun and Earth at the time shown and the best 14-day landing window card](docs/screenshots/landing-phone.webp) | ![Phone: Sky & time with the sky plot of the terrain skyline and the Sun and Earth paths, and the time bar with the next good stretch](docs/screenshots/sky-phone.webp) |
 
 | Lander's view, full screen (MP1, facing the Sun, 1 km viewpoint) | Phone: Lander's view (1 km viewpoint) |
 |---|---|
-| ![The Lander's view full screen at Malapert peak (MP1), facing the Sun from a viewpoint 1 km up (labelled "Viewpoint 1 km up, not the lander's") with relief shading on: the computed light on the 400 m LOLA terrain, the lander's dashed 2 m horizon mask, and the site switcher and layer switch in the top bar](docs/screenshots/lander-desktop.webp) | ![Phone: the Lander's view at Malapert peak (MP1) in Light & shadow, facing the Sun from a viewpoint 1 km up with relief shading on, with its height, relief and full-screen buttons and its turn, face and zoom buttons](docs/screenshots/lander-phone.webp) |
+| ![The Lander's view full screen at Malapert peak (MP1), facing the Sun from a viewpoint 1 km up (labelled "1 km up, not the lander's") with relief shading on: the computed light on the 400 m LOLA terrain, the lander's dashed 2 m horizon mask, and the site switcher and layer switch in the top bar](docs/screenshots/lander-desktop.webp) | ![Phone: the Lander's view at Malapert peak (MP1) in Light & shadow, facing the Sun from a viewpoint 1 km up with relief shading on, with its height, relief and full-screen buttons and its turn, face and zoom buttons](docs/screenshots/lander-phone.webp) |
 
 ---
 

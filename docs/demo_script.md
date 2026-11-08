@@ -21,8 +21,8 @@ web build, with the app's clock on 2 November 2026 (UTC). Later versions (to 1.1
 only, for example the light map's labels now sit on dark backings. The numbers on screen (such
 as 43% and 62 / 100) follow the chosen dates, so the live app shows slightly different values.
 
-**What it should look like** (version 1.11.0 web build of 1 November 2026; the dates will differ
-on the day): the [landing window and Sky & time](screenshots/site-landing-sky-desktop.webp)
+**What it should look like** (version 1.13.5 web build; numbers as of 14 November 2026, 12:00 UTC;
+the dates will differ on the day): the [landing window and Sky & time](screenshots/site-landing-sky-desktop.webp)
 for Malapert peak (MP1), the [phone landing card](screenshots/landing-phone.webp) and
 [Sky & time on a phone](screenshots/sky-phone.webp), the [Lander's view, full screen](screenshots/lander-desktop.webp)
 ([on a phone](screenshots/lander-phone.webp); both shots are from the 1 km viewpoint, while from the

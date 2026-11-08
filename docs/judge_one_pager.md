@@ -46,7 +46,7 @@
 
 ![Malapert peak (MP1): the best 14-day landing window next to the Sky & time view](screenshots/site-landing-sky-desktop.webp)
 
-*Screenshot from the version 1.11.0 web build of 1 November 2026, next 12 months, 2 m lander. Later versions keep this layout; the numbers depend on the dates. More screenshots are in the [README](../README.md#screenshots).*
+*Version 1.13.5 web build; numbers as of 14 November 2026, 12:00 UTC (next 12 months, 2 m lander). The numbers depend on the dates. More screenshots are in the [README](../README.md#screenshots).*
 
 **Next steps.** Refine near-field terrain with 20 m LOLA data, check the 2 m Earth numbers at peaks and ridges (over the 12 months from 2 November 2026, Malapert peak's Earth-in-view share of 56% rises to 78% with a 10 m mast).
 
@@ -83,7 +83,7 @@ Sources for every number in this brief (paths relative to the repository root; v
 - 240 m grid ends at 75°S: pipeline/lunarsp/config.py (LDEM_75S_240M, ±457 km); samples outside it are ignored (pipeline/lunarsp/horizon.py).
 - Ranking progress before the top pick appears: app/lib/screens/explore.dart ("Ranked so far: N of M sites"); the top pick shows only once ranking is done (app/lib/widgets/top_pick_card.dart). Click path: top_pick_card.dart "See this site"; app/lib/widgets/top_pick_card.dart calls AppState.openSite, which opens the Overview tab by default (app/lib/state/app_state.dart); app/lib/widgets/best_window_card.dart "Show me" and "See the light at that moment" (app/lib/screens/site/overview.dart opens the Sky & time or Light & shadow tab with the cursor at the window's start).
 - 1.73′ is the maximum (MOON_PA); IAU_MOON would be 0.198′ (validation.json frame_sensitivity).
-- Screenshot from 1.11.0: docs/screenshots/ last changed in 94c0f45 (2026-11-01).
+- Screenshots from 1.13.5: docs/screenshots/ re-shot on 2026-11-08 with the browser clock set to 2026-11-14 12:00 UTC (commit "Docs: screenshots re-shot on 1.13.5").
 - Eclipses in the 18.6-year averages (1.12.0, 7c4af07): pipeline/lunarsp/sites.py (the 2 m shares use eclipses=True; the 0 m cross-check against the LOLA maps stays terrain-only, so validation.json and the 1.98/1.78 figures are unchanged). "Under 0.1 percentage point": longTermLabel in app/lib/widgets/about_site.dart.
 - Charts on Android 7's stock WebView (1.13.0, a4d4497): charts/vite.config.ts (build.target es2015, chrome51) and app/lib/widgets/chart_bridge.dart (chartMinChromeMajor = 51); the Android 7.0 emulator run is in docs/release_checklist.md (Testing status).
 - APK and video links: GitHub release v1.13.3, published 2026-11-07 and listed as latest by the releases API; lunar-horizon.apk SHA-256 87c2e6684805aef466d33b53a01306b916612794878ed08891601443f3abdda9 (the 1.13.3 build). On 2026-11-08 the web app is 1.13.5 and no v1.13.4 or v1.13.5 release exists yet. The owner publishes v1.13.5 next: then write its date and the new lunar-horizon.apk SHA-256 (from its SHA256SUMS.txt) here. The APK link stays the same, and the video links keep pointing at v1.13.3.

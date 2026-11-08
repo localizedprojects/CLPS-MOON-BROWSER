@@ -1,8 +1,8 @@
-# Store listing texts and form answers (Lunar Horizon 1.13.4)
+# Store listing texts and form answers (Lunar Horizon 1.13.5)
 
 Everything to paste into Google Play Console and App Store Connect for the first upload of
-version 1.13.4 (build 25). Nothing here has been uploaded: the store accounts are opened by an adult
-account owner ([release_checklist.md](../release_checklist.md#accounts)). The form answers follow the
+version 1.13.5. Nothing here has been uploaded: the store accounts are opened by an account owner who
+meets Google's and Apple's age requirements ([release_checklist.md](../release_checklist.md#accounts)). The form answers follow the
 checklist's [Store forms](../release_checklist.md#store-forms) section.
 
 Every claim below is checked against the app (its Learn texts and `app/lib`), the
@@ -88,7 +88,8 @@ Made for the NASA Space Apps Challenge. Not an official NASA product.
 | Price | Owner's choice (the app has no ads and no in-app purchases) |
 
 ### What's new in 1.13.4 (486/500)
-From the 1.13.4 release notes, shortened.
+From the 1.13.4 release notes, shortened. No v1.13.4 release was published; for the 1.13.5 upload,
+add the main 1.13.5 changes from its release notes and keep the text within 500 characters.
 ```text
 • Keyboard and screen readers: Tab starts at the top bar and shows a clear focus ring on the goal cards, bottom bar and time controls (and reaches the web links), Escape closes the licence and Validation pages, and the Site views are read as tabs.
 • Lander's view: the seven controls fit in one row on most phones and in two even rows on the smallest.
@@ -108,7 +109,7 @@ the time controls are hidden, which short guides were seen) stay on the device. 
 files go to the share sheet only when the user asks, which Play does not count as collection or
 sharing.
 
-Permissions in the 1.13.4 APK (`aapt2 dump permissions`): only AndroidX's internal
+Permissions in the 1.13.4 APK (`aapt2 dump permissions`; run it again on the 1.13.5 APK before uploading): only AndroidX's internal
 `<package>.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION`, the app's own signature permission, which users
 never see or grant. There is no `INTERNET` permission in release builds (only the debug and profile
 manifests add it).

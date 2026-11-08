@@ -1,8 +1,8 @@
 # Pre-store release checklist
 
 ## Accounts
-- [ ] Store accounts are opened by an **adult account owner** (a parent or guardian where needed): Google Play
-      Console (one-time fee) and Apple Developer Program (yearly fee). They own the accounts; the
+- [ ] Store accounts are opened by an account owner who meets Google's and Apple's age requirements:
+      Google Play Console (one-time fee) and Apple Developer Program (yearly fee). They own the accounts; the
       app can list the developer as the author.
 
 ## Build
@@ -42,7 +42,7 @@ All the texts (with character counts), the form answers and the screenshot list 
       [App Store](store/listing.md#app-store-app-store-connect).
 
 ## Testing status (before the first store upload)
-- These notes were written at v1.1.0; re-check each line against the current release (1.13.4) before
+- These notes were written at v1.1.0; re-check each line against the current release (1.13.5) before
   the first store upload.
 - Planned end-to-end runs (record results here): Android emulator (Android 14, API 34) on normal
   and small screens, offline, rotation, backgrounding during Play; the same on the Mac's iOS simulators.
@@ -64,7 +64,7 @@ All the texts (with character counts), the form answers and the screenshot list 
 
 ## Competition / sideload release (GitHub Releases APK)
 For the Space Apps entry and anyone installing from the QR code. This APK is not a store build.
-- [ ] Bump `version:` in `app/pubspec.yaml` (for example `1.13.4+25`; the build number must rise, or
+- [ ] Bump `version:` in `app/pubspec.yaml` (for example `1.13.5+26`; the build number must rise, or
       Android refuses to install the update over the earlier one). After the build, check that the
       version the app shows matches.
 - [ ] From `app/`: `flutter build apk --release`. Without `app/android/key.properties` the release APK
@@ -74,12 +74,16 @@ For the Space Apps entry and anyone installing from the QR code. This APK is not
       ones; a build signed with another key must be uninstalled first.
 - [ ] Rename `app/build/app/outputs/flutter-apk/app-release.apk` to `lunar-horizon.apk` and record its
       checksum: `sha256sum lunar-horizon.apk` (PowerShell: `Get-FileHash lunar-horizon.apk`).
-- [ ] Publish a GitHub release (tag `v1.13.4`, notes with the changes and the SHA-256), attach
-      `lunar-horizon.apk`, and mark it **latest**.
+- [ ] Publish a GitHub release (tag `v1.13.5`, notes with the changes and the SHA-256), attach
+      `lunar-horizon.apk` and `SHA256SUMS.txt`, and mark it **latest**. No v1.13.4 release was
+      published; the notes cover the changes since v1.13.3.
 - [ ] Check that <https://github.com/localizedprojects/CLPS-MOON-BROWSER/releases/latest/download/lunar-horizon.apk>
       downloads the new file (same SHA-256), then install it over the previous version on a phone.
 - [ ] Check that the APK and demo video links on the Links line of `docs/judge_one_pager.md` and in
-      `docs/submission.md` still work (v1.13.3 was published on 7 November 2026 with the APK and both videos).
+      `docs/submission.md` still work. v1.13.3 (7 November 2026) holds both videos, so keep it; the
+      video links point at it and do not change when v1.13.5 is published. Then put the new APK's
+      SHA-256 in the source note of `docs/judge_one_pager.md`, and update the "latest release" notes
+      in `docs/submission.md` (Links and Development history) and the comment in `README.md`.
 - [ ] Scan the QR code (`docs/get-app-qr.png`): it must open
       <https://localizedprojects.github.io/CLPS-MOON-BROWSER/get/>, which sends Android to the APK and
       iPhone/iPad to the web app.
@@ -87,4 +91,4 @@ For the Space Apps entry and anyone installing from the QR code. This APK is not
       <https://localizedprojects.github.io/CLPS-MOON-BROWSER/> shows the new version.
 - [ ] Refresh the README screenshots (`docs/screenshots/`) if the screens changed.
 - [ ] Re-check the numbers in [judge_one_pager.md](judge_one_pager.md) (its source notes say where each
-      comes from) and add the demo video link to [submission.md](submission.md) once it is uploaded.
+      comes from).

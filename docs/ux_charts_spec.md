@@ -506,4 +506,4 @@ These are scaled to 640 px wide. They are prototype captures, so the notes say w
 | `sky_desktop_key_line.png` | d1 | caption form and full key line | Earth must read "below the horizon" (not "hidden by the terrain"); hide ring labels in Simple; plot sized to its width |
 | `compare_phone_blocks.png` | d2 | headline, labelled bars with %, longest dark | add the reason line and the plain score line; "Sun + Earth" label |
 
-The full prototypes, with all their screenshots, are under the session scratchpad `charts_design/d1`, `d2` and `d3` (not in the repo).
+The six screenshots above are the ones kept from the prototypes (d1, d2 and d3). The prototypes themselves were the design session's working files and are not part of the repository; this spec records what they showed.

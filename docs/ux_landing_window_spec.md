@@ -4,8 +4,10 @@ Status: ready to build (2026-10-11). This spec merges the science design, the sc
 every correction from the integrity check (C1 to C11). Where the earlier drafts disagree, this file
 wins. The UX bar is `docs/ux_review_rubric.md`; the science rules are in `CLAUDE.md`.
 
-Mock (static HTML, marked MOCK): a session scratchpad file, not in the repository (`landing/ux/mock.html?s=idle|computing|result|nofit|error|stale`).
-Screenshots are in the same folder (the design session's working files, not in the repository, listed in section 3.8). **The mock
+The design session made a static HTML mock (marked MOCK, with the states idle, computing, result,
+nofit, error and stale) and screenshots of it. They were working files and are not part of the
+repository; section 3.8 lists them, and the built card is
+`app/lib/widgets/best_window_card.dart`. **The mock
 predates the integrity check.** Where its copy differs from section 3 (verdict words, "nearest hour",
 "8,425 hours", one landing time instead of a span, no FidelityBadge), follow section 3.
 
@@ -436,7 +438,7 @@ grouped digits). Length controls are locked. No artificial delay.
 
 ### 3.8 Screenshots
 
-In the design session's scratchpad (`landing/ux/`, not in the repository):
+The design session's screenshots were working files and are not part of the repository. They were:
 
 - Current app: `now/phone-overview.png`, `now/phone-overview2.png`, `now/phone-overview3.png` (390x844,
   StatTrio and light hero first, no landing action), `now/small-overview.png` (320x640),
@@ -446,7 +448,7 @@ In the design session's scratchpad (`landing/ux/`, not in the repository):
   `mock/phone-error.png`, `mock/phone-stale.png`, `mock/small-idle.png`, `mock/small-result.png`,
   `mock/desktop-idle.png`, `mock/desktop-result.png`.
 
-Use the mock for layout, spacing and hierarchy. Use this spec for copy, the span, the verdicts and
+The mock set the layout, spacing and hierarchy. Use this spec for copy, the span, the verdicts and
 the badge.
 
 ---

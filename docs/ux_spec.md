@@ -40,16 +40,16 @@ Criteria: **a** first-time usability · **b** calm, not a control panel · **c**
 
 ### Screens
 
-**Loading.** Centred BrandMark (56dp), a headline, and a determinate progress bar showing ranked sites out of 16. There are no placeholder numbers. On error, show a "Try again" button.
-- "Working out sunlight and Earth views for 16 landing sites…"
-- "Ranked 9 of 16 sites"
+**Loading.** Centred BrandMark (56dp), a headline, and a determinate progress bar showing ranked sites out of 19. There are no placeholder numbers. On error, show a "Try again" button.
+- "Working out sunlight and Earth views for 19 landing sites…"
+- "Ranked 9 of 19 sites"
 
 **Explore (home).**
 - Phone, one scroll:
   - Headline (28/700) and a two-line subline, then the ContextPill.
   - **TopPickCard**: a 3:1 PanoHero of the #1 site's "best" render, with Flutter-drawn, labelled Sun and Earth markers. Below it: eyebrow, name, two stat lines, the buttons [See this site] (filled) and [Compare top 3] (tonal), and a "How is this ranked?" link.
   - **GoalChips** "What matters most?". These are shared with Compare.
-  - List header "All 16 sites, best first" with one "All sites ▾" group menu.
+  - List header "All 19 sites, best first" with one "All sites ▾" group menu.
   - **SiteCards**: rank, PanoThumb, name, kind line, StatBars, longest night, and a 48dp "+ Compare" toggle.
   - A floating **List · Map · 3D** pill. Once a site is shortlisted, the **CompareTray** replaces it.
 - Phone, Map view: MapView plus a Layers button and a carousel of compact SiteCards.
@@ -118,7 +118,7 @@ Criteria: **a** first-time usability · **b** calm, not a control panel · **c**
 
 **Explore**
 - Headline: "Where would you land at the Moon's south pole?"
-- Subline: "16 real candidate spots, checked against the mountains around them. Sun means solar power; Earth in view means you can radio home."
+- Subline: "19 real candidate spots, checked against the mountains around them. Sun means solar power; Earth in view means you can radio home."
 - ContextPill: "Next 12 months · 2 m lander ▾", plus "· custom rules" when rules differ from the defaults.
 - TopPickCard:
   - "Best spot for the next 12 months"
@@ -152,7 +152,7 @@ Criteria: **a** first-time usability · **b** calm, not a control panel · **c**
 - Rules, DSN and sky zoom move into Mission settings › More options. That expander auto-opens when anything is non-default, and the pill shows "· custom rules".
 - The readout, decimals, mean W/m² and coordinates appear only when expert is on.
 - Four export buttons become one sheet, now open to everyone.
-- Compare's 16 FilterChips become a shortlist. Its two sliders move behind "Fine-tune". The table moves behind "All numbers".
+- Compare's 19 FilterChips become a shortlist. Its two sliders move behind "Fine-tune". The table moves behind "All numbers".
 - The six map chips become a Layers sheet. Pin placement needs a confirm step.
 - There are no qualitative ratings ("Excellent"). Phrases come from the tested `inTen()` helper and always sit next to the exact percentage.
 

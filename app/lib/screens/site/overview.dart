@@ -1,8 +1,10 @@
-/// Site › Overview: the kind line, "When should you land here?" (the landing
-/// window card), then "More about this site", which holds, top to bottom: what
-/// kind of place it is, three big numbers, the computed light at its best
-/// moment, the best time to be here, which days work, the longest night,
-/// "About this site" and (with "Show exact numbers") the exact numbers.
+/// Site › Overview: the kind line, the "now" line (the Sun's height and the
+/// time left before sunset and Earthset at the time shown; after the landing
+/// card on a window under 760 dp tall), "When should you land here?" (the
+/// landing window card), then "More about this site", which holds, top to
+/// bottom: what kind of place it is, three big numbers, the computed light at
+/// its best moment, the best time to be here, which days work, the longest
+/// night, "About this site" and (with "Show exact numbers") the exact numbers.
 ///
 /// Works full width (phones, tablets; centred, at most 760 dp) and as the
 /// fixed 440 dp left pane of the desktop Site screen.
@@ -12,20 +14,24 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/catalog.dart';
+import '../../core/countdown.dart' show countdownAt, countdownParts, spokenCountdown;
 import '../../core/landing_wording.dart' show moreHint, moreSemantics, moreSubline, moreTitle;
 import '../../core/metrics.dart' show SiteMetrics;
+import '../../core/now_line.dart';
 import '../../core/wording.dart';
 import '../../state/app_state.dart';
 import '../../theme.dart';
 import '../../widgets/explain.dart' show explainOverview;
 import '../../widgets/about_site.dart';
 import '../../widgets/best_window_card.dart';
+import '../../widgets/chart_bridge.dart' show nowAt;
 import '../../widgets/expert_numbers.dart';
 import '../../widgets/glyphs.dart';
 import '../../widgets/good_days_calendar.dart';
 import '../../widgets/lander_photos_card.dart';
 import '../../widgets/landing_window_card.dart';
 import '../../widgets/light_snapshot.dart';
+import '../../widgets/now_status.dart' show countdownNowOf, minuteOf, shownTimeLabel;
 import '../../widgets/plan_for_dark_card.dart';
 import '../../widgets/site_card.dart' show FocusRingInkWell;
 import '../../widgets/site_glance_card.dart';
@@ -62,8 +68,93 @@ String kindSourceLine(Site s) {
   return [siteKindLabel(s), if (from != null) from.replaceFirst(from[0], from[0].toLowerCase())].join(' · ');
 }
 
-/// "More about this site": a 64 dp disclosure row with the peek line (three
-/// glyphs and numbers) and what is inside.
+/// The "now" line: "At the time shown (8 Nov 12:00 UTC)", then the Sun's
+/// height and the time left before sunset, then Earth's height above the
+/// hills and the time left before Earthset (core/now_line.dart). Its numbers
+/// are the Sky & time status line's: the same exact state (nowAt at the whole
+/// minute shown) and the same countdown over the site's series. Like the
+/// status line's countdown, it is left out while the series is worked out.
+class OverviewNowLine extends StatelessWidget {
+  final AppState state;
+  const OverviewNowLine({super.key, required this.state});
+
+  /// The time label and the line at the time shown; null without an
+  /// ephemeris or while the site's series is (re)computed.
+  static ({String time, NowLine line})? of(AppState s) {
+    final eph = s.eph, series = s.series;
+    if (eph == null || series == null || s.loading) return null;
+    final o = s.options, tMin = minuteOf(s.cursorMs);
+    final now = nowAt(eph, s.observer, s.mask, tMin, o);
+    final earth = now['earth'] as Map<String, dynamic>;
+    final line = nowLineOf(countdownAt(series, tMin, now: countdownNowOf(now)),
+        earthClearDeg: (earth['clear'] as num).toDouble(),
+        earthNoDsn: earth['terrainVisible'] == true && earth['visible'] != true,
+        requireDsn: o.requireDsn);
+    return (time: shownTimeLabel(s.cursorMs, refMs: s.rangeStartMs), line: line);
+  }
+
+  /// What a screen reader hears: units and months in words, " · " a comma.
+  static String semanticsOf(({String time, NowLine line}) v) =>
+      'At the time shown, ${spokenCountdown(v.time)}: ${spokenCountdown(v.line.sun)}. ${spokenCountdown(v.line.earth)}.';
+
+  @override
+  Widget build(BuildContext context) {
+    final v = of(state);
+    if (v == null) return const SizedBox.shrink();
+    // one paragraph that wraps by words (numbers never split): the time
+    // shown, then each body's glyph and its words; the asides (the hills, the
+    // eclipse note) muted, as on the status line. A little tighter than body
+    // text, so the line stays compact on a phone.
+    final style = PHText.body.copyWith(fontSize: 15, height: 1.35), muted = style.copyWith(color: PH.muted);
+    // " · " keeps its dot at the end of a line, never the start of the next
+    const dot = '\u00A0· ';
+    // a body's glyph and its words; the glyph and the first word share one
+    // placeholder (on the text's baseline), so the glyph never ends a line alone
+    Iterable<InlineSpan> body(GlyphKind g, String t) {
+      final parts = countdownParts(t);
+      final first = parts.first.$1, cut = first.indexOf(' ');
+      // the word with its space, so a line may break right after it
+      final word = cut < 0 ? first : first.substring(0, cut + 1);
+      return [
+        WidgetSpan(
+          alignment: PlaceholderAlignment.baseline,
+          baseline: TextBaseline.alphabetic,
+          child: Row(mainAxisSize: MainAxisSize.min, children: [
+            Padding(padding: const EdgeInsets.only(right: 5), child: MeaningGlyph(g, size: 15, semantic: false)),
+            // the paragraph scales its placeholders by the text scale already
+            Text(word, style: style, textScaler: TextScaler.noScaling),
+          ]),
+        ),
+        if (cut >= 0) numSpans(first.substring(cut + 1), style),
+        for (final (part, aside) in parts.skip(1))
+          part == ' · ' ? TextSpan(text: dot, style: muted) : numSpans(part, aside ? muted : style),
+      ];
+    }
+
+    return Semantics(
+      container: true,
+      label: semanticsOf(v),
+      excludeSemantics: true,
+      child: Container(
+        margin: const EdgeInsets.only(top: 4),
+        padding: const EdgeInsets.fromLTRB(12, 6, 12, 7),
+        decoration: BoxDecoration(color: PH.panel, borderRadius: BorderRadius.circular(PH.radiusCard)),
+        child: Text.rich(
+          TextSpan(children: [
+            // the date ('14 Jan', no year, so numSpans would split it) and
+            // the time ('00:31 UTC') each stay on one line
+            numSpans('At the time shown (${v.time.replaceFirst(' ', '\u00A0').replaceFirst(' UTC', '\u00A0UTC')}): ', muted),
+            ...body(GlyphKind.sun, v.line.sun),
+            TextSpan(text: dot, style: muted),
+            ...body(GlyphKind.earth, v.line.earth),
+          ]),
+          key: const ValueKey('overviewNowText'),
+        ),
+      ),
+    );
+  }
+}
+
 class _MoreRow extends StatelessWidget {
   final SiteMetrics metrics;
   final bool requireDsn, open;
@@ -169,6 +260,11 @@ class SiteOverview extends StatelessWidget {
       final side = c.maxWidth < 400 ? 12.0 : 16.0;
       // short phones (320x640): tighter top so Find sits above the bottom bar
       final short = MediaQuery.sizeOf(context).height < 700;
+      // the now line goes after the landing card on a window under 760 dp
+      // tall (320 x 640, 360 x 740, phone landscape), where above it would
+      // push the card's Find under the bottom bar
+      final nowAfterCard = MediaQuery.sizeOf(context).height < 760;
+      final nowLine = OverviewNowLine(key: const ValueKey('overviewNow'), state: s);
       return Align(
         alignment: Alignment.topCenter,
         child: ConstrainedBox(
@@ -216,8 +312,12 @@ class SiteOverview extends StatelessWidget {
                       ]),
                     ),
                   ),
+                // 2. the Sun's height and the time left before sunset and
+                // Earthset at the time shown (Sky & time's numbers)
+                if (!nowAfterCard) nowLine,
                 // 3. "When should you land here?" first
                 LandingWindowCard(key: ValueKey('landing-${site.id}')),
+                if (nowAfterCard) nowLine,
                 if (s.explainInline) explainOverview,
                 // 4. At a glance: what it is, why here, watch-outs, how it compares
                 // (the custom-horizon badge already sits above)

@@ -260,6 +260,21 @@ void main() {
     final bar = tester.getRect(find.byType(NavigationBar));
     expect(r.top, greaterThanOrEqualTo(0));
     expect(r.bottom, lessThanOrEqualTo(bar.top));
+    // the "now" line (the Sun's height, sunset and Earthset) follows the card here
+    expect(tester.getRect(find.byKey(const ValueKey('overviewNow'))).top,
+        greaterThanOrEqualTo(tester.getRect(find.byType(LandingWindowCard)).bottom));
+    await done(tester);
+  });
+
+  testWidgets('360x800 at 1x: the now line above the card, and Find above the bottom bar', (tester) async {
+    await select(tester, mp1);
+    await pump(tester, const Size(360, 800), host: Host.shell);
+    final now = tester.getRect(find.byKey(const ValueKey('overviewNow')));
+    expect(now.bottom, lessThanOrEqualTo(tester.getRect(find.byType(LandingWindowCard)).top));
+    final r = tester.getRect(findButton());
+    final bar = tester.getRect(find.byType(NavigationBar));
+    expect(r.top, greaterThanOrEqualTo(0));
+    expect(r.bottom, lessThanOrEqualTo(bar.top));
     await done(tester);
   });
 

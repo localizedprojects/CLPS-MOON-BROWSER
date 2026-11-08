@@ -156,8 +156,12 @@ void main() {
     await simpleAt(tester, const Size(1440, 900), noMotion: true);
     expect(cue(), findsOneWidget);
     Focus.of(tester.element(find.descendant(of: cue(), matching: find.text(text)))).requestFocus();
+    // a key, as a keyboard user's Tab would: since 1.13.5 the rings follow
+    // the keyboard (highlight mode), not focus alone
+    await tester.sendKeyEvent(LogicalKeyboardKey.shiftLeft);
     await tester.pump();
     await tester.pump();
+    expect(FocusManager.instance.highlightMode, FocusHighlightMode.traditional);
     final shape = tester.widget<Material>(find.descendant(of: cue(), matching: find.byType(Material)).first).shape;
     expect(shape, isA<OutlinedBorder>());
     final side = (shape! as OutlinedBorder).side;

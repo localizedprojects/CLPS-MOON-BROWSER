@@ -11,7 +11,7 @@
 - Against JPL Horizons (8,688 directions, 8 sites, three 30-day windows), the app is off by at most 0.00013′ for the Sun and 0.0016′ for Earth. The check is sensitive: using the MOON_PA lunar frame instead would put it up to 1.73′ off.
 - Over 18.6 years, 14 region and landing sites differ from the LOLA team's average-visibility maps by 1.98 (Sun) and 1.78 (Earth) percentage points on average. At 5 ridge and peak points from the literature the Sun difference averages 7.33 points (max 20.3), mainly because terrain smaller than a DEM pixel matters there.
 - On the 400 m grid, the light map's lit-or-not call agrees in 94.4% of 960 checks with horizons computed from the same 400 m terrain, and in 87.4% with the sharper 80 m site horizons. The 800 m region grid scores 90.8% and 82.4%.
-- The app shows these checks on its "Can I trust these numbers?" page (the light map as an 82–94% range).
+- The app shows these checks on its Validation & assumptions page ("Can I trust these numbers?") (the light map as an 82–94% range).
 
 **What it adds.**
 - *Find the best landing window*: for a surface mission of 1 to 30 days, the earliest span of landing times that keeps the Sun and Earth above the skyline for the whole mission, with a suggested landing that keeps both at least 0.25° above it (otherwise the closest fit, and the card says so). An approximation badge says the timing is limited by the terrain, not the ephemeris.
@@ -23,7 +23,7 @@
 - Options: a Deep Space Network check, a 10 m mast, three Sun rules, and CSV and PNG export.
 - *Lander's view*: a 3D look around from the lander, using the light map's own 400 m terrain and light (approximate, labelled). It opens full screen, switches sites inside it, and offers two labelled drawing aids: relief shading and a view from higher (200 m, 1 km or 5 km; the light and the Sun and Earth status stay the lander's).
 - Lunar eclipses: the part of the Sun hidden behind Earth is left out of the Sun fraction and the power, and out of the preset sites' 18.6-year averages too (this lowers their Sun shares by under 0.1 percentage point).
-- A mission catalogue: CLPS landed positions (IM-1, IM-2, with credited links to their real photos on NASA's pages), the VIPER area, and planned international sites.
+- A mission catalogue: CLPS landed positions (IM-1, IM-2, with credited links to their real photos on NASA's pages), the VIPER area, and unofficial candidate points for planned international missions (Chang'e-7, Chandrayaan-5/LUPEX).
 - Sunset and Earthset countdowns with the live power in W/m².
 
 **When a slip moves the landing.** A launch slip or a hardware problem can move the landing date or site. At the pole the Sun goes round the sky once per solar day (29.53 days on average), and its height above a level horizon swings between about −1.6° and +1.6° over a cycle of about 347 days, so light and the view of Earth change from week to week and season to season. The landing-window card shows the span of landing times that still fits (or says that only one exact time fits), and *Next window that fits* gives the next one. *Mission settings › Pick dates…* moves the period anywhere in 2025–2035, re-ranks the sites and marks an older landing answer "Out of date". The good-days calendar and Compare (two to four sites, good days by month) help pick a new date or a backup site.
@@ -46,9 +46,9 @@
 
 ![Malapert peak (MP1): the best 14-day landing window next to the Sky & time view](screenshots/site-landing-sky-desktop.webp)
 
-*Screenshot from the version 1.11.0 web build of 1 November 2026, next 12 months, 2 m lander. More screenshots are in the [README](../README.md#screenshots).*
+*Screenshot from the version 1.11.0 web build of 1 November 2026, next 12 months, 2 m lander. Later versions keep this layout; the numbers depend on the dates. More screenshots are in the [README](../README.md#screenshots).*
 
-**Next steps.** Refine near-field terrain with 20 m LOLA data, check the 2 m Earth numbers at peaks and ridges (Malapert peak's 56% rises to 78% with a 10 m mast).
+**Next steps.** Refine near-field terrain with 20 m LOLA data, check the 2 m Earth numbers at peaks and ridges (over the 12 months from 2 November 2026, Malapert peak's Earth-in-view share of 56% rises to 78% with a 10 m mast).
 
 **Links.** Code: <https://github.com/localizedprojects/CLPS-MOON-BROWSER>. Web app: <https://localizedprojects.github.io/CLPS-MOON-BROWSER/>. Android app (APK, Android 7.0 or newer): <https://github.com/localizedprojects/CLPS-MOON-BROWSER/releases/latest/download/lunar-horizon.apk>. Demo video (30 s): <https://github.com/localizedprojects/CLPS-MOON-BROWSER/releases/download/v1.13.3/lunar-horizon-demo-30s-v1.13.0.mp4>; full tour (3:16): <https://github.com/localizedprojects/CLPS-MOON-BROWSER/releases/download/v1.13.3/lunar-horizon-tour-v1.13.0.mp4>.
 
@@ -86,5 +86,6 @@ Sources for every number in this brief (paths relative to the repository root; v
 - Screenshot from 1.11.0: docs/screenshots/ last changed in 94c0f45 (2026-11-01).
 - Eclipses in the 18.6-year averages (1.12.0, 7c4af07): pipeline/lunarsp/sites.py (the 2 m shares use eclipses=True; the 0 m cross-check against the LOLA maps stays terrain-only, so validation.json and the 1.98/1.78 figures are unchanged). "Under 0.1 percentage point": longTermLabel in app/lib/widgets/about_site.dart.
 - Charts on Android 7's stock WebView (1.13.0, a4d4497): charts/vite.config.ts (build.target es2015, chrome51) and app/lib/widgets/chart_bridge.dart (chartMinChromeMajor = 51); the Android 7.0 emulator run is in docs/release_checklist.md (Testing status).
-- APK and video links: GitHub release v1.13.3, published 2026-11-07 and listed as latest by the releases API; lunar-horizon.apk SHA-256 87c2e6684805aef466d33b53a01306b916612794878ed08891601443f3abdda9 (the 1.13.3 build). The web app is 1.13.4 (7 November 2026); until a v1.13.4 release is published, the APK is one patch older.
+- APK and video links: GitHub release v1.13.3, published 2026-11-07 and listed as latest by the releases API; lunar-horizon.apk SHA-256 87c2e6684805aef466d33b53a01306b916612794878ed08891601443f3abdda9 (the 1.13.3 build). On 2026-11-08 the web app is 1.13.4 and no v1.13.4 release exists. The owner publishes v1.13.5 next: then write its date and the new lunar-horizon.apk SHA-256 (from its SHA256SUMS.txt) here. The APK link stays the same, and the video links keep pointing at v1.13.3.
+- Malapert peak 56% to 78%: pylib, lunarhorizon.analyze_site('derosa2012-mp1-malapert-peak', 2026-11-02 to 2027-11-02, observer_height_m=2.0 and 10.0) gives pct_earth 56.33 and 78.41 (run 2026-11-08). Over the 12 months from 2026-11-14 it gives 58.33 and 80.01.
 -->

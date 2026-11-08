@@ -19,6 +19,7 @@ import 'package:polar_horizon/state/app_state.dart';
 import 'package:polar_horizon/state/lander_light.dart' show landerColors, landerFrameIndex;
 import 'package:polar_horizon/state/light_engine.dart';
 import 'package:polar_horizon/theme.dart';
+import 'package:polar_horizon/widgets/focus_rings.dart';
 import 'package:polar_horizon/widgets/lander_view.dart';
 import 'package:polar_horizon/widgets/light_map.dart';
 import 'package:polar_horizon/widgets/no_page_swipe.dart';
@@ -2347,6 +2348,86 @@ void main() {
       expect(today, startsWith('From the lander: 2 m above the ground at SR1, U. Terrain'));
       expect(landerCaption(height: '5 km', site: 'SR1', utc: 'U', lander: '2 m'),
           startsWith("From a raised viewpoint: 5 km above the ground at SR1 (the lander's eye is 2 m), U. Terrain"));
+    });
+  });
+
+  group('focus rings follow the keyboard (FocusRings, 1.13.5)', () {
+    // the app puts FocusRings above its navigator (main.dart); its rings show
+    // in the traditional highlight mode (the last input was a key) only
+    Widget ringed() => MaterialApp(
+          theme: buildTheme(),
+          builder: (context, child) => FocusRings(child: child!),
+          home: Scaffold(
+            body: SingleChildScrollView(
+              child: Align(
+                alignment: Alignment.topLeft,
+                child: LanderViewPanel(state: state, near: nearFrame(), layer: LightLayer.both, width: 360),
+              ),
+            ),
+          ),
+        );
+    bool viewRing(WidgetTester tester) => (tester
+            .widget<CustomPaint>(find.byWidgetPredicate((w) => w is CustomPaint && w.painter is LanderPainter))
+            .painter! as LanderPainter)
+        .focused;
+    BorderSide sideOf(WidgetTester tester, Finder f) =>
+        (tester.widget<Material>(find.ancestor(of: f, matching: find.byType(Material)).first).shape! as OutlinedBorder)
+            .side;
+    bool ice(BorderSide s) => s.color == PH.ice && s.width == 2;
+    Future<void> settle(WidgetTester tester) async {
+      await tester.pump();
+      await tester.pump(); // the focus change applies in a microtask after the frame
+    }
+
+    testWidgets('a touch tap on the view takes the focus with no ring; the next key shows it', (tester) async {
+      size(tester, const Size(360, 1000));
+      await nearPole(tester);
+      await tester.pumpWidget(ringed());
+      await meshReady(tester);
+      final view = find.byKey(const ValueKey('lander-view'));
+      await tester.tapAt(tester.getCenter(view) + const Offset(0, 30));
+      await settle(tester);
+      expect(FocusManager.instance.highlightMode, FocusHighlightMode.touch);
+      final node = Focus.of(tester.element(view));
+      expect(node.debugLabel, 'lander-view');
+      expect(node.hasFocus, isTrue, reason: 'the tap gives the view the focus');
+      expect(viewRing(tester), isFalse, reason: 'no ice frame round the view after a touch');
+      await tester.sendKeyEvent(LogicalKeyboardKey.shiftLeft);
+      await settle(tester);
+      expect(viewRing(tester), isTrue, reason: 'a key shows the frame');
+      await tester.tapAt(tester.getCenter(view) + const Offset(0, 30));
+      await settle(tester);
+      expect(viewRing(tester), isFalse);
+    });
+
+    testWidgets('the viewpoint control and the relief switch: ring with keyboard focus, none after a touch, '
+        'back with the next key', (tester) async {
+      size(tester, const Size(360, 1000));
+      await nearPole(tester);
+      await tester.pumpWidget(ringed());
+      await meshReady(tester);
+      final viewpoint = find.byKey(const ValueKey('lander-viewpoint'));
+      final relief = find.byKey(const ValueKey('lander-relief'));
+      final reliefIcon = find.descendant(of: relief, matching: find.byType(Icon)).first;
+      for (final (name, f) in [('viewpoint control', viewpoint), ('relief switch', reliefIcon)]) {
+        await tester.sendKeyEvent(LogicalKeyboardKey.shiftLeft);
+        Focus.of(tester.element(f)).requestFocus();
+        await settle(tester);
+        expect(FocusManager.instance.highlightMode, FocusHighlightMode.traditional);
+        expect(ice(sideOf(tester, f)), isTrue, reason: '$name: keyboard focus shows the ring');
+        // a touch below the view, on nothing that takes the focus
+        await tester.tapAt(const Offset(180, 995));
+        await settle(tester);
+        expect(FocusManager.instance.highlightMode, FocusHighlightMode.touch);
+        expect(Focus.of(tester.element(f)).hasFocus, isTrue, reason: '$name keeps the focus');
+        expect(viewRing(tester), isFalse);
+        expect(ice(sideOf(tester, f)), isFalse, reason: '$name: no ring after a touch');
+        await tester.sendKeyEvent(LogicalKeyboardKey.shiftLeft);
+        await settle(tester);
+        expect(ice(sideOf(tester, f)), isTrue, reason: '$name: a key shows it again');
+      }
+      await tester.tapAt(const Offset(180, 995));
+      await settle(tester);
     });
   });
 }

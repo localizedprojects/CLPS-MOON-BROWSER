@@ -10,6 +10,7 @@ import 'package:web/web.dart' as web;
 
 import '../theme.dart';
 import 'chart_bridge.dart';
+import 'focus_rings.dart';
 
 /// Web host: the React bundle in an iframe; postMessage both ways.
 Widget buildChartHost(ChartController c) => _WebChart(controller: c);
@@ -176,7 +177,7 @@ class _WebChartState extends State<_WebChart> with ChartAcksHost<_WebChart> {
         child: DecoratedBox(
           position: DecorationPosition.foreground,
           decoration: BoxDecoration(
-            border: Border.all(color: _focused ? PH.ice : const Color(0x00000000), width: 2),
+            border: Border.all(color: _focused && FocusRings.of(context) ? PH.ice : const Color(0x00000000), width: 2),
             borderRadius: BorderRadius.circular(PH.radius),
           ),
           // one Tab stop: this frame's node, not also the platform view's own

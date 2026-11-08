@@ -30,6 +30,7 @@ import '../state/light_loop.dart' show lightFrameEclipse, lightFrameEclipsed, li
 import 'light_map.dart' show landerFidelityText;
 import 'no_page_swipe.dart';
 import 'focus_semantics.dart';
+import 'focus_rings.dart';
 
 typedef SkyBody = ({double az, double el, double rhoDeg, SkyState state});
 
@@ -1002,6 +1003,8 @@ class LanderViewPanelState extends State<LanderViewPanel> with TickerProviderSta
   /// colour alone; never amber).
   Widget _reliefButton() {
     final on = _s.landerRelief;
+    // keyboard rings only: none once the screen is touched (FocusRings)
+    final rings = FocusRings.of(context);
     return Semantics(
       container: true,
       button: true,
@@ -1021,7 +1024,7 @@ class LanderViewPanelState extends State<LanderViewPanel> with TickerProviderSta
             ).copyWith(
               // the theme's 2 px ice focus ring wins over the "on" hairline (a constant side would hide it)
               side: WidgetStateProperty.resolveWith(
-                (st) => st.contains(WidgetState.focused)
+                (st) => rings && st.contains(WidgetState.focused)
                     ? const BorderSide(color: PH.ice, width: 2)
                     : on
                     ? const BorderSide(color: PH.lineStrong)
@@ -1065,7 +1068,7 @@ class LanderViewPanelState extends State<LanderViewPanel> with TickerProviderSta
               color: vp.raised ? PH.panelHi : const Color(0xCC0C1528),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(PH.radius),
-                side: focused
+                side: focused && FocusRings.of(context)
                     ? const BorderSide(color: PH.ice, width: 2)
                     : vp.raised
                     ? const BorderSide(color: PH.lineStrong)
@@ -1211,7 +1214,9 @@ class LanderViewPanelState extends State<LanderViewPanel> with TickerProviderSta
       probeAt: _probeAt,
       seeThrough: near == null ? null : _seeThrough,
       status: status,
-      focused: _focused,
+      // the ice frame follows the keyboard: a touch tap gives the view the
+      // focus but shows no frame (1.13.5)
+      focused: _focused && FocusRings.of(context),
       textScaler: scaler.clamp(maxScaleFactor: PH.maxCanvasTextScale),
       reserve: reserve,
       viewpoint: eye

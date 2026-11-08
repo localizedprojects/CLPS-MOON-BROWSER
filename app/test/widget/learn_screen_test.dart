@@ -1,5 +1,7 @@
 // Learn: the "Explain as I go" switch, Start here, the trust card's two
 // pages, the score example, and layouts at 320 px with 2x text and at 1280.
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -203,6 +205,21 @@ void main() {
     final card = tester.getRect(find.ancestor(of: find.text('Explain as I go'), matching: find.byType(Card)));
     expect(card.width, lessThanOrEqualTo(1040));
     expect(card.center.dx, closeTo(720, 1));
+  });
+  testWidgets('desktop: the two columns end at about the same height', (tester) async {
+    // 1.13.5 audit: at 1440x900 the page ended in the right column alone
+    // (Credits, sources, licences) beside a blank left half
+    for (final w in [900.0, 1440.0]) {
+      await pumpLearn(tester, w: w, h: 9000);
+      Rect card(String type) => tester.getRect(find.byWidgetPredicate((x) => x.runtimeType.toString() == type).first);
+      final top = card('_StartHere').top;
+      final left = card('_Shortcuts'), right = card('_Credits');
+      expect(left.left, card('_StartHere').left, reason: 'keyboard keys under the views, at $w');
+      expect(right.left, card('_TrustCard').left, reason: 'credits end the right column, at $w');
+      final tall = math.max(left.bottom, right.bottom) - top;
+      expect((left.bottom - right.bottom).abs(), lessThan(0.15 * tall),
+          reason: 'columns end ${left.bottom.round()} and ${right.bottom.round()}, at $w');
+    }
   });
   testWidgets('credits: the Use of AI note, the data, station and code credits, and named 48 dp addresses',
       (tester) async {

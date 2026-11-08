@@ -2,7 +2,8 @@
 /// only, its site groups, and why the pole is hard), three "Start here"
 /// cards, what each view shows, the glossary, "Can I trust these numbers?" (validation and
 /// "How it's calculated"), how the score works, keyboard shortcuts and credits.
-/// Phones get one column; from 840 dp two columns, at most 1040 wide.
+/// Phones get one column; from 840 dp two columns of about the same height,
+/// at most 1040 wide.
 library;
 
 import 'package:flutter/material.dart';
@@ -37,8 +38,11 @@ class LearnScreen extends StatelessWidget {
     return LayoutBuilder(builder: (context, box) {
       final wide = box.maxWidth >= twoColumnWidth;
       final side = box.maxWidth > 1040 ? (box.maxWidth - 1040) / 2 : 0.0;
-      const left = [_StartHere(), _Views()];
-      const right = [_TrustCard(), _ScoreCard(), _Glossary(), _Shortcuts(), _Credits()];
+      // two columns of about the same height (the keys go with the views
+      // they work), so the page does not end in one column beside a blank
+      // half (1.13.5 audit: Credits alone at the bottom at 1440x900)
+      const left = [_StartHere(), _Views(), _Shortcuts()];
+      const right = [_TrustCard(), _ScoreCard(), _Glossary(), _Credits()];
       return ListView(
         padding: EdgeInsets.fromLTRB(16 + side, 16, 16 + side, 32),
         children: [

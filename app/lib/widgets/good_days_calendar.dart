@@ -14,6 +14,7 @@ import 'package:intl/intl.dart';
 import '../core/daily.dart';
 import '../core/metrics.dart' show Interval;
 import '../theme.dart';
+import 'focus_rings.dart';
 import 'glyphs.dart';
 import 'site_card.dart' show FocusRingInkWell;
 import 'focus_semantics.dart';
@@ -391,7 +392,7 @@ class _DayCellState extends State<_DayCell> {
             },
             child: ExcludeSemantics(
               child: CustomPaint(
-                painter: _DayPainter(cls, best: widget.best, focused: _focused),
+                painter: _DayPainter(cls, best: widget.best, focused: _focused && FocusRings.of(context)),
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(6, 4, 4, 4),
                   child: Stack(children: [

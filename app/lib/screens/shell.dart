@@ -15,6 +15,7 @@ import 'package:provider/provider.dart';
 import '../state/app_state.dart';
 import '../state/chart_hub.dart';
 import '../theme.dart';
+import '../widgets/focus_rings.dart';
 import '../widgets/context_pill.dart';
 import '../widgets/feature_guide.dart';
 import '../widgets/hide_on_scroll.dart';
@@ -481,7 +482,8 @@ class NavFocusIcon extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final focused = Focus.maybeOf(context)?.hasFocus ?? false;
+    // keyboard focus only: hidden once the screen is touched (focus_rings.dart)
+    final focused = (Focus.maybeOf(context)?.hasFocus ?? false) && FocusRings.of(context);
     const ring = BorderSide(color: PH.ice, width: 2);
     final pill = NavigationBarTheme.of(context).indicatorShape;
     return SizedBox(

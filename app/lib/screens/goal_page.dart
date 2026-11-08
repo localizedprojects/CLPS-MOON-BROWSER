@@ -13,6 +13,7 @@ import 'package:flutter/material.dart';
 import '../core/ranking.dart';
 import '../state/app_state.dart';
 import '../theme.dart';
+import '../widgets/focus_rings.dart';
 import '../widgets/glyphs.dart';
 import '../widgets/goal_chips.dart';
 
@@ -139,7 +140,7 @@ class _GoalCardState extends State<_GoalCard> {
           borderRadius: BorderRadius.circular(PH.radiusInner),
           // keyboard focus is the 2 px ice ring; the last choice keeps a
           // stronger navy hairline (never ice) and its "Last time" label
-          side: _focused
+          side: _focused && FocusRings.of(context)
               ? const BorderSide(color: PH.ice, width: 2)
               : BorderSide(color: last ? PH.lineStrong : PH.line, width: last ? 1.5 : 1),
         ),

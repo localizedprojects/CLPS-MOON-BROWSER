@@ -19,6 +19,7 @@ import 'hide_on_scroll.dart';
 import 'no_page_swipe.dart';
 import 'feature_guide.dart';
 import 'focus_semantics.dart';
+import 'focus_rings.dart';
 import 'keyboard_focus_ring.dart';
 
 /// The time slider's name for screen readers.
@@ -413,6 +414,7 @@ class _TimeScrubberState extends State<TimeScrubber> {
           // measured in the style the label's Text really gets (the ambient
           // style merged in), so the fixed box below always holds it
           final shownStyle = DefaultTextStyle.of(context).style.merge(labelStyle);
+          final rings = FocusRings.of(context); // keyboard focus only (focus_rings.dart)
           double width(String t) {
             final tp = TextPainter(
                 text: TextSpan(text: t, style: shownStyle), textDirection: TextDirection.ltr, textScaler: scaler, maxLines: 1)
@@ -456,7 +458,7 @@ class _TimeScrubberState extends State<TimeScrubber> {
                   shape: const WidgetStatePropertyAll(
                       RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(PH.radius)))),
                   // a hairline says it is a control; the 2 px ice ring shows focus
-                  side: WidgetStateProperty.resolveWith((st) => st.contains(WidgetState.focused)
+                  side: WidgetStateProperty.resolveWith((st) => rings && st.contains(WidgetState.focused)
                       ? const BorderSide(color: PH.ice, width: 2)
                       : const BorderSide(color: PH.line)),
                 ),

@@ -23,6 +23,7 @@ import '../core/score.dart' show formulaText;
 import '../core/wording.dart' show periodLabel;
 import '../state/app_state.dart';
 import '../theme.dart';
+import 'focus_rings.dart';
 import 'glyphs.dart';
 import 'goal_chips.dart';
 import 'sheets/mission_settings_sheet.dart' show showMissionSettings;
@@ -382,9 +383,10 @@ class _LandingWindowCardState extends State<LandingWindowCard> {
 // ------------------------------------------------------------ parts
 
 /// A length segment's outline: the 2 px ice focus ring when focused (a
-/// constant side would hide the theme's ring), else the hairline.
-WidgetStateProperty<BorderSide?> landingSegmentSide(bool selected) => WidgetStateProperty.resolveWith((states) =>
-    states.contains(WidgetState.focused)
+/// constant side would hide the theme's ring) and [rings] (keyboard focus
+/// shown, [FocusRings.of]), else the hairline.
+WidgetStateProperty<BorderSide?> landingSegmentSide(bool selected, {bool rings = true}) =>
+    WidgetStateProperty.resolveWith((states) => rings && states.contains(WidgetState.focused)
         ? const BorderSide(color: PH.ice, width: 2)
         : BorderSide(color: selected ? PH.lineStrong : PH.line));
 
@@ -464,7 +466,7 @@ class _LengthSegments extends StatelessWidget {
                   backgroundColor: sel ? PH.selected : null,
                   foregroundColor: PH.text,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(PH.radiusInner)),
-                ).copyWith(side: landingSegmentSide(sel)),
+                ).copyWith(side: landingSegmentSide(sel, rings: FocusRings.of(context))),
                 child: Semantics(
                   selected: sel,
                   inMutuallyExclusiveGroup: true,

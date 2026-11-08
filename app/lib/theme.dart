@@ -104,18 +104,21 @@ TextStyle statStyle({double size = 28, FontWeight weight = FontWeight.w600, Colo
     color: color,
     fontFeatures: const [FontFeature.tabularFigures()]);
 
-/// Hairline that turns into the 2 px ice focus ring (segmented / outlined buttons).
-WidgetStateProperty<BorderSide?> _side({double width = 1, Color color = PH.line, Color? selected}) =>
+/// Hairline that turns into the 2 px ice focus ring (segmented / outlined
+/// buttons); with [rings] false (no keyboard focus shown, see FocusRings) it
+/// stays the hairline.
+WidgetStateProperty<BorderSide?> _side({required bool rings, double width = 1, Color color = PH.line, Color? selected}) =>
     WidgetStateProperty.resolveWith((s) {
-      if (s.contains(WidgetState.focused)) return const BorderSide(color: PH.ice, width: 2);
+      if (rings && s.contains(WidgetState.focused)) return const BorderSide(color: PH.ice, width: 2);
       if (selected != null && s.contains(WidgetState.selected)) return BorderSide(color: selected, width: width);
       return BorderSide(color: color, width: width);
     });
 
-/// Borderless until focused, then a 2 px ring. Drawn just outside the shape so
-/// it stays visible on the ice primary button as well as on tonal ones.
-WidgetStateProperty<BorderSide?> _focusRing({Color color = PH.ice, bool outside = false}) =>
-    WidgetStateProperty.resolveWith((s) => s.contains(WidgetState.focused)
+/// Borderless until focused, then a 2 px ring ([rings] false: never). Drawn
+/// just outside the shape so it stays visible on the ice primary button as
+/// well as on tonal ones.
+WidgetStateProperty<BorderSide?> _focusRing({required bool rings, Color color = PH.ice, bool outside = false}) =>
+    WidgetStateProperty.resolveWith((s) => rings && s.contains(WidgetState.focused)
         ? BorderSide(color: color, width: 2, strokeAlign: outside ? BorderSide.strokeAlignOutside : BorderSide.strokeAlignInside)
         : null);
 
@@ -136,7 +139,11 @@ class _FadePageTransitionsBuilder extends PageTransitionsBuilder {
   }
 }
 
-ThemeData buildTheme() {
+/// The app theme. [focusRings] false gives the same theme without the 2 px
+/// ice focus rings of its buttons, segmented buttons and chips: Material
+/// marks a control focused whenever it has the focus, also after a touch, so
+/// FocusRings (focus_rings.dart) swaps these parts by the highlight mode.
+ThemeData buildTheme({bool focusRings = true}) {
   const scheme = ColorScheme.dark(
     primary: PH.ice,
     onPrimary: PH.bg,
@@ -212,7 +219,7 @@ ThemeData buildTheme() {
     segmentedButtonTheme: SegmentedButtonThemeData(
       style: ButtonStyle(
         shape: const WidgetStatePropertyAll(pill),
-        side: _side(),
+        side: _side(rings: focusRings),
         minimumSize: const WidgetStatePropertyAll(Size(48, 48)),
         padding: const WidgetStatePropertyAll(EdgeInsets.symmetric(horizontal: 16)),
         backgroundColor: WidgetStateProperty.resolveWith((s) => s.contains(WidgetState.selected) ? PH.selected : Colors.transparent),
@@ -231,7 +238,7 @@ ThemeData buildTheme() {
         return s.contains(WidgetState.selected) ? PH.selected : PH.panelHi;
       }),
       side: WidgetStateBorderSide.resolveWith(
-          (s) => s.contains(WidgetState.focused) ? const BorderSide(color: PH.ice, width: 2) : BorderSide.none),
+          (s) => focusRings && s.contains(WidgetState.focused) ? const BorderSide(color: PH.ice, width: 2) : BorderSide.none),
       shape: pill,
       labelStyle: const TextStyle(fontFamily: PH.sans, fontSize: 14, fontWeight: FontWeight.w500, color: PH.text),
       secondaryLabelStyle: const TextStyle(fontFamily: PH.sans, fontSize: 14, fontWeight: FontWeight.w600, color: PH.text),
@@ -247,7 +254,7 @@ ThemeData buildTheme() {
       // FilledButton.tonal = #1C3358 (secondaryContainer)
       style: ButtonStyle(
         shape: const WidgetStatePropertyAll(pill),
-        side: _focusRing(color: PH.text, outside: true),
+        side: _focusRing(rings: focusRings, color: PH.text, outside: true),
         minimumSize: const WidgetStatePropertyAll(Size(64, 48)),
         padding: const WidgetStatePropertyAll(EdgeInsets.symmetric(horizontal: 22)),
         textStyle: const WidgetStatePropertyAll(_buttonText),
@@ -257,7 +264,7 @@ ThemeData buildTheme() {
     outlinedButtonTheme: OutlinedButtonThemeData(
       style: ButtonStyle(
         shape: const WidgetStatePropertyAll(pill),
-        side: _side(color: PH.lineStrong),
+        side: _side(rings: focusRings, color: PH.lineStrong),
         foregroundColor: const WidgetStatePropertyAll(PH.text),
         minimumSize: const WidgetStatePropertyAll(Size(64, 48)),
         padding: const WidgetStatePropertyAll(EdgeInsets.symmetric(horizontal: 20)),
@@ -271,7 +278,7 @@ ThemeData buildTheme() {
         foregroundColor: const WidgetStatePropertyAll(PH.ice),
         minimumSize: const WidgetStatePropertyAll(Size(48, 48)),
         padding: const WidgetStatePropertyAll(EdgeInsets.symmetric(horizontal: 14)),
-        side: _focusRing(),
+        side: _focusRing(rings: focusRings),
         textStyle: const WidgetStatePropertyAll(_buttonText),
       ),
     ),
@@ -279,7 +286,7 @@ ThemeData buildTheme() {
       style: ButtonStyle(
         foregroundColor: const WidgetStatePropertyAll(PH.text),
         shape: const WidgetStatePropertyAll(CircleBorder()),
-        side: _focusRing(),
+        side: _focusRing(rings: focusRings),
         minimumSize: const WidgetStatePropertyAll(Size(48, 48)),
       ),
     ),

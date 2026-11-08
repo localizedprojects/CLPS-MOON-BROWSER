@@ -13,6 +13,7 @@ import '../core/summary.dart' show duration;
 import '../core/wording.dart';
 import '../state/app_state.dart';
 import '../theme.dart';
+import 'focus_rings.dart';
 import 'glyphs.dart';
 import 'stat_bar.dart';
 import 'terrain_thumb.dart';
@@ -189,7 +190,7 @@ class _FocusRingInkWellState extends State<FocusRingInkWell> {
           position: DecorationPosition.foreground,
           decoration: BoxDecoration(
             borderRadius: widget.borderRadius,
-            border: _focused ? Border.all(color: PH.ice, width: 2) : null,
+            border: _focused && FocusRings.of(context) ? Border.all(color: PH.ice, width: 2) : null,
           ),
           child: widget.child,
         ),

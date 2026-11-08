@@ -7,6 +7,7 @@ import 'state/app_state.dart';
 import 'state/chart_hub.dart';
 import 'theme.dart';
 import 'widgets/chart_composition.dart';
+import 'widgets/focus_rings.dart';
 import 'widgets/light_map.dart';
 import 'widgets/save_file.dart';
 
@@ -100,6 +101,8 @@ class _LunarHorizonAppState extends State<LunarHorizonApp> {
           title: 'Lunar Horizon',
           debugShowCheckedModeBanner: false,
           theme: buildTheme(),
+          // the focus rings show for the keyboard only (focus_rings.dart)
+          builder: (context, child) => FocusRings(child: child!),
           scaffoldMessengerKey: _messenger,
           routerDelegate: _router,
           routeInformationParser: const ShellRouteParser(),

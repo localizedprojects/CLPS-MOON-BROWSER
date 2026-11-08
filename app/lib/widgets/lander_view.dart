@@ -457,6 +457,7 @@ class LanderViewPanelState extends State<LanderViewPanel> with TickerProviderSta
   static final _flatSky = Float64List(720);
 
   /// Every far-frame request this panel sent (tests).
+  @visibleForTesting
   final List<LightRequest> farRequests = [];
   LanderMesh? get mesh => _mesh;
   Object? get meshError => _meshError;

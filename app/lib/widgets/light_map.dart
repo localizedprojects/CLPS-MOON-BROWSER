@@ -230,6 +230,7 @@ class LightImageKeeper {
   bool get catchingUp => pending && _active && !_disposed && _engine != null && _deviceSide > 0;
 
   /// Number of overlays built so far (for tests).
+  @visibleForTesting
   int builds = 0;
 
   /// Set any of the inputs; work (if any) starts in a microtask.
@@ -379,6 +380,7 @@ class ReliefKeeper {
   ReliefWindow? _shownWin;
 
   /// How many pictures have been built (tests).
+  @visibleForTesting
   int builds = 0;
 
   LightView? _view, _asked;

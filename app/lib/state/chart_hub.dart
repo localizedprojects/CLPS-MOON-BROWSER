@@ -10,7 +10,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 
-import 'package:flutter/foundation.dart' show ValueNotifier;
+import 'package:flutter/foundation.dart' show ValueNotifier, visibleForTesting;
 
 import '../core/export_csv.dart';
 import '../core/metrics.dart';
@@ -134,6 +134,7 @@ class ChartHub {
 
   /// How many full payloads have been sent per chart (tests check that
   /// unrelated changes do not re-send them).
+  @visibleForTesting
   final Map<String, int> sentPayloads = {'sky': 0, 'timeline': 0, 'compare': 0};
 
   /// Push the latest state to the charts. Cheap enough to call on every

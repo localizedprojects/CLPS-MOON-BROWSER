@@ -143,6 +143,7 @@ class LanderFullScreenPageState extends State<LanderFullScreenPage> {
   LightFrame? get _siteNear => _ofSite(_near);
 
   /// The panel's state (tests; the site switcher keeps its camera with it).
+  @visibleForTesting
   LanderViewPanelState? get panel => _panel.currentState;
 
   @override

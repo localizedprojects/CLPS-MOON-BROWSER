@@ -9,6 +9,8 @@ library;
 import 'dart:math' as math;
 import 'dart:typed_data';
 
+import 'package:flutter/foundation.dart' show visibleForTesting;
+
 import '../core/dem.dart' show latLonToXY;
 import '../core/geo.dart';
 import '../core/lander_view.dart' show landerFarPx;
@@ -516,6 +518,7 @@ class CachedLightEngine extends LightEngine {
   final _overlaysInFlight = <String, Future<LightOverlay>>{};
 
   /// Counters, for tests and measurements.
+  @visibleForTesting
   int frameHits = 0, frameMisses = 0, overlayHits = 0, overlayMisses = 0;
 
   CachedLightEngine(this.inner, LightCacheBudget budget)

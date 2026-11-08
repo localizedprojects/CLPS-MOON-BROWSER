@@ -11,7 +11,7 @@
 - Against JPL Horizons (8,688 directions, 8 sites, three 30-day windows), the app is off by at most 0.00013′ for the Sun and 0.0016′ for Earth. The check is sensitive: using the MOON_PA lunar frame instead would put it up to 1.73′ off.
 - Over 18.6 years, 14 region and landing sites differ from the LOLA team's average-visibility maps by 1.98 (Sun) and 1.78 (Earth) percentage points on average. At 5 ridge and peak points from the literature the Sun difference averages 7.33 points (max 20.3), mainly because terrain smaller than a DEM pixel matters there.
 - On the 400 m grid, the light map's lit-or-not call agrees in 94.4% of 960 checks with horizons computed from the same 400 m terrain, and in 87.4% with the sharper 80 m site horizons. The 800 m region grid scores 90.8% and 82.4%.
-- The app shows these checks on its Validation & assumptions page ("Can I trust these numbers?") (the light map as an 82–94% range).
+- The app shows these checks on its Validation & assumptions page ("Can I trust these numbers?"), which gives the light map as an 82–94% range.
 
 **What it adds.**
 - *Find the best landing window*: for a surface mission of 1 to 30 days, the earliest span of landing times that keeps the Sun and Earth above the skyline for the whole mission, with a suggested landing that keeps both at least 0.25° above it (otherwise the closest fit, and the card says so). An approximation badge says the timing is limited by the terrain, not the ephemeris.

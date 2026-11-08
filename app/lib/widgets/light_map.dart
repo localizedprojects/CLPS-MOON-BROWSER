@@ -1751,7 +1751,9 @@ class _Swatch extends CustomPainter {
 const arrowLabelStep = 48.0;
 
 /// How far a remembered arrow label is drawn back towards its spot just past
-/// its head on each layout, once nothing keeps it aside ([layoutArrowLabels]).
+/// its head on each layout, once nothing keeps it aside, and the most it
+/// moves on a layout beyond its head's own move: a label that must change
+/// sides glides there ([layoutArrowLabels]).
 const arrowLabelSettle = 12.0;
 
 /// How far a remembered arrow label's edge may be from its arrow head (it
@@ -1759,6 +1761,15 @@ const arrowLabelSettle = 12.0;
 /// two further) before [layoutArrowLabels] draws it back towards the fresh
 /// layout's spot by its head.
 const arrowLabelReach = 48.0;
+
+/// How far an arrow label moved from [from] (its centre, its box [was]) to
+/// [to] (its box [size]): the least of its centre's and its two ends' moves,
+/// so a label whose words grow or shrink in place (at the map's edge, from
+/// the end there) has not moved ([layoutArrowLabels]).
+double arrowLabelMove(Offset from, Size was, Offset to, Size size) {
+  final d = to - from, grow = (size.width - was.width) / 2;
+  return [d.distance, (d - Offset(grow, 0)).distance, (d + Offset(grow, 0)).distance].reduce(math.min);
+}
 
 /// The dark rounded backing drawn behind each arrow label (2 px round its
 /// box). On sunlit regolith the labels' colours alone were close to
@@ -1808,7 +1819,9 @@ typedef ArrowLabel = ({Offset from, Offset tip, Size size});
 /// (the labels are drawn over the arrows), so Play (the arrows turning a
 /// little and the label words changing on every step) does not make a label
 /// jump between spots while one a short step away is clear of the site, its
-/// name and the notes.
+/// name and the notes. And it gets to its new spot in glides of at most its
+/// head's move plus [arrowLabelSettle] a layout, round the site, its name and
+/// the notes ([arrowLabelPath]).
 List<Offset> layoutArrowLabels({
   required List<ArrowLabel> arrows,
   required Size canvas,
@@ -1902,6 +1915,10 @@ List<Offset> layoutArrowLabels({
     Offset at;
     if (prev == null) {
       at = fresh();
+    } else if (!stepped && inside(a.size, prev) == prev && clearOf(box(prev), keepClear)) {
+      // no Play step (a note came or went elsewhere): it stays, wherever its
+      // glide had got to (over the other label too, as it slides past it)
+      at = prev;
     } else {
       // near where the label was: it moves on only as far as it must. It
       // never covers its own head or a label; covering the other arrow's
@@ -2030,6 +2047,101 @@ List<Offset> layoutArrowLabels({
           if (ways.isNotEmpty) at = nearestTo(f, ways);
         }
       }
+      // and it glides there: on each layout it moves at most its head's
+      // move plus a settle step from where it was ([arrowLabelSettle]), so a
+      // change of side takes a few steps rather than one hop (1.13.5, K1:
+      // on Android 7 at IM-1 Odysseus the Sun label hopped 34 to 43 px in a
+      // step while its head moved 6 to 12 px, from above its head to below
+      // it or out to the map's edge, and the Earth label 21 px with its head
+      // still). On the way it may cross a head or a shaft (the heads stay in
+      // sight under its words, [arrowLabelBackingPath]), never the site, its
+      // name or a note, and it stays inside the map shown. The Sun label
+      // (drawn over the Earth one) slides over the Earth label for a step or
+      // two where the way round it is far longer, rather than lag far behind
+      // its head.
+      // Its words change width from step to step: it stays put when its
+      // centre or either end does ([arrowLabelMove]). With no such step clear
+      // (its words grew where it has no room, or the shown part or a note
+      // changed under it) it takes the shortest step that is
+      final most = headMoved + arrowLabelSettle;
+      final goal = at;
+      final was = memory.sizes.elementAtOrNull(i) ?? a.size;
+      final grow = Offset((w - was.width) / 2, 0);
+      final shift = a.tip - (prevTip ?? a.tip);
+      double away(Offset c) => arrowLabelMove(prev, was, c, a.size);
+      // (and, while it can, it keeps room for the widest its words have
+      // been in this run, so when they grow again it need not step out of
+      // the way of the site or a note: at IM-1 Odysseus on a phone the Sun
+      // label tucked beside the site at the map's edge had to step 25 px
+      // up when its words grew 8 px)
+      final room = math.max(w, memory.rooms.elementAtOrNull(i) ?? w);
+      bool roomy(Offset c) => clearOf(Rect.fromCenter(center: inside(Size(room, h), c), width: room, height: h), keepClear);
+      if (stepped && (away(goal) > most + 1e-9 || !roomy(goal))) {
+        final blocks = [...placed, ...keepClear];
+        bool firm(Offset c) => clearOf(box(c), blocks);
+        final glides = <Offset>[
+          for (final p in [prev, prev + grow, prev - grow]) ...[
+            p,
+            p + shift,
+            if ((goal - p - shift).distance > 1e-9)
+              p + shift + (goal - p - shift) / (goal - p - shift).distance * math.min((goal - p - shift).distance, arrowLabelSettle),
+            if ((goal - p).distance > 1e-9) p + (goal - p) / (goal - p).distance * math.min((goal - p).distance, most),
+            for (final (o, r) in [(p + shift, arrowLabelSettle), (p + shift, arrowLabelSettle / 2), (p, most)])
+              for (var j = 0; j < 32; j++) o + Offset.fromDirection(j * math.pi / 16, r),
+          ],
+        ].map((c) => inside(a.size, c)).where(firm).toList();
+        final bounded = glides.where((c) => away(c) <= most + 1e-9).toList();
+        final spacious = bounded.where(roomy).toList();
+        // the way there round the site, its name and the notes (over the
+        // other label only when there is no other way, or the one round is
+        // far longer: it slides over it rather than hop round it), as far
+        // as it may go along it on this step
+        Offset? along;
+        if (away(goal) > most + 1e-9) {
+          final way = arrowLabelPath(prev, goal, a.size, area.deflate(2), keepClear, placed, softCost: 2);
+          if (way != null) {
+            var k = 1;
+            while (k < way.length && (way[k] - prev).distance <= most) {
+              k++;
+            }
+            if (k >= way.length) {
+              along = way.last;
+            } else {
+              final p0 = way[k - 1], p1 = way[k];
+              var lo = 0.0, hi = 1.0;
+              for (var it = 0; it < 24; it++) {
+                final mid = (lo + hi) / 2;
+                if ((Offset.lerp(p0, p1, mid)! - prev).distance <= most) {
+                  lo = mid;
+                } else {
+                  hi = mid;
+                }
+              }
+              along = Offset.lerp(p0, p1, lo)!;
+              if (!clearOf(box(along), keepClear)) along = k > 1 ? p0 : null;
+            }
+          }
+        }
+        if (along != null && (roomy(along) || spacious.isEmpty)) {
+          at = along;
+        } else if (spacious.isNotEmpty) {
+          at = nearestTo(goal, spacious);
+        } else if (bounded.isNotEmpty) {
+          at = nearestTo(goal, bounded);
+        } else {
+          // the shortest step clear of them (or its spot, when that is nearer)
+          final further = [
+            for (final p in [prev, prev + grow, prev - grow])
+              for (var r = most + 2; r <= 6 * most; r += 2)
+                for (var j = 0; j < 64; j++) inside(a.size, p + Offset.fromDirection(j * math.pi / 32, r)),
+            ...glides,
+          ].where(firm).toList();
+          if (further.isNotEmpty) {
+            final c = further.reduce((x, y) => away(y) < away(x) - 1e-9 ? y : x);
+            if (away(c) < away(goal)) at = c;
+          }
+        }
+      }
     }
     placed.add(box(at));
     out.add(at);
@@ -2037,11 +2149,84 @@ List<Offset> layoutArrowLabels({
   memory?.centres = out;
   memory?.tips = [for (final a in arrows) a.tip];
   memory?.froms = [for (final a in arrows) a.from];
+  memory?.rooms = [
+    for (var i = 0; i < arrows.length; i++) math.max(arrows[i].size.width, memory.rooms.elementAtOrNull(i) ?? 0),
+  ];
   memory?.sizes = [for (final a in arrows) a.size];
   memory?.kept = [...keepClear];
   memory?._canvas = canvas;
   memory?._visible = visible;
   return out;
+}
+
+/// The way an arrow label's centre takes from [from] to [to] on a [cell] px
+/// grid: its box ([size]) inside [room] and never over [walls] (the site,
+/// its name, the notes); a step over [soft] (the other label) costs
+/// [softCost] times as much ([layoutArrowLabels]). Null when [to] cannot be
+/// reached.
+List<Offset>? arrowLabelPath(Offset from, Offset to, Size size, Rect room, List<Rect> walls, List<Rect> soft,
+    {double cell = 6, double softCost = 4}) {
+  final lo = Offset(room.left + size.width / 2, room.top + size.height / 2);
+  final hi = Offset(room.right - size.width / 2, room.bottom - size.height / 2);
+  final i0 = math.min(0, ((lo.dx - from.dx) / cell).ceil()), i1 = math.max(0, ((hi.dx - from.dx) / cell).floor());
+  final j0 = math.min(0, ((lo.dy - from.dy) / cell).ceil()), j1 = math.max(0, ((hi.dy - from.dy) / cell).floor());
+  final nx = i1 - i0 + 1, ny = j1 - j0 + 1, n = nx * ny;
+  Offset at(int k) => from + Offset((k % nx + i0) * cell, (k ~/ nx + j0) * cell);
+  // 0 not looked at, 1 clear, 2 over a soft area, 3 over a wall or outside
+  final kind = Uint8List(n);
+  int kindOf(int k) {
+    if (kind[k] == 0) {
+      final c = at(k);
+      final b = Rect.fromCenter(center: c, width: size.width, height: size.height);
+      kind[k] = c.dx < lo.dx - 1e-6 || c.dx > hi.dx + 1e-6 || c.dy < lo.dy - 1e-6 || c.dy > hi.dy + 1e-6 || walls.any(b.overlaps)
+          ? 3
+          : soft.any(b.overlaps)
+          ? 2
+          : 1;
+    }
+    return kind[k];
+  }
+
+  final start = -j0 * nx - i0;
+  final gi = ((to.dx - from.dx) / cell).round().clamp(i0, i1), gj = ((to.dy - from.dy) / cell).round().clamp(j0, j1);
+  final goal = (gj - j0) * nx + (gi - i0);
+  if (goal != start && kindOf(goal) == 3) return null;
+  final dist = Float64List(n)..fillRange(0, n, double.infinity);
+  final back = Int32List(n)..fillRange(0, n, -1);
+  final end = at(goal);
+  double f(int k) => dist[k] + (at(k) - end).distance;
+  final open = SplayTreeSet<int>((a, b) {
+    final c = f(a).compareTo(f(b));
+    return c != 0 ? c : a - b;
+  });
+  dist[start] = 0;
+  open.add(start);
+  while (open.isNotEmpty) {
+    final k = open.first;
+    open.remove(k);
+    if (k == goal) break;
+    final ki = k % nx, kj = k ~/ nx;
+    for (final (di, dj) in const [(1, 0), (-1, 0), (0, 1), (0, -1), (1, 1), (1, -1), (-1, 1), (-1, -1)]) {
+      final ii = ki + di, jj = kj + dj;
+      if (ii < 0 || ii >= nx || jj < 0 || jj >= ny) continue;
+      final q = jj * nx + ii, t = kindOf(q);
+      if (t == 3) continue;
+      final d = dist[k] + cell * (di != 0 && dj != 0 ? math.sqrt2 : 1) * (t == 2 ? softCost : 1);
+      if (d < dist[q] - 1e-9) {
+        open.remove(q);
+        dist[q] = d;
+        back[q] = k;
+        open.add(q);
+      }
+    }
+  }
+  if (goal != start && back[goal] < 0) return null;
+  final way = <Offset>[to];
+  for (var k = back[goal]; k >= 0 && k != start; k = back[k]) {
+    way.add(at(k));
+  }
+  way.add(from);
+  return way.reversed.toList();
 }
 
 /// The arrow-label spots of the last layout, kept by the map between frames
@@ -2057,6 +2242,10 @@ class ArrowLabelMemory {
   /// The last layout's label sizes and the areas it kept clear (for tests).
   List<Size> sizes = const [];
   List<Rect> kept = const [];
+
+  /// The widest each label's words have been since the spots were last
+  /// forgotten ([layoutArrowLabels] keeps room for them).
+  List<double> rooms = const [];
   Size? _canvas;
   Rect? _visible;
 
@@ -2086,6 +2275,7 @@ class ArrowLabelMemory {
     centres = tips = froms = const [];
     sizes = const [];
     kept = const [];
+    rooms = const [];
     _canvas = null;
     _visible = null;
     _key = null;

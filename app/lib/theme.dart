@@ -610,6 +610,10 @@ class _FidelityBadgeState extends State<FidelityBadge> {
     return Padding(
       padding: const EdgeInsets.only(top: 8),
       child: Semantics(
+        // a note with More is a button of its own: it merged up with a
+        // caption above it (the Explore top pick: one 408x594 node whose
+        // Tab stop read both, 1.13.5 review)
+        container: more,
         label: 'Approximation: $full',
         button: more,
         onTap: more ? () => setState(() => _open = !_open) : null,

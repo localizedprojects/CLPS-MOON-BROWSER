@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'widgets/focus_rings.dart';
 import 'widgets/focus_semantics.dart';
 
 /// Lunar Horizon design tokens: calm deep navy. Depth comes from tone (darker
@@ -574,6 +575,7 @@ class FidelityBadge extends StatefulWidget {
 
 class _FidelityBadgeState extends State<FidelityBadge> {
   late bool _open = widget.expanded;
+  bool _focused = false;
 
   @override
   Widget build(BuildContext context) {
@@ -617,7 +619,18 @@ class _FidelityBadgeState extends State<FidelityBadge> {
                 child: InkWell(
                   borderRadius: BorderRadius.circular(PH.radiusInner),
                   onTap: () => setState(() => _open = !_open),
-                  child: body,
+                  onFocusChange: (f) => setState(() => _focused = f),
+                  // the 2 px ice ring goes over the note's opaque fill (the
+                  // ink well's focus tint, behind it, never showed); keyboard
+                  // focus only (FocusRings), as FocusRingInkWell
+                  child: DecoratedBox(
+                    position: DecorationPosition.foreground,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(PH.radiusInner),
+                      border: _focused && FocusRings.of(context) ? Border.all(color: PH.ice, width: 2) : null,
+                    ),
+                    child: body,
+                  ),
                 ),
               )
             : body),

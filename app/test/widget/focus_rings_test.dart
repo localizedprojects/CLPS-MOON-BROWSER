@@ -166,6 +166,49 @@ void main() {
       await tester.pump();
       expect(cardRing(tester), isNull);
     });
+
+    testWidgets('an approximation note with "More" (FidelityBadge): a ring over its fill with keyboard focus, '
+        'none after a touch, again with the next key', (tester) async {
+      // 1.13.5 review: the ink well's focus tint sat behind the note's opaque
+      // fill, so a Tab stop on it showed nothing at all
+      await tester.pumpWidget(MaterialApp(
+        theme: buildTheme(),
+        builder: (context, child) => FocusRings(child: child!),
+        home: const Scaffold(
+          body: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            FidelityBadge(text: 'Computed light from the 400 m map. It leaves out the near terrain and the eclipses here.'),
+            SizedBox(height: 200, width: 300, child: Center(child: Text('blank'))),
+          ]),
+        ),
+      ));
+      await tester.pump();
+      final badge = find.byType(FidelityBadge);
+      Border? ring() {
+        final over = tester
+            .widgetList<DecoratedBox>(find.descendant(of: badge, matching: find.byType(DecoratedBox)))
+            .where((b) => b.position == DecorationPosition.foreground);
+        expect(over, hasLength(1), reason: 'one ring box, drawn over the fill');
+        return (over.single.decoration as BoxDecoration).border as Border?;
+      }
+
+      expect(find.textContaining('More'), findsOneWidget);
+      expect(ring(), isNull, reason: 'no ring before the focus');
+      await tab(tester);
+      expect(focusIn(badge), isTrue, reason: 'Tab reaches the note');
+      expect(ring()?.top, const BorderSide(color: PH.ice, width: 2), reason: 'keyboard focus shows the ring');
+      await tester.tapAt(tester.getCenter(find.text('blank')));
+      await tester.pump();
+      expect(focusIn(badge), isTrue, reason: 'the note keeps the focus');
+      expect(ring(), isNull, reason: 'no ring after a touch');
+      await tester.sendKeyEvent(LogicalKeyboardKey.shiftLeft);
+      await tester.pump();
+      expect(ring()?.top, const BorderSide(color: PH.ice, width: 2), reason: 'a key shows it again');
+      // Enter opens the note; the ring stays with the focus
+      await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+      await tester.pump();
+      expect(find.textContaining('Less'), findsOneWidget);
+      expect(ring()?.top.color, PH.ice);
+    });
   });
 
   group('on Android', () {

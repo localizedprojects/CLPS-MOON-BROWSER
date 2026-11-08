@@ -221,6 +221,28 @@ void main() {
           reason: 'columns end ${left.bottom.round()} and ${right.bottom.round()}, at $w');
     }
   });
+  testWidgets('one column: each card once, in the phone order (start, views, words, trust, score, keys, credits)',
+      (tester) async {
+    // 1.13.5 review: below 840 dp the keyboard keys showed twice, after the
+    // views and again before the credits. (Tall surfaces, so the lazy list
+    // builds every card.)
+    for (final w in [360.0, 390.0, 768.0, 839.0]) {
+      await pumpLearn(tester, w: w, h: 40000);
+      expect(find.text('On the Site screen, when no button or slider has focus:', skipOffstage: false), findsOneWidget,
+          reason: 'keyboard keys once, at $w');
+      expect(find.text('Play or pause', skipOffstage: false), findsOneWidget, reason: 'at $w');
+      final cards = ['_StartHere', '_Views', '_Glossary', '_TrustCard', '_ScoreCard', '_Shortcuts', '_Credits'];
+      final tops = <double>[];
+      for (final type in cards) {
+        final f = find.byWidgetPredicate((x) => x.runtimeType.toString() == type, skipOffstage: false);
+        expect(f, findsOneWidget, reason: '$type once, at $w');
+        tops.add(tester.getRect(f).top);
+      }
+      for (var i = 1; i < tops.length; i++) {
+        expect(tops[i], greaterThan(tops[i - 1]), reason: '${cards[i]} below ${cards[i - 1]}, at $w');
+      }
+    }
+  });
   testWidgets('credits: the Use of AI note, the data, station and code credits, and named 48 dp addresses',
       (tester) async {
     await pumpLearn(tester, w: 1280, h: 4000);

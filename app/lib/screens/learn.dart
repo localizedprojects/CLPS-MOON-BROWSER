@@ -56,7 +56,9 @@ class LearnScreen extends StatelessWidget {
             ])
           else ...[
             // the spec's phone order: start, views, words, trust, score, keys, credits
-            ...left,
+            // (not `...left`, which holds the keys too: they showed twice)
+            const _StartHere(),
+            const _Views(),
             const _Glossary(),
             const _TrustCard(),
             const _ScoreCard(),

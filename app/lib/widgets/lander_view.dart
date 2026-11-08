@@ -48,10 +48,14 @@ class _Callout {
       required this.words,
       required this.leader,
       required this.paint,
+      this.tier = 0,
       this.nth});
   final Rect? box;
   final bool fits;
   final int cost;
+  // where [box] sits ([LanderPainter.calloutPlace]): 0 under the compass strip, 1 over its sky, 2
+  // in the disc's margin, 3 no place found
+  final int tier;
   final _Words words;
   final void Function() leader, paint;
   final _Callout Function(int skip)? nth;
@@ -1776,6 +1780,10 @@ class LanderPainter extends CustomPainter {
   /// is drawn under its glyph.
   static const double glyphR = 9;
 
+  /// A callout box farther than this from its glyph is far from it: where
+  /// one in a narrower box fits by it, that one is shown ([_callout]).
+  static const double farPx = 48;
+
   /// How many of a callout's [calloutPlace] prefer sets, the first ones, keep
   /// off the other body's disc and leader: a box whose cost is this or more
   /// goes over them (or fits nowhere).
@@ -1980,14 +1988,16 @@ class LanderPainter extends CustomPainter {
   /// sits on it) and of the glyph's centre; in order, a place:
   ///  1. inside the view (under the compass strip, over the bottom strip's
   ///     boxes, [strip]) clear of the disc with its 3 px margin and of the
-  ///     glyph, else moved whole into a short view;
-  ///  2. the same over the glyph's edge (painted over the box);
-  ///  3. above or beside the disc over the compass strip's sky (a body just
+  ///     glyph, else moved whole into a short view (`tier` 0);
+  ///  2. above or beside the disc over the compass strip's sky (a body just
   ///     under the strip in a short view), never over [keep] (an edge
   ///     chevron's words, the other body's azimuth marker): just under them
-  ///     where that fits;
-  ///  4. within the disc's 3 px margin, clear of the disc itself (1.9.1 kept
-  ///     such a box and the centre readout).
+  ///     where that fits (`tier` 1);
+  ///  3. within the disc's 3 px margin, clear of the disc itself (1.9.1 kept
+  ///     such a box and the centre readout; `tier` 2).
+  /// No tier goes over the glyph's body (1.13.5; to 1.13.4 a box could reach
+  /// over its edge, painted over the box): where the words on one line find
+  /// no place, [_callout] tries them in a narrower box first.
   /// No box goes under the bottom strip's boxes (1.9.1: under the centre
   /// readout, which hid the second line; W18); they are a floor only for a
   /// box above them (2 px apart): one beside the legend may go lower (1.9.2:
@@ -2005,8 +2015,8 @@ class LanderPainter extends CustomPainter {
   /// fits false), for a joint search of both callouts ([calloutFits] finds
   /// that list once and asks it for each). [cost]: the index of the first
   /// [prefer] set the box keeps clear of (all of them: 0; none, or no fit:
-  /// [prefer]'s length).
-  static ({Rect box, bool fits, int cost}) calloutPlace(
+  /// [prefer]'s length). `tier`: the tier of the place (none fits: 3).
+  static ({Rect box, bool fits, int cost, int tier}) calloutPlace(
           LanderView v, CalloutAnchor a, Size box, List<Rect> avoid, double top,
           {List<Rect> strip = const [],
           bool up = false,
@@ -2023,7 +2033,7 @@ class LanderPainter extends CustomPainter {
   /// each [prefer] set, kept for the next call with the same [box] size,
   /// [strip], [keep] and [prefer] (those differing only in [avoid], [top],
   /// [up], [reticle] or the anchor share it).
-  static ({Rect box, bool fits, int cost}) Function(int skip) calloutFits(
+  static ({Rect box, bool fits, int cost, int tier}) Function(int skip) calloutFits(
       LanderView v, CalloutAnchor a, Size box, List<Rect> avoid, double top,
       {List<Rect> strip = const [],
       bool up = false,
@@ -2107,15 +2117,13 @@ class LanderPainter extends CustomPainter {
     ];
     bool inside(Rect r) => r.left >= 0 && r.right <= v.w && r.top >= compassH + 1 && r.bottom <= floorAt(r.left);
     bool off(Rect r) => !avoid.any(r.overlaps);
-    // the glyph's body (its ray tips may go under a box's edge)
+    // the glyph's body (its ray tips may go under a box's edge): no box goes over it (1.13.5; 1.9.2 to
+    // 1.13.4: over its edge where nothing else fitted, painted over the box; the caller wraps the words
+    // to a narrower box first)
     final glyph = Rect.fromCircle(center: a.glyph, radius: glyphR - 2);
-    // where nothing keeps clear of it all: a box may reach over the glyph's
-    // edge (painted over the box), never over its centre
-    final core = Rect.fromCircle(center: a.glyph, radius: 2);
-    bool edge(Rect r) => !r.overlaps(disc) && (reticle == null || !r.overlaps(reticle)) && !r.overlaps(core);
-    bool clear(Rect r) => edge(r) && !r.overlaps(glyph);
+    bool clear(Rect r) => !r.overlaps(disc) && (reticle == null || !r.overlaps(reticle)) && !r.overlaps(glyph);
     // within the disc's margin, clear of the disc itself
-    bool near(Rect r) => !onDisc(r) && (reticle == null || !r.overlaps(reticle)) && !r.overlaps(core);
+    bool near(Rect r) => !onDisc(r) && (reticle == null || !r.overlaps(reticle)) && !r.overlaps(glyph);
     // a short view: the same places moved whole into it, under [head] (the
     // compass strip, else the view's top) and over the floor: over the
     // compass strip's sky rather than over the reticle or the bottom strip
@@ -2172,14 +2180,10 @@ class LanderPainter extends CustomPainter {
     final tiers = [
       (() => cands, (Rect r) => inside(r) && clear(r) && off(r)),
       (() => shifted, (Rect r) => clear(r) && off(r)),
-      // over the glyph's edge (painted over the box) rather than over the bottom strip
-      (() => cands, (Rect r) => inside(r) && edge(r) && off(r)),
-      (() => shifted, (Rect r) => edge(r) && off(r)),
       // above the disc, over the compass strip (painted over it), never under the bottom strip
       // (with [overStrip] off, text scaled up, only down in the strip's tick band, clear of its
       // headings; the caller shortens the words first)
       (() => high, (Rect r) => overHeads(r) && clear(r) && off(r)),
-      (() => high, (Rect r) => overHeads(r) && edge(r) && off(r)),
       // within the disc's 3 px margin, clear of the disc itself
       (() => cands, (Rect r) => inside(r) && near(r) && off(r)),
       (() => shifted, (Rect r) => near(r) && off(r))
@@ -2188,7 +2192,7 @@ class LanderPainter extends CustomPainter {
     // (each tier's places that pass its test, kept from the first set's pass for the others;
     // a set with every box of an earlier one adds none)
     final sets = [...prefer, const <Rect>[]];
-    Iterable<(Rect, int)> search() sync* {
+    Iterable<(Rect, int, int)> search() sync* {
       final seen = <Rect>{};
       final passed = <List<Rect>>[];
       for (var i = 0; i < sets.length; i++) {
@@ -2202,23 +2206,22 @@ class LanderPainter extends CustomPainter {
               if (!ok(r)) continue;
               passed[t].add(r);
             }
-            if (!sets[i].any(r.overlaps) && seen.add(r)) yield (r, i);
+            if (!sets[i].any(r.overlaps) && seen.add(r)) yield (r, i, t < 2 ? 0 : (t == 2 ? 1 : 2));
           }
         }
       }
     }
 
     // none fits (skip 0)
-    ({Rect box, bool fits, int cost}) none() {
+    ({Rect box, bool fits, int cost, int tier}) none() {
       for (final (list, ok) in [
         // over [avoid] (not a fit: the caller may make room and ask again)
         (cands, (Rect r) => inside(r) && clear(r)),
         (shifted, clear),
-        (high, clear),
-        (high, edge)
+        (high, clear)
       ]) {
         for (final r in list) {
-          if (ok(r)) return (box: r, fits: off(r) && (!identical(list, high) || overHeads(r)), cost: prefer.length);
+          if (ok(r)) return (box: r, fits: off(r) && (!identical(list, high) || overHeads(r)), cost: prefer.length, tier: 3);
         }
       }
       // nothing fits (a tiny view, or the bottom strip's readout takes the room:
@@ -2226,18 +2229,21 @@ class LanderPainter extends CustomPainter {
       // position, over the floor
       final x = math.max(0.0, math.min(cands.first.left, v.w - w));
       final last = Rect.fromLTWH(x, math.max(0.0, math.min(top, floorAt(x) - h)), w, h);
-      return (box: last, fits: inside(last) && near(last) && off(last), cost: prefer.length);
+      return (box: last, fits: inside(last) && near(last) && off(last), cost: prefer.length, tier: 3);
     }
 
-    final found = <(Rect, int)>[], next = search().iterator;
+    final found = <(Rect, int, int)>[], next = search().iterator;
     var more = true;
     return (skip) {
       while (more && found.length <= skip) {
         more = next.moveNext();
         if (more) found.add(next.current);
       }
-      if (skip < found.length) return (box: found[skip].$1, fits: true, cost: found[skip].$2);
-      return skip > 0 ? (box: cands.first, fits: false, cost: prefer.length) : none();
+      if (skip < found.length) {
+        final (box, cost, tier) = found[skip];
+        return (box: box, fits: true, cost: cost, tier: tier);
+      }
+      return skip > 0 ? (box: cands.first, fits: false, cost: prefer.length, tier: 3) : none();
     };
   }
 
@@ -2248,6 +2254,10 @@ class LanderPainter extends CustomPainter {
   /// Earth's position line when [merged] (Earth's words in the Sun's callout,
   /// where no place of their own keeps clear of it). [strip]: the bottom
   /// strip's boxes ([calloutPlace]). [a]: the body's [calloutAnchor] (none: no callout).
+  /// Each line on one line first; where that box finds no place clear of its
+  /// glyph and the soft keeps under the compass strip, each position line in
+  /// two (the elevation under the azimuth), a narrower box, where that one
+  /// fits better (1.13.5: no box over its glyph's edge).
   /// [memo]: [calloutFits]'s memo for each body, box size and merged or not,
   /// shared by the calls for one [strip] (the same [keep] and [prefer] each).
   _Callout? _callout(Canvas canvas, LanderView v, CalloutAnchor? a, SkyBody b, bool isSun, List<Rect> avoid,
@@ -2320,54 +2330,98 @@ class LanderPainter extends CustomPainter {
     }
     // [short]: the position line without the azimuth (the compass strip's marker shows it)
     final first = short ? all[0].replaceFirst(RegExp(r' · az [0-9.]+°'), '') : all[0];
-    final ts = [
+    final texts = [
       for (final (i, l) in (word && lines == 1 ? ['$first · ${all[1]}'] : [first, ...all.skip(1)].take(lines ?? all.length)).indexed)
-        _text(l, size: 11, color: i == 0 ? color : PH.text, mono: i == 0, maxWidth: v.w - 6),
-      if (merged != null)
-        _text(calloutLines(merged, false).first, size: 11, color: PH.earth, mono: true, maxWidth: v.w - 6)
+        (l, i == 0 ? color : PH.text, i == 0),
+      if (merged != null) (calloutLines(merged, false).first, PH.earth, true)
     ];
-    final tw = ts.map((t) => t.width).reduce(math.max), th = ts.fold(0.0, (s, t) => s + t.height);
-    // (over the bottom strip under the box: [calloutPlace])
-    double clampY(double y) => y.clamp(compassH + 2, math.max(compassH + 2, v.h - th - 4)).toDouble();
-    final size = Size(tw + 6, th + 2);
-    final fitsAt = calloutFits(v, a, size, avoid, clampY(a.glyph.dy - 8) - 1,
-        strip: strip,
-        up: above,
-        reticle: reticle,
-        keep: keep,
-        prefer: prefer,
-        memo: memo == null ? null : memo[(isSun, merged != null, size)] ??= {},
-        // with text scaled up a box over the compass strip's headings is no fit (1.13.2 browser
-        // check: at x2, "Sun · az 66.4° · el +5.6°" over "060" and "030"): the words are
-        // shortened first, down to the glyph alone
-        overStrip: textScaler.scale(11) <= 11 + 1e-9);
+    // the words in one box: each line in one (wrapped only at the view's width), else ([wrap]) a
+    // narrower one: each position line in two, its elevation under its azimuth, and the other lines
+    // wrapped to their width (1.13.5: a box kept clear of its own glyph, where one line wide found no
+    // place off the other body's disc, the chip or the words' own glyph)
+    List<TextPainter>? layout(bool wrap) {
+      if (!wrap) return [for (final (l, c, m) in texts) _text(l, size: 11, color: c, mono: m, maxWidth: v.w - 6)];
+      final out = <(String, Color, bool)>[];
+      for (final (l, c, m) in texts) {
+        final k = m ? l.indexOf(' · el ') : -1;
+        out.addAll(k < 0 ? [(l, c, m)] : [(l.substring(0, k), c, m), (l.substring(k + 3), c, m)]);
+      }
+      if (out.length == texts.length) return null;
+      final mono = [for (final (l, c, m) in out) if (m) _text(l, size: 11, color: c, mono: true, maxWidth: v.w - 6)];
+      final mw = mono.map((t) => t.width).reduce(math.max);
+      return [for (final (l, c, m) in out) _text(l, size: 11, color: c, mono: m, maxWidth: m ? v.w - 6 : math.max(mw, 1))];
+    }
+
+    // with text scaled up a box over the compass strip's headings is no fit (1.13.2 browser
+    // check: at x2, "Sun · az 66.4° · el +5.6°" over "060" and "030"): the words are
+    // shortened first, down to the glyph alone
+    final overStrip = textScaler.scale(11) <= 11 + 1e-9;
     final words = merged != null
         ? _Words.merged
         : (lines == 1 ? (short && !word ? _Words.lineShort : (word ? _Words.lineWord : _Words.line)) : _Words.full);
-    _Callout at(int skip) {
-      final (:box, :fits, :cost) = fitsAt(skip);
-      return _Callout(
-        box: box,
-        // ([spotHard]: a box over the other body's disc is no fit, the words are shortened first)
-        fits: fits && !(spotHard && cost >= spotSets),
-        cost: cost,
-        words: words,
-        leader: leader,
-        paint: () {
-          if (debugRecord) (paintedOrder ??= []).add('box ${isSun ? 'sun' : 'earth'}');
-          canvas.drawRect(box, Paint()..color = PH.bg.withValues(alpha: 0.8));
-          paintGlyph();
-          var y = box.top + 1;
-          for (final t in ts) {
-            t.paint(canvas, Offset(box.left + 3, y));
-            y += t.height;
-          }
-        },
-        nth: at
-      );
+    // ([spotHard]: a box over the other body's disc is no fit, the words are shortened first)
+    bool fitOf(({Rect box, bool fits, int cost, int tier}) p) => p.fits && !(spotHard && p.cost >= spotSets);
+    _Callout Function(int skip) laid(List<TextPainter> ts) {
+      final tw = ts.map((t) => t.width).reduce(math.max), th = ts.fold(0.0, (s, t) => s + t.height);
+      // (over the bottom strip under the box: [calloutPlace])
+      double clampY(double y) => y.clamp(compassH + 2, math.max(compassH + 2, v.h - th - 4)).toDouble();
+      final size = Size(tw + 6, th + 2);
+      final fitsAt = calloutFits(v, a, size, avoid, clampY(a.glyph.dy - 8) - 1,
+          strip: strip,
+          up: above,
+          reticle: reticle,
+          keep: keep,
+          prefer: prefer,
+          memo: memo == null ? null : memo[(isSun, merged != null, size)] ??= {},
+          overStrip: overStrip);
+      _Callout at(int skip) {
+        final p = fitsAt(skip), box = p.box;
+        return _Callout(
+          box: box,
+          fits: fitOf(p),
+          cost: p.cost,
+          tier: p.tier,
+          words: words,
+          leader: leader,
+          paint: () {
+            if (debugRecord) (paintedOrder ??= []).add('box ${isSun ? 'sun' : 'earth'}');
+            canvas.drawRect(box, Paint()..color = PH.bg.withValues(alpha: 0.8));
+            paintGlyph();
+            var y = box.top + 1;
+            for (final t in ts) {
+              t.paint(canvas, Offset(box.left + 3, y));
+              y += t.height;
+            }
+          },
+          nth: at
+        );
+      }
+
+      return at;
     }
 
-    return at(0);
+    // how far a box is from its glyph: past [farPx], far
+    bool far(Rect r) {
+      final g = a.glyph;
+      final dx = math.max(0.0, math.max(r.left - g.dx, g.dx - r.right)), dy = math.max(0.0, math.max(r.top - g.dy, g.dy - r.bottom));
+      return dx * dx + dy * dy > farPx * farPx;
+    }
+
+    final one = laid(layout(false)!), c = one(0);
+    if (c.fits && c.cost == 0 && c.tier == 0 && !far(c.box!)) return c;
+    // the narrower box where it fits and the wide one does not, or keeps clearer of the soft keeps,
+    // else goes to a place the wide one takes only as a fallback (over the compass strip's sky, in
+    // the disc's margin), else stays by its glyph where the wide one goes far from it
+    if (layout(true) case final ts?) {
+      final two = laid(ts), d = two(0);
+      if (d.fits &&
+          (!c.fits ||
+              d.cost < c.cost ||
+              (d.cost == c.cost && (d.tier < c.tier || (d.tier == c.tier && far(c.box!) && !far(d.box!)))))) {
+        return d;
+      }
+    }
+    return c;
   }
 
   @override

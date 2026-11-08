@@ -58,7 +58,7 @@ const _cats = [
   'legend', // the bottom strip's horizon legend
   'disc', // a body's disc (own or other), the disc itself
   'glyph core', // a glyph's centre (2 px)
-  'glyph edge', // a glyph's body (painted over the box)
+  'glyph edge', // a glyph's body (none since 1.13.5)
   'crosshair',
   'chevron words', // an edge chevron's words row
   'other marker', // the other body's compass marker (not where the two markers are one over the other)
@@ -99,64 +99,65 @@ const _hard = [
 const _farPx = 48.0;
 
 /// Frames with any overlap, then per category ([_cats], and 'strip on
-/// controls'), at each height: the ceilings (1.13.3, measured 2026-11-06;
-/// 1.13.2's in the comments; the earlier ones and why in git). To stay
+/// controls'), at each height: the ceilings (1.13.5, measured 2026-11-08;
+/// 1.13.3's in the comments; the earlier ones and why in git). To stay
 /// near a minute, raised heights sample every fourth body position (200 m from
 /// the first, 1 km the second, 5 km the third; 1 km and 5 km lay out alike,
 /// the chip's digits being Plex Mono): LANDER_GATE_FULL=1 paints each in full
 /// (no ceilings then). The lander's 2 m is always painted in full.
 const _ceiling = <String, Map<String, int>>{
-  // 1.13.3 (measured 2026-11-06): the controls are hard keeps. A placement whose callouts keep clear
-  // of them as soft keeps is as before; otherwise it is placed again with them hard, the words
-  // shortened before a box goes over the viewpoint's chip or the other body's disc, and, with no
-  // words fitting, both glyphs alone. Every count is as before or lower (1.13.2's in the comments):
-  // no frame left over a control (2 m: 1,111), none hard (the 392 x 120 eclipse's 30 at 2 m), and
-  // fewer over a disc or the chip; more words are cut in the short and small views.
+  // 1.13.5 (measured 2026-11-08): no callout box over a glyph's edge. The placement keeps every box
+  // clear of its glyph's body (1.13.3: over its edge where nothing else fitted, painted over the box);
+  // where the words on one line find no place clear of it and the soft keeps under the compass strip,
+  // or only one far from the glyph, each position line goes in two (the elevation under the azimuth),
+  // a narrower box, before a fallback. Every count is lower (1.13.3's in the comments), and fewer words
+  // are cut (2 m 1,038 to 331; 200 m 330 to 123, 1 km 299 to 120, 5 km 280 to 84) and fewer boxes far
+  // from their glyph.
   '2 m': {
-    'any': 1163, // 2244
-    'hard': 0, // 30
-    'controls': 0, // 1111
-    'disc': 805, // 868
-    'glyph core': 0, // 30
-    'glyph edge': 364, // 384
-    'crosshair': 0, // 30
+    'any': 74, // 1163
+    'hard': 0, // 0
+    'controls': 0, // 0
+    'disc': 74, // 805
+    'glyph core': 0, // 0
+    'glyph edge': 0, // 364
+    'crosshair': 0, // 0
     'strip on controls': 0,
   },
   '200 m': {
-    'any': 859, // 936
-    'hard': 0, // 6
-    'chip': 163, // 228
-    'controls': 0, // 248
-    'disc': 148, // 149
-    'glyph core': 0, // 6
-    'glyph edge': 86, // 96
-    'crosshair': 0, // 6
+    'any': 699, // 859
+    'hard': 0, // 0
+    'chip': 126, // 163
+    'controls': 0, // 0
+    'disc': 0, // 148
+    'glyph core': 0, // 0
+    'glyph edge': 0, // 86
+    'crosshair': 0, // 0
     'chip on body': 249,
     'chip on crosshair': 342,
     'strip on controls': 0,
   },
   '1 km': {
-    'any': 873, // 980
-    'hard': 0, // 6
-    'chip': 210, // 254
-    'controls': 0, // 225
-    'disc': 169, // 184
-    'glyph core': 0, // 6
-    'glyph edge': 54, // 70
-    'crosshair': 0, // 6
+    'any': 669, // 873
+    'hard': 0, // 0
+    'chip': 117, // 210
+    'controls': 0, // 0
+    'disc': 15, // 169
+    'glyph core': 0, // 0
+    'glyph edge': 0, // 54
+    'crosshair': 0, // 0
     'chip on body': 324,
     'chip on crosshair': 240,
     'strip on controls': 0,
   },
   '5 km': {
-    'any': 763, // 849
-    'hard': 0, // 9
-    'chip': 179, // 207
-    'controls': 0, // 202
-    'disc': 175, // 181
-    'glyph core': 0, // 9
-    'glyph edge': 46, // 59
-    'crosshair': 0, // 9
+    'any': 557, // 763
+    'hard': 0, // 0
+    'chip': 98, // 179
+    'controls': 0, // 0
+    'disc': 9, // 175
+    'glyph core': 0, // 0
+    'glyph edge': 0, // 46
+    'crosshair': 0, // 0
     'chip on body': 228,
     'chip on crosshair': 234,
     'strip on controls': 0,

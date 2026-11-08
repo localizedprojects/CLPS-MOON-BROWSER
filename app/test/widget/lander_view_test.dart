@@ -829,27 +829,30 @@ void main() {
     }
   });
 
-  test('W14c zoomed in on the Sun: the callout words keep off the big disc, the reticle and the bottom strip', () {
+  test('W14c zoomed in on the Sun: the callout words keep off the big disc, the glyph, the reticle and the bottom strip', () {
     // c2 shots: at hfov 10 the disc (10.6 px) sits just under the centre and its glyph 24.6 dp above it, by
     // the reticle; the box went over the reticle's top, across the glyph's upper half (dimming it)
-    const box = Size(171, 30);
-    // (width, height, floor, room clear of the glyph too); 352.7 x 195: the c2 view, where no place clear
-    // of disc, reticle and glyph fits under the floor: the box may reach over the glyph's edge (painted
-    // over it), never over its centre
+    // (width, height, floor, room under the compass strip for the words on one line); 352.7 x 195: the c2
+    // view, where no place clear of disc, reticle and glyph fits under the strip for them: the box keeps
+    // off the glyph's edge too (1.13.5; 1.9.2 to 1.13.4: over it, painted over the box), over the strip's
+    // sky; the painter's narrower box (the position line in two, [LanderPainter] callouts) fits under it
     for (final (w, h, floor, roomy) in [(392.7, 212.0, 137.0, true), (352.7, 195.0, 137.1, false)]) {
-      final v = LanderView(yawDeg: 37.1, pitchDeg: 3.4, hfovDeg: 10, w: w, h: h);
-      final c = Size(w, h).center(Offset.zero);
-      final a = (disc: c + const Offset(0, 9.4), glyph: c - const Offset(0, 15.2), rPx: 10.6);
-      final reticle = LanderPainter.reticleBox(Size(w, h));
-      final top = (a.glyph.dy - 8).clamp(LanderPainter.compassH + 2, floor - box.height - 4) - 1;
-      final r = LanderPainter.calloutPlace(v, a, box, const [], top.toDouble(),
-          strip: [Rect.fromLTRB(0, floor + 2, w, h)], up: true, reticle: reticle).box;
-      expect(r.overlaps(Rect.fromCircle(center: a.glyph, radius: roomy ? LanderPainter.glyphR - 2 : 2)), isFalse,
-          reason: '$w: $r, never over the glyph\'s centre');
-      expect(r.overlaps(Rect.fromCircle(center: a.disc, radius: a.rPx + 3)), isFalse, reason: '$w: $r');
-      expect(r.overlaps(reticle), isFalse, reason: '$w: $r');
-      expect(r.top >= LanderPainter.compassH && r.bottom <= floor && r.left >= 0 && r.right <= w, isTrue,
-          reason: '$w: $r, not over the bottom strip');
+      for (final (box, wrapped) in [(const Size(171, 30), false), (const Size(110, 44), true)]) {
+        final v = LanderView(yawDeg: 37.1, pitchDeg: 3.4, hfovDeg: 10, w: w, h: h);
+        final c = Size(w, h).center(Offset.zero);
+        final a = (disc: c + const Offset(0, 9.4), glyph: c - const Offset(0, 15.2), rPx: 10.6);
+        final reticle = LanderPainter.reticleBox(Size(w, h));
+        final top = (a.glyph.dy - 8).clamp(LanderPainter.compassH + 2, floor - box.height - 4) - 1;
+        final r = LanderPainter.calloutPlace(v, a, box, const [], top.toDouble(),
+            strip: [Rect.fromLTRB(0, floor + 2, w, h)], up: true, reticle: reticle).box;
+        expect(r.overlaps(Rect.fromCircle(center: a.glyph, radius: LanderPainter.glyphR - 2)), isFalse,
+            reason: '$w $box: $r, never over the glyph');
+        expect(r.overlaps(Rect.fromCircle(center: a.disc, radius: a.rPx + 3)), isFalse, reason: '$w $box: $r');
+        expect(r.overlaps(reticle), isFalse, reason: '$w $box: $r');
+        expect(r.top >= (roomy || wrapped ? LanderPainter.compassH : 0) && r.bottom <= floor && r.left >= 0 && r.right <= w,
+            isTrue,
+            reason: '$w $box: $r, not over the bottom strip');
+      }
     }
   });
 
@@ -1044,6 +1047,36 @@ void main() {
           expect(b.overlaps(r), isFalse, reason: '${s.name}: $b over the bottom strip\'s $r');
         }
       }
+    }
+  });
+
+  test('W22b a callout keeps off its glyph: the words wrap to a narrower box before they go over it (1.13.5)', () {
+    // 1.9.2 gate, 360 x 223, hfov 10, pitch -30, Sun at cell (3, 0) (its disc in the compass strip),
+    // Earth at cell (6, 2), both in view: 1.13.4 put Earth's words, on two lines, left of its glyph
+    // and over its edge ((46.8, 124.5)-(231.0, 154.5) over the glyph at x 234); now the position line goes
+    // in two (azimuth, then elevation) and the narrower box finds a place clear of it, the words in full
+    const size = Size(360, 223);
+    final v = (LanderCameraController()..set(yaw: 0, pitch: -30, hfov: 10)).view(size);
+    final p = _gateCell(size, 3, 0), q = _gateCell(size, 6, 2);
+    for (final (s, e) in [(SkyState.up, SkyState.up), (SkyState.up, SkyState.behindTerrain), (SkyState.behindTerrain, SkyState.up)]) {
+      final boxes = _gateFrame(size, 10, -30, sun: (p, s), earth: (q, e));
+      final glyphs = [
+        LanderPainter.calloutAnchor(v, _gateBody(v, p, 0.27, s))!.glyph,
+        LanderPainter.calloutAnchor(v, _gateBody(v, q, 0.95, e))!.glyph,
+      ];
+      final at = '${s.name}/${e.name}';
+      expect(boxes, hasLength(2), reason: at);
+      for (final b in boxes) {
+        for (final g in glyphs) {
+          expect(b.overlaps(Rect.fromCircle(center: g, radius: LanderPainter.glyphR - 2)), isFalse,
+              reason: '$at: $b over the glyph at $g');
+        }
+        expect(b.overlaps(LanderPainter.reticleBox(size)), isFalse, reason: '$at: $b over the crosshair');
+      }
+      expect(boxes[0].overlaps(boxes[1]), isFalse, reason: '$at: $boxes');
+      expect((LanderPainter.paintedWords!.sun, LanderPainter.paintedWords!.earth), ('F', 'F'), reason: '$at: the words in full');
+      // the narrower box: three lines (azimuth, elevation, the status word) rather than two
+      expect(boxes.any((b) => b.height > 40), isTrue, reason: '$at: $boxes');
     }
   });
 

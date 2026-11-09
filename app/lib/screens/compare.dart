@@ -263,7 +263,11 @@ class _PickMore extends StatelessWidget {
     final s = state;
     // only offer the top picks once the ranking says which they are; they
     // join the user's own picks rather than replacing them
-    final add = s.rankingDone ? topPicksToAdd(s.compareIds, [for (final r in s.rankedAll) r.id]) : const <String>[];
+    // and come from one region (plan §3: automatic choices never mix
+    // regions): the shortlist's, else the one open in Explore
+    final region = s.compareIds.isEmpty ? s.region : s.regionOf(s.compareIds.first);
+    final done = region == Region.southPole ? s.rankingDone : s.globalRankingDone;
+    final add = done ? topPicksToAdd(s.compareIds, [for (final r in s.rankedIn(region)) r.id]) : const <String>[];
     final total = s.compareIds.length + add.length;
     final keep = s.compareIds.isNotEmpty;
     final label = keep ? 'Add the top ${add.length}' : 'Compare the top ${add.length}';

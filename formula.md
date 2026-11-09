@@ -1884,7 +1884,7 @@ Gates: the Apollo 15 mask maximum is 13.59° (range 10° to 16°); the Apollo 11
 | Check | Sites | Result |
 |---|---|---|
 | App algorithm vs SPICE `spkcpo` (60 random epochs 2025 to 2035 each, 2 m observer) | all 20 | Sun 0.00015′, Earth 0.0016′ worst |
-| SPICE pipeline vs JPL Horizons airless apparent az/el (2026-12-01 and 2026-12-31 windows, 4 h steps; 40 cached responses in `pipeline/validation/global/`) | 10, including a far-side site, both ±45° bands, Chandrayaan-3 and two sites within 1° of the equator | Sun 0.000008′, Earth 0.00004′ worst; range within 0.005 km |
+| SPICE pipeline vs JPL Horizons airless apparent az/el (two 30-day windows, 2026-12-01 to 2026-12-31 and 2031-06-01 to 2031-07-01, 4 h steps; 40 cached responses in `pipeline/validation/global/`) | 10, including a far-side site, both ±45° bands, Chandrayaan-3 and two sites within 1° of the equator | Sun 0.000008′, Earth 0.00004′ worst; range within 0.005 km |
 | App algorithm vs JPL Horizons, same epochs | the same 10 | Sun 0.00016′, Earth 0.0015′ worst |
 | Long-term sanity | Apollo 11; Chang'e-4 and -6 | Apollo 11: Earth 100.0 %, Sun 49.8 % (gate 50 ± 4 %); far side: Earth 0.0 %, both 0.0 % |
 | Total lunar eclipse of 31 Dec 2028 | Apollo 11 (near), Chang'e-4 (far) | near side: Earth covers the whole visible Sun at maximum; far side: no visible sunlight lost |

@@ -228,7 +228,7 @@ The test fails below 90 % and 80 % on the 400 m grid, and below 75 % for the 800
 
 | Check | What was compared | Samples | Sun | Earth |
 |---|---|---|---|---|
-| SPICE pipeline vs JPL Horizons | As above, at 10 Whole Moon sites (Apollo 11, 15 and 17, Luna 16, Chang'e-3, Chang'e-4 and Chang'e-6 on the far side, SLIM, Chandrayaan-3, Blue Ghost Mission 1) × 2 windows (Dec 2026), 4 h step; 40 responses cached in `pipeline/validation/global/` | 3620 per body | 7.76e-6 · 6.29e-7 · 7.76e-7 | 3.53e-5 · 2.36e-5 · 3.30e-5 |
+| SPICE pipeline vs JPL Horizons | As above, at 10 Whole Moon sites (Apollo 11, 15 and 17, Luna 16, Chang'e-3, Chang'e-4 and Chang'e-6 on the far side, SLIM, Chandrayaan-3, Blue Ghost Mission 1) × 2 thirty-day windows (Dec 2026, Jun 2031), 4 h step; 40 responses cached in `pipeline/validation/global/` | 3620 per body | 7.76e-6 · 6.29e-7 · 7.76e-7 | 3.53e-5 · 2.36e-5 · 3.30e-5 |
 | App vs JPL Horizons | The on-device algorithm on the same rows | 3620 per body | 1.55e-4 · 5.42e-5 · 1.07e-4 | 1.54e-3 · 7.90e-4 · 1.36e-3 |
 | App vs SPICE | The on-device algorithm vs `spkcpo` at all 20 sites, 60 random epochs each in 2025–2035 | 1200 per body | 1.50e-4 · 5.20e-5 · 1.01e-4 | 1.56e-3 · 7.48e-4 · 1.28e-3 |
 

@@ -625,7 +625,7 @@ CLAUDE.md                   conventions for contributors and coding agents
 
 | Suite | Location | Command | Count |
 |---|---|---|---|
-| Flutter: Dart core, state, widgets | `app/test/` | `flutter test` | 1,737 pass, 4 skipped, with `flutter analyze` clean (local run, 9 November 2026, 1.14.0, and again with the date faked to 14 November 2026 06:00 UTC; the four light-map label tests also pass with it faked to 16 November 2026 12:00, 15 December 2026 12:00 and 20 January 2027 12:00 UTC) |
+| Flutter: Dart core, state, widgets | `app/test/` | `flutter test` | 1,745 pass, 4 skipped, with `flutter analyze` clean (local run, 9 November 2026, 1.14.0, and again with the date faked to 14 November 2026 06:00 UTC; the four light-map label tests also pass with it faked to 16 November 2026 12:00, 15 December 2026 12:00 and 20 January 2027 12:00 UTC) |
 | Chart bundle | `charts/src/*.test.ts` | `npm test` | 268 in 21 files (local run, 9 November 2026, 1.14.0) |
 | Python pipeline | `pipeline/tests/` | `python -m pytest` | 789: 782 pass, 7 skipped, with the SPICE kernels, the 80 m and 240 m LOLA DEMs and the Whole Moon inputs in the cache (local run, 9 November 2026, 1.14.0; the 7 need DE442, the 120 m DEM, PyYAML or the `lunarhorizon` package). In CI, without that data: 586 pass, 203 skipped (a local run with an empty cache, 9 November 2026, 1.14.0) |
 | Python library | `pylib/tests/` | `python -m pytest` (from `pylib/`) | 520 pass, with the SPICE kernels in the cache (local run, 9 November 2026, 1.14.0; `pylib/src` is unchanged in 1.14.0, and its goldens' provenance records the additive `dem.dart`; some skip without them; CI does not run this suite) |

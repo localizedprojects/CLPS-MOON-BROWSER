@@ -1,0 +1,273 @@
+{
+ "description": "Whole Moon presets (1.14.0). Coordinates are read at build time from the LROC 'Anthropogenic Features on the Moon' shapefile record named by shapefileId; candidate values are the plan's recalled values, kept only to flag differences (> 0.05 deg). Never a source.",
+ "shapefile": {
+  "file": "ANTHROPOGENIC_OBJECTS_180.ZIP",
+  "dbf": "ANTHROPOGENIC_OBJECTS_180.DBF",
+  "version": "2026-08-14",
+  "records": 71
+ },
+ "groups": [
+  {
+   "id": "apollo",
+   "name": "Apollo (crewed landings)",
+   "note": "Lunar Module descent stages, as measured in LROC NAC images."
+  },
+  {
+   "id": "robotic",
+   "name": "Robotic landers 1966–76 (Surveyor, Luna)",
+   "note": "Landers located in LROC NAC images."
+  },
+  {
+   "id": "international",
+   "name": "Other countries' programmes",
+   "note": "Landers of other national programmes, located in LROC NAC images."
+  },
+  {
+   "id": "commercial",
+   "name": "Commercial (CLPS)",
+   "note": "NASA Commercial Lunar Payload Services landers, located in LROC NAC images."
+  }
+ ],
+ "sites": [
+  {
+   "id": "apollo-11-lm",
+   "name": "Apollo 11 LM, Tranquillity Base (Apollo 11)",
+   "short": "Apollo 11 LM",
+   "group": "apollo",
+   "tier": "core",
+   "shapefileId": "A11_LM",
+   "candidate": {
+    "lat": 0.67416,
+    "lon": 23.47314
+   }
+  },
+  {
+   "id": "apollo-12-lm",
+   "name": "Apollo 12 LM, Oceanus Procellarum",
+   "short": "Apollo 12 LM",
+   "group": "apollo",
+   "tier": "core",
+   "shapefileId": "A12_LM",
+   "candidate": {
+    "lat": -3.01239,
+    "lon": -23.42157
+   }
+  },
+  {
+   "id": "apollo-14-lm",
+   "name": "Apollo 14 LM, Fra Mauro",
+   "short": "Apollo 14 LM",
+   "group": "apollo",
+   "tier": "core",
+   "shapefileId": "A14_LM",
+   "candidate": {
+    "lat": -3.6453,
+    "lon": -17.47136
+   }
+  },
+  {
+   "id": "apollo-15-lm",
+   "name": "Apollo 15 LM, Hadley–Apennine",
+   "short": "Apollo 15 LM",
+   "group": "apollo",
+   "tier": "core",
+   "shapefileId": "A15_LM",
+   "candidate": {
+    "lat": 26.13222,
+    "lon": 3.63386
+   }
+  },
+  {
+   "id": "apollo-16-lm",
+   "name": "Apollo 16 LM, Descartes highlands",
+   "short": "Apollo 16 LM",
+   "group": "apollo",
+   "tier": "core",
+   "shapefileId": "A16_LM",
+   "candidate": {
+    "lat": -8.97301,
+    "lon": 15.50019
+   }
+  },
+  {
+   "id": "apollo-17-lm",
+   "name": "Apollo 17 LM, Taurus–Littrow",
+   "short": "Apollo 17 LM",
+   "group": "apollo",
+   "tier": "core",
+   "shapefileId": "A17_LM",
+   "candidate": {
+    "lat": 20.1908,
+    "lon": 30.77168
+   }
+  },
+  {
+   "id": "luna-16",
+   "name": "Luna 16, Mare Fecunditatis",
+   "short": "Luna 16",
+   "group": "robotic",
+   "tier": "core",
+   "shapefileId": "Luna16",
+   "candidate": {
+    "lat": -0.5137,
+    "lon": 56.3638
+   }
+  },
+  {
+   "id": "luna-17-lunokhod-1",
+   "name": "Luna 17 lander, Mare Imbrium",
+   "short": "Luna 17",
+   "group": "robotic",
+   "tier": "core",
+   "shapefileId": "Luna17",
+   "candidate": {
+    "lat": 38.2378,
+    "lon": -35.0017
+   }
+  },
+  {
+   "id": "change-3",
+   "name": "Chang'e-3, northern Mare Imbrium",
+   "short": "Chang'e-3",
+   "group": "international",
+   "tier": "core",
+   "shapefileId": "ChangE3",
+   "candidate": {
+    "lat": 44.1214,
+    "lon": -19.5116
+   }
+  },
+  {
+   "id": "change-4",
+   "name": "Chang'e-4, Von Kármán (far side)",
+   "short": "Chang'e-4",
+   "group": "international",
+   "tier": "core",
+   "shapefileId": "ChangE4",
+   "candidate": {
+    "lat": -45.4446,
+    "lon": 177.5991
+   }
+  },
+  {
+   "id": "change-5",
+   "name": "Chang'e-5, Oceanus Procellarum",
+   "short": "Chang'e-5",
+   "group": "international",
+   "tier": "core",
+   "shapefileId": "ChangE5",
+   "candidate": {
+    "lat": 43.0576,
+    "lon": -51.9161
+   }
+  },
+  {
+   "id": "change-6",
+   "name": "Chang'e-6, Apollo basin (far side)",
+   "short": "Chang'e-6",
+   "group": "international",
+   "tier": "core",
+   "shapefileId": "ChangE6",
+   "candidate": {
+    "lat": -41.6385,
+    "lon": -153.9852
+   }
+  },
+  {
+   "id": "slim",
+   "name": "SLIM, near Shioli crater",
+   "short": "SLIM",
+   "group": "international",
+   "tier": "core",
+   "shapefileId": "SLIM",
+   "candidate": {
+    "lat": -13.316,
+    "lon": 25.251
+   }
+  },
+  {
+   "id": "chandrayaan-3-vikram",
+   "name": "Chandrayaan-3 Vikram",
+   "short": "Vikram",
+   "group": "international",
+   "tier": "core",
+   "shapefileId": "Vikram2",
+   "candidate": {
+    "lat": -69.373,
+    "lon": 32.319
+   }
+  },
+  {
+   "id": "blue-ghost-1",
+   "name": "Blue Ghost Mission 1, Mons Latreille (CLPS)",
+   "short": "Blue Ghost 1",
+   "group": "commercial",
+   "tier": "core",
+   "shapefileId": "BlueGhost1",
+   "candidate": {
+    "lat": 18.562,
+    "lon": 61.81
+   }
+  },
+  {
+   "id": "surveyor-1",
+   "name": "Surveyor 1, Oceanus Procellarum",
+   "short": "Surveyor 1",
+   "group": "robotic",
+   "tier": "extended",
+   "shapefileId": "Surveyor1",
+   "candidate": {
+    "lat": -2.474,
+    "lon": -43.339
+   }
+  },
+  {
+   "id": "surveyor-3",
+   "name": "Surveyor 3 (beside Apollo 12)",
+   "short": "Surveyor 3",
+   "group": "robotic",
+   "tier": "extended",
+   "shapefileId": "Surveyor3",
+   "candidate": {
+    "lat": -3.016,
+    "lon": -23.418
+   }
+  },
+  {
+   "id": "surveyor-7",
+   "name": "Surveyor 7, Tycho north rim",
+   "short": "Surveyor 7",
+   "group": "robotic",
+   "tier": "extended",
+   "shapefileId": "Surveyor7",
+   "candidate": {
+    "lat": -40.98,
+    "lon": -11.5
+   }
+  },
+  {
+   "id": "luna-21-lunokhod-2",
+   "name": "Luna 21 lander, Le Monnier",
+   "short": "Luna 21",
+   "group": "robotic",
+   "tier": "extended",
+   "shapefileId": "Luna21",
+   "candidate": {
+    "lat": 25.9,
+    "lon": 30.4
+   }
+  },
+  {
+   "id": "luna-24",
+   "name": "Luna 24, Mare Crisium",
+   "short": "Luna 24",
+   "group": "robotic",
+   "tier": "extended",
+   "shapefileId": "Luna24",
+   "candidate": {
+    "lat": 12.7142,
+    "lon": 62.2129
+   }
+  }
+ ]
+}

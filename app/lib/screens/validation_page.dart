@@ -319,7 +319,12 @@ class _GlobalValidationSectionState extends State<GlobalValidationSection> {
           child: FidelityBadge(key: const ValueKey('global-validation-synthetic'), text: 'Synthetic test file, not data: ${v['note'] ?? ''}'),
         ),
       _Row('App vs SPICE at ${(spice['sites'] as List?)?.length ?? '–'} Whole Moon sites', dirs(spice), 'Worst direction error, arcminutes'),
-      _Row('App vs JPL Horizons at ${(hz['sites'] as List?)?.length ?? '–'} Whole Moon sites', dirs(hz), 'Airless apparent az/el, worst error'),
+      // horizons.sun/earth are the pipeline's SPICE against Horizons; the
+      // app algorithm's own figures are horizons.app (as in the polar rows)
+      _Row('Pipeline (SPICE DE440, MOON_ME) vs JPL Horizons at ${(hz['sites'] as List?)?.length ?? '–'} Whole Moon sites',
+          dirs(hz), 'Airless apparent az/el, worst error'),
+      _Row('App vs JPL Horizons at ${(hz['sites'] as List?)?.length ?? '–'} Whole Moon sites', dirs(_m(hz['app'])),
+          'Airless apparent az/el, worst error'),
       _Row('Your own spots\' skylines vs the preset masks (${od['n'] ?? '–'} sites)',
           'median ${_n(od['medianRmsDeg'], 1, '°')}, worst ${_n(od['worstRmsDeg'], 1, '°')}',
           'RMS; on average ${_n(od['meanBiasDeg'], 1, '°')} (negative: too low, optimistic)'),

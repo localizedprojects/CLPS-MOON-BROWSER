@@ -85,8 +85,11 @@ def main(argv=None) -> None:
         if st == "fetch":
             cmd_fetch(ids)
         elif st == "sites":
+            from . import globe_map
             from .globe_sites import build
             build()
+            if globe_map.MAP_JSON.exists():
+                globe_map.write_map({})  # map.json's asset hashes cover sites.json and horizons.json
         elif st == "map":
             from .globe_map import build_map
             build_map()

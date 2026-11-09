@@ -17,7 +17,7 @@ import pytest
 from lunarsp import globe_shapefile as gs
 from lunarsp import globe_sites as gsites
 from lunarsp import globe_validate as gv
-from lunarsp.config import WEB_DATA_DIR
+from lunarsp.config import REPO_ROOT, WEB_DATA_DIR
 from lunarsp.geometry import enu_basis
 from lunarsp.horizons import Query
 from tests._support import record_max, requires_kernels
@@ -144,6 +144,75 @@ def test_sources_quote_the_shapefile_record():
         assert s["lat"] == round(float(rec["LATITUDE"]), 6), s["id"]
         lon = ((float(rec["LONGITUDE"]) + 180.0) % 360.0) - 180.0
         assert s["lon"] == round(lon, 6), s["id"]
+
+
+# --------------------------------------------------------------------------- coordinate frame note (plan §10 V1)
+
+_FRAME_NOTE_FIGURES = re.compile(r"up to about (\d+) m \(mean about (\d+) m\) over 2000-2040")
+_KERNEL_IAU_VS_ME = re.compile(r"amplitude of approximately ([\d.]+) degrees, which is equivalent to approximately "
+                               r"(\d+) m, .*? average value is approximately ([\d.]+) degrees, or (\d+) m")
+
+
+def _doc_paragraph(path, marker: str) -> str:
+    paras = [p for p in path.read_text(encoding="utf-8").split("\n\n") if marker in p]
+    assert len(paras) == 1, (path.name, marker)
+    return paras[0]
+
+
+def test_frame_note_says_what_the_shapefile_frame_is():
+    """V1: "IAU Moon 2000" is only the shapefile's spherical datum (its .PRJ has a sphere and a prime
+    meridian, no rotation model); the coordinates are tied to lunar laser ranging in the Mean Earth
+    frame, so MOON_ME applies them as given. No unsourced IAU-vs-ME offset (the old "below about
+    100 m" was wrong: the frames kernel gives up to about 155 m) and no "not corrected" wording."""
+    note = gsites.FRAME_NOTE
+    for bad in ("100 m", "not corrected", "difference from IAU-frame"):
+        assert bad not in note, bad
+    for want in ("spherical datum", "R = 1737.4 km", "no rotation model", "laser ranging", "Mean Earth",
+                 "MOON_ME as given", "moon_de440_250416.tf"):
+        assert want in note, want
+    assert _FRAME_NOTE_FIGURES.search(note)
+    assert _global()["coordinateFrameNote"] == note
+    assert _json(VALIDATION)["frameNote"] == note
+    for path, marker in ((REPO_ROOT / "formula.md", '"Anthropogenic Features on the Moon" shapefile'),
+                         (REPO_ROOT / "docs" / "global_data_contract.md", "| `coordinateFrameNote` |")):
+        text = _doc_paragraph(path, marker)
+        assert "100 m" not in text and "not corrected" not in text, path.name
+        for want in ("spherical datum", "Mean Earth", "laser ranging", "MOON_ME"):
+            assert want in text, (path.name, want)
+
+
+@requires_shapefile
+def test_shapefile_frame_is_a_sphere_and_the_reflectors_cite_de430():
+    """The facts the note rests on: the .PRJ defines only a sphere of 1737400 m and a prime meridian,
+    and the five laser-ranging rows (the Apollo 11, 14, 15 and Lunokhod 1, 2 retroreflectors) cite the
+    DE430 lunar coordinates document."""
+    import zipfile
+    with zipfile.ZipFile(gs.zip_path()) as z:
+        prj = z.read(gs.DBF_NAME.replace(".DBF", ".PRJ")).decode("ascii")
+    assert re.search(r'SPHEROID\["[^"]*",1737400(\.0)?,0(\.0)?\]', prj)
+    assert 'PRIMEM["Reference_Meridian",0.0]' in prj
+    assert "PROJECTION" not in prj and "TOWGS84" not in prj
+    records, _ = gs.read_records()
+    lrrr = [r for r in records if str(r.get("COORD_SRC", "")).strip() == "Laser Ranging"]
+    assert {r["OBJECT_ID"] for r in lrrr} == {"A11_LRRR", "A14_LRRR", "A15_LRRR", "Lunokhod1", "Lunokhod2"}
+    assert all("de430_moon_coord.pdf" in str(r.get("REFERENCES", "")) for r in lrrr)
+
+
+@requires_kernels
+def test_frame_note_figures_are_the_frames_kernel_ones():
+    """The IAU_MOON vs DE440 ME figures the note quotes are the ones moon_de440_250416.tf states, and
+    SPICE reproduces them over 2000-2040 (peak about 155 m, mean about 72 m on the 1737.4 km sphere)."""
+    import spiceypy as sp
+    from lunarsp import spice_env
+    from lunarsp.config import KERNELS
+    spice_env.load()
+    peak_m, mean_m = (int(x) for x in _FRAME_NOTE_FIGURES.search(gsites.FRAME_NOTE).groups())
+    k = _KERNEL_IAU_VS_ME.search(" ".join(KERNELS["moon_fk"].dest.read_text(encoding="latin-1").split()))
+    assert k and (int(k[2]), int(k[4])) == (peak_m, mean_m)
+    ets = np.linspace(spice_env.utc_to_et("2000-01-01T00:00:00"), spice_env.utc_to_et("2040-01-01T00:00:00"), 20000)
+    ang = np.array([sp.raxisa(sp.pxform("IAU_MOON", "MOON_ME", float(et)))[1] for et in ets])
+    assert float(ang.max()) * 1737.4e3 == pytest.approx(peak_m, abs=3.0)
+    assert float(ang.mean()) * 1737.4e3 == pytest.approx(mean_m, abs=3.0)
 
 
 # --------------------------------------------------------------------------- great-circle helpers

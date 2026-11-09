@@ -67,7 +67,7 @@ Top level:
 | `generatedUtc` | string | req | ISO 8601 UTC, e.g. `"2026-11-10T09:00:00Z"` |
 | `region` | string | req | always `"wholeMoon"` (the parser takes the region from the caller; this is for people and tools) |
 | `frame` | string | req | `"MOON_ME (LOLA DE421 mean-Earth compatible)"`, as the polar file |
-| `coordinateFrameNote` | string | req | the shapefile's "IAU Moon 2000" coordinates are applied in `MOON_ME` as given (difference below about 100 m, documented, not corrected; plan §10 V1) |
+| `coordinateFrameNote` | string | req | "IAU Moon 2000" is only the shapefile's spherical datum (R = 1737.4 km, no rotation model); its coordinates come from LROC NAC images combined with laser ranging in the Mean Earth frame and are applied in `MOON_ME` as given; quotes the `IAU_MOON` vs DE440 Mean Earth figures of `moon_de440_250416.tf` (up to about 155 m, mean about 72 m, 2000-2040) for scale (plan §10 V1, `FRAME_NOTE`) |
 | `dem` | string | req | the terrain behind the masks, e.g. `"LOLA + Kaguya SLDEM2015 512 px/deg (59 m, to 20 km) + LOLA LDEM_64 (474 m, to 300 km); exact spherical-Moon geometry"` |
 | `maskSource` | string | req | default `Site.maskSource` for every row (see the row key); the badge text's terrain part. Read by `SiteCatalog.parse` (falls back to `'LOLA 80 m + 240 m DEM'` when absent, which only the polar file relies on) |
 | `observerHeightsM` | number[] | req | `[2.0, 10.0]`, equal to `horizons.json` `heightsM` |

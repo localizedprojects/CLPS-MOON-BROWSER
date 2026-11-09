@@ -1,6 +1,6 @@
 {
- "generatedUtc": "2026-11-09T09:06:30Z",
- "frameNote": "The shapefile gives coordinates in the IAU Moon 2000 geographic system; they are applied in MOON_ME as given. The difference from IAU-frame realisations is below about 100 m and is documented, not corrected.",
+ "generatedUtc": "2026-11-09T14:11:46Z",
+ "frameNote": "\"IAU Moon 2000\" is only the shapefile's spherical datum (R = 1737.4 km, prime meridian 0); it carries no rotation model. Its coordinates were measured in LROC NAC images combined with Earth-based laser ranging (the retroreflector rows cite the DE430 lunar coordinates) and are in the Mean Earth frame, so they are applied in MOON_ME as given. The app does not use the IAU_MOON rotation, which differs from DE440 Mean Earth by up to about 155 m (mean about 72 m) over 2000-2040 (moon_de440_250416.tf).",
  "spiceTruth": {
   "description": "App algorithm (validate.app_vs_spice) vs SPICE spkcpo at every global preset (60 random epochs 2025-2035 each, observer 2 m above the terrain)",
   "sites": [

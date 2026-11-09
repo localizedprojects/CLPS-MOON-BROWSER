@@ -1,8 +1,8 @@
 {
- "generatedUtc": "2026-11-09T08:59:53Z",
+ "generatedUtc": "2026-11-09T14:11:27Z",
  "region": "wholeMoon",
  "frame": "MOON_ME (LOLA DE421 mean-Earth compatible)",
- "coordinateFrameNote": "The shapefile gives coordinates in the IAU Moon 2000 geographic system; they are applied in MOON_ME as given. The difference from IAU-frame realisations is below about 100 m and is documented, not corrected.",
+ "coordinateFrameNote": "\"IAU Moon 2000\" is only the shapefile's spherical datum (R = 1737.4 km, prime meridian 0); it carries no rotation model. Its coordinates were measured in LROC NAC images combined with Earth-based laser ranging (the retroreflector rows cite the DE430 lunar coordinates) and are in the Mean Earth frame, so they are applied in MOON_ME as given. The app does not use the IAU_MOON rotation, which differs from DE440 Mean Earth by up to about 155 m (mean about 72 m) over 2000-2040 (moon_de440_250416.tf).",
  "dem": "LOLA + Kaguya SLDEM2015 512 px/deg (59 m, to 20 km; LOLA LDEM_512 where |lat| > 59 deg) + LOLA LDEM_64 (474 m, to 600 km); exact spherical-Moon geometry",
  "maskSource": "SLDEM2015 59 m (to 20 km) + LOLA 474 m DEM",
  "observerHeightsM": [

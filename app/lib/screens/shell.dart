@@ -734,7 +734,14 @@ class ShellRouterDelegate extends RouterDelegate<ShellLocation>
     } else if (l.dest == Dest.site && id != null && state.catalog != null) {
       // not a polar id: a whole-Moon site (its region and catalogue come
       // through openFromLink), else unknown
-      _openGlobal(id, l.tab ?? SiteTab.overview);
+      // a polar custom-spot id, or an id the loaded whole-Moon catalogue
+      // does not have, is unknown at once, as in 1.13.5
+      final g = state.global;
+      if (RegExp(r'^custom-\d+$').hasMatch(id) || (g != null && state.regionOf(id) != Region.wholeMoon)) {
+        _unknownSite();
+      } else {
+        _openGlobal(id, l.tab ?? SiteTab.overview);
+      }
     } else if (l.dest == Dest.explore) {
       // the region comes only from the link: `#/moon` or `#/`
       state.goTo(Dest.explore);
@@ -764,8 +771,11 @@ class ShellRouterDelegate extends RouterDelegate<ShellLocation>
   /// time. Unknown ids go to Explore with a notice. The URL is put right
   /// once it is done, in place of the link.
   void _openGlobal(String id, SiteTab tab) {
+    // never another site under this link while it resolves (web-10): Explore
+    // until the whole-Moon site opens, and the URL put right meanwhile
+    state.goTo(Dest.explore);
     _linkBusy = true;
-    Future<void>(() async {
+    (() async {
       try {
         await state.openFromLink(id);
         if (state.dest == Dest.site && state.selectedId == id) {
@@ -782,7 +792,7 @@ class ShellRouterDelegate extends RouterDelegate<ShellLocation>
         _last = _live;
         _report(replace: true);
       }
-    });
+    })();
   }
 
   /// Switch Explore's region for a `#/moon` or `#/` link; a whole-Moon load

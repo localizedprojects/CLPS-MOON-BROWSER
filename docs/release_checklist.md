@@ -42,7 +42,7 @@ All the texts (with character counts), the form answers and the screenshot list 
       [App Store](store/listing.md#app-store-app-store-connect).
 
 ## Testing status (before the first store upload)
-- These notes were written at v1.1.0; re-check each line against the current release (1.13.5) before
+- These notes were written at v1.1.0; re-check each line against the current release (1.14.0) before
   the first store upload.
 - Planned end-to-end runs (record results here): Android emulator (Android 14, API 34) on normal
   and small screens, offline, rotation, backgrounding during Play; the same on the Mac's iOS simulators.
@@ -62,9 +62,48 @@ All the texts (with character counts), the form answers and the screenshot list 
 - **Not tested:** Android 8 and 9, real iPhones and iPads, real low-end Android phones, Play
   pre-launch report (runs after the first upload: check it).
 
+## 1.14.0 Whole Moon checks (before merging `global-1.14`)
+The polar regression guard: South pole stays the default and must not change. `85c472f` is 1.13.5.
+Record each result in the PR description.
+- [ ] **G1, polar data byte-identical:** `git diff --exit-code 85c472f -- app/assets/data
+      ':(exclude)app/assets/data/global' app/test/fixtures/spice_truth.json pipeline/validation
+      ':(exclude)pipeline/validation/global' pylib/src` prints nothing.
+- [ ] **G2, polar code untouched:** `git diff --exit-code 85c472f --` over the polar pipeline modules
+      (`pipeline/lunarsp/{sites,horizon,dem,basemap,visibility,fixtures,validate,horizons,ephemeris,geometry,config,curated,appmodel,outio,spice_env,fetch,build}.py`,
+      `site_catalog.json`), `app/lib/widgets/{map_view,light_map,light_snapshot,map_focus}.dart`,
+      `app/lib/screens/intro.dart`,
+      `app/lib/core/{shadow,horizon_compute,score,summary,ranking,eclipse,visibility,geo,ephemeris,timeseries,metrics,relief,curated}.dart`,
+      `app/lib/state/light_engine*.dart` and `light_loop.dart`. Only the Lander work may touch
+      `dem.dart`, `lander_view.dart` and `lander_light.dart`, and only additively.
+- [ ] **G3, assertions only added:** `git diff 85c472f -- app/test charts/src pipeline/tests pylib/tests | grep -E '^-[^-]'`
+      is empty, apart from version-string lines listed in the PR description.
+- [ ] **G4, polar behaviour:** `flutter test test/state/polar_baseline_test.dart` matches
+      `test/fixtures/polar_baseline_1135.json` exactly (rankings, scores and top pick per goal, the
+      glance, position and STANDS OUT lines, URL parsing, default region and selection).
+- [ ] **G5, no Whole Moon bytes at a polar start:** `flutter test test/widget/global_explore_test.dart`
+      (no request under `assets/data/global/` at a polar cold start); on a web build in headless
+      Chrome, loading `/` requests nothing under `assets/data/global/`.
+- [ ] **G6, layouts:** the same screens at 360 × 800 and 1280 × 800, rendered at `85c472f` and at HEAD,
+      differ only in the region switch row and the site picker's "Whole Moon" header (scratch goldens,
+      not committed).
+- [ ] **G7, charts:** the polar figure JSON equals the 1.13.5 baseline (`npm test`; `charts/src/global.test.ts`).
+- [ ] **G8, device:** on the Android 7 emulator a cold start gives South pole and Shackleton rim; the
+      light map, the Lander, Compare and Learn match 1.13.5; switching to Whole Moon and back leaves the
+      polar selection, goal and shortlist unchanged.
+- [ ] **Budget:** `app/assets/data/global/` is at most 12.5 MB (measured on 2026-11-09: 9,526,566 bytes
+      in 48 files; `du -cb app/assets/data/global`), and `pytest tests/test_globe_map.py tests/test_globe_tiles.py`
+      passes its per-file budgets.
+- [ ] **Validation gates:** from `pipeline/` with the cache, `python -m lunarsp.globe validate` ends
+      without "gate(s) failed", and every entry of `gates` in `app/assets/data/global/validation.json`
+      has `"pass": true`. Re-running it only changes `generatedUtc`; restore the committed file if so.
+- [ ] **References:** `python3 -I docs/make_references.py --check` passes (it reads
+      `app/assets/data/global/sites.json` too).
+- [ ] **Docs:** `python tools/check_formula_refs.py` (formula.md §18) and `python tools/check_workflows.py`.
+- [ ] **Version:** `app/pubspec.yaml` says `1.14.0+27`.
+
 ## Competition / sideload release (GitHub Releases APK)
 For the Space Apps entry and anyone installing from the QR code. This APK is not a store build.
-- [ ] Bump `version:` in `app/pubspec.yaml` (for example `1.13.5+26`; the build number must rise, or
+- [ ] Bump `version:` in `app/pubspec.yaml` (for example `1.14.0+27`; the build number must rise, or
       Android refuses to install the update over the earlier one). After the build, check that the
       version the app shows matches.
 - [ ] From `app/`: `flutter build apk --release`. Without `app/android/key.properties` the release APK
@@ -74,14 +113,14 @@ For the Space Apps entry and anyone installing from the QR code. This APK is not
       ones; a build signed with another key must be uninstalled first.
 - [ ] Rename `app/build/app/outputs/flutter-apk/app-release.apk` to `lunar-horizon.apk` and record its
       checksum: `sha256sum lunar-horizon.apk` (PowerShell: `Get-FileHash lunar-horizon.apk`).
-- [ ] Publish a GitHub release (tag `v1.13.5`, notes with the changes and the SHA-256), attach
+- [ ] Publish a GitHub release (tag `v1.14.0` for 1.14.0, notes with the changes and the SHA-256), attach
       `lunar-horizon.apk` and `SHA256SUMS.txt`, and mark it **latest**. No v1.13.4 release was
-      published; the notes cover the changes since v1.13.3.
+      published; the notes cover the changes since the previous published release.
 - [ ] Check that <https://github.com/localizedprojects/CLPS-MOON-BROWSER/releases/latest/download/lunar-horizon.apk>
       downloads the new file (same SHA-256), then install it over the previous version on a phone.
 - [ ] Check that the APK and demo video links on the Links line of `docs/judge_one_pager.md` and in
       `docs/submission.md` still work. v1.13.3 (7 November 2026) holds both videos, so keep it; the
-      video links point at it and do not change when v1.13.5 is published. Then put the new APK's
+      video links point at it and do not change when a newer release is published. Then put the new APK's
       SHA-256 in the source note of `docs/judge_one_pager.md`, and update the "latest release" notes
       in `docs/submission.md` (Links and Development history) and the comment in `README.md`.
 - [ ] Scan the QR code (`docs/get-app-qr.png`): it must open

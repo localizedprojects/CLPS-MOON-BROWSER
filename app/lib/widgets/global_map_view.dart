@@ -224,6 +224,35 @@ const globalMarkerLegend = [
 /// open the chooser.
 const globalMarkerHitDp = 24.0;
 
+/// The site names on the whole-Moon map, placed with [placeMapLabels]: the
+/// selected site ([selected], an index into [anchors]) first, then the rest in
+/// order. Markers reach 1.4 [r] from their centre; the selected one's ring
+/// reaches 2.4 [r], and no other name may cover it (it is an obstacle).
+/// [stackWithin] is the chooser's reach (markers closer than it are a stack).
+List<MapLabel> globalMapLabels({
+  required List<(double, double)> anchors,
+  required List<String> texts,
+  required int? selected,
+  required double r,
+  required double stackWithin,
+  required (double, double) Function(int site, String text) measure,
+  LabelBox? bounds,
+}) =>
+    placeMapLabels(
+      anchors: anchors,
+      reach: [for (var i = 0; i < anchors.length; i++) i == selected ? 2.4 * r : 1.4 * r],
+      texts: texts,
+      measure: measure,
+      order: [
+        ?selected,
+        for (var i = 0; i < anchors.length; i++)
+          if (i != selected) i,
+      ],
+      stacks: markerStacks(anchors, stackWithin),
+      obstacles: [if (selected != null) LabelBox.around(anchors[selected].$1, anchors[selected].$2, 2.4 * r)],
+      bounds: bounds,
+    );
+
 /// The navy chip under every name on the whole-Moon map (the site names and
 /// NEAR SIDE / FAR SIDE): PH.text and PH.ice read at about 7:1 or more on it.
 final globalMapChip = PH.bg.withValues(alpha: 0.72);
@@ -587,7 +616,7 @@ class _Legend extends StatelessWidget {
             Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                SizedBox.square(dimension: 14, child: CustomPaint(painter: _MarkerIcon(g))),
+                SizedBox.square(dimension: 18, child: CustomPaint(painter: _MarkerIcon(g))),
                 const SizedBox(width: 4),
                 // a narrow phone or a large text size: the words wrap beside the mark
                 Flexible(child: Text(words, style: muted)),
@@ -797,21 +826,16 @@ class _GlobalPainter extends CustomPainter {
         '$i|$t',
         () => _text(t, 12, k, w: ordered[i].id == selectedId ? FontWeight.w700 : FontWeight.w500),
       );
-      final sel = ordered.length - 1;
-      final placed = placeMapLabels(
+      final placed = globalMapLabels(
         anchors: [for (final a in anchors) (a.dx, a.dy)],
-        reach: [for (final _ in ordered) 1.4 * r],
         texts: [for (final st in ordered) st.short],
+        selected: ordered.last.id == selectedId ? ordered.length - 1 : null,
+        r: r,
+        stackWithin: globalMarkerHitDp / k,
         measure: (i, t) {
           final p = label(i, t);
           return (p.width + 6 / k, p.height + 2 / k);
         },
-        order: [
-          if (ordered.last.id == selectedId) sel,
-          for (var i = 0; i < ordered.length; i++)
-            if (ordered[i].id != selectedId) i,
-        ],
-        stacks: markerStacks([for (final a in anchors) (a.dx, a.dy)], globalMarkerHitDp / k),
         bounds: bounds,
       );
       for (final m in placed) {

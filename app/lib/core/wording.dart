@@ -31,6 +31,11 @@ String siteKindLabel(Site s) {
     'artemis' => 'Artemis III candidate region',
     'illumination' => 'Well-lit point from research',
     'missions' => 'Mission landing site',
+    // Whole Moon groups (1.14.0; build plan §4)
+    'apollo' => 'Apollo crewed landing site',
+    'robotic' => 'Robotic landing site (1966–76)',
+    'international' => 'National space agency landing site',
+    'commercial' => 'Commercial landing site (CLPS)',
     _ => s.kind,
   };
 }
@@ -227,6 +232,27 @@ String sampleStepText(double stepMs) {
   return 'Sun and Earth positions are stored hourly; for your dates the app works them out '
       '${everyStep(stepMs)}$interp $rule.';
 }
+
+/// The Whole Moon catalogue's group ids, in display order (build plan §4;
+/// the names come from `global/sites.json` `groups`). The polar groups
+/// (`artemis`, `illumination`, `missions`) are unchanged.
+const List<String> kGlobalGroupIds = ['apollo', 'robotic', 'international', 'commercial'];
+
+/// What a Whole Moon site's `side` means, in words: 'Near side', 'Far side',
+/// 'Limb' ('' for a polar site or an unknown value).
+String sideLabel(String side) => switch (side) {
+      'near' => 'Near side',
+      'far' => 'Far side',
+      'limb' => 'Limb',
+      _ => '',
+    };
+
+/// The far side's line on a global site's screens (build plan §2).
+const String farSideEarthText =
+    'Earth never rises here. Direct-to-Earth radio is impossible; far-side missions use a relay satellite.';
+
+/// Why a global site has no Light & shadow map (build plan §2).
+const String lightMapPolarOnlyText = 'The Light & shadow map covers south-pole sites only in this version.';
 
 /// Shown instead of the long-term averages for a custom spot (AboutSite and
 /// the At a glance card; re-exported by widgets/about_site.dart).

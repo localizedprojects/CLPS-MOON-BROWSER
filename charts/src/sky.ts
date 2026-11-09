@@ -21,9 +21,10 @@
 import type { BodyNow, SkyData } from './bridge'
 import { C, FONT, HOVER, MONO, SANS } from './theme'
 import {
-  captionLine, exactLine, headerTime, highestHills, highestHillsText, hillsText, keyLine, legendNames, markerLabel, pctShowing, zoomFits,
+  captionLine, exactLine, headerTime, highestHills, highestHillsText, hillsText, keyLine, legendNames, markerLabel, pctShowing,
 } from './skyCaption'
 import type { CaptionLine } from './skyCaption'
+import { zoomFits } from './skyCaption'
 
 export interface ElRange {
   lo: number
@@ -39,6 +40,9 @@ const AZ_LABEL_R = 1.09
 
 /** Range for horizon zoom: covers the terrain mask and both bodies with margin. */
 export function zoomRange(mask: number[], sunEls: number[], earthEls: number[]): ElRange {
+  // 1.14.0: outside the south pole the Sun climbs up to about 90° and sinks as deep, so a zoom over
+  // its path would span more than the whole sky: the whole sky instead ([zoomFits]; always fits at the pole)
+  if (!zoomFits(sunEls, earthEls)) return FULL_RANGE
   const all = [...mask, ...sunEls, ...earthEls].filter((x) => Number.isFinite(x))
   // a loop, not Math.min(...all): spreading tens of thousands of arguments can overflow the stack
   let mn = -3, mx = 6
@@ -49,14 +53,9 @@ export function zoomRange(mask: number[], sunEls: number[], earthEls: number[]):
   return { lo: Math.floor(mn - 1), hi: Math.ceil(mx + 1) }
 }
 
-/**
- * The plotted elevation range of a payload: the horizon zoom when it is on
- * and the paths stay near the horizon ([zoomFits]: always at the south pole),
- * otherwise the whole sky (1.14.0: outside the pole the Sun climbs up to
- * about 90°, so a zoom over its path would be wider than the whole sky).
- */
+/** The plotted elevation range of a payload. */
 export const skyRange = (d: Pick<SkyData, 'zoom' | 'mask' | 'trails'>): ElRange =>
-  d.zoom && zoomFits(d.trails) ? zoomRange(d.mask, d.trails.sun.el, d.trails.earth.el) : FULL_RANGE
+  d.zoom ? zoomRange(d.mask, d.trails.sun.el, d.trails.earth.el) : FULL_RANGE
 
 /** Elevation -> radius in [0,1] (0 = centre = range.hi). Clamped. */
 export function elToR(el: number, r: ElRange): number {

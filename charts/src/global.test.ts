@@ -83,6 +83,8 @@ export function globalSky(o: Partial<SkyData> = {}): SkyData {
 const SR1 = (sky as unknown as { data: SkyData }).data
 const HAWORTH = (skyH as unknown as { data: SkyData }).data
 const NORTH = 'N = toward the north pole'
+/** The classic plot's range (skyClassic.ts buildSky). */
+const classicRange = (d: SkyData) => classic.buildSky(d).range
 const annTexts = (f: { layout: Record<string, unknown> }) => ((f.layout.annotations ?? []) as { text: string }[]).map((a) => a.text)
 
 describe('northNote: what "N" means at sites outside the south pole', () => {
@@ -92,12 +94,12 @@ describe('northNote: what "N" means at sites outside the south pole', () => {
     expect(keyLine(g, r)).toContain('Closer to the centre = higher. N = toward the north pole. Whole sky')
     expect(keyLine(g, r)).not.toContain('away from the pole')
     expect(northText(g)).toBe(NORTH)
-    expect(classic.skyHeader(g, classic.skyRange(g)).orient).toBe(NORTH)
+    expect(classic.skyHeader(g, classicRange(g)).orient).toBe(NORTH)
     // polar payloads (no northNote): today's words
     expect(northText(SR1)).toBe('N = away from the pole')
     expect(keyLine(SR1, skyRange(SR1))).toContain('Closer to the centre = higher. N = away from the pole. Heights stretched')
-    expect(classic.skyHeader(SR1, classic.skyRange(SR1)).orient).toBe('N points away from the pole')
-    expect(classic.skyHeader(HAWORTH, classic.skyRange(HAWORTH)).orient).toBe('N points away from the pole')
+    expect(classic.skyHeader(SR1, classicRange(SR1)).orient).toBe('N points away from the pole')
+    expect(classic.skyHeader(HAWORTH, classicRange(HAWORTH)).orient).toBe('N points away from the pole')
   })
 
   it('reaches the exported figure and the classic figure', () => {
@@ -118,14 +120,16 @@ describe('northNote: what "N" means at sites outside the south pole', () => {
 describe('a global site with the Sun at 85°: the plot shows the whole sky', () => {
   it('the zoom over its paths would be wider than the whole sky, so the range is the full one', () => {
     const g = globalSky()
-    const z = zoomRange(g.mask, g.trails.sun.el, g.trails.earth.el)
-    expect(z.hi - z.lo).toBeGreaterThan(FULL_RANGE.hi - FULL_RANGE.lo) // −90°…90°: nothing stretched
-    expect(zoomFits(g.trails)).toBe(false)
+    // a zoom over the mask and paths (1.13.5's rule) would span −90°…90°: wider than the whole sky, nothing stretched
+    const all = [...g.mask, ...g.trails.sun.el, ...g.trails.earth.el]
+    expect(Math.ceil(Math.max(...all) + 1) - Math.floor(Math.min(...all) - 1)).toBeGreaterThan(FULL_RANGE.hi - FULL_RANGE.lo)
+    expect(zoomFits(g.trails.sun.el, g.trails.earth.el)).toBe(false)
+    expect(zoomRange(g.mask, g.trails.sun.el, g.trails.earth.el)).toEqual(FULL_RANGE)
+    expect(classic.zoomRange(g.mask, g.trails.sun.el, g.trails.earth.el)).toEqual(classic.FULL_RANGE)
     expect(skyRange(g)).toEqual(FULL_RANGE)
     expect(buildSky(g).range).toEqual(FULL_RANGE)
     expect(buildSky(g, { live: true }).range).toEqual(FULL_RANGE)
-    expect(classic.skyRange(g)).toEqual(classic.FULL_RANGE)
-    expect(classic.buildSky(g).range).toEqual(classic.FULL_RANGE)
+    expect(classicRange(g)).toEqual(classic.FULL_RANGE)
     expect(classic.buildSky(g, { live: true, narrow: true }).range).toEqual(classic.FULL_RANGE)
   })
 
@@ -141,7 +145,7 @@ describe('a global site with the Sun at 85°: the plot shows the whole sky', () 
       // east of north (azimuth 95°): right of the centre
       expect(dyn.sun.x).toBeGreaterThan(0)
     }
-    const cd = classic.skyDynamic(g.now, classic.skyRange(g), 200)
+    const cd = classic.skyDynamic(g.now, classicRange(g), 200)
     expect(Math.hypot(cd.sun.x, cd.sun.y)).toBeCloseTo(0.05, 12)
     expect(cd.sun.text).toBe('Sun 85.00°')
   })
@@ -162,12 +166,12 @@ describe('a global site with the Sun at 85°: the plot shows the whole sky', () 
     expect(keyLine(g, skyRange(g))).toContain(
       `Whole sky: edge −10°, centre straight up (no horizon zoom: the Sun or Earth goes more than ${ZOOM_MAX_BODY_DEG}° from the horizon).`)
     expect(scaleText(true, FULL_RANGE)).toContain('no horizon zoom')
-    expect(classic.skyHeader(g, classic.skyRange(g)).scale).toBe('Full sky −10°…90° (paths too wide to zoom)')
+    expect(classic.skyHeader(g, classicRange(g)).scale).toBe('Full sky −10°…90° (paths too wide to zoom)')
     // with the zoom switched off: the plain whole-sky words
     const off = globalSky({ zoom: false })
     expect(keyLine(off, skyRange(off))).toContain('Whole sky: edge −10°, centre straight up.')
     expect(keyLine(off, skyRange(off))).not.toContain('no horizon zoom')
-    expect(classic.skyHeader(off, classic.skyRange(off)).scale).toBe('Full sky −10°…90°')
+    expect(classic.skyHeader(off, classicRange(off)).scale).toBe('Full sky −10°…90°')
   })
 
   it('a far-side site: Earth far below the horizon sits on the outer ring, still inside the plot', () => {
@@ -188,11 +192,12 @@ describe('a global site with the Sun at 85°: the plot shows the whole sky', () 
 describe('the horizon zoom where it still fits', () => {
   it('every polar dev payload keeps its zoom range (the paths stay near the horizon)', () => {
     for (const d of [SR1, HAWORTH]) {
-      expect(zoomFits(d.trails)).toBe(true)
+      expect(zoomFits(d.trails.sun.el, d.trails.earth.el)).toBe(true)
       const z = zoomRange(d.mask, d.trails.sun.el, d.trails.earth.el)
       expect(skyRange(d)).toEqual(z)
-      expect(classic.skyRange(d)).toEqual(classic.zoomRange(d.mask, d.trails.sun.el, d.trails.earth.el))
+      expect(classicRange(d)).toEqual(classic.zoomRange(d.mask, d.trails.sun.el, d.trails.earth.el))
       expect(isWholeSky(skyRange(d))).toBe(false)
+      expect(z.hi - z.lo).toBeLessThan(20) // a real zoom (−9°…8° at SR1)
     }
   })
 
@@ -202,9 +207,9 @@ describe('the horizon zoom where it still fits', () => {
       trails: { sun: { az: [0, 180], el: [-11.9, 11.9] }, earth: { az: [0, 180], el: [-19, 19] } },
       now: { sun: body({ el: 11.9 }), earth: body({ az: 180, el: 19 }) },
     })
-    expect(zoomFits(edge.trails)).toBe(true)
+    expect(zoomFits(edge.trails.sun.el, edge.trails.earth.el)).toBe(true)
     expect(skyRange(edge)).toEqual({ lo: -20, hi: 20 })
-    expect(classic.skyRange(edge)).toEqual({ lo: -20, hi: 20 })
+    expect(classicRange(edge)).toEqual({ lo: -20, hi: 20 })
   })
 
   it('a high-latitude site off the pole (Chandrayaan-3, 69° S) keeps a zoom, with its Sun inside', () => {
@@ -222,12 +227,14 @@ describe('the horizon zoom where it still fits', () => {
   })
 
   it('the limit is 30° either way, inclusive; non-finite samples are ignored', () => {
-    const t = (sun: number[], earth: number[] = [0]): SkyData['trails'] => ({ sun: { az: sun.map(() => 0), el: sun }, earth: { az: earth.map(() => 0), el: earth } })
     expect(ZOOM_MAX_BODY_DEG).toBe(30)
-    expect(zoomFits(t([-30, 30]))).toBe(true)
-    expect(zoomFits(t([30.01]))).toBe(false)
-    expect(zoomFits(t([0], [-30.01]))).toBe(false)
-    expect(zoomFits(t([NaN, 5, Infinity * 0]))).toBe(true)
+    expect(zoomFits([-30, 30], [0])).toBe(true)
+    expect(zoomFits([30.01], [0])).toBe(false)
+    expect(zoomFits([0], [-30.01])).toBe(false)
+    expect(zoomFits([NaN, 5, Infinity * 0], [])).toBe(true)
+    expect(zoomFits()).toBe(true)
+    // the mask may stand higher (a crater wall): the zoom covers it, as before
+    expect(zoomRange([45], [1], [2])).toEqual({ lo: -4, hi: 46 })
     expect(isWholeSky(FULL_RANGE)).toBe(true)
     expect(isWholeSky({ lo: -10, hi: 89 })).toBe(false)
   })

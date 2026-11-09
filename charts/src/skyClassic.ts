@@ -21,7 +21,8 @@
  */
 import type { BodyNow, SkyData } from './bridge'
 import { C, FONT, HOVER, MONO } from './theme'
-import { isWholeSky, pctShowing, zoomFits } from './skyCaption'
+import { pctShowing } from './skyCaption'
+import { isWholeSky, zoomFits } from './skyCaption'
 
 export interface ElRange {
   lo: number
@@ -37,6 +38,8 @@ const AZ_LABEL_R = 1.09
 
 /** Range for horizon zoom: covers the terrain mask and both bodies with margin. */
 export function zoomRange(mask: number[], sunEls: number[], earthEls: number[]): ElRange {
+  // 1.14.0: paths too far from the horizon to zoom (outside the south pole): the whole sky (as sky.ts)
+  if (!zoomFits(sunEls, earthEls)) return FULL_RANGE
   const all = [...mask, ...sunEls, ...earthEls].filter((x) => Number.isFinite(x))
   // a loop, not Math.min(...all): spreading tens of thousands of arguments can overflow the stack
   let mn = -3, mx = 6
@@ -316,29 +319,18 @@ export function skyDynamic(now: { sun: BodyNow; earth: BodyNow }, range: ElRange
   return { sun: body(now.sun, s, 'Sun', ps), earth: body(now.earth, e, 'Earth', pe), rings, ringAz }
 }
 
-/**
- * Header lines: site and time (bold / mono), then the radius scale and
- * orientation. The orientation is the payload's northNote (global sites,
- * 1.14.0), else "N points away from the pole"; the scale says when the zoom
- * is on but the paths are too wide for it ([skyRange]).
- */
-export function skyHeader(d: Pick<SkyData, 'siteName' | 'timeLabel' | 'zoom' | 'northNote'>, range: ElRange): { site: string; time: string; scale: string; orient: string } {
+/** Header lines: site and time (bold / mono), then the radius scale and orientation. */
+export function skyHeader(d: Pick<SkyData, 'siteName' | 'timeLabel' | 'zoom'>, range: ElRange): { site: string; time: string; scale: string; orient: string } {
   return {
     site: d.siteName,
     time: d.timeLabel,
-    scale: d.zoom && isWholeSky(range) ? 'Full sky −10°…90° (paths too wide to zoom)'
-      : d.zoom ? `Horizon zoom ${range.lo}°…${range.hi}° (radius exaggerated)` : 'Full sky −10°…90°',
-    orient: d.northNote ?? 'N points away from the pole',
+    scale: d.zoom ? `Horizon zoom ${range.lo}°…${range.hi}° (radius exaggerated)` : 'Full sky −10°…90°',
+    orient: 'N points away from the pole',
+    // 1.14.0: the zoom gave way to the whole sky (zoomRange), and a global site's payload says what N means there
+    ...(d.zoom && isWholeSky(range) ? { scale: 'Full sky −10°…90° (paths too wide to zoom)' } : {}),
+    ...((d as Partial<SkyData>).northNote !== undefined ? { orient: (d as Partial<SkyData>).northNote as string } : {}),
   }
 }
-
-/**
- * The plotted elevation range: the horizon zoom when it is on and the paths
- * stay near the horizon ([zoomFits]: always at the south pole), otherwise
- * the whole sky (as sky.ts skyRange).
- */
-export const skyRange = (d: Pick<SkyData, 'zoom' | 'mask' | 'trails'>): ElRange =>
-  d.zoom && zoomFits(d.trails) ? zoomRange(d.mask, d.trails.sun.el, d.trails.earth.el) : FULL_RANGE
 
 export function skyAlt(d: Pick<SkyData, 'siteName' | 'timeLabel' | 'mask' | 'now'>): string {
   const st = (b: BodyNow) => stateText(b, 'hidden by terrain')
@@ -378,7 +370,7 @@ export function skyMarginTop(siteName: string, narrow: boolean): number {
 }
 
 export function buildSky(d: SkyData, opts: SkyOptions = {}): { data: Trace[]; layout: Record<string, unknown>; range: ElRange; alt: string } {
-  const range = skyRange(d)
+  const range = d.zoom ? zoomRange(d.mask, d.trails.sun.el, d.trails.earth.el) : FULL_RANGE
   const data: Trace[] = []
 
   // elevation rings

@@ -121,9 +121,22 @@ export const maskSource = (maskApprox?: boolean) => (maskApprox ? 'coarse map, a
  * within about 12° of it and Earth within about 19°, so the zoom always
  * applies there, as before. Elsewhere the Sun climbs up to about 90° and
  * sinks as deep at night: a zoom over its path would span more than the
- * whole sky and squeeze the hills, so the plot shows the whole sky instead.
+ * whole sky and squeeze the hills, so the plot shows the whole sky instead
+ * (zoomRange in sky.ts and skyClassic.ts).
  */
 export const ZOOM_MAX_BODY_DEG = 30
+
+/**
+ * Whether the horizon zoom applies to the period's paths (elevations, deg):
+ * every sample within [ZOOM_MAX_BODY_DEG] of the flat horizon. True at every
+ * south-pole site. Non-finite samples are ignored, as zoomRange does.
+ */
+export function zoomFits(...paths: number[][]): boolean {
+  for (const els of paths) {
+    for (const v of els) if (Math.abs(v) > ZOOM_MAX_BODY_DEG) return false
+  }
+  return true
+}
 
 /** The whole-sky elevation range, degrees (sky.ts and skyClassic.ts FULL_RANGE). */
 const WHOLE_SKY: ElRange = { lo: -10, hi: 90 }
@@ -132,36 +145,26 @@ const WHOLE_SKY: ElRange = { lo: -10, hi: 90 }
 export const isWholeSky = (range: ElRange) => range.lo === WHOLE_SKY.lo && range.hi === WHOLE_SKY.hi
 
 /**
- * Whether the horizon zoom applies to a payload's paths: the Sun and Earth
- * stay within [ZOOM_MAX_BODY_DEG] of the flat horizon over the period (true
- * at every south-pole site; non-finite samples are ignored, as zoomRange does).
+ * What "N" means on the plot: the payload's northNote (sites outside the
+ * south pole, 1.14.0), else the polar words "N = away from the pole".
  */
-export function zoomFits(trails: SkyData['trails']): boolean {
-  for (const els of [trails.sun.el, trails.earth.el]) {
-    for (const v of els) if (Math.abs(v) > ZOOM_MAX_BODY_DEG) return false
-  }
-  return true
-}
+export const northText = (d: Partial<Pick<SkyData, 'northNote'>>) => d.northNote ?? 'N = away from the pole'
 
-/**
- * The radius scale: "Heights stretched: edge −9°, centre 8°" (zoom) or the
- * whole sky, saying why when the zoom is on but the paths go too far from
- * the horizon for it ([zoomFits]).
- */
+/** The radius scale: "Heights stretched: edge −9°, centre 8°" (zoom) or the whole sky. */
 export function scaleText(zoom: boolean, range: ElRange): string {
+  // 1.14.0: the zoom is on but the paths go too far from the horizon for it ([zoomFits]): say why
   if (zoom && isWholeSky(range)) {
     return `Whole sky: edge −10°, centre straight up (no horizon zoom: the Sun or Earth goes more than ${ZOOM_MAX_BODY_DEG}° from the horizon)`
   }
   return zoom ? `Heights stretched: edge ${deg(range.lo, 0)}, centre ${deg(range.hi, 0)}` : 'Whole sky: edge −10°, centre straight up'
 }
 
-/** What "N" means on the plot: the payload's northNote (global sites), else "N = away from the pole". */
-export const northText = (d: Pick<SkyData, 'northNote'>) => d.northNote ?? 'N = away from the pole'
-
 /** The muted key line under the plot (charts spec 2.2 item 5). */
-export function keyLine(d: Pick<SkyData, 'maskApprox' | 'zoom' | 'northNote'>, range: ElRange): string {
+export function keyLine(d: Pick<SkyData, 'maskApprox' | 'zoom'>, range: ElRange): string {
   return `Seen from above. Grey = hills and crater rims (${maskSource(d.maskApprox)}). Filled = counted as up, open = not. ` +
-    `Dashed ring = flat horizon (0°). Closer to the centre = higher. ${northText(d)}. ${scaleText(d.zoom, range)}.`
+    `Dashed ring = flat horizon (0°). Closer to the centre = higher. N = away from the pole. ${scaleText(d.zoom, range)}.`
+      // 1.14.0: a global site's payload says what N means there (northNote); a polar payload keeps these words
+      .replace('N = away from the pole.', `${northText(d as Partial<SkyData>)}.`)
 }
 
 /** Exact legend entries (Exact numbers), in drawing order. */

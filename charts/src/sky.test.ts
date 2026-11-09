@@ -370,15 +370,18 @@ describe('sky state words (science-1, science-2)', () => {
 describe('northNote (1.14.0, global sites)', () => {
   it('replaces "N = away from the pole" in the key line; polar payloads keep it', () => {
     const r = skyRange(SR1)
-    const g = keyLine({ ...SR1, northNote: 'N = toward the north pole' }, r)
+    const withNote: SkyData = { ...SR1, northNote: 'N = toward the north pole' }
+    const g = keyLine(withNote, r)
     expect(g).toContain('Closer to the centre = higher. N = toward the north pole. Heights stretched: edge −9°, centre 8°.')
     expect(g).not.toContain('away from the pole')
-    expect(keyLine(SR1, r)).toBe(keyLine({ ...SR1, northNote: undefined }, r))
+    const noNote: SkyData = { ...SR1, northNote: undefined }
+    expect(keyLine(SR1, r)).toBe(keyLine(noNote, r))
     expect(keyLine(SR1, r)).toContain('Closer to the centre = higher. N = away from the pole. Heights stretched')
     expect(keyLine(HAWORTH, skyRange(HAWORTH))).toContain('N = away from the pole.')
   })
   it('the export figure prints the note in its key', () => {
-    const texts = annTexts(buildSky({ ...SR1, northNote: 'N = toward the north pole' })).join('\n')
+    const withNote: SkyData = { ...SR1, northNote: 'N = toward the north pole' }
+    const texts = annTexts(buildSky(withNote)).join('\n')
     expect(texts).toContain('N = toward the north pole.')
     expect(texts).not.toContain('away from the pole')
   })

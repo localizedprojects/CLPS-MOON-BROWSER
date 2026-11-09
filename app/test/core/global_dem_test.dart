@@ -145,9 +145,13 @@ void main() {
     expect(g.sum, f['sum']);
     final samples = f['samples'] as List;
     expect(samples, isNotEmpty);
+    // contract §7 writes [i, j, z] (column, row); the file may say
+    // `samplesOrder: "[row, column, z]"`, which wins when present
+    final rowFirst = ((f['samplesOrder'] ?? '') as String).startsWith('[row');
     for (final s in samples) {
-      final [i, j, z] = s as List;
-      expect(g.at(i as int, j as int), z, reason: 'pixel ($i, $j)');
+      final [a, b, z] = s as List;
+      final (i, j) = rowFirst ? (b as int, a as int) : (a as int, b as int);
+      expect(g.at(i, j), z, reason: 'pixel (column $i, row $j)');
     }
   }, skip: File(_realMap).existsSync() && File(_coarse).existsSync() ? false : 'global DEM or global_coarse.json not present yet');
 }

@@ -85,7 +85,19 @@ Record each result in the PR description.
       Chrome, loading `/` requests nothing under `assets/data/global/`.
 - [ ] **G6, layouts:** the same screens at 360 × 800 and 1280 × 800, rendered at `85c472f` and at HEAD,
       differ only in the region switch row and the site picker's "Whole Moon" header (scratch goldens,
-      not committed).
+      not committed), plus these **declared polar-mode differences**, which are intended content (plan
+      §2, WP3b) and are cropped from the comparison or recorded as accepted in the PR's G6 result:
+      - **Learn**, the coverage card: the reworded scope text ("South pole (the default): …"), the Whole
+        Moon paragraph and the "Open Whole Moon" button;
+      - **Learn**, "What each view shows": the "Whole Moon: landing sites beyond the pole" card;
+      - **Learn**, the glossary: the "Near side" and "Far side" entries;
+      - **Learn**, Credits: the Whole Moon sources (the LROC site coordinates, the LOLA global
+        elevation grids and the others listed there);
+      - **How it's calculated**: the new opening sentence (`calcScope`) and the "The whole Moon" section;
+      - **the first-run Explore guide** (an overlay, not in the goldens): one more step, "South pole or
+        whole Moon", pointing at the region switch, so it reads "step 1 of 7"; a returning user sees that
+        step once on its own.
+      Everything else on these screens, Learn included, must match `85c472f` pixel for pixel.
 - [ ] **G7, charts:** the polar figure JSON equals the 1.13.5 baseline (`npm test`; `charts/src/global.test.ts`).
 - [ ] **G8, device:** on the Android 7 emulator a cold start gives South pole and Shackleton rim; the
       light map, the Lander, Compare and Learn match 1.13.5; switching to Whole Moon and back leaves the

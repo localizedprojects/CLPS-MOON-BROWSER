@@ -1,5 +1,5 @@
 {
- "generatedUtc": "2026-11-09T14:28:13Z",
+ "generatedUtc": "2026-11-09T15:22:52Z",
  "projection": "equirectangular (plate carree), near side centred, north up: width x height pixels cover lon [-180, 180) left to right and lat [90, -90] top to bottom; pixel (i, j) centre at lon = -180 + (i + 0.5) * 360 / width, lat = 90 - (j + 0.5) * 180 / height",
  "hillshade": {
   "file": "global/hillshade.webp",
@@ -83,7 +83,7 @@
   "global/earthvis.webp": "09dd27d1b5bd533cb860c6d5e98826d53eb19ed07b71c1b32f3268d292047b75",
   "global/hillshade.webp": "fa366e4db18a6244a789489494e1f108122a9b2142db6875fbb833b8446ed001",
   "global/horizons.json": "ed6c5cb0ba5d141b9183eb27c69013f9a4e133bc0ce173d5ba37ea940a2e3085",
-  "global/sites.json": "8641a98bb457557e18a7ddb095c154ac3e74797ef58fa5b4f057b820442fac26",
+  "global/sites.json": "e50d5c97e87a7b722d43359244cc6a41de1e5607fb86d84f76c90fc172cfa984",
   "global/thumbs/apollo-11-lm.webp": "f2af7bd6e947cfee15399a0cfec3733afdf187e1c96a7682bb3c222fc7bfdca3",
   "global/thumbs/apollo-12-lm.webp": "7e4c06a103a1e9bb4f0f9e3e2da733e9d8d0c6031de9b33d6a5cce4e901fa540",
   "global/thumbs/apollo-14-lm.webp": "13d1121cfaf5f0cf6c677ce2987be42d526d53c41194d312669d45753cffd03a",
@@ -104,6 +104,6 @@
   "global/thumbs/surveyor-1.webp": "73d9ef77f555ed5002bbf7c0693f3f4ebd1e519e7eb74f4e36fc0dc9004bf210",
   "global/thumbs/surveyor-3.webp": "b12914c52dde507e6ce791d53d0cdcf7327e52607ac6a3af36266343bfde0ed3",
   "global/thumbs/surveyor-7.webp": "109bb0fbe0442908d938d456a0c880e712893301e40376b4ce9fe685848bd5bc",
-  "global/validation.json": "741ce9e787f10ba8f695e3d8f968a203fdafabb4c31522d3cd5a9d5078f1ca94"
+  "global/validation.json": "e4f3c7c2ddb5b7c4cdf97ad87b7e9f89809f5506d8a49ab1d2ad2e3cf1e0f6de"
  }
 }

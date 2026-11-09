@@ -37,9 +37,17 @@ DEM_TEXT = ("LOLA + Kaguya SLDEM2015 512 px/deg (59 m, to 20 km; LOLA LDEM_512 w
 MASK_SOURCE = "SLDEM2015 59 m (to 20 km) + LOLA 474 m DEM"
 MASK_SOURCE_LDEM512 = "LOLA LDEM_512 (59 m) near field + LOLA LDEM_64 (474 m)"
 MASK_SOURCE_COARSE = "LOLA LDEM_64 (474 m) only"
-FRAME_NOTE = ("The shapefile gives coordinates in the IAU Moon 2000 geographic system; they are applied in "
-              "MOON_ME as given. The difference from IAU-frame realisations is below about 100 m and is "
-              "documented, not corrected.")
+# Plan §10 V1. "IAU Moon 2000" names only the shapefile's datum: its .PRJ is a sphere of 1737400 m and a
+# prime meridian, with no rotation model. The coordinates come from LROC NAC images combined with Earth-based
+# laser ranging (the retroreflector rows cite the DE430 lunar coordinates document), i.e. the Mean Earth
+# frame, so they are used in MOON_ME unchanged. The IAU_MOON vs DE440 ME figures are the ones the shipped
+# frames kernel moon_de440_250416.tf states (tests/test_globe_sites.py reproduces them with SPICE).
+FRAME_NOTE = ('"IAU Moon 2000" is only the shapefile\'s spherical datum (R = 1737.4 km, prime meridian 0); it '
+              "carries no rotation model. Its coordinates were measured in LROC NAC images combined with Earth-based "
+              "laser ranging (the retroreflector rows cite the DE430 lunar coordinates) and are in the Mean Earth "
+              "frame, so they are applied in MOON_ME as given. The app does not use the IAU_MOON rotation, which "
+              "differs from DE440 Mean Earth by up to about 155 m (mean about 72 m) over 2000-2040 "
+              "(moon_de440_250416.tf).")
 WAGNER = ("Wagner, R. V., Nelson, D. M., Plescia, J. B., Robinson, M. S., Speyerer, E. J., & Mazarico, E. "
           "(2017). Coordinates of anthropogenic features on the Moon. Icarus, 283, 92-103. "
           "doi:10.1016/j.icarus.2016.05.011")

@@ -101,7 +101,7 @@ Explore has a **South pole | Whole Moon** switch. The app always starts at the s
 - **The map:** the whole Moon on one equirectangular map (near side centred, north up, 30° grid, "Near side" and "Far side" labels), shaded from LOLA heights, with a computed overlay of where Earth is ever above a flat horizon. Each site has a marker whose shape shows its group, and a direct label. The hatched cap south of 80°S takes you back to the south pole, which has its own detailed map.
 - **Ranking:** the Whole Moon sites are ranked among themselves only, with the same "What matters most?" chips. An automatic choice never mixes the regions, because near-equator sites have roughly 50 % sunlight and constant Earth, a different trade-off from the pole. The **Pole vs the rest** card puts the two side by side: each region's best value for sunlight, Earth in view, both together, the longest night and the highest Sun, and a computed verdict per goal.
 - **Site pages:** Overview, Sky & time and the Lander's view work as at the pole. On the far side (Chang'e-4 and Chang'e-6) the app says that Earth never rises and that direct-to-Earth radio is impossible there. The Light & shadow map stays south-pole only, and the site page says so.
-- **Compare:** can mix the regions only when you add sites from both; a "Mixed regions" banner and one verdict per goal then replace the single winner.
+- **Compare:** can mix the regions only when you add sites from both; a "Mixed regions" banner and one verdict per goal then replace the single winner, and no site carries a rank number.
 - **Custom spots:** tap the Whole Moon map (or type coordinates) anywhere from 80.0°N to just north of 80.01°S. The horizon is computed on the device from a 3.8 km whole-Moon DEM and is labelled approximate with its measured error (§[Validation](#validation)).
 - **Learn:** *South pole vs the rest of the Moon* explains the difference, with computed facts (the highest Sun, the longest night, the far side, and how much a 0.3° skyline error moves sunrise in each region).
 
@@ -625,8 +625,8 @@ CLAUDE.md                   conventions for contributors and coding agents
 
 | Suite | Location | Command | Count |
 |---|---|---|---|
-| Flutter: Dart core, state, widgets | `app/test/` | `flutter test` | 1,728 pass, 4 skipped, with `flutter analyze` clean (local run, 9 November 2026, 1.14.0, and again with the date faked to 14 November 2026 06:00 UTC; the four light-map label tests also pass with it faked to 16 November 2026 12:00, 15 December 2026 12:00 and 20 January 2027 12:00 UTC) |
-| Chart bundle | `charts/src/*.test.ts` | `npm test` | 267 in 21 files (local run, 9 November 2026, 1.14.0) |
+| Flutter: Dart core, state, widgets | `app/test/` | `flutter test` | 1,737 pass, 4 skipped, with `flutter analyze` clean (local run, 9 November 2026, 1.14.0, and again with the date faked to 14 November 2026 06:00 UTC; the four light-map label tests also pass with it faked to 16 November 2026 12:00, 15 December 2026 12:00 and 20 January 2027 12:00 UTC) |
+| Chart bundle | `charts/src/*.test.ts` | `npm test` | 268 in 21 files (local run, 9 November 2026, 1.14.0) |
 | Python pipeline | `pipeline/tests/` | `python -m pytest` | 789: 782 pass, 7 skipped, with the SPICE kernels, the 80 m and 240 m LOLA DEMs and the Whole Moon inputs in the cache (local run, 9 November 2026, 1.14.0; the 7 need DE442, the 120 m DEM, PyYAML or the `lunarhorizon` package). In CI, without that data: 586 pass, 203 skipped (a local run with an empty cache, 9 November 2026, 1.14.0) |
 | Python library | `pylib/tests/` | `python -m pytest` (from `pylib/`) | 520 pass, with the SPICE kernels in the cache (local run, 9 November 2026, 1.14.0; `pylib/src` is unchanged in 1.14.0, and its goldens' provenance records the additive `dem.dart`; some skip without them; CI does not run this suite) |
 

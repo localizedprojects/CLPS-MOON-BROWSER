@@ -278,3 +278,24 @@ int pctShowing(double frac) {
 /// "62%"; a disk that is partly up reads 1..99% ([pctShowing], capped at
 /// 99), never "0%" or "100%", the same number as the chips and sky chart.
 String _diskPct(double frac) => '${pctShowing(frac).clamp(1, 99)}%';
+
+/// A near tie at the top of a ranked list, in words (1.14.0 review: on the
+/// Whole Moon list the near-side sites' shares differ by a few points, so
+/// ranks 1, 2, 3… are decided by fractions of a point). [scores] are the
+/// list's scores, best first, out of 100. The sites from the first that are
+/// within [within] points of it form the run; the spread (first minus last
+/// of the run) is rounded up to 0.1, so the sentence stays true. Null unless
+/// the run has at least two sites.
+String? nearTieAtTopText(List<double> scores, {double within = 1.0}) {
+  if (scores.length < 2) return null;
+  final top = scores.first;
+  var n = 1;
+  while (n < scores.length && top - scores[n] <= within + 1e-9) {
+    n++;
+  }
+  if (n < 2) return null;
+  final spread = top - scores[n - 1];
+  final x = math.max(1, (spread * 10 - 1e-9).ceil()) / 10;
+  return 'The top $n sites score within ${x.toStringAsFixed(1)} points of each other (out of 100): '
+      'a near tie, so small differences decide their order.';
+}

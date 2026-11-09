@@ -14,7 +14,7 @@ import 'package:provider/provider.dart';
 import '../core/catalog.dart' show Site;
 import '../core/metrics.dart' show SiteMetrics;
 import '../core/region.dart';
-import '../core/wording.dart' show dsnResolutionNote;
+import '../core/wording.dart' show dsnResolutionNote, nearTieAtTopText;
 import '../state/app_state.dart';
 import '../theme.dart';
 import '../widgets/compare_tray.dart';
@@ -28,6 +28,7 @@ import '../widgets/map_view.dart';
 import '../widgets/region_switch.dart';
 import '../widgets/site_card.dart';
 import '../widgets/site_carousel.dart';
+import '../widgets/site_glance_card.dart' show numSpans;
 import '../widgets/contrast_card.dart';
 import '../widgets/top_pick_card.dart';
 
@@ -628,6 +629,11 @@ String globalListHeaderText(AppState s, {required int count}) => listHeaderText(
     count: count,
     filtered: false);
 
+/// The near-tie sentence under the Whole Moon list header
+/// ([nearTieAtTopText] of the listed scores, best first), or null.
+String? globalNearTieText(AppState s) =>
+    nearTieAtTopText([for (final r in s.rankedIn(Region.wholeMoon)) r.score.total]);
+
 /// Whole Moon Explore: the switch, the headline, the global map (with its
 /// Earth-visible overlay and the south-pole cap), the goal chips and the
 /// ranked global list (the map's non-map alternative). No top pick here: the
@@ -700,9 +706,17 @@ class _GlobalExploreState extends State<_GlobalExplore> {
         ),
       ),
     );
+    // once the order is final: say when its top is a near tie (the near-side
+    // shares differ by a few points, so ranks turn on fractions of a point)
+    final tie = s.globalRankingDone ? globalNearTieText(s) : null;
     final list = <Widget>[
       const ContrastCard(),
       header,
+      if (tie != null)
+        Padding(
+          padding: const EdgeInsets.only(bottom: 4),
+          child: Text.rich(numSpans(tie, PHText.body.copyWith(color: PH.muted)), key: const ValueKey('global-near-tie')),
+        ),
       if (g == null)
         Semantics(
           liveRegion: true,

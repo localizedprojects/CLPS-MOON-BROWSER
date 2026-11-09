@@ -7,6 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:polar_horizon/core/ranking.dart';
 import 'package:polar_horizon/core/region.dart';
 import 'package:polar_horizon/core/summary.dart';
+import 'package:polar_horizon/core/wording.dart' show nearTieAtTopText;
 import 'package:polar_horizon/screens/explore.dart';
 import 'package:polar_horizon/state/app_state.dart';
 import 'package:polar_horizon/state/chart_hub.dart';
@@ -70,6 +71,22 @@ void main() {
     final earth = cards();
     expect(earth, expected(Goal.earth));
     expect(earth, isNot(balanced), reason: 'on the bundled data the order changes with the goal');
+
+    // the top of the list is a near tie on the bundled data: one computed
+    // sentence says so, with the count and spread from the listed scores
+    for (final goal in [Goal.balanced, Goal.earth, Goal.power]) {
+      state.setGoal(goal);
+      await tester.pump();
+      final scores = [for (final r in state.rankedIn(Region.wholeMoon)) r.score.total];
+      final text = nearTieAtTopText(scores);
+      final shown = find.byKey(const ValueKey('global-near-tie'), skipOffstage: false);
+      if (text == null) {
+        expect(shown, findsNothing, reason: '$goal');
+      } else {
+        expect(tester.widget<Text>(shown).textSpan!.toPlainText(), text, reason: '$goal');
+      }
+      if (goal == Goal.balanced) expect(text, isNotNull, reason: 'the near side ties under Balanced');
+    }
     await tester.pumpWidget(const SizedBox());
   });
 

@@ -99,7 +99,8 @@ Record each result in the PR description.
         step once on its own.
       Everything else on these screens, Learn included, must match `85c472f` pixel for pixel.
 - [ ] **G7, charts:** the polar figure JSON equals the 1.13.5 baseline (`npm test`; `charts/src/global.test.ts`).
-- [ ] **G8, device:** on the Android 7 emulator a cold start gives South pole and Shackleton rim; the
+- [ ] **G8, device:** on the Android 7 emulator a cold start gives South pole, with Shackleton rim
+      selected until the ranking finishes and then the goal's top pick, as in 1.13.5; the
       light map, the Lander, Compare and Learn match 1.13.5; switching to Whole Moon and back leaves the
       polar selection, goal and shortlist unchanged.
 - [ ] **Budget:** `app/assets/data/global/` is at most 12.5 MB (measured on 2026-11-09: 9,527,276 bytes

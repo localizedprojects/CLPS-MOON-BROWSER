@@ -224,7 +224,7 @@ The differences reflect DEM resolution, the averaging period, and pixel vs point
 
 The test fails below 90 % and 80 % on the 400 m grid, and below 75 % for the 800 m grid against the 80 m horizons.
 
-**Whole Moon sites (1.14.0).** These numbers are read from `app/assets/data/global/validation.json` (`generatedUtc` 2026-11-09T09:06:30Z) and rounded the same way; formula.md §18.7 has the full list. Each direction cell gives max · rms · p95, in arcminutes.
+**Whole Moon sites (1.14.0).** These numbers are read from `app/assets/data/global/validation.json` (`generatedUtc` 2026-11-09T15:22:04Z) and rounded the same way; formula.md §18.7 has the full list. Each direction cell gives max · rms · p95, in arcminutes.
 
 | Check | What was compared | Samples | Sun | Earth |
 |---|---|---|---|---|

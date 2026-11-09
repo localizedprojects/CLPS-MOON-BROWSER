@@ -1814,7 +1814,7 @@ No files other than this one were changed while writing it.
 
 ## 18. Whole Moon (1.14.0)
 
-Written on 2026-11-09 for 1.14.0 against the `global-1.14` tree. The data contract is `docs/global_data_contract.md`; the measured numbers below come from `app/assets/data/global/validation.json` (generated 2026-11-09T09:06:30Z). Nothing in §1 to §17 changes for south-pole sites: the polar data files and the polar code are byte-identical to 1.13.5.
+Written on 2026-11-09 for 1.14.0 against the `global-1.14` tree. The data contract is `docs/global_data_contract.md`; the measured numbers below come from `app/assets/data/global/validation.json` (generated 2026-11-09T15:22:04Z). Nothing in §1 to §17 changes for south-pole sites: the polar data files and the polar code are byte-identical to 1.13.5.
 
 ### 18.1 The region rule
 

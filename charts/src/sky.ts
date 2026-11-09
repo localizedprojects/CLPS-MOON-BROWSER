@@ -21,7 +21,7 @@
 import type { BodyNow, SkyData } from './bridge'
 import { C, FONT, HOVER, MONO, SANS } from './theme'
 import {
-  captionLine, exactLine, headerTime, highestHills, highestHillsText, hillsText, keyLine, legendNames, markerLabel, pctShowing,
+  captionLine, exactLine, headerTime, highestHills, highestHillsText, hillsText, keyLine, legendNames, markerLabel, pctShowing, zoomFits,
 } from './skyCaption'
 import type { CaptionLine } from './skyCaption'
 
@@ -49,9 +49,14 @@ export function zoomRange(mask: number[], sunEls: number[], earthEls: number[]):
   return { lo: Math.floor(mn - 1), hi: Math.ceil(mx + 1) }
 }
 
-/** The plotted elevation range of a payload. */
+/**
+ * The plotted elevation range of a payload: the horizon zoom when it is on
+ * and the paths stay near the horizon ([zoomFits]: always at the south pole),
+ * otherwise the whole sky (1.14.0: outside the pole the Sun climbs up to
+ * about 90°, so a zoom over its path would be wider than the whole sky).
+ */
 export const skyRange = (d: Pick<SkyData, 'zoom' | 'mask' | 'trails'>): ElRange =>
-  d.zoom ? zoomRange(d.mask, d.trails.sun.el, d.trails.earth.el) : FULL_RANGE
+  d.zoom && zoomFits(d.trails) ? zoomRange(d.mask, d.trails.sun.el, d.trails.earth.el) : FULL_RANGE
 
 /** Elevation -> radius in [0,1] (0 = centre = range.hi). Clamped. */
 export function elToR(el: number, r: ElRange): number {

@@ -114,15 +114,54 @@ export const hillsText = (maskApprox?: boolean) => (maskApprox ? 'hills (approx.
 /** Provenance of the hills, as the key and the Exact legend name it. */
 export const maskSource = (maskApprox?: boolean) => (maskApprox ? 'coarse map, approximate' : 'NASA LOLA map')
 
-/** The radius scale: "Heights stretched: edge −9°, centre 8°" (zoom) or the whole sky. */
+/**
+ * The farthest the Sun or Earth may get from the flat horizon (above or
+ * below) over the period for the horizon zoom to apply, degrees (1.14.0).
+ * At south-pole sites (latitude −80.01° or further south) the Sun stays
+ * within about 12° of it and Earth within about 19°, so the zoom always
+ * applies there, as before. Elsewhere the Sun climbs up to about 90° and
+ * sinks as deep at night: a zoom over its path would span more than the
+ * whole sky and squeeze the hills, so the plot shows the whole sky instead.
+ */
+export const ZOOM_MAX_BODY_DEG = 30
+
+/** The whole-sky elevation range, degrees (sky.ts and skyClassic.ts FULL_RANGE). */
+const WHOLE_SKY: ElRange = { lo: -10, hi: 90 }
+
+/** Whether [range] is the whole sky (−10° at the edge, 90° at the centre). */
+export const isWholeSky = (range: ElRange) => range.lo === WHOLE_SKY.lo && range.hi === WHOLE_SKY.hi
+
+/**
+ * Whether the horizon zoom applies to a payload's paths: the Sun and Earth
+ * stay within [ZOOM_MAX_BODY_DEG] of the flat horizon over the period (true
+ * at every south-pole site; non-finite samples are ignored, as zoomRange does).
+ */
+export function zoomFits(trails: SkyData['trails']): boolean {
+  for (const els of [trails.sun.el, trails.earth.el]) {
+    for (const v of els) if (Math.abs(v) > ZOOM_MAX_BODY_DEG) return false
+  }
+  return true
+}
+
+/**
+ * The radius scale: "Heights stretched: edge −9°, centre 8°" (zoom) or the
+ * whole sky, saying why when the zoom is on but the paths go too far from
+ * the horizon for it ([zoomFits]).
+ */
 export function scaleText(zoom: boolean, range: ElRange): string {
+  if (zoom && isWholeSky(range)) {
+    return `Whole sky: edge −10°, centre straight up (no horizon zoom: the Sun or Earth goes more than ${ZOOM_MAX_BODY_DEG}° from the horizon)`
+  }
   return zoom ? `Heights stretched: edge ${deg(range.lo, 0)}, centre ${deg(range.hi, 0)}` : 'Whole sky: edge −10°, centre straight up'
 }
 
+/** What "N" means on the plot: the payload's northNote (global sites), else "N = away from the pole". */
+export const northText = (d: Pick<SkyData, 'northNote'>) => d.northNote ?? 'N = away from the pole'
+
 /** The muted key line under the plot (charts spec 2.2 item 5). */
-export function keyLine(d: Pick<SkyData, 'maskApprox' | 'zoom'>, range: ElRange): string {
+export function keyLine(d: Pick<SkyData, 'maskApprox' | 'zoom' | 'northNote'>, range: ElRange): string {
   return `Seen from above. Grey = hills and crater rims (${maskSource(d.maskApprox)}). Filled = counted as up, open = not. ` +
-    `Dashed ring = flat horizon (0°). Closer to the centre = higher. N = away from the pole. ${scaleText(d.zoom, range)}.`
+    `Dashed ring = flat horizon (0°). Closer to the centre = higher. ${northText(d)}. ${scaleText(d.zoom, range)}.`
 }
 
 /** Exact legend entries (Exact numbers), in drawing order. */

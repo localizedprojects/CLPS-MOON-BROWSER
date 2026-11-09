@@ -37,7 +37,7 @@ void main() {
       if (!hit) e.visitChildren(visit);
     }
 
-    visit(target as Element);
+    visit(target);
     return hit;
   }
 

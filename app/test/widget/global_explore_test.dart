@@ -93,6 +93,7 @@ void main() {
         expect(seg.selected, {Region.southPole});
         expect(find.byKey(const ValueKey('global-map-view')), findsNothing);
         expect(find.byType(TopPickCard), findsOneWidget, reason: 'polar Explore is unchanged');
+        expect(find.byKey(const ValueKey('contrast-card')), findsNothing, reason: 'no contrast card in South pole');
       }
       await tester.pump(const Duration(seconds: 1));
       expect(bundle.globalRequests, isEmpty, reason: 'nothing under assets/data/global/ at a polar cold start');
@@ -143,6 +144,7 @@ void main() {
         }
         expect(find.byType(SiteCard), findsNWidgets(fixtureIds.length));
         expect(find.byType(TopPickCard), findsNothing, reason: 'no top pick in Whole Moon');
+        expect(find.byKey(const ValueKey('contrast-card')), findsOneWidget, reason: 'the contrast card takes the top-pick slot ($size)');
         final seg = tester.widget<SegmentedButton<Region>>(find.byKey(const ValueKey('region-switch')));
         expect(seg.selected, {Region.wholeMoon});
         expect(_note('SYNTHETIC test map: not real terrain or data.'), findsOneWidget);
@@ -157,6 +159,7 @@ void main() {
         expect(tester.takeException(), isNull, reason: 'Explore at x$text');
         expect(find.byKey(const ValueKey('global-map-view')), findsOneWidget);
         expect(tester.getRect(find.byKey(const ValueKey('global-map-view'))).right, lessThanOrEqualTo(360));
+        expect(find.byKey(const ValueKey('contrast-card'), skipOffstage: false), findsOneWidget);
       }
       // the map on its own, with its cap and add flow
       final layers = (await tester.runAsync(() => loadGlobalMapLayers(bundle)))!;

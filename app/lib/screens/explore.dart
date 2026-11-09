@@ -27,6 +27,7 @@ import '../widgets/map_view.dart';
 import '../widgets/region_switch.dart';
 import '../widgets/site_card.dart';
 import '../widgets/site_carousel.dart';
+import '../widgets/contrast_card.dart';
 import '../widgets/top_pick_card.dart';
 
 /// Width from which Explore shows the list and the map side by side.
@@ -610,7 +611,8 @@ List<(int?, Site, SiteMetrics)> globalExploreItems(AppState s) {
 /// Whole Moon Explore: the switch, the headline, the global map (with its
 /// Earth-visible overlay and the south-pole cap), the goal chips and the
 /// ranked global list (the map's non-map alternative). No top pick here: the
-/// polar top pick never stands for the whole Moon (plan §3).
+/// polar top pick never stands for the whole Moon (plan §3); the contrast
+/// card ("Pole vs the rest") takes the top-pick slot (plan §1, §2, R2).
 class _GlobalExplore extends StatefulWidget {
   final AppState state;
   final bool wide;
@@ -684,6 +686,7 @@ class _GlobalExploreState extends State<_GlobalExplore> {
       ),
     );
     final list = <Widget>[
+      const ContrastCard(),
       header,
       if (g == null)
         Semantics(

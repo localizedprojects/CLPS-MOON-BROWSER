@@ -7,13 +7,15 @@ library;
 import 'package:flutter/material.dart';
 
 import '../core/metrics.dart' show SiteMetrics;
-import '../core/ranking.dart' show scoreWhy;
+import '../core/ranking.dart' show Goal, goalLabel, scoreWhy, weightsFor;
+import '../core/region.dart';
 import '../core/score.dart';
 import '../core/summary.dart';
 import '../core/wording.dart' show earthMetricLabel;
 import '../theme.dart';
 import 'stat_bar.dart';
 import 'focus_semantics.dart';
+import 'site_glance_card.dart' show numSpans;
 
 class WinnerCard extends StatelessWidget {
   /// The shortlist ranked under [weights], best first (at least one site).
@@ -330,6 +332,111 @@ class WinnerCard extends StatelessWidget {
           liveRegion: true,
           container: true,
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: body),
+        ),
+      ),
+    );
+  }
+}
+
+// ---- mixed regions (1.14.0) ----
+
+/// The banner over a shortlist that mixes south-pole and whole-Moon sites.
+const mixedRegionsTitle = 'Mixed regions';
+
+/// Why a mixed shortlist gets one verdict per goal instead of one winner.
+const mixedRegionsText = 'Your shortlist has south-pole and whole-Moon sites. Light and Earth contact work '
+    'differently at the pole than elsewhere, so there is no single winner: here is the best site for each goal, '
+    'worked out from the same 18.6-year numbers.';
+
+/// The region in words, beside a site's name (never colour alone).
+String regionWord(Region r) => r == Region.wholeMoon ? 'whole Moon' : 'south pole';
+
+/// The computed per-goal verdict for a mixed shortlist: for each [Goal], the
+/// shortlist ranked with that goal's weights (the same `rank()` as
+/// everywhere), best first. [sites] maps id → (name, metrics).
+List<(Goal, Ranked)> mixedVerdict(Map<String, (String, SiteMetrics)> sites) => [
+      for (final g in Goal.values)
+        if (rank(sites, weightsFor(g)).firstOrNull case final best?) (g, best),
+    ];
+
+/// One line of the verdict: "Power first: Apollo 15 (whole Moon) · 81 / 100".
+String mixedVerdictLine(Goal g, Ranked best, Region region) =>
+    '${goalLabel(g)}: ${best.name} (${regionWord(region)}) · ${best.score.total.round()} / 100';
+
+/// The answer for a shortlist that mixes regions: the "Mixed regions"
+/// banner and the best site for each goal, each with its region in words.
+class MixedRegionsCard extends StatelessWidget {
+  /// The shortlist's (name, metrics) by id, and each id's region.
+  final Map<String, (String, SiteMetrics)> sites;
+  final Map<String, Region> regions;
+  final ValueChanged<String>? onOpenSite;
+  const MixedRegionsCard({super.key, required this.sites, required this.regions, this.onOpenSite});
+
+  @override
+  Widget build(BuildContext context) {
+    final verdict = mixedVerdict(sites);
+    return Card(
+      key: const ValueKey('mixed-regions'),
+      margin: EdgeInsets.zero,
+      color: PH.panel,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(PH.radiusCard),
+        side: const BorderSide(color: PH.lineStrong),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, mainAxisSize: MainAxisSize.min, children: [
+          Semantics(
+            header: true,
+            child: Row(children: [
+              const Icon(Icons.call_split, size: 20, color: PH.muted),
+              const SizedBox(width: 8),
+              Expanded(child: Text(mixedRegionsTitle, style: PHText.title)),
+            ]),
+          ),
+          const SizedBox(height: 8),
+          Text(mixedRegionsText, style: PHText.body.copyWith(color: PH.muted)),
+          const SizedBox(height: 12),
+          for (final (g, best) in verdict)
+            _VerdictRow(
+              text: mixedVerdictLine(g, best, regions[best.id] ?? Region.southPole),
+              onOpen: onOpenSite == null ? null : () => onOpenSite!(best.id),
+              name: best.name,
+            ),
+        ]),
+      ),
+    );
+  }
+}
+
+class _VerdictRow extends StatelessWidget {
+  final String text, name;
+  final VoidCallback? onOpen;
+  const _VerdictRow({required this.text, required this.name, this.onOpen});
+
+  @override
+  Widget build(BuildContext context) {
+    final line = Text.rich(numSpans(text, PHText.body.copyWith(color: PH.text)));
+    if (onOpen == null) return Padding(padding: const EdgeInsets.symmetric(vertical: 6), child: line);
+    return Semantics(
+      container: true,
+      button: true,
+      label: '$text. Open $name',
+      onTap: onOpen,
+      excludeSemantics: true,
+      child: FocusSemantics(
+        child: TextButton(
+          style: TextButton.styleFrom(
+            minimumSize: const Size.fromHeight(48),
+            alignment: Alignment.centerLeft,
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            foregroundColor: PH.text,
+          ),
+          onPressed: onOpen,
+          child: Row(children: [
+            Expanded(child: line),
+            const Icon(Icons.chevron_right, color: PH.muted),
+          ]),
         ),
       ),
     );

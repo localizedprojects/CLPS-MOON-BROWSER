@@ -61,10 +61,47 @@ class GlobalMapLayers {
 /// Kilometres per pixel at the equator for [pxPerDeg] pixels per degree.
 double kmPerPixel(double pxPerDeg) => pxPerDeg <= 0 ? double.nan : 2 * math.pi * _moonRadiusKm / 360 / pxPerDeg;
 
-/// "26.13° N, 3.63° E": planetocentric latitude and east-positive longitude.
+/// "26.13° N, 3.63° E": planetocentric latitude and east-positive longitude,
+/// two decimals; a value that rounds to zero reads N or E (never "0.00° S").
+/// '' when either is not finite. The same rule as WP2's `latLonText`.
+// TODO(integration): use core/place.dart latLonText once WP2 is merged.
 String globalLatLonText(double lat, double lon) {
-  String f(double v) => v.abs().toStringAsFixed(2);
-  return '${f(lat)}° ${lat < 0 ? 'S' : 'N'}, ${f(lon)}° ${lon < 0 ? 'W' : 'E'}';
+  if (!lat.isFinite || !lon.isFinite) return '';
+  String f(double v, String pos, String neg) {
+    final t = v.abs().toStringAsFixed(2);
+    return '$t° ${v < 0 && t != '0.00' ? neg : pos}';
+  }
+
+  return '${f(lat, 'N', 'S')}, ${f(lon, 'E', 'W')}';
+}
+
+/// A whole-Moon site's position line: "26.13° N, 3.63° E · Hadley–Apennine".
+String globalPositionLine(Site site) {
+  final at = globalLatLonText(site.lat, site.lon);
+  return site.place.isEmpty ? at : '$at · ${site.place}';
+}
+
+/// The far side's line (build plan §2; WP2's `farSideEarthText`).
+// TODO(integration): use core/wording.dart farSideEarthText once WP2 is merged.
+const globalFarSideText =
+    'Earth never rises here. Direct-to-Earth radio is impossible; far-side missions use a relay satellite.';
+
+/// Why a whole-Moon site has no Light & shadow map (build plan §2; WP2's
+/// `lightMapPolarOnlyText`).
+// TODO(integration): use core/wording.dart lightMapPolarOnlyText once WP2 is merged.
+const globalLightMapText = 'The Light & shadow map covers south-pole sites only in this version.';
+
+/// The FidelityBadge for a whole-Moon site's horizon, from its catalogue's
+/// [Site.maskSource]: a preset names its terrain; a custom spot says it was
+/// computed on this device from the coarse whole-Moon DEM.
+String globalHorizonBadge(Site site) {
+  final src = site.maskSource.trim();
+  if (site.custom) {
+    return 'Approximate horizon: computed on this device from the $src. '
+        'Near the equator 1° of skyline moves sunrise or sunset by about 2 h. Use for exploration, not final decisions.';
+  }
+  if (src.toLowerCase().startsWith('horizon')) return src.endsWith('.') ? src : '$src.';
+  return 'Horizon from $src${src.endsWith('.') ? '' : '.'}';
 }
 
 final _loads = Expando<Future<GlobalMapLayers>>('global map layers');

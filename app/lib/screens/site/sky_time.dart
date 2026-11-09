@@ -13,12 +13,14 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/region.dart';
 import '../../core/wording.dart' show dsnResolutionNote;
 import '../../state/app_state.dart';
 import '../../state/chart_hub.dart';
 import '../../theme.dart';
 import '../../widgets/chart_focus.dart';
 import '../../widgets/expert_numbers.dart';
+import '../../widgets/global_map_view.dart' show globalFarSideText, globalHorizonBadge;
 import '../../widgets/explain.dart';
 import '../../widgets/now_status.dart';
 import '../../widgets/time_bar.dart';
@@ -310,10 +312,7 @@ class _SkyTimeTabState extends State<SkyTimeTab> {
         semanticsLabel: timelineChartLabel,
         title: 'Timeline',
         landscape: true); // the elevation "waves" read across, not up (user, 2026-10-13)
-    final notes = <Widget>[
-      if (s.site.custom) const FidelityBadge(text: FidelityBadge.customHorizon),
-      if (s.options.requireDsn) const FidelityBadge(text: dsnResolutionNote),
-    ];
+    final notes = skyTimeNotes(s);
     final short = MediaQuery.sizeOf(context).height < skyTimeCompactBarHeight;
     final bar = TimeBar(state: s, compact: short);
     List<Widget> column(double width, {double? paneHeight, bool dense = false}) {
@@ -437,10 +436,7 @@ class _SkyTimeTabState extends State<SkyTimeTab> {
     final exact = s.expert;
     final sky = FocusableChart(controller: hub.sky, semanticsLabel: whereChartLabel, title: 'Where to look');
     final tl = FocusableChart(controller: hub.timeline, semanticsLabel: whenChartLabel, title: 'When', landscape: true);
-    final notes = <Widget>[
-      if (s.site.custom) const FidelityBadge(text: FidelityBadge.customHorizon),
-      if (s.options.requireDsn) const FidelityBadge(text: dsnResolutionNote),
-    ];
+    final notes = skyTimeNotes(s);
     final short = MediaQuery.sizeOf(context).height < skyTimeCompactBarHeight;
     final bar = TimeBar(state: s, compact: short);
     // the single column (also the fallback when the pane is too short to pin
@@ -642,4 +638,26 @@ class SimpleViewSwitch extends StatelessWidget {
           subtitle: Text(on ? 'Answers in words; off for the full charts' : 'Answers in words instead of the full charts'),
         ),
       ));
+}
+
+/// The notes under Sky & time's charts: the custom-horizon and DSN badges as
+/// before; a whole-Moon site (1.14.0) gets its own horizon badge (from its
+/// catalogue's mask source) and, on the far side, the Earth line.
+List<Widget> skyTimeNotes(AppState s) {
+  final site = s.site;
+  if (site.region != Region.wholeMoon) {
+    return [
+      if (site.custom) const FidelityBadge(text: FidelityBadge.customHorizon),
+      if (s.options.requireDsn) const FidelityBadge(text: dsnResolutionNote),
+    ];
+  }
+  return [
+    FidelityBadge(text: globalHorizonBadge(site)),
+    if (s.options.requireDsn) const FidelityBadge(text: dsnResolutionNote),
+    if (site.side == 'far')
+      Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4),
+        child: Text(globalFarSideText, key: const ValueKey('far-side-sky'), style: PHText.small.copyWith(color: PH.text)),
+      ),
+  ];
 }

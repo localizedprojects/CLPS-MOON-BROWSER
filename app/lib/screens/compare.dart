@@ -11,6 +11,7 @@ import 'package:provider/provider.dart';
 
 import '../core/catalog.dart';
 import '../core/daily.dart' show monthlyCounts;
+import '../core/region.dart';
 import '../core/wording.dart' show dsnResolutionNote;
 import '../state/app_state.dart';
 import '../state/chart_hub.dart';
@@ -54,16 +55,17 @@ class _CompareScreenState extends State<CompareScreen> {
   }
 
   static Future<void> _pick(BuildContext context, AppState s) async {
-    final ids = await showSitePicker(context, multi: true, initial: s.compareIds, max: 4);
-    if (ids != null) s.setCompare(ids);
+    final ids = await showSitePicker(context, multi: true, initial: s.compareIds, max: 4, global: true);
+    if (ids != null) applyShortlist(s, ids);
   }
 
   @override
   Widget build(BuildContext context) {
     final s = context.watch<AppState>();
+    final index = compareSiteIndex(s);
     final shortlisted = [
       for (final id in s.compareIds)
-        if (s.allSites.where((x) => x.id == id).firstOrNull case final Site site) site,
+        if (index[id] case final Site site) site,
     ];
     final custom = shortlisted.any((x) => x.custom);
 
@@ -160,7 +162,7 @@ class _Results extends StatelessWidget {
     final hub = context.read<ChartHub>();
     final ranked = rankedFor(s);
     final dsn = s.options.requireDsn;
-    final customIds = {for (final x in s.allSites) if (x.custom) x.id};
+    final customIds = {for (final x in compareSiteIndex(s).values) if (x.custom) x.id};
     return Column(crossAxisAlignment: CrossAxisAlignment.stretch, mainAxisSize: MainAxisSize.min, children: [
       if (showWinner) ...[_Winner(state: s), const SizedBox(height: 16)],
       // the chart comes right after "Best for your priorities" (charts spec 4)
@@ -169,7 +171,7 @@ class _Results extends StatelessWidget {
       // DSN-gated numbers are labelled, as on Explore and the site (science-5)
       if (dsn) const FidelityBadge(text: dsnResolutionNote),
       const SizedBox(height: 8),
-      RankedCards(ranked: ranked, dsn: dsn, customIds: customIds, onOpen: s.openSite),
+      RankedCards(ranked: ranked, dsn: dsn, customIds: customIds, onOpen: shortlistOpener(s)),
       const SizedBox(height: 32),
       CalendarRace(dsn: dsn, sites: [for (final r in ranked) (r.name, monthlyCounts(s.dailyFor(r.id)))]),
       const SizedBox(height: 32),
@@ -178,7 +180,7 @@ class _Results extends StatelessWidget {
         dsn: dsn,
         exact: s.expert,
         initiallyExpanded: s.expert,
-        onOpenSite: s.openSite,
+        onOpenSite: shortlistOpener(s),
         onSaveScorecard: () => hub.exportScorecard(s),
         onSaveChart: () => hub.exportComparePng(s),
       ),
@@ -207,14 +209,54 @@ class _Winner extends StatelessWidget {
   Widget build(BuildContext context) {
     final s = state;
     final ranked = rankedFor(s);
+    // a shortlist the user mixed (pole and elsewhere): one verdict per goal,
+    // never a single winner across regions (1.14.0, plan §2)
+    if (compareMixed(s)) {
+      final index = compareSiteIndex(s);
+      return GuideTarget(id: 'compare-winner', child: MixedRegionsCard(
+        sites: {for (final r in ranked) r.id: (r.name, r.metrics)},
+        regions: {for (final r in ranked) r.id: index[r.id]?.region ?? Region.southPole},
+        onOpenSite: (id) => openShortlistSite(s, id),
+      ));
+    }
     return GuideTarget(id: 'compare-winner', child: WinnerCard(
       ranked: ranked,
       weights: s.weights,
       dsn: s.options.requireDsn,
       compact: compact,
-      onOpenSite: s.openSite,
+      onOpenSite: shortlistOpener(s),
     ));
   }
+}
+
+/// Put [ids] on the shortlist. All-polar lists go through `setCompare` as
+/// before; a list with whole-Moon sites (which `setCompare` does not know
+/// yet) is rebuilt in order with `toggleCompare`, at most 4.
+// TODO(integration): one setCompare call once it accepts global ids (WP2).
+void applyShortlist(AppState s, List<String> ids) {
+  final polar = {for (final x in s.allSites) x.id};
+  if (s.global == null || ids.every(polar.contains)) {
+    s.setCompare(ids);
+    return;
+  }
+  final index = compareSiteIndex(s);
+  final keep = [for (final id in ids.toSet()) if (index.containsKey(id)) id].take(4).toList();
+  s.setCompare(const []);
+  for (final id in keep) {
+    s.toggleCompare(id);
+  }
+}
+
+/// How Compare opens a site: as before while only the polar catalogue is
+/// loaded, else through [openShortlistSite].
+void Function(String) shortlistOpener(AppState s) => s.global == null ? s.openSite : (id) => openShortlistSite(s, id);
+
+/// Open a shortlisted site, switching region first when it is not in the
+/// region Explore shows (the site's region is where Back returns to).
+Future<void> openShortlistSite(AppState s, String id) async {
+  final r = s.regionOf(id);
+  if (r != s.region) await s.setRegion(r);
+  await s.openSite(id);
 }
 
 /// The best-ranked sites that are not on [current] yet, enough to bring the

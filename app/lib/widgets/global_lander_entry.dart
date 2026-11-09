@@ -21,8 +21,12 @@ import '../theme.dart';
 import 'focus_semantics.dart';
 import 'lander_full_screen.dart';
 
-/// Whether the Lander's view is offered for global presets.
-const bool kGlobalLander = false;
+/// Whether the Lander's view is offered for global presets: the WP5 gate
+/// passed on 2026-11-09 (frame and tile tests; Apollo 15's Mons Hadley and
+/// Hadley Delta within 1° of the pipeline's horizon maxima; the polar Lander
+/// goldens unchanged; on the Android 7 emulator the global Lander drops fewer
+/// frames than the polar one). Set it to false to cut the feature.
+const bool kGlobalLander = true;
 
 /// The Overview's entry to the Lander's view for the global preset [site];
 /// nothing while [kGlobalLander] is false.

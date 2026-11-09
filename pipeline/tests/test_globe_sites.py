@@ -311,8 +311,15 @@ def test_cached_horizons_files_are_well_formed():
         seen.add((sid, q["body"], q["start"]))
     sites = {s for s, _, _ in seen}
     assert len(sites) >= 8 and set(gv.HORIZONS_SITES) == sites
-    assert len(seen) == len(_cached()) == len(gv.horizons_queries())
+    assert len(seen) == len(_cached()) == len(gv.HORIZONS_SITES) * len(gv.HORIZONS_WINDOWS) * 2
     assert sites == set(_json(VALIDATION)["horizons"]["sites"])
+
+
+@requires_shapefile
+def test_cached_horizons_files_are_the_shapefile_queries():
+    """With the shapefile, the cache holds exactly the queries `horizons_queries()` builds from it."""
+    want = {p for p in (gv.cache_path(sid, q) for sid, q in gv.horizons_queries())}
+    assert want == set(_cached())
 
 
 @requires_kernels

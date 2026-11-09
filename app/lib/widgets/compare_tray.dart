@@ -8,6 +8,7 @@ import 'package:provider/provider.dart';
 
 import '../state/app_state.dart';
 import '../theme.dart';
+import 'compare_panel.dart' show compareSiteIndex;
 import 'focus_semantics.dart';
 
 /// "Compare 3 sites →" / "Pick one more site to compare" (null when empty).
@@ -28,7 +29,8 @@ class CompareTray extends StatelessWidget {
     final text = compareTrayText(ids.length);
     if (text == null) return const SizedBox.shrink();
     final s = context.read<AppState>();
-    final names = [for (final id in ids) s.allSites.where((x) => x.id == id).firstOrNull?.short ?? id];
+    final index = compareSiteIndex(s);
+    final names = [for (final id in ids) index[id]?.short ?? id];
     final ready = ids.length >= 2;
     final picked = Semantics(
       liveRegion: true,

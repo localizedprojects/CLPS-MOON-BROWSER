@@ -18,6 +18,7 @@ import '../../core/countdown.dart' show countdownAt, countdownParts, spokenCount
 import '../../core/landing_wording.dart' show moreHint, moreSemantics, moreSubline, moreTitle;
 import '../../core/metrics.dart' show SiteMetrics;
 import '../../core/now_line.dart';
+import '../../core/region.dart';
 import '../../core/wording.dart';
 import '../../state/app_state.dart';
 import '../../theme.dart';
@@ -26,6 +27,8 @@ import '../../widgets/about_site.dart';
 import '../../widgets/best_window_card.dart';
 import '../../widgets/chart_bridge.dart' show nowAt;
 import '../../widgets/expert_numbers.dart';
+import '../../widgets/global_lander_entry.dart';
+import '../../widgets/global_map_view.dart' show globalFarSideText, globalHorizonBadge, globalLightMapText, globalPositionLine;
 import '../../widgets/glyphs.dart';
 import '../../widgets/good_days_calendar.dart';
 import '../../widgets/lander_photos_card.dart';
@@ -255,6 +258,10 @@ class SiteOverview extends StatelessWidget {
     final best = stale ? null : m.longestBoth;
     void open(double tMs, SiteTab tab) => s.openAt(tMs, tab);
     final open_ = s.overviewMoreShown;
+    // a whole-Moon site (1.14.0): no Light & shadow map, so no computed hero
+    // and no "See the light"; its position, horizon source and (far side)
+    // Earth line are said instead
+    final global = site.region == Region.wholeMoon;
 
     return LayoutBuilder(builder: (context, c) {
       final side = c.maxWidth < 400 ? 12.0 : 16.0;
@@ -284,7 +291,38 @@ class SiteOverview extends StatelessWidget {
                   padding: EdgeInsets.fromLTRB(4, short ? 2 : 8, 4, short ? 0 : 4),
                   child: Text(siteKindLabel(site), style: PHText.small.copyWith(color: PH.muted)),
                 ),
-                if (site.custom) ...[
+                if (global) ...[
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(4, 0, 4, 4),
+                    child: Text.rich(
+                      key: const ValueKey('global-position'),
+                      numSpans(globalPositionLine(site), PHText.small.copyWith(color: PH.text)),
+                    ),
+                  ),
+                  FidelityBadge(text: globalHorizonBadge(site)),
+                  if (site.side == 'far')
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(4, 6, 4, 2),
+                      child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                        const MeaningGlyph(GlyphKind.earth, size: 16, semantic: false),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(globalFarSideText,
+                              key: const ValueKey('far-side'), style: PHText.body.copyWith(color: PH.text)),
+                        ),
+                      ]),
+                    ),
+                  if (site.custom)
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: TextButton.icon(
+                        style: const ButtonStyle(minimumSize: WidgetStatePropertyAll(Size(48, 48))),
+                        onPressed: () => s.removeCustomSite(site.id),
+                        icon: const Icon(Icons.delete_outline),
+                        label: const Text('Remove this spot'),
+                      ),
+                    ),
+                ] else if (site.custom) ...[
                   const FidelityBadge(text: FidelityBadge.customHorizon),
                   Align(
                     alignment: Alignment.centerLeft,
@@ -340,7 +378,19 @@ class SiteOverview extends StatelessWidget {
               // the three big numbers first, then the computed light at the
               // best moment (built only while More is open: it starts the
               // shadow engine)
-              if (showHero) ...[
+              if (global)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(4, 8, 4, 6),
+                  child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    const Icon(Icons.info_outline, size: 18, color: PH.muted),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(globalLightMapText,
+                          key: const ValueKey('light-polar-only'), style: PHText.small.copyWith(color: PH.muted)),
+                    ),
+                  ]),
+                )
+              else if (showHero) ...[
                 const SizedBox(height: 8),
                 _Hero(key: ValueKey('hero-${site.id}'), site: site, metrics: m, cursorMs: s.cursorMs),
                 const SizedBox(height: 6),
@@ -348,7 +398,7 @@ class SiteOverview extends StatelessWidget {
               BestWindowCard(
                 window: m.longestBoth,
                 onShowMe: best == null ? null : () => open(best.startMs, SiteTab.skyTime),
-                onSeeLight: best == null ? null : () => open(best.startMs, SiteTab.light),
+                onSeeLight: best == null || global ? null : () => open(best.startMs, SiteTab.light),
                 dsn: dsn,
               ),
               GoodDaysCalendar(
@@ -366,6 +416,7 @@ class SiteOverview extends StatelessWidget {
                   child: Text(from, style: PHText.small.copyWith(color: PH.muted)),
                 ),
               AboutSite(key: ValueKey('about-${site.id}'), site: site),
+              if (global) globalLanderEntry(context, site),
               // the two landed landers: links to their real photos on NASA's pages
               ?LanderPhotosCard.forSite(site.id, key: ValueKey('lander-photos-${site.id}')),
               if (s.expert) ExpertNumbers(state: s),

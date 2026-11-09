@@ -7,6 +7,7 @@ library;
 
 import 'package:flutter/material.dart' hide Interval;
 
+import '../core/catalog.dart' show Site;
 import '../core/metrics.dart';
 import '../core/ranking.dart' show goalFor;
 import '../core/score.dart';
@@ -52,11 +53,26 @@ Map<String, dynamic> comparePayload(List<Ranked> r, ScoreWeights w, {bool requir
 /// metrics only: it never computes a series (that would block a frame), so a
 /// site the background ranking has not reached yet is simply left out.
 List<Ranked> rankedFor(AppState s) {
-  final sites = {for (final x in s.allSites) x.id: x};
+  final sites = compareSiteIndex(s);
   return rank({
     for (final id in s.compareIds)
       if ((sites[id], s.metricsFor(id)) case (final site?, final m?)) id: (site.short, m),
   }, s.weights);
+}
+
+/// Every site a shortlist can hold, by id: the polar sites and, once loaded,
+/// the whole-Moon presets and spots (1.14.0). Only the polar ones while the
+/// Whole Moon catalogue is not loaded.
+Map<String, Site> compareSiteIndex(AppState s) => {
+      for (final x in s.allSites) x.id: x,
+      if (s.global case final g?) ...{for (final x in [...g.catalog.sites, ...g.customSites]) x.id: x},
+    };
+
+/// The shortlist mixes regions (only ever by the user's choice, plan §3):
+/// it holds both a south-pole and a whole-Moon site.
+bool compareMixed(AppState s) {
+  final idx = compareSiteIndex(s);
+  return {for (final id in s.compareIds) ?idx[id]?.region}.length > 1;
 }
 
 /// Width from which the comparison chart gets the desktop layout (the chart

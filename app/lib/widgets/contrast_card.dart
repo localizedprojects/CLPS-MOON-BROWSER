@@ -120,7 +120,8 @@ class ContrastCard extends StatelessWidget {
   const ContrastCard({super.key, this.facts, this.showTitle = true});
 
   static const title = 'South pole vs the rest of the Moon';
-  static const pendingText = 'The comparison appears here once the south-pole and the Whole Moon sites have been '
+  static const pendingText =
+      'The comparison appears here once the south-pole and the Whole Moon sites have been '
       'worked out for your dates.';
 
   @override
@@ -131,18 +132,26 @@ class ContrastCard extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 12),
       child: Padding(
         padding: const EdgeInsets.all(16),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-          if (showTitle) ...[
-            const MicroLabel('POLE VS THE REST'),
-            const SizedBox(height: 4),
-            Semantics(header: true, child: const Text(title, style: PHText.subtitle)),
-            const SizedBox(height: 4),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            if (showTitle) ...[
+              const MicroLabel('POLE VS THE REST'),
+              const SizedBox(height: 4),
+              // its own node, so it stays a header inside the card
+              Semantics(container: true, header: true, child: const Text(title, style: PHText.subtitle)),
+              const SizedBox(height: 4),
+            ],
+            if (f == null)
+              Text(
+                pendingText,
+                key: const ValueKey('contrast-pending'),
+                style: PHText.body.copyWith(color: PH.muted),
+              )
+            else
+              ..._body(f),
           ],
-          if (f == null)
-            Text(pendingText, key: const ValueKey('contrast-pending'), style: PHText.body.copyWith(color: PH.muted))
-          else
-            ..._body(f),
-        ]),
+        ),
       ),
     );
   }
@@ -151,8 +160,10 @@ class ContrastCard extends StatelessWidget {
     final badge = contrastBadgeText(f);
     return [
       Text.rich(
-        numSpans('Best site of each region, ${_lower(f.period)}. Each region is ranked on its own sites.',
-            PHText.small.copyWith(color: PH.muted)),
+        numSpans(
+          'Best site of each region, ${_lower(f.period)}. Each region is ranked on its own sites.',
+          PHText.small.copyWith(color: PH.muted),
+        ),
       ),
       const SizedBox(height: 12),
       const _Header(),
@@ -166,12 +177,14 @@ class ContrastCard extends StatelessWidget {
             padding: const EdgeInsets.symmetric(vertical: 2),
             child: Text.rich(numSpans(v, PHText.body), key: ValueKey('contrast-verdict-$v')),
           ),
-        if (f.sameWinner)
-          Text('The same site leads under every goal.', style: PHText.small.copyWith(color: PH.muted)),
+        if (f.sameWinner) Text('The same site leads under every goal.', style: PHText.small.copyWith(color: PH.muted)),
       ],
       if (badge != null) ...[
         const SizedBox(height: 12),
-        Align(alignment: Alignment.centerLeft, child: FidelityBadge(key: const ValueKey('contrast-badge'), text: badge)),
+        Align(
+          alignment: Alignment.centerLeft,
+          child: FidelityBadge(key: const ValueKey('contrast-badge'), text: badge),
+        ),
       ],
     ];
   }
@@ -185,17 +198,20 @@ class _Header extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => const ExcludeSemantics(
-        child: Padding(
-          padding: EdgeInsets.only(bottom: 4),
-          child: Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
-            Expanded(flex: 4, child: SizedBox()),
-            SizedBox(width: 8),
-            Expanded(flex: 3, child: MicroLabel('SOUTH POLE')),
-            SizedBox(width: 8),
-            Expanded(flex: 3, child: MicroLabel('WHOLE MOON')),
-          ]),
-        ),
-      );
+    child: Padding(
+      padding: EdgeInsets.only(bottom: 4),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          Expanded(flex: 4, child: SizedBox()),
+          SizedBox(width: 8),
+          Expanded(flex: 3, child: MicroLabel('SOUTH POLE')),
+          SizedBox(width: 8),
+          Expanded(flex: 3, child: MicroLabel('WHOLE MOON')),
+        ],
+      ),
+    ),
+  );
 }
 
 /// One row: its label, then each region's value with the site under it. The
@@ -207,25 +223,48 @@ class _Row extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    String said(String region, String value, Site? site, bool better) =>
-        value.isEmpty ? '$region: no value' : '$region: $value${site == null ? '' : ' at ${site.short}'}${better ? ', better' : ''}';
-    final label = '${r.label}. ${said('South pole', r.poleText, r.poleSite, r.better == Region.southPole)}; '
+    String said(String region, String value, Site? site, bool better) => value.isEmpty
+        ? '$region: no value'
+        : '$region: $value${site == null ? '' : ' at ${site.short}'}${better ? ', better' : ''}';
+    final label =
+        '${r.label}. ${said('South pole', r.poleText, r.poleSite, r.better == Region.southPole)}; '
         '${said('Whole Moon', r.restText, r.restSite, r.better == Region.wholeMoon)}.';
     return Semantics(
       container: true,
       label: label,
       child: ExcludeSemantics(
         child: DecoratedBox(
-          decoration: const BoxDecoration(border: Border(top: BorderSide(color: PH.line))),
+          decoration: const BoxDecoration(
+            border: Border(top: BorderSide(color: PH.line)),
+          ),
           child: Padding(
             padding: const EdgeInsets.symmetric(vertical: 8),
-            child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Expanded(flex: 4, child: Text.rich(numSpans(r.label, PHText.small))),
-              const SizedBox(width: 8),
-              Expanded(flex: 3, child: _Cell(key: ValueKey('contrast-pole-${r.key}'), text: r.poleText, site: r.poleSite, better: r.better == Region.southPole)),
-              const SizedBox(width: 8),
-              Expanded(flex: 3, child: _Cell(key: ValueKey('contrast-rest-${r.key}'), text: r.restText, site: r.restSite, better: r.better == Region.wholeMoon)),
-            ]),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(flex: 4, child: Text.rich(numSpans(r.label, PHText.small))),
+                const SizedBox(width: 8),
+                Expanded(
+                  flex: 3,
+                  child: _Cell(
+                    key: ValueKey('contrast-pole-${r.key}'),
+                    text: r.poleText,
+                    site: r.poleSite,
+                    better: r.better == Region.southPole,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  flex: 3,
+                  child: _Cell(
+                    key: ValueKey('contrast-rest-${r.key}'),
+                    text: r.restText,
+                    site: r.restSite,
+                    better: r.better == Region.wholeMoon,
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -240,17 +279,22 @@ class _Cell extends StatelessWidget {
   const _Cell({super.key, required this.text, required this.site, required this.better});
 
   @override
-  Widget build(BuildContext context) => Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Row(mainAxisSize: MainAxisSize.min, children: [
+  Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
           Flexible(
-            child: Text(text.isEmpty ? '–' : text,
-                style: numStyle(size: 15, weight: better ? FontWeight.w700 : FontWeight.w400)),
+            child: Text(
+              text.isEmpty ? '–' : text,
+              style: numStyle(size: 15, weight: better ? FontWeight.w700 : FontWeight.w400),
+            ),
           ),
-          if (better) ...[
-            const SizedBox(width: 4),
-            const Icon(Icons.check, size: 16, color: PH.text),
-          ],
-        ]),
-        if (site != null) Text.rich(numSpans(site!.short, PHText.small.copyWith(color: PH.muted))),
-      ]);
+          if (better) ...[const SizedBox(width: 4), const Icon(Icons.check, size: 16, color: PH.text)],
+        ],
+      ),
+      if (site != null) Text.rich(numSpans(site!.short, PHText.small.copyWith(color: PH.muted))),
+    ],
+  );
 }

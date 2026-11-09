@@ -13,6 +13,7 @@ import 'package:polar_horizon/state/chart_hub.dart';
 import 'package:polar_horizon/theme.dart';
 import 'package:polar_horizon/widgets/focus_rings.dart';
 import 'package:polar_horizon/widgets/global_map_view.dart';
+import 'package:polar_horizon/widgets/goal_chips.dart';
 import 'package:polar_horizon/widgets/region_switch.dart';
 import 'package:polar_horizon/widgets/site_card.dart';
 import 'package:polar_horizon/widgets/top_pick_card.dart';
@@ -150,6 +151,21 @@ void main() {
         expect(_note('SYNTHETIC test map: not real terrain or data.'), findsOneWidget);
         expect(_note(GlobalMapLayers.earthBadge), findsOneWidget, reason: 'the Earth overlay is on by default');
         expect(tester.takeException(), isNull);
+      }
+    });
+
+    testWidgets('on a phone the goal chips sit under the map, above the ranked cards (as on the wide pane)', (tester) async {
+      for (final size in [const Size(360, 800), const Size(1280, 800)]) {
+        await pumpExplore(tester, size);
+        final chips = tester.getTopLeft(find.byType(GoalChips, skipOffstage: false));
+        final firstCard = [
+          for (final e in find.byType(SiteCard, skipOffstage: false).evaluate()) tester.getTopLeft(find.byWidget(e.widget)).dy,
+        ].reduce((a, b) => a < b ? a : b);
+        expect(chips.dy, lessThan(firstCard), reason: 'the chips that order the list come before it ($size)');
+        if (size.width < exploreTwoPaneWidth) {
+          final map = tester.getTopLeft(find.byKey(const ValueKey('global-map-view')));
+          expect(chips.dy, greaterThan(map.dy), reason: 'under the map on a phone');
+        }
       }
     });
 

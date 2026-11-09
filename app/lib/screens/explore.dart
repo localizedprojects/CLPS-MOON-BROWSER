@@ -758,10 +758,12 @@ class _GlobalExploreState extends State<_GlobalExplore> {
                 const ExploreRegionRow(),
                 intro,
                 FocusTraversalGroup(child: map),
-                ...list,
+                // the chips that order the list come before it, as on the
+                // wide pane (a 20-card list would push them ~4000 px down)
                 const SizedBox(height: 16),
                 const GoalChips(),
                 if (s.explainInline) explainExploreFor(s.region),
+                ...list,
               ]),
             ),
           ),

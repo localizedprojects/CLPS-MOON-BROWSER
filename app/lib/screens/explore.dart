@@ -600,7 +600,9 @@ List<(int?, Site, SiteMetrics)> globalExploreItems(AppState s) {
   final byId = {for (final x in s.regionSites(Region.wholeMoon)) x.id: x};
   final done = !g.rankRunning;
   return [
-    for (final (i, r) in g.ranked.indexed)
+    // rankedIn, not the cached g.ranked: it is memoised on the weights, so a
+    // goal chip reorders this list too
+    for (final (i, r) in s.rankedIn(Region.wholeMoon).indexed)
       if (byId[r.id] case final site?) (done ? i + 1 : null, site, r.metrics),
   ];
 }
@@ -673,7 +675,7 @@ class _GlobalExploreState extends State<_GlobalExplore> {
         child: Text(
           listHeaderText(
               rankingDone: g != null && !g.rankRunning,
-              progress: g?.ranked.length ?? 0,
+              progress: s.rankedIn(Region.wholeMoon).length,
               total: n,
               count: items.length,
               filtered: false),

@@ -15,6 +15,8 @@ import 'dart:typed_data';
 import 'package:archive/archive.dart';
 
 import 'constants.dart';
+import 'geo.dart' show V3, unitUp;
+import 'map_frame.dart';
 
 const double rM = moonRadiusKm * 1000.0;
 
@@ -185,4 +187,36 @@ class PlanarSplitWork {
     if (!done) throw StateError('the DEM is not fully decoded yet');
     return PolarGrid(size, scaleM, _z);
   }
+}
+
+// ---- map frames (1.14.0 WP5; additive: the functions above are unchanged) ----
+
+/// [latLonToXY] in [frame] (`map_frame.dart`): the site at the frame's pole,
+/// its north up and east right. Exactly [latLonToXY] for
+/// [MapFrame.southPole] (an identity early return).
+(double, double) latLonToXYIn(MapFrame frame, double latDeg, double lonDeg) {
+  if (frame.isIdentity) return latLonToXY(latDeg, lonDeg);
+  final v = frame.toFrame(unitUp(latDeg, lonDeg));
+  final k = 2.0 * rM / (1.0 - v.z);
+  return (k * v.y, k * v.x);
+}
+
+/// [xyToLatLon] in [frame]: projected metres of [frame] -> body-fixed
+/// (lat, lon) in degrees (lon in (-180, 180]). Exactly [xyToLatLon] for
+/// [MapFrame.southPole].
+(double, double) xyToLatLonIn(MapFrame frame, double x, double y) {
+  if (frame.isIdentity) return xyToLatLon(x, y);
+  final rho = math.sqrt(x * x + y * y);
+  final g = 2.0 * math.atan(rho / (2.0 * rM)), lam = math.atan2(x, y), sg = math.sin(g);
+  final w = frame.toBody(V3(sg * math.cos(lam), sg * math.sin(lam), -math.cos(g)));
+  return (math.atan2(w.z, math.sqrt(w.x * w.x + w.y * w.y)) * rad, math.atan2(w.y, w.x) * rad);
+}
+
+/// [PolarGrid.sampleLatLon] for a grid laid out in [frame] (a global
+/// Lander tile): bilinear height at body-fixed (lat, lon); NaN outside.
+/// Exactly [PolarGrid.sampleLatLon] for [MapFrame.southPole].
+double sampleLatLonIn(PolarGrid grid, MapFrame frame, double latDeg, double lonDeg) {
+  if (frame.isIdentity) return grid.sampleLatLon(latDeg, lonDeg);
+  final (x, y) = latLonToXYIn(frame, latDeg, lonDeg);
+  return grid.sampleXY(x, y);
 }

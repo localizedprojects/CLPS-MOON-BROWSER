@@ -13,6 +13,7 @@ import 'package:polar_horizon/theme.dart';
 import 'package:polar_horizon/widgets/global_map_view.dart';
 
 import 'global_test_state.dart';
+import 'light_test_fonts.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -121,5 +122,89 @@ void main() {
     for (final e in icons.evaluate()) {
       expect(tester.getSize(find.byWidget(e.widget)), const Size(18, 18));
     }
+  });
+
+
+  // 1.14.0 device check (360 x 760 phone, the map about 328 px wide): the name
+  // "Chang'e-3" sat on the NEAR SIDE chip and read "Chang'e-3 IDE". The chips
+  // are obstacles now; measured here with the bundled IBM Plex Sans, as drawn.
+  group('the NEAR SIDE / FAR SIDE chips', () {
+    setUpAll(loadPlexFonts);
+
+    (double, double) textSize(String t, double px, double k, FontWeight w) {
+      final tp = TextPainter(
+        text: TextSpan(text: t, style: TextStyle(fontFamily: PH.sans, fontSize: px / k, fontWeight: w)),
+        textDirection: TextDirection.ltr,
+      )..layout();
+      return (tp.width, tp.height);
+    }
+
+    test('no name covers a side chip or a marker and every site is named, with each site selected in turn', () {
+      // the phone's map (328 x 164) and a narrower and a wider phone, unzoomed
+      // and at 2x; the 1440 x 900 desktop map, unzoomed and at 2x
+      for (final (size, k) in [
+        (const Size(328, 164), 1.0),
+        (const Size(328, 164), 2.0),
+        (const Size(320, 160), 1.0),
+        (const Size(343, 171.5), 1.0),
+        (const Size(951, 476), 1.0),
+        (const Size(951, 476), 2.0),
+      ]) {
+        final chips = [for (final (_, b) in globalSideChips(size, k, (t) => textSize(t, 12, k, FontWeight.w600))) b];
+        expect(chips, hasLength(3));
+        for (final id in <String?>[null, for (final st in real) st.id]) {
+          final (ordered, anchors) = layout(size, id);
+          final r = 6 / k;
+          final w = size.width / k, h = size.height / k;
+          final (x0, y0) = ((size.width - w) / 2, (size.height - h) / 2);
+          final bounds = LabelBox(x0, y0, x0 + w, y0 + h);
+          final labels = globalMapLabels(
+            anchors: anchors,
+            texts: [for (final st in ordered) st.short],
+            selected: id == null ? null : ordered.length - 1,
+            r: r,
+            stackWithin: globalMarkerHitDp / k,
+            measure: (i, t, small) {
+              final weight = ordered[i].id == id ? FontWeight.w700 : FontWeight.w500;
+              final (tw, th) = textSize(t, small ? 10 : 12, k, weight);
+              return (tw + 6 / k, th + 2 / k);
+            },
+            bounds: bounds,
+            avoid: chips,
+          );
+          final where = 'at $size, ${k}x, selected $id';
+          final markers = [
+            for (final (i, (x, y)) in anchors.indexed) LabelBox.around(x, y, ordered[i].id == id ? 2.4 * r : 1.4 * r)
+          ];
+          for (final (:label, small: _) in labels) {
+            for (final c in chips) {
+              expect(label.box.overlaps(c), isFalse, reason: '"${label.text}" covers a side chip $c $where');
+            }
+            for (final (j, m) in markers.indexed) {
+              expect(label.box.overlaps(m), isFalse, reason: '"${label.text}" covers ${ordered[j].id}\'s marker $where');
+            }
+          }
+          final named = {for (final (:label, small: _) in labels) ...[label.site, ...label.merged]};
+          for (final (i, st) in ordered.indexed) {
+            final (x, y) = anchors[i];
+            if (x < bounds.left || x > bounds.right || y < bounds.top || y > bounds.bottom) continue;
+            expect(named, contains(i), reason: '${st.id} has no name $where');
+          }
+        }
+      }
+    });
+
+    test('the chips sit where the painter draws them: centred on 0° and ±150° E, the text top at 72° N', () {
+      const size = Size(328, 164);
+      final chips = globalSideChips(size, 1, (t) => (t.length * 7.0, 16.0));
+      expect([for (final (t, _) in chips) t], ['NEAR SIDE', 'FAR SIDE', 'FAR SIDE']);
+      final (_, near) = chips.first;
+      expect((near.left + near.right) / 2, closeTo(globalMapPoint(0, 0, size).dx, 1e-9));
+      expect(near.top, closeTo(globalMapPoint(72, 0, size).dy - 1, 1e-9));
+      expect(near.width, closeTo(9 * 7.0 + 6, 1e-9));
+      expect(near.height, closeTo(16 + 2, 1e-9));
+      expect((chips[1].$2.left + chips[1].$2.right) / 2, closeTo(globalMapPoint(0, -150, size).dx, 1e-9));
+      expect((chips[2].$2.left + chips[2].$2.right) / 2, closeTo(globalMapPoint(0, 150, size).dx, 1e-9));
+    });
   });
 }

@@ -234,11 +234,15 @@ const globalMarkerHitDp = 24.0;
 /// reaches 2.4 [r], and no other name may cover it (it is an obstacle).
 /// [stackWithin] is the chooser's reach (markers closer than it are a stack).
 ///
+/// No name covers a marker (its own or another's) or [avoid] (the NEAR SIDE /
+/// FAR SIDE chips, [globalSideChips]); a name with no free spot beside its
+/// marker goes into its stack's "Name +n" (1.14.0 device check).
+///
 /// A site [placeMapLabels] leaves unnamed (no free spot, no stack-mate to
 /// carry it) gets a fallback name ([small], measured at the smaller size), a
-/// little farther out if need be, shifted into view, first clear of the other
-/// markers and then of the names only: on a phone no marker is a bare shape
-/// (1.14.0 review). [measure] gives a text's width and height at either size.
+/// little farther out if need be (the painter draws a leader), shifted into
+/// view: on a phone no marker is a bare shape (1.14.0 review). [measure] gives
+/// a text's width and height at either size.
 List<({MapLabel label, bool small})> globalMapLabels({
   required List<(double, double)> anchors,
   required List<String> texts,
@@ -247,9 +251,14 @@ List<({MapLabel label, bool small})> globalMapLabels({
   required double stackWithin,
   required (double, double) Function(int site, String text, bool small) measure,
   LabelBox? bounds,
+  List<LabelBox> avoid = const [],
 }) {
   final reach = [for (var i = 0; i < anchors.length; i++) i == selected ? 2.4 * r : 1.4 * r];
-  final obstacles = [if (selected != null) LabelBox.around(anchors[selected].$1, anchors[selected].$2, 2.4 * r)];
+  // every marker is an obstacle, the selected one's ring included: no name
+  // covers another site's marker (1.14.0 device check); a name with no free
+  // spot goes into its stack's "+n" or farther out below
+  final markers = [for (var i = 0; i < anchors.length; i++) LabelBox.around(anchors[i].$1, anchors[i].$2, reach[i])];
+  final obstacles = [...markers, ...avoid];
   final order = [
     ?selected,
     for (var i = 0; i < anchors.length; i++)
@@ -267,10 +276,9 @@ List<({MapLabel label, bool small})> globalMapLabels({
   );
   final out = [for (final m in placed) (label: m, small: false)];
   final named = {for (final m in placed) ...[m.site, ...m.merged]};
-  final markers = [for (var i = 0; i < anchors.length; i++) LabelBox.around(anchors[i].$1, anchors[i].$2, reach[i])];
-  (LabelBox, LabelSpot)? spotFor(int i, String text) {
+  (LabelBox, LabelSpot)? spotFor(int i, String text, {bool small = true}) {
     final (x, y) = anchors[i];
-    final (w, h) = measure(i, text, true);
+    final (w, h) = measure(i, text, small);
     final inView = bounds != null && x >= bounds.left && x <= bounds.right && y >= bounds.top && y <= bounds.bottom;
     LabelBox fit(LabelBox b) {
       if (!inView) return b;
@@ -279,18 +287,35 @@ List<({MapLabel label, bool small})> globalMapLabels({
       return LabelBox(b.left + dx, b.top + dy, b.right + dx, b.bottom + dy);
     }
 
-    for (final clearOfMarkers in [true, false]) {
-      for (final extra in [0.0, r, 2 * r, 4 * r, 6 * r, 8 * r]) {
-        for (final spot in LabelSpot.values) {
-          final b = fit(labelBoxAt(spot, x, y, reach[i], w, h, gap: 2 + extra));
-          if (b.overlaps(markers[i]) || obstacles.any(b.overlaps)) continue;
-          if (out.any((o) => o.label.box.overlaps(b))) continue;
-          if (clearOfMarkers && Iterable.generate(markers.length).any((j) => j != i && markers[j].overlaps(b))) continue;
-          return (b, spot);
-        }
+    // beside the marker, then farther out (a leader joins them), also at the
+    // four corners; never on a marker, a chip or another name
+    for (final extra in [0.0, r, 2 * r, 4 * r, 6 * r, 8 * r, 12 * r, 16 * r, 24 * r]) {
+      final d = (reach[i] + 2 + extra) * math.sqrt1_2;
+      for (final (b, spot) in [
+        for (final spot in LabelSpot.values) (labelBoxAt(spot, x, y, reach[i], w, h, gap: 2 + extra), spot),
+        (LabelBox(x + d, y - d - h, x + d + w, y - d), LabelSpot.above),
+        (LabelBox(x - d - w, y - d - h, x - d, y - d), LabelSpot.above),
+        (LabelBox(x + d, y + d, x + d + w, y + d + h), LabelSpot.below),
+        (LabelBox(x - d - w, y + d, x - d, y + d + h), LabelSpot.below),
+      ]) {
+        final f = fit(b);
+        if (obstacles.any(f.overlaps) || out.any((o) => o.label.box.overlaps(f))) continue;
+        return (f, spot);
       }
     }
     return null;
+  }
+
+  // the first name always shows ([placeMapLabels]); where no spot beside its
+  // marker is free it is set farther out, clear of the markers and the chips
+  if (out.isNotEmpty) {
+    final first = out.first.label;
+    if (obstacles.any(first.box.overlaps)) {
+      out.removeAt(0);
+      final found = spotFor(first.site, first.text, small: false);
+      final moved = found == null ? first : MapLabel(first.site, first.merged, first.text, found.$1, found.$2);
+      out.insert(0, (label: moved, small: false));
+    }
   }
 
   // the unnamed sites by stack ([placeMapLabels] leaves a site unnamed only
@@ -323,6 +348,21 @@ List<({MapLabel label, bool small})> globalMapLabels({
     named.addAll(group);
   }
   return out;
+}
+
+/// The NEAR SIDE and FAR SIDE chips of a [size] map at zoom [k]: each text
+/// and its chip's box (3 px either side of the text, 1 px above and below, on
+/// screen), centred on 0° and ±150° E with the text's top at 72° N. [measure]
+/// gives a text's width and height in map px. The site names are placed clear
+/// of these boxes ([globalMapLabels]' `avoid`): on a phone a name above a
+/// marker near 45° N would otherwise cover NEAR SIDE (1.14.0 device check).
+List<(String, LabelBox)> globalSideChips(Size size, double k, (double, double) Function(String text) measure) {
+  final y = globalMapPoint(72, 0, size).dy;
+  return [
+    for (final (t, lon) in const [('NEAR SIDE', 0.0), ('FAR SIDE', -150.0), ('FAR SIDE', 150.0)])
+      if ((measure(t), globalMapPoint(0, lon, size).dx) case ((final w, final h), final x))
+        (t, LabelBox(x - w / 2 - 3 / k, y - 1 / k, x + w / 2 + 3 / k, y + h + 1 / k)),
+  ];
 }
 
 /// A whole-Moon marker's screen-reader label: its name and kind, and how many
@@ -949,23 +989,15 @@ class _GlobalPainter extends CustomPainter {
     canvas.restore();
     // near and far side, on the marker labels' navy chip: straight on the
     // hillshade and the Earth overlay they read at about 1.5-2:1
-    final yLab = globalMapPoint(72, 0, size).dy;
-    void side(String t, double lon) {
-      final tp = _text(t, 12, k);
-      final x = globalMapPoint(0, lon, size).dx - tp.width / 2;
+    final sideText = <String, TextPainter>{};
+    TextPainter sidePainter(String t) => sideText.putIfAbsent(t, () => _text(t, 12, k));
+    final chips = globalSideChips(size, k, (t) => (sidePainter(t).width, sidePainter(t).height));
+    for (final (t, b) in chips) {
       canvas.drawRRect(
-        RRect.fromRectAndRadius(
-          Rect.fromLTWH(x - 3 / k, yLab - 1 / k, tp.width + 6 / k, tp.height + 2 / k),
-          Radius.circular(3 / k),
-        ),
+        RRect.fromRectAndRadius(Rect.fromLTRB(b.left, b.top, b.right, b.bottom), Radius.circular(3 / k)),
         Paint()..color = globalMapChip,
       );
-      tp.paint(canvas, Offset(x, yLab));
-    }
-
-    side('NEAR SIDE', 0);
-    for (final lon in [-150.0, 150.0]) {
-      side('FAR SIDE', lon);
+      sidePainter(t).paint(canvas, Offset(b.left + 3 / k, b.top + 1 / k));
     }
     // markers, the selected one last (on top), and their names
     final r = 6 / k;
@@ -1019,14 +1051,14 @@ class _GlobalPainter extends CustomPainter {
           return (p.width + 6 / k, p.height + 2 / k);
         },
         bounds: bounds,
+        avoid: [for (final (_, b) in chips) b],
       );
-      // a fallback name set farther out than a marker's own spots gets a thin
-      // leader from its marker (under the chips)
+      // a name set farther out than a marker's own spots gets a thin leader
+      // from its marker (under the chips)
       final leader = Paint()
         ..color = PH.text.withValues(alpha: 0.6)
         ..strokeWidth = 1 / k;
-      for (final (:label, :small) in placed) {
-        if (!small) continue;
+      for (final (:label, small: _) in placed) {
         final a = anchors[label.site];
         final b = label.box;
         final near = Offset(a.dx.clamp(b.left, b.right), a.dy.clamp(b.top, b.bottom));

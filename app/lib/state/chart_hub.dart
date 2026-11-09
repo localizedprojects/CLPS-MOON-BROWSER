@@ -19,11 +19,23 @@ import '../core/summary.dart' show date;
 import '../core/catalog.dart' show Site;
 import '../core/geo.dart' show Observer;
 import '../core/horizon.dart' show HorizonMask;
+import '../core/region.dart' show Region;
 import '../core/timeseries.dart' show SeriesOptions, SiteSeries;
 import '../widgets/chart_bridge.dart';
-import '../widgets/compare_panel.dart' show comparePayload, rankedFor;
+import '../widgets/compare_panel.dart' show compareMixed, comparePayload, rankedFor;
 import '../widgets/save_file.dart';
 import 'app_state.dart';
+
+/// What "N" means on the sky plot at a site outside the south pole (bridge
+/// field `northNote`, 1.14.0): local north is increasing latitude, toward the
+/// north pole (at south-pole sites that is away from the pole, the charts'
+/// own words; numerically the same).
+const String kGlobalNorthNote = 'N = toward the north pole';
+
+/// The sky payload's `northNote` for [site]: [kGlobalNorthNote] for a
+/// Whole Moon site (a preset or a custom spot made there), none for a polar
+/// one, so polar payloads stay exactly as in 1.13.5.
+String? skyNorthNote(Site site) => site.region == Region.wholeMoon ? kGlobalNorthNote : null;
 
 class ChartHub {
   /// [onEvent] receives every chart event after the hub has handled it (seek
@@ -195,7 +207,8 @@ class ChartHub {
     if (!identical(cur, _skySeries) || s.skyZoom != _skyZoom) {
       _skySeries = cur;
       _skyZoom = s.skyZoom;
-      sky.send(skyPayload(shown.site, shown.mask, cur, _now(s, shown), s.cursorMs, s.skyZoom));
+      sky.send(skyPayload(shown.site, shown.mask, cur, _now(s, shown), s.cursorMs, s.skyZoom,
+          northNote: skyNorthNote(shown.site)));
       sentPayloads['sky'] = sentPayloads['sky']! + 1;
       // a fresh skyNow follows every new sky payload, even at the same
       // cursor: the page's (and the replay buffer's) newest skyNow must never
@@ -262,7 +275,7 @@ class ChartHub {
     final ms = [for (final id in s.compareIds) s.metricsFor(id)];
     if (ms.any((m) => m == null)) return; // the ranking has not reached them yet
     final key = '${s.compareIds.join(',')}|${s.weights.power}|${s.weights.both}|${s.options.requireDsn}|'
-        '${[for (final id in s.compareIds) s.allSites.where((x) => x.id == id).firstOrNull?.short].join(',')}';
+        '${[for (final id in s.compareIds) s.allSites.where((x) => x.id == id).firstOrNull?.short].join(',')}|${compareMixed(s)}';
     var same = key == _compareKey && ms.length == _compareMetrics.length;
     for (var i = 0; same && i < ms.length; i++) {
       same = identical(ms[i], _compareMetrics[i]);
@@ -271,7 +284,8 @@ class ChartHub {
     _compareKey = key;
     _compareMetrics = ms;
     final ranked = rankedFor(s);
-    compare.send(withCompareExtras(comparePayload(ranked, s.weights, requireDsn: s.options.requireDsn), ranked));
+    compare.send(withCompareExtras(
+        comparePayload(ranked, s.weights, requireDsn: s.options.requireDsn, mixed: compareMixed(s)), ranked));
     sentPayloads['compare'] = sentPayloads['compare']! + 1;
   }
 

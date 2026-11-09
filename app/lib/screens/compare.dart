@@ -11,6 +11,7 @@ import 'package:provider/provider.dart';
 
 import '../core/catalog.dart';
 import '../core/daily.dart' show monthlyCounts;
+import '../core/region.dart';
 import '../core/wording.dart' show dsnResolutionNote;
 import '../state/app_state.dart';
 import '../state/chart_hub.dart';
@@ -18,10 +19,12 @@ import '../theme.dart';
 import '../widgets/calendar_race.dart';
 import '../widgets/compare_panel.dart';
 import '../widgets/explain.dart';
+import '../widgets/global_map_view.dart' show globalHorizonBadge;
 import '../widgets/goal_chips.dart';
 import '../widgets/ranked_cards.dart';
 import '../widgets/sheets/site_picker_sheet.dart';
 import '../widgets/shortlist_bar.dart';
+import '../widgets/site_card.dart' show customHorizonShortFor;
 import '../widgets/winner_card.dart';
 import '../widgets/feature_guide.dart';
 import '../widgets/focus_semantics.dart';
@@ -32,6 +35,10 @@ const compareWideWidth = 900.0;
 /// Phone width below which the winner card is compact (name, score and
 /// runner-up first; the reasons under "Why this score?").
 const compareCompactWidth = 600.0;
+
+/// The shortlist heading when it mixes regions ([compareMixed], 1.14.0):
+/// the cards and the table carry no rank numbers, and the heading says why.
+const mixedShortlistTitle = 'Your shortlist, scores side by side (mixed regions: no single ranking)';
 
 class CompareScreen extends StatefulWidget {
   const CompareScreen({super.key});
@@ -54,22 +61,28 @@ class _CompareScreenState extends State<CompareScreen> {
   }
 
   static Future<void> _pick(BuildContext context, AppState s) async {
-    final ids = await showSitePicker(context, multi: true, initial: s.compareIds, max: 4);
-    if (ids != null) s.setCompare(ids);
+    final ids = await showSitePicker(context, multi: true, initial: s.compareIds, max: 4, global: true);
+    if (ids != null) applyShortlist(s, ids);
   }
 
   @override
   Widget build(BuildContext context) {
     final s = context.watch<AppState>();
+    final index = compareSiteIndex(s);
     final shortlisted = [
       for (final id in s.compareIds)
-        if (s.allSites.where((x) => x.id == id).firstOrNull case final Site site) site,
+        if (index[id] case final Site site) site,
     ];
-    final custom = shortlisted.any((x) => x.custom);
+    // a custom spot's horizon is approximate: the polar 400 m text for a
+    // south-pole spot, the measured whole-Moon text for a Whole Moon spot
+    final polarCustom = shortlisted.any((x) => x.custom && x.region != Region.wholeMoon);
+    final globalCustom = shortlisted.where((x) => x.custom && x.region == Region.wholeMoon).firstOrNull;
 
     final setup = <Widget>[
       ShortlistBar(sites: shortlisted, onRemove: s.toggleCompare, onAdd: () => _pick(context, s)),
-      if (custom) const FidelityBadge(text: FidelityBadge.customHorizon),
+      if (polarCustom) const FidelityBadge(text: FidelityBadge.customHorizon),
+      if (globalCustom != null)
+        FidelityBadge(text: globalHorizonBadge(globalCustom, validation: s.global?.validation, map: s.global?.map)),
       const SizedBox(height: 24),
       const GoalChips(),
       const SizedBox(height: 8),
@@ -160,16 +173,20 @@ class _Results extends StatelessWidget {
     final hub = context.read<ChartHub>();
     final ranked = rankedFor(s);
     final dsn = s.options.requireDsn;
-    final customIds = {for (final x in s.allSites) if (x.custom) x.id};
+    final customs = [for (final x in compareSiteIndex(s).values) if (x.custom) x];
+    final customIds = {for (final x in customs) x.id};
+    final customBadges = {for (final x in customs) x.id: customHorizonShortFor(x, s)};
+    // a mixed-region shortlist (1.14.0) is not one ranking: no rank numbers, no "best first"
+    final mixed = compareMixed(s);
     return Column(crossAxisAlignment: CrossAxisAlignment.stretch, mainAxisSize: MainAxisSize.min, children: [
       if (showWinner) ...[_Winner(state: s), const SizedBox(height: 16)],
       // the chart comes right after "Best for your priorities" (charts spec 4)
       if (showChart) ...[_Chart(state: s), const SizedBox(height: 32)],
-      Text('Your shortlist, best first', style: PHText.subtitle),
+      Text(mixed ? mixedShortlistTitle : 'Your shortlist, best first', style: PHText.subtitle),
       // DSN-gated numbers are labelled, as on Explore and the site (science-5)
       if (dsn) const FidelityBadge(text: dsnResolutionNote),
       const SizedBox(height: 8),
-      RankedCards(ranked: ranked, dsn: dsn, customIds: customIds, onOpen: s.openSite),
+      RankedCards(ranked: ranked, dsn: dsn, customIds: customIds, customBadges: customBadges, onOpen: shortlistOpener(s), mixed: mixed),
       const SizedBox(height: 32),
       CalendarRace(dsn: dsn, sites: [for (final r in ranked) (r.name, monthlyCounts(s.dailyFor(r.id)))]),
       const SizedBox(height: 32),
@@ -178,9 +195,10 @@ class _Results extends StatelessWidget {
         dsn: dsn,
         exact: s.expert,
         initiallyExpanded: s.expert,
-        onOpenSite: s.openSite,
+        onOpenSite: shortlistOpener(s),
         onSaveScorecard: () => hub.exportScorecard(s),
         onSaveChart: () => hub.exportComparePng(s),
+        mixed: mixed,
       ),
     ]);
   }
@@ -207,14 +225,40 @@ class _Winner extends StatelessWidget {
   Widget build(BuildContext context) {
     final s = state;
     final ranked = rankedFor(s);
+    // a shortlist the user mixed (pole and elsewhere): one verdict per goal,
+    // never a single winner across regions (1.14.0, plan §2)
+    if (compareMixed(s)) {
+      final index = compareSiteIndex(s);
+      return GuideTarget(id: 'compare-winner', child: MixedRegionsCard(
+        sites: {for (final r in ranked) r.id: (r.name, r.metrics)},
+        regions: {for (final r in ranked) r.id: index[r.id]?.region ?? Region.southPole},
+        onOpenSite: (id) => openShortlistSite(s, id),
+      ));
+    }
     return GuideTarget(id: 'compare-winner', child: WinnerCard(
       ranked: ranked,
       weights: s.weights,
       dsn: s.options.requireDsn,
       compact: compact,
-      onOpenSite: s.openSite,
+      onOpenSite: shortlistOpener(s),
     ));
   }
+}
+
+/// Put [ids] on the shortlist: `setCompare` keeps the known ids in order (polar
+/// sites, and once Whole Moon is loaded its sites), at most 4.
+void applyShortlist(AppState s, List<String> ids) => s.setCompare(ids);
+
+/// How Compare opens a site: as before while only the polar catalogue is
+/// loaded, else through [openShortlistSite].
+void Function(String) shortlistOpener(AppState s) => s.global == null ? s.openSite : (id) => openShortlistSite(s, id);
+
+/// Open a shortlisted site, switching region first when it is not in the
+/// region Explore shows (the site's region is where Back returns to).
+Future<void> openShortlistSite(AppState s, String id) async {
+  final r = s.regionOf(id);
+  if (r != s.region) await s.setRegion(r);
+  await s.openSite(id);
 }
 
 /// The best-ranked sites that are not on [current] yet, enough to bring the
@@ -235,7 +279,11 @@ class _PickMore extends StatelessWidget {
     final s = state;
     // only offer the top picks once the ranking says which they are; they
     // join the user's own picks rather than replacing them
-    final add = s.rankingDone ? topPicksToAdd(s.compareIds, [for (final r in s.rankedAll) r.id]) : const <String>[];
+    // and come from one region (plan §3: automatic choices never mix
+    // regions): the shortlist's, else the one open in Explore
+    final region = s.compareIds.isEmpty ? s.region : s.regionOf(s.compareIds.first);
+    final done = region == Region.southPole ? s.rankingDone : s.globalRankingDone;
+    final add = done ? topPicksToAdd(s.compareIds, [for (final r in s.rankedIn(region)) r.id]) : const <String>[];
     final total = s.compareIds.length + add.length;
     final keep = s.compareIds.isNotEmpty;
     final label = keep ? 'Add the top ${add.length}' : 'Compare the top ${add.length}';
@@ -277,7 +325,8 @@ class _PickMore extends StatelessWidget {
 }
 
 /// The shortlist's numbers are still being worked out (they come from the
-/// ranking, which runs in the background after any settings change).
+/// ranking, which runs in the background after any settings change; a
+/// shortlisted Whole Moon site from the Whole Moon ranking, its own list).
 class _Waiting extends StatelessWidget {
   final AppState state;
   const _Waiting({required this.state});
@@ -287,7 +336,10 @@ class _Waiting extends StatelessWidget {
     final s = state;
     // a finished ranking that still lacks a shortlisted site will not fill in
     // by itself: no busy sign then; any problem is shown either way
-    final working = !s.rankingDone;
+    final polarWorking = !s.rankingDone;
+    final globalWorking = !polarWorking && s.globalShortlistWorking;
+    final working = polarWorking || globalWorking;
+    final (globalDone, globalTotal) = s.globalRankProgress;
     final err = s.error;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 8),
@@ -297,9 +349,11 @@ class _Waiting extends StatelessWidget {
           if (working) const BusyIndicator(),
           if (working) const SizedBox(height: 16),
           Text(
-            working
+            polarWorking
                 ? 'Working out the numbers for your shortlist… ${s.rankProgress} of ${s.rankTotal} sites ranked'
-                : 'The numbers for your shortlist are not available for these settings.',
+                : globalWorking
+                    ? 'Working out the numbers for your shortlist… $globalDone of $globalTotal Whole Moon sites ranked'
+                    : 'The numbers for your shortlist are not available for these settings.',
             textAlign: TextAlign.center,
             style: PHText.body.copyWith(color: PH.muted, fontFeatures: const [FontFeature.tabularFigures()]),
           ),

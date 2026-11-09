@@ -21,18 +21,23 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../content/guides.dart';
 import '../core/catalog.dart';
+import '../core/contrast.dart' show ContrastInput, highestSunDeg, sunriseShiftMinutes;
 import '../core/curated.dart' show CuratedCatalog;
 import '../core/daily.dart';
 import '../core/dem.dart';
 import '../core/ephemeris.dart';
+import '../core/global_dem.dart';
 import '../core/geo.dart';
 import '../core/horizon.dart';
 import '../core/horizon_compute.dart';
+import '../core/horizon_global.dart';
 import '../core/lander_view.dart' show LanderMesh, LanderViewpoint, LanderViewpointHeight;
 import '../core/landing.dart';
 import '../core/landing_wording.dart' show goalName;
 import '../core/metrics.dart';
+import '../core/place.dart' show latLonText;
 import '../core/ranking.dart';
+import '../core/region.dart';
 import '../core/relief.dart' show ReliefRecipe;
 import '../core/score.dart';
 import '../core/site_glance.dart' show GlanceInputs, SiteGlance, buildSiteGlance;
@@ -41,6 +46,7 @@ import '../core/timeseries.dart';
 import '../core/visibility.dart';
 import '../widgets/map_view.dart' show MapLayers, MapOuter, OuterImages, customSpotEdgeText;
 import 'dem_load.dart';
+import 'global_load.dart';
 import 'light_engine.dart';
 
 Future<Uint8List> loadAsset(String path) async => (await rootBundle.load('assets/data/$path')).buffer.asUint8List();
@@ -159,6 +165,58 @@ class LandingEntry {
 /// The start sequence ([AppState.startStage]).
 enum StartStage { intro, goal, loading, done }
 
+/// The whole-Moon catalogue and everything ranked in it (1.14.0 "Whole
+/// Moon"): its presets ([catalog], region [Region.wholeMoon]), the global
+/// custom spots and their own ranking, which never mixes with the polar one
+/// (build plan §3). It exists once the global files are loaded
+/// ([AppState.global]).
+///
+/// WP0 contract: the shape only. WP2 loads and ranks it
+/// (state/global_load.dart, app_state.dart).
+class GlobalCatalogState {
+  final SiteCatalog catalog;
+
+  /// Custom spots made in Whole Moon (−80.01 < lat ≤ 80.0); their horizons
+  /// come from the on-device 8 px/deg DEM.
+  final List<Site> customSites;
+
+  /// The global presets and custom spots ranked so far under the current
+  /// options, best first (the same `rank()` as the polar list).
+  List<Ranked> ranked;
+
+  /// A global ranking is running.
+  bool rankRunning;
+
+  /// Per preset id, the keys [Site] does not hold (tier, earthFlatPct,
+  /// nearField.source, horizonMeanDeg; contract §2).
+  final Map<String, GlobalSiteExtra> extras;
+
+  /// `global/validation.json` and `global/map.json` as decoded: every badge
+  /// number and raster size comes from these.
+  final Map<String, dynamic> validation, map;
+
+  /// The whole-Moon DEM's file and size (`map.json["dem"]`); null when the
+  /// state was made without the files (tests).
+  final CylDemInfo? demInfo;
+
+  GlobalCatalogState(this.catalog,
+      {List<Site>? customSites,
+      this.ranked = const [],
+      this.rankRunning = false,
+      this.extras = const {},
+      this.validation = const {},
+      this.map = const {},
+      this.demInfo})
+      : customSites = customSites ?? [];
+
+  /// From the parsed files.
+  factory GlobalCatalogState.of(GlobalData d) =>
+      GlobalCatalogState(d.catalog, extras: d.extras, validation: d.validation, map: d.map, demInfo: d.demInfo);
+
+  /// The presets, then the custom spots.
+  List<Site> get sites => [...catalog.sites, ...customSites];
+}
+
 class AppState extends ChangeNotifier {
   // ---- navigation (owned by the shell) ----
 
@@ -189,6 +247,418 @@ class AppState extends ChangeNotifier {
       return;
     }
     await selectSite(id);
+  }
+
+  // ---- region (1.14.0 "Whole Moon"; WP0 contract, WP2 implements) ----
+
+  /// The region Explore shows. Never persisted: a cold start is the south
+  /// pole, and only the switch or a link (`#/moon`, `#/site/<global id>`)
+  /// changes it.
+  Region region = Region.southPole;
+
+  /// The whole-Moon catalogue, its custom spots and ranking: null until the
+  /// user enters Whole Moon, opens a global link or the site picker's Whole
+  /// Moon section (no file under `assets/data/global/` is requested before).
+  GlobalCatalogState? global;
+
+  /// The bundle the Whole Moon files are read from (default [rootBundle]);
+  /// tests hand in the synthetic fixtures (test/fixtures/global_sample/).
+  @visibleForTesting
+  AssetBundle? globalAssetBundle;
+
+  AssetBundle get _globalBundle => globalAssetBundle ?? rootBundle;
+
+  /// Load the Whole Moon catalogue (once; a failure is not kept, so the next
+  /// call tries again). The only way the global files are first requested.
+  Future<GlobalCatalogState> ensureGlobal() {
+    final g = global;
+    if (g != null) return Future.value(g);
+    return _globalJob ??= _loadGlobal().catchError((Object e) {
+      _globalJob = null;
+      throw e;
+    });
+  }
+
+  Future<GlobalCatalogState>? _globalJob;
+
+  Future<GlobalCatalogState> _loadGlobal() async {
+    final d = await loadGlobalData(_globalBundle);
+    final g = global ??= GlobalCatalogState.of(d);
+    notifyListeners();
+    return g;
+  }
+
+  /// The 8 px/deg whole-Moon DEM (Whole Moon custom spots), decoded once on
+  /// first use; a failure is not kept.
+  Future<CylGrid> globalDem() => _globalDemJob ??= _loadGlobalDem().catchError((Object e) {
+        _globalDemJob = null;
+        throw e;
+      });
+
+  Future<CylGrid>? _globalDemJob;
+
+  Future<CylGrid> _loadGlobalDem() async {
+    final g = await ensureGlobal();
+    final info = g.demInfo ?? CylDemInfo.fromJson(g.map['dem'] as Map);
+    return loadGlobalDem(_globalBundle, info);
+  }
+
+  /// A Whole Moon raster ([file] under `assets/data/`, e.g.
+  /// `global/hillshade.webp`) as an image, decoded at most [targetWidth]
+  /// pixels wide (phones: 2048); from the same bundle as the catalogue.
+  Future<ui.Image> loadGlobalImage(String file, {int? targetWidth}) async {
+    final bd = await _globalBundle.load('assets/data/$file');
+    final codec = await ui.instantiateImageCodec(bd.buffer.asUint8List(bd.offsetInBytes, bd.lengthInBytes),
+        targetWidth: targetWidth);
+    final frame = await codec.getNextFrame();
+    codec.dispose();
+    return frame.image;
+  }
+
+  /// The selection each region had when the user last left it.
+  String? _polarSelectedId, _globalSelectedId;
+
+  /// Remember [selectedId] as its region's selection.
+  void _rememberSelection() {
+    if (regionOf(selectedId) == Region.wholeMoon) {
+      _globalSelectedId = selectedId;
+    } else {
+      _polarSelectedId = selectedId;
+    }
+  }
+
+  /// Show [r] on Explore, loading the global catalogue the first time.
+  /// Entering Whole Moon selects the global site selected last (else
+  /// [kGlobalDefaultSiteId]); returning to the south pole puts its selection
+  /// back. The goal, the options and the shortlist stay as they are. When the
+  /// global files cannot be loaded the region stays and [error] says why.
+  Future<void> setRegion(Region r) async {
+    if (r == region) return;
+    _rememberSelection();
+    final String id;
+    if (r == Region.wholeMoon) {
+      final GlobalCatalogState g;
+      try {
+        g = await ensureGlobal();
+      } catch (e) {
+        error = 'Could not load the Whole Moon sites: $e';
+        notifyListeners();
+        return;
+      }
+      final want = _globalSelectedId ?? kGlobalDefaultSiteId;
+      id = _globalSite(want) != null ? want : (g.catalog.sites.where((x) => x.id == kGlobalDefaultSiteId).firstOrNull ?? g.catalog.sites.first).id;
+    } else {
+      final want = _polarSelectedId;
+      id = want != null && catalog != null && allSites.any((x) => x.id == want)
+          ? want
+          : (catalog?.sites.firstOrNull?.id ?? selectedId);
+    }
+    _userPicked = true; // a region switch is a choice: the first ranking keeps it
+    await _update(() {
+      region = r;
+      selectedId = id;
+    });
+  }
+
+  /// The sites of [r] (presets, then that region's custom spots): the only
+  /// list automatic choices see (ranking, top pick, STANDS OUT, nearest
+  /// site). Empty for Whole Moon until [global] is loaded.
+  List<Site> regionSites(Region r) => switch (r) {
+        Region.southPole => catalog == null ? const [] : allSites,
+        Region.wholeMoon => global?.sites ?? const [],
+      };
+
+  /// The region of [siteId]: its catalogue's, or the region a custom spot was
+  /// made in. Ids not found (a global id before [global] is loaded) read as
+  /// the south pole.
+  Region regionOf(String siteId) => _siteOrNull(siteId)?.region ?? Region.southPole;
+
+  /// Open a `#/site/<id>` link: resolve its region (loading the global
+  /// catalogue when the id is not polar), switch to it and open the site on
+  /// [tab]. False (nothing changes) when neither catalogue has [siteId] or
+  /// the global files cannot be loaded ([error] says so then).
+  Future<bool> openFromLink(String siteId, {SiteTab tab = SiteTab.overview}) async {
+    if (catalog != null && allSites.any((x) => x.id == siteId)) {
+      if (region != Region.southPole) {
+        _rememberSelection();
+        region = Region.southPole;
+      }
+      await openSite(siteId, tab: tab);
+      return true;
+    }
+    try {
+      await ensureGlobal();
+    } catch (e) {
+      error = 'Could not load the Whole Moon sites: $e';
+      notifyListeners();
+      return false;
+    }
+    if (_globalSite(siteId) == null) return false;
+    if (region != Region.wholeMoon) {
+      _rememberSelection();
+      region = Region.wholeMoon;
+    }
+    await openSite(siteId, tab: tab);
+    return true;
+  }
+
+  /// Place a Whole Moon custom spot at ([lat], [lon]) with its horizon from
+  /// the on-device 8 px/deg DEM ([computeGlobalHorizon], approximate), select
+  /// it (in Whole Moon) and rank it with the global sites only. Null where
+  /// [globalCustomLatAllowed] refuses the latitude, or when it failed
+  /// ([error] says why).
+  Future<Site?> addGlobalCustomSpot(double lat, double lon) async {
+    if (!globalCustomLatAllowed(lat) || !lon.isFinite) return null;
+    placingCustom = true;
+    notifyListeners();
+    try {
+      final g = await ensureGlobal();
+      final grid = await globalDem();
+      final lonW = wrapLon(lon);
+      final h = computeGlobalHorizon(grid, lat, lonW, observerHeightsM: g.catalog.heightsM);
+      // the shared sequence: an id is never reused, in either region
+      final n = ++_customSeq;
+      final id = 'custom-$n';
+      final st = Site(
+        id: id,
+        name: 'Custom site $n (${latLonText(lat, lonW)})',
+        short: 'Custom $n',
+        group: 'custom',
+        kind: 'custom',
+        confidence: 'user-placed',
+        notes: 'Horizon computed on this device from the LOLA 8 px/deg (3.8 km) whole-Moon DEM (approximate).',
+        lat: lat,
+        lon: lonW,
+        terrainHeightM: h.siteHeightM,
+        custom: true,
+        region: Region.wholeMoon,
+        maskSource: 'LOLA 8 px/deg (3.8 km) whole-Moon DEM (on device)',
+      );
+      g.customSites.add(st);
+      _customMasks[id] = h.masks;
+      placingCustom = false;
+      await selectSite(id);
+      await _rankRegions();
+      return st;
+    } catch (e) {
+      placingCustom = false;
+      error = 'Could not place site: $e';
+      notifyListeners();
+      return null;
+    }
+  }
+
+  // ---- the Whole Moon ranking (its own list; never mixed with the polar one) ----
+
+  int _globalRankGen = 0;
+  String? _globalRankingKey;
+  String? _globalRankedSig;
+  List<Ranked> _globalRanked = const [];
+
+  /// Every site of [r] ranked so far under the current options, best first
+  /// under [weights]. [Region.southPole] is [rankedAll]; Whole Moon is empty
+  /// until [global] is loaded and ranked.
+  List<Ranked> rankedIn(Region r) {
+    if (r == Region.southPole) return rankedAll;
+    final g = global;
+    if (eph == null || g == null) return const [];
+    final sig = '$_optionsKey|${weights.power}|${weights.both}|$_resultsStamp|${g.customSites.length}';
+    if (sig != _globalRankedSig) {
+      _globalRankedSig = sig;
+      _globalRanked = List.unmodifiable(rank({
+        for (final st in g.sites)
+          if (_results[_cacheKey(st.id)] case final res?) st.id: (st.short, res.metrics),
+      }, weights));
+    }
+    g.ranked = _globalRanked;
+    return _globalRanked;
+  }
+
+  /// Every Whole Moon site has a result under the current options.
+  bool get globalRankingDone {
+    final g = global;
+    return g != null && eph != null && !g.rankRunning && g.sites.every((x) => _results.containsKey(_cacheKey(x.id)));
+  }
+
+  /// A shortlisted Whole Moon site (preset or custom spot) has no result
+  /// under the current options. Never true before [global] is loaded, nor
+  /// for a polar-only shortlist.
+  bool get _shortlistLacksGlobal {
+    final g = global;
+    if (g == null || eph == null || catalog == null) return false;
+    final ids = {for (final x in g.sites) x.id};
+    return compareIds.any((id) => ids.contains(id) && !_results.containsKey(_cacheKey(id)));
+  }
+
+  /// Compare waits for the Whole Moon ranking: a shortlisted Whole Moon site
+  /// has no numbers yet and that ranking is working them out.
+  bool get globalShortlistWorking => (global?.rankRunning ?? false) && _shortlistLacksGlobal;
+
+  /// (Whole Moon sites with a result under the current options, all of
+  /// them): the progress Compare shows while [globalShortlistWorking].
+  (int, int) get globalRankProgress {
+    final g = global;
+    if (g == null || eph == null) return (0, 0);
+    final all = g.sites;
+    return (all.where((x) => _results.containsKey(_cacheKey(x.id))).length, all.length);
+  }
+
+  /// Rank the Whole Moon sites when the shortlist holds one without numbers
+  /// (finding F: the picker's Whole Moon section only loads the catalogue,
+  /// so a site added from it on the south pole was never worked out). Its
+  /// own list and generation ([_rankGlobal], which keeps every finished
+  /// result and puts the shortlist first); the polar ranking is untouched
+  /// and a polar-only shortlist starts nothing.
+  void _rankShortlistedGlobal() {
+    if (_shortlistLacksGlobal) unawaited(_rankGlobal());
+  }
+
+  /// Rank the sites of both regions, the current one first (each its own
+  /// list, with the same `rank()` and cache). Nothing global before [global]
+  /// is loaded.
+  Future<void> _rankRegions() async {
+    if (region == Region.wholeMoon) {
+      await _rankGlobal();
+      if (_rankingKey != _optionsKey) await _rankAll();
+    } else {
+      if (_rankingKey != _optionsKey) await _rankAll();
+      await _rankGlobal();
+    }
+  }
+
+  /// Rank the Whole Moon presets and custom spots under the current options,
+  /// in slices (the same series cache and `rank()` as the polar list). A
+  /// newer run, or a change of options, stops this one.
+  Future<void> _rankGlobal() async {
+    final g = global;
+    if (g == null || eph == null) return;
+    final c = _cfg;
+    final sites = [
+      ...g.sites.where((x) => x.id == selectedId),
+      ...g.sites.where((x) => compareIds.contains(x.id) && x.id != selectedId),
+      ...g.sites.where((x) => x.id != selectedId && !compareIds.contains(x.id)),
+    ];
+    if (_globalRankingKey == c.key && sites.every((x) => _results.containsKey('${x.id}|${c.key}'))) {
+      rankedIn(Region.wholeMoon);
+      return;
+    }
+    final gen = ++_globalRankGen;
+    _globalRankingKey = c.key;
+    g.rankRunning = true;
+    notifyListeners();
+    try {
+      for (final st in sites) {
+        final key = '${st.id}|${c.key}';
+        if (_results.containsKey(key)) continue;
+        await Future<void>.delayed(Duration.zero); // let a frame render between sites
+        if (gen != _globalRankGen) return;
+        if (!_results.containsKey(key)) {
+          final s = await _seriesOf(st, c);
+          if (gen != _globalRankGen) return;
+          if (s == null) {
+            // the options changed meanwhile: the next run takes over
+            _globalRankingKey = null;
+            g.rankRunning = false;
+            return;
+          }
+        }
+        rankedIn(Region.wholeMoon);
+        notifyListeners();
+      }
+    } catch (err, st) {
+      if (gen != _globalRankGen) return;
+      debugPrint('$err\n$st');
+      _globalRankingKey = null;
+      g.rankRunning = false;
+      error = 'Could not rank the Whole Moon sites: $err';
+      notifyListeners();
+      return;
+    }
+    g.rankRunning = false;
+    rankedIn(Region.wholeMoon);
+    notifyListeners();
+  }
+
+  /// The contrast card's inputs for [r] ([contrastRows], contract §11): the
+  /// presets of that region (custom spots left out) with their metrics under
+  /// the current options and the Sun's highest elevation in the period.
+  /// Null until every preset of [r] has metrics, and for Whole Moon while
+  /// [global] is not loaded: a partial list never reaches the card. It never
+  /// loads global files by itself.
+  List<ContrastInput>? contrastInputs(Region r) {
+    if (eph == null || catalog == null) return null;
+    final presets = switch (r) {
+      Region.southPole => catalog!.sites,
+      Region.wholeMoon => global?.catalog.sites,
+    };
+    if (presets == null || presets.isEmpty) return null;
+    final out = <ContrastInput>[];
+    for (final st in presets) {
+      final key = _cacheKey(st.id);
+      final res = _results[key], hi = _sunMax[key];
+      if (res == null || hi == null) return null;
+      out.add(ContrastInput(st, res.metrics, hi));
+    }
+    return out;
+  }
+
+  /// The site the contrast card's sensitivity fact is worked out at for [r]:
+  /// the south pole's selected site (else `derosa2012-sr1-shackleton-rim`),
+  /// or the Whole Moon's (else [kGlobalDefaultSiteId]).
+  String contrastReferenceId(Region r) {
+    if (region == r) return selectedId;
+    return switch (r) {
+      Region.southPole => _polarSelectedId ?? 'derosa2012-sr1-shackleton-rim',
+      Region.wholeMoon => _globalSelectedId ?? kGlobalDefaultSiteId,
+    };
+  }
+
+  /// How far a skyline error of [errorDeg] moves sunrise at [r]'s reference
+  /// site ([contrastReferenceId]; `sunriseShiftMinutes`, contract §11), once
+  /// its series has been computed under the current options; null before,
+  /// when the site is unknown (a global id before [global] is loaded) or
+  /// when the series has no sunrise. It computes and loads nothing itself.
+  ({Site site, double minutes})? sunriseShiftOf(Region r, {double errorDeg = 0.3}) {
+    if (eph == null || catalog == null) return null;
+    final id = contrastReferenceId(r);
+    final st = _siteOrNull(id);
+    if (st == null || st.region != r) return null;
+    final key = _cacheKey(id);
+    final ser = _series[key];
+    final double minutes;
+    if (ser != null) {
+      minutes = sunriseShiftMinutes(ser, errorDeg: errorDeg);
+    } else if (_sunrisePerDeg[key] case final perDeg?) {
+      minutes = errorDeg * perDeg; // sunriseShiftMinutes is errorDeg / rate
+    } else {
+      return null;
+    }
+    return minutes.isFinite ? (site: st, minutes: minutes) : null;
+  }
+
+  /// [id] among the polar sites, then (once loaded) the global ones; null
+  /// when neither has it.
+  Site? _siteOrNull(String id) {
+    if (catalog != null) {
+      for (final x in allSites) {
+        if (x.id == id) return x;
+      }
+    }
+    return _globalSite(id);
+  }
+
+  /// [id] among the global presets and custom spots, or null (also before
+  /// [global] is loaded).
+  Site? _globalSite(String id) {
+    final g = global;
+    if (g == null) return null;
+    for (final x in g.catalog.sites) {
+      if (x.id == id) return x;
+    }
+    for (final x in g.customSites) {
+      if (x.id == id) return x;
+    }
+    return null;
   }
 
   /// "Show exact numbers (for mission planners)": readout, decimals, coordinates.
@@ -601,7 +1071,9 @@ class AppState extends ChangeNotifier {
   /// Every shortlisted site has metrics under the current options.
   bool get compareReady => eph != null && catalog != null && compareIds.every((id) => metricsFor(id) != null);
 
-  Site siteById(String id) => allSites.firstWhere((x) => x.id == id);
+  /// A polar site, or (once [global] is loaded) a global one; throws a
+  /// [StateError] for an unknown id, as before.
+  Site siteById(String id) => allSites.where((x) => x.id == id).firstOrNull ?? _globalSite(id) ?? allSites.firstWhere((x) => x.id == id);
 
   /// Add [id] to the shortlist (when it has fewer than 4 sites) or remove it.
   void toggleCompare(String id) {
@@ -613,13 +1085,23 @@ class AppState extends ChangeNotifier {
       return;
     }
     notifyListeners();
+    _rankShortlistedGlobal();
   }
 
   /// Replace the shortlist (duplicates and unknown ids dropped, at most 4 kept).
+  /// Once [global] is loaded its presets and custom spots are known too; a
+  /// polar-only state behaves as in 1.13.5.
   void setCompare(List<String> ids) {
-    final known = catalog == null ? null : {for (final s in allSites) s.id};
+    final g = global;
+    final known = catalog == null
+        ? null
+        : {
+            for (final s in allSites) s.id,
+            if (g != null) ...[for (final s in g.catalog.sites) s.id, for (final s in g.customSites) s.id],
+          };
     compareIds = [for (final id in ids.toSet()) if (known == null || known.contains(id)) id].take(4).toList();
     notifyListeners();
+    _rankShortlistedGlobal();
   }
 
   void setWeights(ScoreWeights w) {
@@ -638,11 +1120,15 @@ class AppState extends ChangeNotifier {
   static const customSiteEdgeText = customSpotEdgeText;
 
   List<Site> get allSites => [...catalog!.sites, ...customSites];
-  Site get site => customSites.where((s) => s.id == selectedId).firstOrNull ?? catalog!.byId(selectedId);
+  Site get site =>
+      customSites.where((s) => s.id == selectedId).firstOrNull ??
+      catalog!.sites.where((s) => s.id == selectedId).firstOrNull ??
+      _globalSite(selectedId) ??
+      catalog!.byId(selectedId);
   HorizonMask get mask => _maskOf(selectedId, observerHeightM);
   Observer get observer => Observer(site.lat, site.lon, site.terrainHeightM + observerHeightM);
 
-  HorizonMask _maskOf(String id, double h) => (_customMasks[id] ?? catalog!.masks[id])![h]!;
+  HorizonMask _maskOf(String id, double h) => (_customMasks[id] ?? catalog!.masks[id] ?? global?.catalog.masks[id])![h]!;
 
   /// Options differ from the [SeriesOptions] defaults (Sun rule, Earth rule, DSN).
   bool get customRules {
@@ -676,6 +1162,14 @@ class AppState extends ChangeNotifier {
 
   /// Per site and options (see [_cacheKey]): metrics + daily summaries.
   final Map<String, _SiteResult> _results = {};
+
+  /// The Sun's highest centre elevation (degrees) per cache key, kept with
+  /// [_results] for the contrast card ([contrastInputs]).
+  final Map<String, double> _sunMax = {};
+
+  /// The sunrise shift per degree of skyline error of every computed series
+  /// ([sunriseShiftOf] when the series itself is no longer kept).
+  final Map<String, double> _sunrisePerDeg = {};
 
   /// Full series, least recently stored first; trimmed to [_seriesKeep], never
   /// dropping the selected or compared sites under the current options.
@@ -768,6 +1262,8 @@ class AppState extends ChangeNotifier {
   /// Cache [s] (and its metrics + daily summaries) under [key].
   _SiteResult _store(String key, SiteSeries s) {
     final r = _results[key] ??= _SiteResult(computeMetrics(s), dailySummaries(s));
+    _sunMax[key] ??= highestSunDeg(s);
+    _sunrisePerDeg[key] ??= sunriseShiftMinutes(s, errorDeg: 1);
     _resultsStamp++;
     _series.remove(key);
     _series[key] = s;
@@ -817,6 +1313,12 @@ class AppState extends ChangeNotifier {
     _results[key] ??= _SiteResult(m, dailySummaries(s));
     _store(key, s);
     return s;
+  }
+
+  void _cancelGlobalRanking() {
+    _globalRankGen++;
+    _globalRankingKey = null;
+    global?.rankRunning = false;
   }
 
   void _cancelRanking() {
@@ -889,7 +1391,7 @@ class AppState extends ChangeNotifier {
   /// After the first ranking: select the top pick, unless the user already chose a site.
   Future<void> _pickDefault(int gen) async {
     final top = rankedAll.firstOrNull;
-    if (_userPicked || top == null || top.id == selectedId) return;
+    if (_userPicked || region != Region.southPole || top == null || top.id == selectedId) return;
     final key = _cacheKey(top.id);
     SiteSeries? s = _series[key];
     if (s == null) {
@@ -949,6 +1451,7 @@ class AppState extends ChangeNotifier {
     options = to.options;
     _resultOptions = to.options;
     selectedId = to.selectedId;
+    region = regionOf(selectedId);
     series = to.series;
     metrics = to.metrics;
     final last = rangeEndMs - options.stepMs;
@@ -1024,27 +1527,33 @@ class AppState extends ChangeNotifier {
     final m = selectedMetrics;
     final cat = catalog;
     if (cat == null || m == null) return null;
-    final sig = '$selectedId|$_optionsKey|${weights.power}|${weights.both}|$_resultsStamp|$_rankingDone|$loading|'
-        '${customSites.length}|${identityHashCode(curated)}';
-    if (sig == _glanceSig && _glance != null) return _glance;
+    final g = global;
     final st = site;
+    final isGlobal = st.region == Region.wholeMoon && g != null;
+    final globalDone = isGlobal && globalRankingDone;
+    final sig = '$selectedId|$_optionsKey|${weights.power}|${weights.both}|$_resultsStamp|$_rankingDone|$loading|'
+        '${customSites.length}|${identityHashCode(curated)}'
+        '${isGlobal ? '|global|${g.customSites.length}|$globalDone' : ''}';
+    if (sig == _glanceSig && _glance != null) return _glance;
     // as Overview: while new choices are worked out the numbers are the
     // previous ones (stale), and so is their DSN rule
     final stale = loading && metricsFor(selectedId) == null;
+    // a Whole Moon site sees only its own region: its catalogue, masks,
+    // ranking and presets; there is no curated text for it (yet)
     _glance = buildSiteGlance(GlanceInputs(
       site: st,
-      catalogue: allSites,
-      curated: curated.sites[st.id],
-      features: curated.features,
-      mask2m: (_customMasks[st.id] ?? cat.masks[st.id])?[2.0],
+      catalogue: isGlobal ? g.sites : allSites,
+      curated: isGlobal ? null : curated.sites[st.id],
+      features: isGlobal ? const [] : curated.features,
+      mask2m: (_customMasks[st.id] ?? (isGlobal ? g.catalog.masks[st.id] : cat.masks[st.id]))?[2.0],
       observerHeightM: observerHeightM,
       m: m,
       dsn: stale ? resultOptions.requireDsn : options.requireDsn,
       stale: stale,
-      ranked: _rankingDone && !stale ? rankedAll : null,
+      ranked: isGlobal ? (globalDone && !stale ? rankedIn(Region.wholeMoon) : null) : (_rankingDone && !stale ? rankedAll : null),
       goal: goalName(activeGoal),
       presetMetrics: {
-        for (final p in cat.sites) p.id: ?metricsFor(p.id),
+        for (final p in isGlobal ? g.catalog.sites : cat.sites) p.id: ?metricsFor(p.id),
       },
     ));
     _glanceSig = sig;
@@ -1094,7 +1603,9 @@ class AppState extends ChangeNotifier {
       catalog = SiteCatalog.parse(texts[0], texts[1]);
       curated = await curatedJob;
       manifest = await manifestJob;
-      if (!allSites.any((s) => s.id == selectedId)) selectedId = catalog!.sites.first.id;
+      if (!allSites.any((s) => s.id == selectedId) && _globalSite(selectedId) == null) {
+        selectedId = catalog!.sites.first.id;
+      }
       // default: the next 12 months from today (UTC midnight), within the ephemeris span
       final now = DateTime.now().toUtc();
       final today = DateTime.utc(now.year, now.month, now.day).millisecondsSinceEpoch.toDouble();
@@ -1120,7 +1631,11 @@ class AppState extends ChangeNotifier {
       return;
     }
     notifyListeners();
+    // the current region first; the polar list is always ranked again here
+    // (a retry), the global one only once it is loaded
+    if (region == Region.wholeMoon) await _rankGlobal();
     await _rankAll();
+    if (region == Region.southPole) await _rankGlobal();
   }
 
   Future<ui.Image> _image(String path) async {
@@ -1352,9 +1867,12 @@ class AppState extends ChangeNotifier {
   /// re-ranked unless a ranking was still running.
   Future<void> removeCustomSite(String id) async {
     final i = customSites.indexWhere((x) => x.id == id);
-    if (i < 0) return;
+    if (i < 0) return _removeGlobalCustomSpot(id);
     customSites.removeAt(i);
     _customMasks.remove(id);
+    _sunMax.removeWhere((k, _) => k.startsWith('$id|'));
+    _sunrisePerDeg.removeWhere((k, _) => k.startsWith('$id|'));
+    if (_polarSelectedId == id) _polarSelectedId = null;
     compareIds = [...compareIds]..remove(id);
     _results.removeWhere((k, _) => k.startsWith('$id|'));
     _series.removeWhere((k, _) => k.startsWith('$id|'));
@@ -1379,6 +1897,33 @@ class AppState extends ChangeNotifier {
     if (rankRunning && _rankingKey != _optionsKey) await _rankAll();
   }
 
+  /// [removeCustomSite] for a Whole Moon spot: when it was selected, the
+  /// global top pick (else the first global preset) is selected instead, so
+  /// the selection stays in Whole Moon.
+  Future<void> _removeGlobalCustomSpot(String id) async {
+    final g = global;
+    final i = g?.customSites.indexWhere((x) => x.id == id) ?? -1;
+    if (g == null || i < 0) return;
+    g.customSites.removeAt(i);
+    _customMasks.remove(id);
+    compareIds = [...compareIds]..remove(id);
+    _results.removeWhere((k, _) => k.startsWith('$id|'));
+    _series.removeWhere((k, _) => k.startsWith('$id|'));
+    _sunMax.removeWhere((k, _) => k.startsWith('$id|'));
+    _sunrisePerDeg.removeWhere((k, _) => k.startsWith('$id|'));
+    _resultsStamp++;
+    if (_committed?.selectedId == id) _committed = null;
+    if (_good?.selectedId == id) _good = null;
+    if (_globalSelectedId == id) _globalSelectedId = null;
+    if (selectedId == id) {
+      final next = rankedIn(Region.wholeMoon).firstOrNull?.id ?? g.catalog.sites.first.id;
+      await _update(() => selectedId = next);
+    } else {
+      rankedIn(Region.wholeMoon);
+      notifyListeners();
+    }
+  }
+
   /// Apply [change] (the controls show it at once), compute the selected
   /// site's series in slices and, when the period, height or rules changed,
   /// re-rank every site in the background (the returned future completes when
@@ -1391,6 +1936,7 @@ class AppState extends ChangeNotifier {
     options = options.copyWith(stepMs: SeriesOptions.autoStepMs(rangeEndMs - rangeStartMs));
     if (_optionsKey != before) {
       _cancelRanking();
+      _cancelGlobalRanking();
       _cursorBeforeChange ??= cursorBefore;
     }
     if (eph == null || catalog == null) {
@@ -1417,7 +1963,7 @@ class AppState extends ChangeNotifier {
         _restore(to, cursorBefore);
         error = 'These settings could not be worked out, so the previous settings are back. ($e)';
         notifyListeners();
-        if (_rankingKey != _optionsKey) await _rankAll();
+        await _rankRegions();
         return;
       }
       // superseded: a newer change (or a return to the last good state) took over
@@ -1425,13 +1971,26 @@ class AppState extends ChangeNotifier {
     }
     _commit(key, s);
     notifyListeners();
-    if (_rankingKey != _optionsKey) await _rankAll();
+    await _rankRegions();
   }
 
+  /// Select [id]; a site of the other region switches [region] to it (the
+  /// selection of the region left is remembered for [setRegion]).
   Future<void> selectSite(String id) async {
     _userPicked = true;
-    if (id == selectedId && series != null) return;
-    await _update(() => selectedId = id);
+    final r = regionOf(id);
+    if (id == selectedId && series != null) {
+      if (r != region) {
+        region = r;
+        notifyListeners();
+      }
+      return;
+    }
+    if (r != region) _rememberSelection();
+    await _update(() {
+      region = r;
+      selectedId = id;
+    });
   }
 
   Future<void> setObserverHeight(double h) => _update(() => observerHeightM = h);

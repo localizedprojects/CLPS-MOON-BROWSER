@@ -1,7 +1,7 @@
-# Store listing texts and form answers (Lunar Horizon 1.13.5)
+# Store listing texts and form answers (Lunar Horizon 1.14.0)
 
 Everything to paste into Google Play Console and App Store Connect for the first upload of
-version 1.13.5. Nothing here has been uploaded: the store accounts are opened by an account owner who
+version 1.14.0. Nothing here has been uploaded: the store accounts are opened by an account owner who
 meets Google's and Apple's age requirements ([release_checklist.md](../release_checklist.md#accounts)). The form answers follow the
 checklist's [Store forms](../release_checklist.md#store-forms) section.
 
@@ -34,7 +34,7 @@ This matches the name under the app icon (`android:label`).
 Compare Moon south-pole landing sites and dates by sunlight and Earth in view.
 ```
 
-### Full description (3812/4000)
+### Full description (3995/4000)
 ```text
 Lunar Horizon compares landing sites and dates at the Moon's south pole by two things a lander needs: sunlight for solar power, and Earth above the horizon for direct radio contact. At the pole the Sun stays within about 1.6° of the horizon, so nearby hills and crater rims decide both. Lunar Horizon works out when the Sun and Earth are above each site's real terrain horizon and turns that into a plain answer.
 
@@ -46,6 +46,7 @@ What it does
 • Lander's view: a 3D look around the horizon from 2 m above the ground, with a raised viewpoint to read the terrain (labelled approximate).
 • Compare 2 to 4 sites with a score you can adjust (Balanced, Power first or Earth contact first) and see worked out step by step.
 • Test your own spot: tap the map inside 80°S or type coordinates, and its horizon is computed on your device (labelled lower fidelity).
+• Whole Moon: 20 more sites where missions landed, Apollo 11 to Blue Ghost Mission 1, ranked on their own on a whole-Moon map.
 • Mission settings: the period, a 2 m lander or a 10 m mast, three rules for when the Sun counts as up, and an optional Deep Space Network check.
 • Lunar eclipses: the part of the Sun hidden behind Earth does not count as sunlight.
 • Export CSV tables (their header records the data and rules used) and chart images.
@@ -65,6 +66,7 @@ Data sources and credits
 • LRO LOLA: terrain heights and long-term visibility maps from the Lunar Orbiter Laser Altimeter on NASA's Lunar Reconnaissance Orbiter, from the NASA Planetary Data System (PDS) Geosciences Node.
 • JPL Horizons: independent Sun and Earth positions used to check the app.
 • Site positions: NASA, LRO LROC images and published studies, with the sources listed in the app.
+• Whole Moon terrain: SLDEM2015 (LOLA and JAXA Kaguya).
 
 Private and offline
 All the data is built in and the app does its calculations on your phone or tablet, so it works offline. It asks for no permissions, not even internet access. No accounts, no ads, no purchases, no tracking, and no data collected.
@@ -87,7 +89,19 @@ Made for the NASA Space Apps Challenge. Not an official NASA product.
 | Privacy policy | <https://localizedprojects.github.io/CLPS-MOON-BROWSER/privacy/> |
 | Price | Owner's choice (the app has no ads and no in-app purchases) |
 
-### What's new in 1.13.5 (463/500)
+### What's new in 1.14.0 (477/500)
+From the 1.14.0 release notes (the changes since 1.13.5), shortened. Every line holds in the Android
+app: the Whole Moon data is bundled in the APK, so it works offline too.
+```text
+• New Whole Moon region: a switch on Explore adds 20 sites where missions landed, from Apollo 11 to Blue Ghost Mission 1. Each region is ranked on its own.
+• A shaded whole-Moon map shows where Earth is ever above the horizon.
+• Test your own spot from 80°N to just north of 80°S.
+• Pole vs the rest: the south pole's best site beside the best elsewhere.
+• Overview, Sky & time, Compare and the Lander's view work there too.
+• The south pole stays the default and is unchanged.
+```
+
+### What's new in 1.13.5 (463/500), the previous release, kept for reference
 From the 1.13.5 release notes (the changes since v1.13.3, the last published release), shortened.
 ```text
 • Light map: during Play the Sun and Earth labels glide with their arrows instead of hopping.

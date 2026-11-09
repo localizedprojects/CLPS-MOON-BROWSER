@@ -1,0 +1,203 @@
+{
+ "generatedUtc": "2026-11-09T00:00:00Z",
+ "synthetic": true,
+ "note": "SYNTHETIC TEST FIXTURE: made-up values for app tests (WP0); not data, never bundled.",
+ "frameNote": "SYNTHETIC frame note.",
+ "spiceTruth": {
+  "description": "SYNTHETIC",
+  "sites": [
+   "apollo-11-lm",
+   "change-4",
+   "synthetic-limb-90e"
+  ],
+  "sun": {
+   "n": 8,
+   "maxArcmin": 0.002,
+   "rmsArcmin": 0.001,
+   "p95Arcmin": 0.0015,
+   "maxRangeRelErr": 1e-07
+  },
+  "earth": {
+   "n": 8,
+   "maxArcmin": 0.002,
+   "rmsArcmin": 0.001,
+   "p95Arcmin": 0.0015,
+   "maxRangeRelErr": 1e-07
+  }
+ },
+ "horizons": {
+  "description": "SYNTHETIC",
+  "sites": [
+   "apollo-11-lm",
+   "change-4",
+   "synthetic-limb-90e"
+  ],
+  "horizonsSettings": {
+   "ephemeris": "SYNTHETIC"
+  },
+  "sun": {
+   "n": 8,
+   "maxArcmin": 0.002,
+   "rmsArcmin": 0.001,
+   "p95Arcmin": 0.0015,
+   "maxRangeRelErr": 1e-07
+  },
+  "earth": {
+   "n": 8,
+   "maxArcmin": 0.002,
+   "rmsArcmin": 0.001,
+   "p95Arcmin": 0.0015,
+   "maxRangeRelErr": 1e-07
+  }
+ },
+ "horizonQuality": {
+  "description": "SYNTHETIC",
+  "sites": {
+   "apollo-11-lm": {
+    "maskMaxDeg": 2.0,
+    "maskMeanDeg": 1.0,
+    "vsLdem64Only": {
+     "rmsDeg": 0.9,
+     "biasDeg": -0.5
+    },
+    "vsOnDevice": {
+     "rmsDeg": 1.1,
+     "biasDeg": -0.6,
+     "maxAbsDeg": 2.4
+    }
+   },
+   "change-4": {
+    "maskMaxDeg": 2.0,
+    "maskMeanDeg": 1.0,
+    "vsLdem64Only": {
+     "rmsDeg": 0.9,
+     "biasDeg": -0.5
+    },
+    "vsOnDevice": {
+     "rmsDeg": 1.1,
+     "biasDeg": -0.6,
+     "maxAbsDeg": 2.4
+    }
+   },
+   "synthetic-limb-90e": {
+    "maskMaxDeg": 2.0,
+    "maskMeanDeg": 1.0,
+    "vsLdem64Only": {
+     "rmsDeg": 0.9,
+     "biasDeg": -0.5
+    },
+    "vsOnDevice": {
+     "rmsDeg": 1.1,
+     "biasDeg": -0.6,
+     "maxAbsDeg": 2.4
+    }
+   }
+  },
+  "onDevice": {
+   "n": 3,
+   "medianRmsDeg": 1.1,
+   "worstRmsDeg": 1.9,
+   "worstSiteId": "change-4",
+   "meanBiasDeg": -0.6
+  },
+  "ldem64Only": {
+   "n": 3,
+   "medianRmsDeg": 0.9,
+   "worstRmsDeg": 1.4,
+   "meanBiasDeg": -0.5
+  },
+  "sunriseMinPerDeg": {
+   "equator": 120.0
+  }
+ },
+ "longTerm": {
+  "description": "SYNTHETIC",
+  "apollo11": {
+   "earthPct": 100.0,
+   "sunPct": 50.0
+  },
+  "farSide": {
+   "change-4": {
+    "earthPct": 0.0,
+    "bothPct": 0.0
+   }
+  },
+  "sideAgreesWithMap": true,
+  "eclipse20281231": {
+   "nearSiteId": "apollo-11-lm",
+   "farSiteId": "change-4",
+   "nearSideSunEclipseMax": 1.0,
+   "farSideSunEclipseMax": 0.0
+  }
+ },
+ "coordinates": {
+  "description": "SYNTHETIC",
+  "shapefile": {
+   "version": "SYNTHETIC",
+   "records": 0,
+   "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+  },
+  "sites": {
+   "apollo-11-lm": {
+    "inShapefile": false,
+    "shapefileName": "SYNTHETIC",
+    "coordSrc": "SYNTHETIC",
+    "uncertain": "",
+    "candidateDiffDeg": 0.0
+   },
+   "change-4": {
+    "inShapefile": false,
+    "shapefileName": "SYNTHETIC",
+    "coordSrc": "SYNTHETIC",
+    "uncertain": "",
+    "candidateDiffDeg": 0.0
+   },
+   "synthetic-limb-90e": {
+    "inShapefile": false,
+    "shapefileName": "SYNTHETIC",
+    "coordSrc": "SYNTHETIC",
+    "uncertain": "",
+    "candidateDiffDeg": 0.0
+   }
+  },
+  "surveyor3Apollo12SeparationM": 180.0,
+  "heightVsLdem64M": {
+   "apollo-11-lm": 10.0,
+   "change-4": 10.0,
+   "synthetic-limb-90e": 10.0
+  }
+ },
+ "historicSun": {
+  "status": "not checked"
+ },
+ "crossRegion": {
+  "description": "SYNTHETIC",
+  "siteId": "im-1-odysseus-landed",
+  "ldem64VsPolarMask": {
+   "rmsDeg": 1.5,
+   "biasDeg": -1.2
+  }
+ },
+ "gates": [
+  {
+   "id": "V2.apollo15MaskMaxDeg",
+   "value": 13.0,
+   "range": [
+    10,
+    16
+   ],
+   "pass": true,
+   "note": "SYNTHETIC"
+  },
+  {
+   "id": "V2.apollo11MaskMeanDeg",
+   "value": 1.0,
+   "range": [
+    null,
+    3
+   ],
+   "pass": true,
+   "note": "SYNTHETIC"
+  }
+ ]
+}

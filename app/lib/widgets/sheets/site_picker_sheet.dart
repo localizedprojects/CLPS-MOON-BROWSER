@@ -2,12 +2,17 @@
 /// the way the catalogue groups them, with a search box. Single-select
 /// returns at the first tap; multi-select keeps a 2–4 site shortlist and
 /// says why a site cannot be added or why "Done" is not ready yet.
+///
+/// With `global` (1.14.0) a second section, "Whole Moon", follows the
+/// south-pole list. It starts closed and nothing of it is loaded until it is
+/// opened (build plan §3); once loaded, the search covers both sections.
 library;
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/catalog.dart';
+import '../../core/region.dart';
 import '../../core/wording.dart';
 import '../../state/app_state.dart';
 import '../../theme.dart';
@@ -26,7 +31,35 @@ Future<List<String>?> showSitePicker(
   List<String> initial = const [],
   int max = 4,
   int min = 2,
-}) => showPhSheet<List<String>>(context, (_) => SitePickerSheet(multi: multi, initial: initial, max: max, min: multi ? min : 1));
+  bool global = false,
+}) => showPhSheet<List<String>>(
+    context, (_) => SitePickerSheet(multi: multi, initial: initial, max: max, min: multi ? min : 1, global: global));
+
+/// Load the Whole Moon catalogue for the picker without switching region
+/// (`AppState.ensureGlobal`, WP2). A failed load throws, and the section
+/// says the sites could not be loaded.
+Future<void> loadGlobalCatalog(AppState s) async {
+  if (s.global != null) return;
+  await s.ensureGlobal();
+}
+
+/// The Whole Moon section's header line, closed and open.
+String pickerGlobalLine({required bool open, required bool loaded, int n = 0, String query = ''}) {
+  if (!open) {
+    return query.trim().isEmpty
+        ? 'Sites away from the pole: Apollo, Luna, Chang\'e and more. Open to see them.'
+        : 'Open to search the sites away from the pole too.';
+  }
+  return loaded ? '$n ${n == 1 ? 'site' : 'sites'} away from the south pole.' : 'Loading the whole-Moon sites…';
+}
+
+/// Said when the Whole Moon section cannot be loaded.
+const pickerGlobalFailedText = 'The whole-Moon sites could not be loaded. Close the section and open it again to retry.';
+
+/// What the picker says when neither section has a match ([open]: the Whole
+/// Moon section was searched too).
+String noSiteMatchTextGlobal(String query, {required bool open}) => 'No site matches "$query". Try a shorter word, or clear the search. '
+    '${open ? 'Both the south-pole and the whole-Moon lists were searched.' : 'Open "Whole Moon" below to search the sites away from the pole too.'}';
 
 /// Sites whose name, short name, kind or group name contain every word of
 /// [query] (case-insensitive). An empty query matches everything.
@@ -60,7 +93,11 @@ class SitePickerSheet extends StatefulWidget {
   final bool multi;
   final List<String> initial;
   final int max, min;
-  const SitePickerSheet({super.key, required this.multi, this.initial = const [], this.max = 4, this.min = 2});
+
+  /// Offer the Whole Moon section (1.14.0). Off for pickers whose screen
+  /// covers the south pole only (the Lander's view).
+  final bool global;
+  const SitePickerSheet({super.key, required this.multi, this.initial = const [], this.max = 4, this.min = 2, this.global = false});
 
   @override
   State<SitePickerSheet> createState() => _SitePickerSheetState();
@@ -70,6 +107,82 @@ class _SitePickerSheetState extends State<SitePickerSheet> {
   late final List<String> _picked = [...widget.initial.take(widget.multi ? widget.max : 1)];
   final _search = TextEditingController();
   String _query = '';
+
+  /// The Whole Moon section is open; it is loading; its load failed.
+  late bool _globalOpen = widget.global && _startsOpen(context.read<AppState>());
+  bool _globalBusy = false, _globalFailed = false;
+
+  /// Open at once in Whole Moon, or when a chosen site is not a polar one.
+  bool _startsOpen(AppState s) {
+    if (s.region == Region.wholeMoon) return true;
+    final polar = s.catalog == null ? const <String>{} : {for (final x in s.allSites) x.id};
+    return s.catalog != null && widget.initial.any((id) => !polar.contains(id));
+  }
+
+  Future<void> _toggleGlobal(AppState s) async {
+    if (_globalOpen) {
+      setState(() {
+        _globalOpen = false;
+        _globalFailed = false;
+      });
+      return;
+    }
+    setState(() => _globalOpen = true);
+    if (s.global != null) return;
+    setState(() => _globalBusy = true);
+    try {
+      await loadGlobalCatalog(s);
+    } catch (e) {
+      debugPrint('site picker: whole-Moon sites: $e');
+      if (mounted) setState(() => _globalFailed = true);
+    } finally {
+      if (mounted) setState(() => _globalBusy = false);
+    }
+  }
+
+  /// One header per group (catalogue order, then any other group, then the
+  /// custom spots, titled [customTitle]) and a row per site of [shown].
+  List<Widget> _groupRows(AppState s, List<Site> shown, SiteCatalog? cat, Map<String, String> groupNames,
+      {String customTitle = 'Your custom spots'}) {
+    final order = [...?cat?.groups.map((g) => g.id)];
+    for (final x in shown) {
+      final g = x.custom ? 'custom' : x.group;
+      if (!order.contains(g) && g != 'custom') order.add(g);
+    }
+    order.add('custom');
+    final rows = <Widget>[];
+    for (final g in order) {
+      final inGroup = [
+        for (final x in shown)
+          if ((x.custom ? 'custom' : x.group) == g) x,
+      ];
+      if (inGroup.isEmpty) continue;
+      rows.add(
+        Padding(
+          padding: const EdgeInsets.fromLTRB(4, 16, 4, 4),
+          child: Semantics(
+            header: true,
+            child: Text(g == 'custom' ? customTitle : (groupNames[g] ?? g), style: PHText.subtitle),
+          ),
+        ),
+      );
+      for (final x in inGroup) {
+        rows.add(
+          _SiteRow(
+            site: x,
+            multi: widget.multi,
+            picked: _picked.contains(x.id),
+            full: widget.multi && _picked.length >= widget.max,
+            max: widget.max,
+            bothPct: s.metricsFor(x.id)?.pctBoth,
+            dsn: s.options.requireDsn,
+            onTap: () => _tap(x.id),
+          ),
+        );
+      }
+    }
+    return rows;
+  }
 
   @override
   void dispose() {
@@ -99,43 +212,14 @@ class _SitePickerSheetState extends State<SitePickerSheet> {
     final groupNames = {for (final g in cat?.groups ?? const <SiteGroup>[]) g.id: g.name};
     final shown = filterSites(sites, _query, groupNames: groupNames);
     // catalogue groups in catalogue order, then anything else, then custom spots
-    final order = [...?cat?.groups.map((g) => g.id)];
-    for (final x in shown) {
-      final g = x.custom ? 'custom' : x.group;
-      if (!order.contains(g) && g != 'custom') order.add(g);
-    }
-    order.add('custom');
-    final rows = <Widget>[];
-    for (final g in order) {
-      final inGroup = [
-        for (final x in shown)
-          if ((x.custom ? 'custom' : x.group) == g) x,
-      ];
-      if (inGroup.isEmpty) continue;
-      rows.add(
-        Padding(
-          padding: const EdgeInsets.fromLTRB(4, 16, 4, 4),
-          child: Semantics(
-            header: true,
-            child: Text(g == 'custom' ? 'Your custom spots' : (groupNames[g] ?? g), style: PHText.subtitle),
-          ),
-        ),
-      );
-      for (final x in inGroup) {
-        rows.add(
-          _SiteRow(
-            site: x,
-            multi: widget.multi,
-            picked: _picked.contains(x.id),
-            full: widget.multi && _picked.length >= widget.max,
-            max: widget.max,
-            bothPct: s.metricsFor(x.id)?.pctBoth,
-            dsn: s.options.requireDsn,
-            onTap: () => _tap(x.id),
-          ),
-        );
-      }
-    }
+    final rows = _groupRows(s, shown, cat, groupNames);
+    // the Whole Moon section (1.14.0): its rows once it is open and loaded
+    final g = widget.global ? s.global : null;
+    final gNames = {for (final x in g?.catalog.groups ?? const <SiteGroup>[]) x.id: x.name};
+    final gSites = g == null ? const <Site>[] : [...g.catalog.sites, ...g.customSites];
+    final globalRows = g != null && _globalOpen
+        ? _groupRows(s, filterSites(gSites, _query, groupNames: gNames), g.catalog, gNames, customTitle: 'Your whole-Moon spots')
+        : const <Widget>[];
     final ok = _picked.length >= widget.min && _picked.length <= widget.max;
     final media = MediaQuery.of(context);
     // on short screens or with large text the title and search scroll with
@@ -202,18 +286,53 @@ class _SitePickerSheetState extends State<SitePickerSheet> {
                 shrinkWrap: true,
                 children: [
                   if (compact) ...head,
-                  if (rows.isEmpty)
+                  if (widget.global && _globalOpen) const _SectionLabel('SOUTH POLE'),
+                  if (rows.isEmpty && widget.global && globalRows.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(24, 8, 24, 8),
+                      child: Text('No south-pole site matches "$_query".', style: PHText.body.copyWith(color: PH.muted)),
+                    )
+                  else if (rows.isEmpty)
                     Padding(
                       padding: const EdgeInsets.all(24),
                       child: Semantics(
                         liveRegion: true,
                         child: Text.rich(numSpans(
-                          cat == null ? 'The site list is still loading.' : noSiteMatchText(_query),
+                          cat == null
+                              ? 'The site list is still loading.'
+                              : widget.global
+                                  ? noSiteMatchTextGlobal(_query, open: _globalOpen && g != null)
+                                  : noSiteMatchText(_query),
                           PHText.body.copyWith(color: PH.muted),
                         )),
                       ),
                     ),
                   for (final r in rows) Padding(padding: const EdgeInsets.symmetric(horizontal: 12), child: r),
+                  if (widget.global) ...[
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(12, 16, 12, 0),
+                      child: _GlobalSectionHeader(
+                        open: _globalOpen,
+                        busy: _globalBusy,
+                        line: pickerGlobalLine(open: _globalOpen, loaded: g != null, n: gSites.length, query: _query),
+                        onTap: () => _toggleGlobal(s),
+                      ),
+                    ),
+                    if (_globalOpen && _globalFailed && g == null)
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(24, 8, 24, 8),
+                        child: Semantics(
+                          liveRegion: true,
+                          child: Text(pickerGlobalFailedText, style: PHText.body.copyWith(color: PH.warn)),
+                        ),
+                      ),
+                    if (_globalOpen && g != null && globalRows.isEmpty && _query.trim().isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(24, 8, 24, 8),
+                        child: Text('No whole-Moon site matches "$_query".', style: PHText.body.copyWith(color: PH.muted)),
+                      ),
+                    for (final r in globalRows) Padding(padding: const EdgeInsets.symmetric(horizontal: 12), child: r),
+                  ],
                 ],
               ),
             ),
@@ -249,6 +368,67 @@ class _SitePickerSheetState extends State<SitePickerSheet> {
               ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// A section's MicroLabel ("SOUTH POLE"), shown once both sections are open.
+class _SectionLabel extends StatelessWidget {
+  final String text;
+  const _SectionLabel(this.text);
+
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+        child: Semantics(header: true, child: MicroLabel(text)),
+      );
+}
+
+/// The Whole Moon section's header: a 48 dp button that opens or closes the
+/// section (a chevron and the line say which, not colour).
+class _GlobalSectionHeader extends StatelessWidget {
+  final bool open, busy;
+  final String line;
+  final VoidCallback onTap;
+  const _GlobalSectionHeader({required this.open, required this.busy, required this.line, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      container: true,
+      button: true,
+      expanded: open,
+      label: 'Whole Moon sites. $line',
+      onTap: onTap,
+      excludeSemantics: true,
+      child: TextButton(
+        key: const ValueKey('picker-whole-moon'),
+        style: TextButton.styleFrom(
+          minimumSize: const Size.fromHeight(48),
+          alignment: Alignment.centerLeft,
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+          foregroundColor: PH.text,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(PH.radiusInner),
+            side: const BorderSide(color: PH.line),
+          ),
+        ),
+        onPressed: onTap,
+        child: Row(children: [
+          Expanded(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
+              const MicroLabel('WHOLE MOON'),
+              const SizedBox(height: 2),
+              Text(line, style: PHText.small.copyWith(color: PH.muted)),
+            ]),
+          ),
+          const SizedBox(width: 8),
+          if (busy)
+            const SizedBox.square(dimension: 20, child: CircularProgressIndicator(strokeWidth: 2))
+          else
+            Icon(open ? Icons.expand_less : Icons.expand_more, color: PH.muted),
+        ]),
       ),
     );
   }

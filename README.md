@@ -1,11 +1,13 @@
 # Lunar Horizon
 
-**A lunar south-pole site and date planner.** It is an entry for the NASA Space Apps Challenge 2026 challenge [*Lunar Landing Site Navigator*](https://www.spaceappschallenge.org/2026/challenges/lunar-landing-site-navigator/). Not an official NASA product.
+**A lunar landing site and date planner: the south pole first, and since 1.14.0 the whole Moon.** It is an entry for the NASA Space Apps Challenge 2026 challenge [*Lunar Landing Site Navigator*](https://www.spaceappschallenge.org/2026/challenges/lunar-landing-site-navigator/). Not an official NASA product.
 
 Lunar Horizon answers one question: *which south-pole landing site, on which dates, gives the best solar power and direct-to-Earth communication?* For each site it works out when the Sun and the Earth are above the real terrain horizon. It uses NASA/JPL SPICE ephemerides and Lunar Reconnaissance Orbiter (LRO) LOLA elevation data, and turns the results into rankings, charts, a light-and-shadow map and plain-language summaries. It is built for:
 
 - **the public and educators:** a plain answer first, with explanations next to each view
 - **mission planners:** exact numbers, adjustable visibility rules, and CSV export with provenance
+
+Since version 1.14.0 a **Whole Moon** region (Explore › *Whole Moon*) adds 20 landed-mission sites elsewhere on the Moon, from Apollo 11 to Blue Ghost Mission 1, so the south pole can be compared with the rest of the Moon. The south pole stays the default, and each region is ranked on its own ([below](#whole-moon-1140)).
 
 The same Flutter code runs as a web app and on Android.
 
@@ -22,7 +24,7 @@ The same Flutter code runs as a web app and on Android.
 Scan the code with your phone's camera. It opens <https://localizedprojects.github.io/CLPS-MOON-BROWSER/get/>, which picks the right install for the device:
 
 - **Android:** downloads [lunar-horizon.apk](https://github.com/localizedprojects/CLPS-MOON-BROWSER/releases/latest/download/lunar-horizon.apk) from the [latest release](https://github.com/localizedprojects/CLPS-MOON-BROWSER/releases/latest). Open it and allow installing from your browser when Android asks (Android 7.0 or newer; signed with a development key, so it is installed directly, not from the Play Store). If you later switch to the Play Store version (or a build signed with a different key), uninstall this one first; Android will not update across signing keys. The latest release can be older than the web app, which is always the newest version; the release page names its version.
-  <!-- On 2026-11-08 the latest release is v1.13.3 (7 November 2026) and the web app is 1.13.5. Once the owner publishes v1.13.5, the latest release and the web app are both 1.13.5. This link stays the same as long as the APK keeps the name lunar-horizon.apk. -->
+  <!-- On 2026-11-09 the latest release is v1.13.3 (7 November 2026) and the web app is 1.14.0 (from `main`). Once the owner publishes v1.14.0, the latest release and the web app are both 1.14.0. This link stays the same as long as the APK keeps the name lunar-horizon.apk. -->
 - **iPhone and iPad:** opens the web app in Safari; use Share, then *Add to Home Screen* to keep it as an app. (Installing an iOS app file needs a paid Apple Developer account; the page has one switch, `IOS_URL` in `app/web/get/index.html`, for a TestFlight or App Store link later, and the QR code stays the same.) With a Mac you can build and run the native app yourself in Xcode: [docs/xcode.md](docs/xcode.md).
 - **Computers:** <https://localizedprojects.github.io/CLPS-MOON-BROWSER/>
 - **Privacy:** no accounts, no analytics, no ads, no tracking; see the [privacy policy](https://localizedprojects.github.io/CLPS-MOON-BROWSER/privacy/).
@@ -91,6 +93,27 @@ All coordinates come with citations in `app/assets/data/sites.json`.
 | ESA Lunar Lander candidate sites (De Rosa et al. 2012) (5) | SR1, CR1, SV1, MP1, GR1 | Points given in De Rosa et al. (2012), Table 2: the centres of its regions of interest, chosen there for long sunlight |
 | Missions: NASA CLPS and international (6) | IM-1 Odysseus (landed), IM-2 Athena (landed), IM-2 Athena (intended target), VIPER mission-area centre, Chang'e-7 (planned), LUPEX / Chandrayaan-5 (candidate) | LROC landed positions and published mission-area centres. The Chang'e-7 and LUPEX points are unofficial, secondhand candidates (low confidence), not announced landing coordinates. |
 
+
+### Whole Moon (1.14.0)
+
+Explore has a **South pole | Whole Moon** switch. The app always starts at the south pole; `#/moon` (or a link to a Whole Moon site) opens the other region, and nothing of it is downloaded until you open it.
+
+- **The map:** the whole Moon on one equirectangular map (near side centred, north up, 30° grid, "Near side" and "Far side" labels), shaded from LOLA heights, with a computed overlay of where Earth is ever above a flat horizon. Each site has a marker whose shape shows its group, and a direct label. The hatched cap south of 80°S takes you back to the south pole, which has its own detailed map.
+- **Ranking:** the Whole Moon sites are ranked among themselves only, with the same "What matters most?" chips. An automatic choice never mixes the regions, because near-equator sites have roughly 50 % sunlight and constant Earth, a different trade-off from the pole. The **Pole vs the rest** card puts the two side by side: each region's best value for sunlight, Earth in view, both together, the longest night and the highest Sun, and a computed verdict per goal.
+- **Site pages:** Overview, Sky & time and the Lander's view work as at the pole. On the far side (Chang'e-4 and Chang'e-6) the app says that Earth never rises and that direct-to-Earth radio is impossible there. The Light & shadow map stays south-pole only, and the site page says so.
+- **Compare:** can mix the regions only when you add sites from both; a "Mixed regions" banner and one verdict per goal then replace the single winner, and no site carries a rank number.
+- **Custom spots:** tap the Whole Moon map (or type coordinates) anywhere from 80.0°N to just north of 80.01°S. The horizon is computed on the device from a 3.8 km whole-Moon DEM and is labelled approximate with its measured error (§[Validation](#validation)).
+- **Learn:** *South pole vs the rest of the Moon* explains the difference, with computed facts (the highest Sun, the longest night, the far side, and how much a 0.3° skyline error moves sunrise in each region).
+
+| Group | Sites | Source of coordinates |
+|---|---|---|
+| Apollo (crewed landings) (6) | Apollo 11, 12, 14, 15, 16 and 17 Lunar Modules | LROC "Anthropogenic Features on the Moon" shapefile (Wagner et al. 2017), for every site |
+| Robotic landers 1966–76 (Surveyor, Luna) (7) | Luna 16, Luna 17, Surveyor 1, Surveyor 3, Surveyor 7, Luna 21, Luna 24 | the same shapefile |
+| Other countries' programmes (6) | Chang'e-3, Chang'e-4 (far side), Chang'e-5, Chang'e-6 (far side), SLIM, Chandrayaan-3 Vikram | the same shapefile |
+| Commercial (CLPS) (1) | Blue Ghost Mission 1 | the same shapefile |
+
+Each site's record (name, coordinates, coordinate source and uncertainty) is quoted in `app/assets/data/global/sites.json`. Sites with no measured landing point (for example Luna 9, IM-3, crash sites) are left out. The 18.6-year averages there are about 48 to 50 % sunlight, Earth 100 % on the near side and 0 % on the far side.
+
 ---
 
 ## How it works
@@ -101,8 +124,9 @@ flowchart TD
   D["LRO LOLA DEMs<br/>LDEM_80S_80M · LDEM_75S_120M · LDEM_75S_240M"] --> P
   A["LOLA AVGVISIB maps<br/>(cross-check and map overlays)"] --> P
   H["JPL Horizons<br/>(cached responses)"] --> P
+  G["Whole Moon inputs<br/>LOLA LDEM_16 · LDEM_64 · LDEM_512 · SLDEM2015<br/>LROC anthropogenic-objects shapefile"] --> P
   P["Python pipeline · pipeline/lunarsp<br/>ephemeris, DSN masks, horizon masks,<br/>basemap, validation, test fixtures"]
-  P --> DATA["Compact data · app/assets/data (committed)<br/>ephem/*.bin · dsn/*.bin · sites.json · horizons.json<br/>map/* · validation.json"]
+  P --> DATA["Compact data · app/assets/data (committed)<br/>ephem/*.bin · dsn/*.bin · sites.json · horizons.json<br/>map/* · validation.json<br/>global/* (Whole Moon, loaded on demand)"]
   DATA --> CORE["Dart science core · app/lib/core<br/>az/el, visibility, power, metrics, score,<br/>custom-site horizons, light & shadow map,<br/>best landing window"]
   CORE --> UI["Flutter UI · app/lib<br/>Explore · Site · Compare · Learn"]
   CORE -- "chart-ready JSON" --> CH["React + Plotly charts · charts/<br/>When strip · sky view · side by side"]
@@ -113,6 +137,7 @@ The work is split between offline precomputation and on-device computation:
 
 - **Offline:** the Python pipeline does the heavy, data-hungry work once. It needs about 570 MB of downloads (about 605 MB with the optional DE442 kernel).
 - **On the device:** the app ships compact results (Sun and Earth vectors, DSN masks, horizon masks, map images and a 400 m DEM reaching about 75°S; about 10.5 MB) and computes the time series, metrics, scores, custom-site horizons and the light and shadow map itself. This lets any custom location work without a server.
+- **Whole Moon (1.14.0):** `app/assets/data/global/` adds 9.5 MB (9,527,276 bytes in 48 files: the 20-site catalogue with horizon masks, the hillshade and Earth-visible map, an 8 px/deg DEM for custom spots, thumbnails and one Lander tile per site). None of it is loaded until you open Whole Moon or a link to a Whole Moon site. The ephemeris and DSN files are shared with the pole, and the app runs the same Dart code on these sites (formula.md §18).
 - **Charts:** these are render-only. Flutter sends them chart-ready JSON (`window.phRender`) and they post events back. The message schema is in `charts/src/bridge.ts` and `app/lib/widgets/chart_bridge.dart`.
 
 **Key methods.** The full maths, with `file:line` references, is in [formula.md](formula.md).
@@ -199,6 +224,29 @@ The differences reflect DEM resolution, the averaging period, and pixel vs point
 
 The test fails below 90 % and 80 % on the 400 m grid, and below 75 % for the 800 m grid against the 80 m horizons.
 
+**Whole Moon sites (1.14.0).** These numbers are read from `app/assets/data/global/validation.json` (`generatedUtc` 2026-11-09T15:22:04Z) and rounded the same way; formula.md §18.7 has the full list. Each direction cell gives max · rms · p95, in arcminutes.
+
+| Check | What was compared | Samples | Sun | Earth |
+|---|---|---|---|---|
+| SPICE pipeline vs JPL Horizons | As above, at 10 Whole Moon sites (Apollo 11, 15 and 17, Luna 16, Chang'e-3, Chang'e-4 and Chang'e-6 on the far side, SLIM, Chandrayaan-3, Blue Ghost Mission 1) × 2 thirty-day windows (Dec 2026, Jun 2031), 4 h step; 40 responses cached in `pipeline/validation/global/` | 3620 per body | 7.76e-6 · 6.29e-7 · 7.76e-7 | 3.53e-5 · 2.36e-5 · 3.30e-5 |
+| App vs JPL Horizons | The on-device algorithm on the same rows | 3620 per body | 1.55e-4 · 5.42e-5 · 1.07e-4 | 1.54e-3 · 7.90e-4 · 1.36e-3 |
+| App vs SPICE | The on-device algorithm vs `spkcpo` at all 20 sites, 60 random epochs each in 2025–2035 | 1200 per body | 1.50e-4 · 5.20e-5 · 1.01e-4 | 1.56e-3 · 7.48e-4 · 1.28e-3 |
+
+The Horizons ranges agree within 0.0027 km (Sun) and 0.0041 km (Earth).
+
+| Check | Result |
+|---|---|
+| Horizon masks: LOLA LDEM_64 alone vs the preset masks (SLDEM2015 or LDEM_512 near field), 20 sites | median RMS 0.581°, worst 1.26°, mean bias −0.414° (too low) |
+| The on-device Whole Moon custom-spot horizon vs the preset masks, 20 sites | median RMS 0.797°, worst 2.42° (Surveyor 7), mean bias −0.871° (too low, so optimistic) |
+| Apollo 15 mask maximum; Apollo 11 mean mask | 13.6° (gate 10° to 16°); 1.24° (gate below 3°) |
+| 18.6-year shares | Apollo 11: Earth 100.0 %, Sun 49.8 % (gate 50 ± 4 %); Chang'e-4 and Chang'e-6: Earth 0.0 %, both 0.0 % |
+| Near or far side from the flat-horizon map vs each site's `side` | all 20 agree |
+| Total lunar eclipse of 31 Dec 2028 | Apollo 11: Earth covers all of the visible Sun at maximum; Chang'e-4: no visible sunlight lost |
+| Coordinates | all 20 sites are in the shapefile; Surveyor 3 to the Apollo 12 LM is 156.8 m (expected 100 to 250 m); site heights within −10.7 m to +6.0 m of LDEM_64 |
+| South-pole DEMs still used at the pole | at IM-1, an LDEM_64-only mask differs from the committed polar mask by 1.09° RMS |
+
+The Sun's elevation at the historic Apollo touchdowns is not checked and not shown: no fetchable NASA page quoted both the touchdown time and the Sun elevation. The LOLA AVGVISIB cross-check stays polar, because there is no such product for the rest of the Moon. The Dart core matches SPICE at the Whole Moon sites through `app/test/fixtures/global_truth.json`, with the polar tolerances.
+
 **Reproduce**
 
 ```sh
@@ -207,6 +255,7 @@ python -m lunarsp.build validate   # horizons, app_vs_horizons, frame_sensitivit
 python -m lunarsp.build sites      # the avgvis block (needs the DEMs and the AVGVISIB maps)
 python -m lunarsp.build renders    # the render_skyline block (Blender 5.1; about 5 min per site on CPU)
 python -m pytest                   # asserts the 0.01′ tolerance against Horizons, among others
+python -m lunarsp.globe validate   # the Whole Moon checks above (writes app/assets/data/global/validation.json; gates must all pass)
 
 # from app/
 flutter test test/core/spice_truth_test.dart   # Dart core vs SPICE truth vectors (0.01′, 1e-6 relative range)
@@ -244,19 +293,31 @@ flutter test integration_test/map_75s_test.dart -d emulator-5554    # the Explor
 | `AVGVISIB_75S_120M_201608` (Sun) | <https://pds-geosciences.wustl.edu/lro/lro-l-lola-3-rdr-v1/lrolol_1xxx/extras/illumination/img/avgvisib_75s_120m_201608.img> (also on the LOLA team's mirror, imbrium.mit.edu) | validation, plus the average-sunlight and permanently-shadowed overlays (to 75°S) |
 | `AVGVISIB_75S_120M_201608_EARTH` | <https://pds-geosciences.wustl.edu/lro/lro-l-lola-3-rdr-v1/lrolol_1xxx/extras/illumination/img/avgvisib_75s_120m_201608_earth.img> (same mirror) | validation, plus the average-Earth-visibility overlay (to 75°S) |
 
-**JPL Horizons** (<https://ssd.jpl.nasa.gov/api/horizons.api>) provides the independent reference for the direction checks. Its 48 responses (8 sites × 3 windows × 2 bodies) are cached in `pipeline/validation/horizons_cache/`.
+**Whole Moon data (1.14.0).** These are listed in `pipeline/lunarsp/globe_dem.py` and `pipeline/lunarsp/globe_shapefile.py`. The DEMs are read from the PDS Geosciences Node; the repository holds only products derived from them.
+
+| Product | URL | Use |
+|---|---|---|
+| `LDEM_16` (16 px/deg, about 1.9 km) | <https://pds-geosciences.wustl.edu/lro/lro-l-lola-3-rdr-v1/lrolol_1xxx/data/lola_gdr/cylindrical/img/ldem_16.IMG> | the Whole Moon hillshade and the 8 px/deg on-device DEM for custom spots |
+| `LDEM_64` (64 px/deg, 474 m at the equator) | <https://pds-geosciences.wustl.edu/lro/lro-l-lola-3-rdr-v1/lrolol_1xxx/data/lola_gdr/cylindrical/img/ldem_64.IMG> | far-field horizons beyond 20 km, to 600 km, and the Lander tiles |
+| SLDEM2015 512 px/deg tiles (59 m) | `https://pds-geosciences.wustl.edu/lro/lro-l-lola-3-rdr-v1/lrolol_1xxx/data/sldem2015/tiles/float_img/sldem2015_512_{lat}_{lon}_float.img` | the ±20 km near-field horizon window at sites within 59° of the equator, and the thumbnails |
+| `LDEM_512` tiles (59 m) | `https://pds-geosciences.wustl.edu/lro/lro-l-lola-3-rdr-v1/lrolol_1xxx/data/lola_gdr/cylindrical/img/ldem_512_{lat}_{lon}.img` | the near-field window and the thumbnail beyond 59° (Chandrayaan-3) |
+| LROC "Anthropogenic Features on the Moon" shapefile (LRO-L-LROC-5-RDR-V1.0, 2026-08-14 version, 71 records) | <https://data.lroc.im-ldi.com/lroc/view_rdr/SHAPEFILE_ANTHROPOGENIC_OBJECTS> | the coordinates of all 20 Whole Moon sites, quoted per site in `app/assets/data/global/sites.json` |
+
+**JPL Horizons** (<https://ssd.jpl.nasa.gov/api/horizons.api>) provides the independent reference for the direction checks. Its 48 responses for the south pole (8 sites × 3 windows × 2 bodies) are cached in `pipeline/validation/horizons_cache/`, and its 40 responses for Whole Moon sites (10 sites × 2 windows × 2 bodies, queried on 2026-11-09) in `pipeline/validation/global/`.
 
 **DSN stations.** The Goldstone (DSS-14), Madrid (DSS-63) and Canberra (DSS-43) coordinates come from the JPL *DSN Telecommunications Link Design Handbook* (810-005), module 301 (see `DSN_COMPLEXES` in `pipeline/lunarsp/config.py`).
 
-**Citations for the data and tools.** The five LOLA products are in the PDS data set `LRO-L-LOLA-4-GDR-V1.0` (volume `LROLOL_1XXX`; the `DATA_SET_ID` in each product's label). The data set's catalogue file (`CATALOG/GDR_DS.CAT`) gives its citation as "Neumann, G.A., 2009 Lunar Orbiter Laser Altimeter Raw Data Set, LRO-L-LOLA-4-GDR-V1.0, NASA Planetary Data System, 2010."
+**Citations for the data and tools.** The five south-pole LOLA products above and the global `LDEM_16`, `LDEM_64` and `LDEM_512` are in the PDS data set `LRO-L-LOLA-4-GDR-V1.0` (volume `LROLOL_1XXX`; the `DATA_SET_ID` in each product's label). The data set's catalogue file (`CATALOG/GDR_DS.CAT`) gives its citation as "Neumann, G.A., 2009 Lunar Orbiter Laser Altimeter Raw Data Set, LRO-L-LOLA-4-GDR-V1.0, NASA Planetary Data System, 2010."
 
 - LOLA: Smith, D. E., Zuber, M. T., Jackson, G. B., et al. (2010), "The Lunar Orbiter Laser Altimeter Investigation on the Lunar Reconnaissance Orbiter Mission", *Space Science Reviews* 150:209–241. The LOLA volume's `CATALOG/REF.CAT` cites it as `SMITHETAL2009` (online 16 May 2009) and gives no DOI.
 - The average-visibility maps: Mazarico, E., Neumann, G. A., Smith, D. E., Zuber, M. T., Torrence, M. H. (2011), "Illumination conditions of the lunar polar regions using LOLA topography", *Icarus* 211(2):1066–1081, doi:[10.1016/j.icarus.2010.10.030](https://doi.org/10.1016/j.icarus.2010.10.030).
+- SLDEM2015: Barker, M. K., Mazarico, E., Neumann, G. A., Zuber, M. T., Haruyama, J., Smith, D. E. (2016), "A new lunar digital elevation model from the Lunar Orbiter Laser Altimeter and SELENE Terrain Camera", *Icarus* 273:346–355, doi:[10.1016/j.icarus.2015.07.039](https://doi.org/10.1016/j.icarus.2015.07.039). It combines LOLA with SELENE (Kaguya) Terrain Camera data from JAXA.
+- The Whole Moon site coordinates: Wagner, R. V., Nelson, D. M., Plescia, J. B., Robinson, M. S., Speyerer, E. J., Mazarico, E. (2017), "Coordinates of anthropogenic features on the Moon", *Icarus* 283:92–103, doi:[10.1016/j.icarus.2016.05.011](https://doi.org/10.1016/j.icarus.2016.05.011), the measurements the LROC shapefile reports.
 - DE440: Park, R. S., Folkner, W. M., Williams, J. G., Boggs, D. H. (2021), "The JPL Planetary and Lunar Ephemerides DE440 and DE441", *The Astronomical Journal* 161(3):105, doi:[10.3847/1538-3881/abd414](https://doi.org/10.3847/1538-3881/abd414).
 - SPICE, as NAIF asks (<https://naif.jpl.nasa.gov/naif/credit.html>): Acton, C. H. (1996), "Ancillary Data Services of NASA's Navigation and Ancillary Information Facility", *Planetary and Space Science* 44(1):65–70, doi:[10.1016/0032-0633(95)00107-7](https://doi.org/10.1016/0032-0633(95)00107-7); and Acton, C., Bachman, N., Semenov, B., Wright, E. (2018), "A look toward the future in the handling of space science mission geometry", *Planetary and Space Science* 150:9–12, doi:[10.1016/j.pss.2017.02.013](https://doi.org/10.1016/j.pss.2017.02.013).
 - SpiceyPy: Annex et al. (2020), "SpiceyPy: a Pythonic Wrapper for the SPICE Toolkit", *Journal of Open Source Software* 5(46):2050, doi:[10.21105/joss.02050](https://doi.org/10.21105/joss.02050).
 
-Each DOI is taken from the source itself: the LOLA volume's `CATALOG/REF.CAT` (Mazarico), the comments in `de440s.bsp` (Park), NAIF's credit page (Acton) and SpiceyPy's PyPI page (Annex).
+Each DOI is taken from the source itself: the LOLA volume's `CATALOG/REF.CAT` (Mazarico), the comments in `de440s.bsp` (Park), NAIF's credit page (Acton) and SpiceyPy's PyPI page (Annex). The Barker and Wagner DOIs are the ones recorded in `docs/global_data_contract.md` and quoted with the shapefile records in `pipeline/lunarsp/globe_sites.py`.
 
 > **The map is not a photograph.** The base map is shaded relief computed from LOLA laser altimetry (`pipeline/lunarsp/basemap.py`):
 > - `LDEM_80S_80M` is averaged to 320 m.
@@ -318,7 +379,7 @@ The calculations answer one question: when do sunlight and a line of sight to Ea
 - **mission metrics:** power proxy, DSN contact, durations, score and wording (§7–11);
 - **validation** (§13).
 
-Scope is the south pole only (south of 80°S, where the LOLA polar DEMs give the terrain horizons). Apollo and other near-equator sites would need global terrain data and are left out on purpose. Custom spots can be typed in by coordinates (Explore › *Add a spot by coordinates…*).
+Scope is two regions (formula.md §18.1). **South pole** (the default): south of 80°S, where the LOLA polar DEMs give the terrain horizons. **Whole Moon** (1.14.0): 20 landing sites between 44.1°N (Chang'e-3) and 69.4°S (Chandrayaan-3), with horizons from global LOLA and SLDEM2015 terrain (§18.3). Custom spots can be typed in by coordinates (Explore › *Add a spot by coordinates…*): polar ones at or south of 80.01°S, Whole Moon ones from 80.0°N to just north of 80.01°S. A Whole Moon custom spot's horizon comes from a 3.8 km DEM and is always labelled approximate (0.80° RMS against the preset masks, optimistic on average; §18.4). Not in 1.14.0: a north-pole region (nothing north of 80°N), the Light & shadow map outside the south pole, the LOLA AVGVISIB cross-check outside the south pole (no such product exists), the Blender skyline renders and the Python library for Whole Moon sites, and lander-scale slopes at Whole Moon custom spots.
 
 The app does **not** model surface composition, water ice, temperature, dust, boulders, roughness below the DEM resolution, or landing safety. Slope is a diagnostic only, not a hazard assessment.
 
@@ -495,6 +556,11 @@ python -m lunarsp.build all            # ephem -> sites -> validate -> fixtures
 python -m lunarsp.build ephem sites    # or selected steps
 python -m lunarsp.horizons --refresh   # re-query JPL Horizons (needs network)
 python -m lunarsp.curated              # At a glance text: research record -> app/assets/data/curated_sites.json (no kernels needed)
+python -m lunarsp.globe all            # Whole Moon: fetch -> sites -> map -> dem -> thumbs -> horizons -> validate -> fixtures
+python -m lunarsp.globe fetch --sites apollo-11-lm   # or one step; fetch needs the LROC shapefile ZIP in the cache, then gets
+                                       # LDEM_16 and LDEM_64 (about 540 MB) and each site's ±20 km window (resumable)
+python -m lunarsp.globe horizons --refresh   # re-query JPL Horizons for the 10 Whole Moon check sites (needs network)
+python -m lunarsp.globe_tiles          # the Lander tiles for Whole Moon presets (app/assets/data/global/tiles/)
 python -m pytest                       # runs offline; tests that need kernels or DEMs skip if they are absent
 ```
 
@@ -530,14 +596,18 @@ app/                        Flutter app (web + Android)
   assets/data/              generated data, committed (ephem/, dsn/, map/, sites.json, horizons.json, validation.json,
                             curated_sites.json for At a glance;
                             renders/ holds the Blender check images, which the app does not bundle)
+  assets/data/global/       Whole Moon data, committed and loaded on demand (sites.json, horizons.json, map.json,
+                            hillshade.webp, earthvis.webp, dem_8ppd.bin.gz, validation.json, thumbs/, tiles/, tiles.json)
   assets/charts/            built chart bundle (one index.html), committed
   assets/fonts/             IBM Plex Sans / Mono and their OFL licences
-  test/                     core/, state/, widget/ tests; fixtures/ = SPICE truth vectors
+  test/                     core/, state/, widget/ tests; fixtures/ = SPICE truth vectors (global_*.json for Whole Moon)
 charts/                     React + Vite + TypeScript + Plotly charts (render-only)
 pipeline/
-  lunarsp/                  Python precompute package (config.py holds every data source and constant)
+  lunarsp/                  Python precompute package (config.py holds every data source and constant;
+                            globe*.py and global_catalog.json are the Whole Moon pipeline)
   tests/                    pytest suite
   validation/horizons_cache/  cached JPL Horizons responses, committed
+  validation/global/        cached JPL Horizons responses for the Whole Moon checks, committed
   blender/                  bpy scripts for the site renders (skyline cross-check) and the region turntable
   research/                 curation of the preset-site catalogue and the fact-checked At a glance text
 pylib/                      lunar-horizon: the same calculations as a reusable Python library (import lunarhorizon)
@@ -555,10 +625,10 @@ CLAUDE.md                   conventions for contributors and coding agents
 
 | Suite | Location | Command | Count |
 |---|---|---|---|
-| Flutter: Dart core, state, widgets | `app/test/` | `flutter test` | 1,516 pass, 4 skipped, with `flutter analyze` clean (local run, 8 November 2026, 1.13.5; the same under a date faked to 14 November 2026) |
-| Chart bundle | `charts/src/*.test.ts` | `npm test` | 248 in 20 files (local run, 8 November 2026, 1.13.5) |
-| Python pipeline | `pipeline/tests/` | `python -m pytest` | 667: 660 pass, 7 skipped, with the SPICE kernels and the 80 m and 240 m LOLA DEMs in the cache (local run, 8 November 2026, 1.13.5; the 7 need DE442, the 120 m DEM, PyYAML or the `lunarhorizon` package). In CI, without that data: 472 pass, 195 skipped (a local run with an empty cache, 8 November 2026, 1.13.5) |
-| Python library | `pylib/tests/` | `python -m pytest` (from `pylib/`) | 520 pass, with the SPICE kernels in the cache (local run, 8 November 2026, 1.13.5; some skip without them; CI does not run this suite) |
+| Flutter: Dart core, state, widgets | `app/test/` | `flutter test` | 1,745 pass, 4 skipped, with `flutter analyze` clean (local run, 9 November 2026, 1.14.0, and again with the date faked to 14 November 2026 06:00 UTC; the four light-map label tests also pass with it faked to 16 November 2026 12:00, 15 December 2026 12:00 and 20 January 2027 12:00 UTC) |
+| Chart bundle | `charts/src/*.test.ts` | `npm test` | 268 in 21 files (local run, 9 November 2026, 1.14.0) |
+| Python pipeline | `pipeline/tests/` | `python -m pytest` | 789: 782 pass, 7 skipped, with the SPICE kernels, the 80 m and 240 m LOLA DEMs and the Whole Moon inputs in the cache (local run, 9 November 2026, 1.14.0; the 7 need DE442, the 120 m DEM, PyYAML or the `lunarhorizon` package). In CI, without that data: 586 pass, 203 skipped (a local run with an empty cache, 9 November 2026, 1.14.0) |
+| Python library | `pylib/tests/` | `python -m pytest` (from `pylib/`) | 520 pass, with the SPICE kernels in the cache (local run, 9 November 2026, 1.14.0; `pylib/src` is unchanged in 1.14.0, and its goldens' provenance records the additive `dem.dart`; some skip without them; CI does not run this suite) |
 
 Each count is from a full run at the commit given. They change as work continues.
 
@@ -569,10 +639,12 @@ Science checks of note:
   - `series_metrics_test.dart`: the time series vs a SPICE reference series
   - `dem_horizon_test.dart`: the on-device horizon vs the Python reference, and the 400 m vs 80 m fidelity
   - `shadow_test.dart`: the light-and-shadow map
+  - `global_truth_test.dart`, `horizon_global_test.dart` and `map_frame_test.dart`: the Whole Moon sites vs SPICE truth, the on-device Whole Moon horizon vs its Python twin, and the Lander map frame
 - Pipeline:
   - `test_horizons_validation.py`: Horizons agreement and frame sensitivity
   - `test_horizon.py`: closed-form horizon cases
   - `test_visibility.py`: the disk fraction vs the analytic circular segment
+  - `test_globe_sites.py`, `test_globe_dem.py`, `test_globe_map.py` and `test_globe_tiles.py`: the Whole Moon catalogue against the shapefile, the near-field terrain rule, the map layers, the cached Horizons responses and the Lander tiles
 
 **CI.** `.github/workflows/ci.yml` runs on pushes to `main` and on pull requests. A newer push to the same branch or pull request cancels the older run (`concurrency`, `cancel-in-progress: true`; the Pages deploy never cancels). It has three jobs:
 

@@ -24,6 +24,7 @@ import {
   captionLine, exactLine, headerTime, highestHills, highestHillsText, hillsText, keyLine, legendNames, markerLabel, pctShowing,
 } from './skyCaption'
 import type { CaptionLine } from './skyCaption'
+import { zoomFits } from './skyCaption'
 
 export interface ElRange {
   lo: number
@@ -39,6 +40,9 @@ const AZ_LABEL_R = 1.09
 
 /** Range for horizon zoom: covers the terrain mask and both bodies with margin. */
 export function zoomRange(mask: number[], sunEls: number[], earthEls: number[]): ElRange {
+  // 1.14.0: outside the south pole the Sun climbs up to about 90° and sinks as deep, so a zoom over
+  // its path would span more than the whole sky: the whole sky instead ([zoomFits]; always fits at the pole)
+  if (!zoomFits(sunEls, earthEls)) return FULL_RANGE
   const all = [...mask, ...sunEls, ...earthEls].filter((x) => Number.isFinite(x))
   // a loop, not Math.min(...all): spreading tens of thousands of arguments can overflow the stack
   let mn = -3, mx = 6

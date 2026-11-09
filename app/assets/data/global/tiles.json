@@ -1,0 +1,195 @@
+{
+ "generatedUtc": "2026-11-09T08:55:39Z",
+ "sizePx": 512,
+ "pxM": 400.0,
+ "halfWidthM": 102400.0,
+ "sourcePxM": 473.8,
+ "projection": "site map frame: MOON_ME rotated by Q with rows (n, e, -u) at the site's spherical normal u (n, e = local north, east); the site at the frame's south pole, north up, east right; polar stereographic on R = 1737.4 km: x = 2R*vy/(1-vz) (right), y = 2R*vx/(1-vz) (up), v = Q*w; pixel-centred grid, row 0 at the top (app/lib/core/map_frame.dart)",
+ "source": "LOLA LDEM_64 (LRO-L-LOLA-4-GDR-V1.0, 64 px/deg, NASA PDS, public domain), area-mean over each 400 m pixel from 5 x 5 bilinear sub-samples, rounded to 1 m",
+ "dtype": "int16-le",
+ "encoding": "planar-split: r = z - (left + up - upleft) with zero padding, int16 LE; stored as all low bytes then all high bytes; gzip (as dem_400m.bin.gz)",
+ "unit": "m above 1737.4 km",
+ "method": "area mean of 5 x 5 bilinear LDEM_64 sub-samples per 400 m pixel, rounded to 1 m",
+ "tiles": {
+  "apollo-11-lm": {
+   "file": "global/tiles/apollo-11-lm.bin.gz",
+   "sha256": "b8a13031301f1d8a67405fd5659e0218ffcdf0c30269e0c920fe16c75ee4ff64",
+   "bytes": 167062,
+   "centreLat": 0.67416,
+   "centreLon": 23.47314,
+   "minM": -4080,
+   "maxM": 420
+  },
+  "apollo-12-lm": {
+   "file": "global/tiles/apollo-12-lm.bin.gz",
+   "sha256": "404d1131e2128331d3f251c814853d7e5c1389d10866bb75b9cbb94f066e9083",
+   "bytes": 159557,
+   "centreLat": -3.0128,
+   "centreLon": -23.4219,
+   "minM": -3332,
+   "maxM": -115
+  },
+  "apollo-14-lm": {
+   "file": "global/tiles/apollo-14-lm.bin.gz",
+   "sha256": "1c529dd6da89611fd6b37170341683fdd03e2e2235e0dcaa545de804a2c51af5",
+   "bytes": 182643,
+   "centreLat": -3.64589,
+   "centreLon": -17.47194,
+   "minM": -2591,
+   "maxM": 180
+  },
+  "apollo-15-lm": {
+   "file": "global/tiles/apollo-15-lm.bin.gz",
+   "sha256": "34bbc42a07b89095b4d20b942b2a88d2655db09ed91c1ad9b55abb2848ffe4f4",
+   "bytes": 210195,
+   "centreLat": 26.13239,
+   "centreLon": 3.6333,
+   "minM": -3026,
+   "maxM": 3245
+  },
+  "apollo-16-lm": {
+   "file": "global/tiles/apollo-16-lm.bin.gz",
+   "sha256": "af354d8efdd6e5cf4b0b99a3cb49b233c5dc8b276fd024dbdf23fe8bcb8cbcd5",
+   "bytes": 218152,
+   "centreLat": -8.9734,
+   "centreLon": 15.5011,
+   "minM": -1521,
+   "maxM": 3038
+  },
+  "apollo-17-lm": {
+   "file": "global/tiles/apollo-17-lm.bin.gz",
+   "sha256": "16875458a23748e6b2d0a836dfc8f4413c4c00c731f5b8c6386a40547f123756",
+   "bytes": 194197,
+   "centreLat": 20.1911,
+   "centreLon": 30.7723,
+   "minM": -3762,
+   "maxM": 788
+  },
+  "blue-ghost-1": {
+   "file": "global/tiles/blue-ghost-1.bin.gz",
+   "sha256": "9047e53d06f53d9b47e94b0ea004eace04c98cba590d3c48b387e0b5e37a88e8",
+   "bytes": 127966,
+   "centreLat": 18.5622,
+   "centreLon": 61.8102,
+   "minM": -4128,
+   "maxM": 54
+  },
+  "chandrayaan-3-vikram": {
+   "file": "global/tiles/chandrayaan-3-vikram.bin.gz",
+   "sha256": "b41601f9729d3e9b421153b7ecadc03dcad5290b560ef8b219654dafcb4c23f4",
+   "bytes": 222251,
+   "centreLat": -69.374,
+   "centreLon": 32.3187,
+   "minM": -2697,
+   "maxM": 4668
+  },
+  "change-3": {
+   "file": "global/tiles/change-3.bin.gz",
+   "sha256": "6bf8796dfa03b5f4d5d9ee90907ccc90c1764c6c61dc627422d9997fda9af6d9",
+   "bytes": 123460,
+   "centreLat": 44.1214,
+   "centreLon": -19.5117,
+   "minM": -4047,
+   "maxM": -1917
+  },
+  "change-4": {
+   "file": "global/tiles/change-4.bin.gz",
+   "sha256": "5bca222a403d360e255f3987406b803e5ef641e0b2af2a937753448b7e4aca8a",
+   "bytes": 210323,
+   "centreLat": -45.4562,
+   "centreLon": 177.5886,
+   "minM": -7051,
+   "maxM": -382
+  },
+  "change-5": {
+   "file": "global/tiles/change-5.bin.gz",
+   "sha256": "435fc4d9d2f9f6b3b74eab618aeaef3bc64c6f42efdbde652b02e200169452d6",
+   "bytes": 137847,
+   "centreLat": 43.0576,
+   "centreLon": -51.9161,
+   "minM": -3462,
+   "maxM": -1434
+  },
+  "change-6": {
+   "file": "global/tiles/change-6.bin.gz",
+   "sha256": "8d5d2ebb176ea896dc9e9518e2c52c22cc8875fc9d8448d77e9bea672d3d6944",
+   "bytes": 201618,
+   "centreLat": -41.6383,
+   "centreLon": -153.9857,
+   "minM": -8493,
+   "maxM": -1898
+  },
+  "luna-16": {
+   "file": "global/tiles/luna-16.bin.gz",
+   "sha256": "60d55007c5ed152309cf7e5207d25f106ef379d180364849ee761a7140d52cb9",
+   "bytes": 155797,
+   "centreLat": -0.5137,
+   "centreLon": 56.3638,
+   "minM": -4117,
+   "maxM": -1077
+  },
+  "luna-17-lunokhod-1": {
+   "file": "global/tiles/luna-17-lunokhod-1.bin.gz",
+   "sha256": "253997a675571d3df19cab0008e5d5380cea7775cca91432de39d9427897f281",
+   "bytes": 157542,
+   "centreLat": 38.23764,
+   "centreLon": -35.00163,
+   "minM": -3828,
+   "maxM": 65
+  },
+  "luna-21-lunokhod-2": {
+   "file": "global/tiles/luna-21-lunokhod-2.bin.gz",
+   "sha256": "6fd75a98316f9205808c8ed6453e962a0e1cbdf734597b47a41cac3b7a31712b",
+   "bytes": 178030,
+   "centreLat": 25.9994,
+   "centreLon": 30.4076,
+   "minM": -3242,
+   "maxM": 780
+  },
+  "luna-24": {
+   "file": "global/tiles/luna-24.bin.gz",
+   "sha256": "9fdea298457fadc88f7f6cc9356ba6954fd7cb35ddccb0412423087b51f85fb0",
+   "bytes": 161089,
+   "centreLat": 12.7142,
+   "centreLon": 62.2129,
+   "minM": -4805,
+   "maxM": 1479
+  },
+  "slim": {
+   "file": "global/tiles/slim.bin.gz",
+   "sha256": "ddddd38f5fc9c4121dfe2b067eb2d15e82daf16556801b12a760bb3049b9e6aa",
+   "bytes": 222087,
+   "centreLat": -13.316,
+   "centreLon": 25.251,
+   "minM": -4827,
+   "maxM": 3194
+  },
+  "surveyor-1": {
+   "file": "global/tiles/surveyor-1.bin.gz",
+   "sha256": "176daa2a8f7746119fb31eb1760018cb4ac94fe5adae369ef6ee75021d5db9ee",
+   "bytes": 134302,
+   "centreLat": -2.4745,
+   "centreLon": -43.3398,
+   "minM": -3466,
+   "maxM": -1326
+  },
+  "surveyor-3": {
+   "file": "global/tiles/surveyor-3.bin.gz",
+   "sha256": "a864df1d69d7ddb6bf76655a52797b40fd442929fce2b33e34112ddc293e8f5f",
+   "bytes": 159736,
+   "centreLat": -3.0162,
+   "centreLon": -23.418,
+   "minM": -3331,
+   "maxM": -105
+  },
+  "surveyor-7": {
+   "file": "global/tiles/surveyor-7.bin.gz",
+   "sha256": "89038c609bbce2ab27eec729cbb90e7a64d34ff7e40a530b09b019d734e3b096",
+   "bytes": 228307,
+   "centreLat": -40.9811,
+   "centreLon": -11.5127,
+   "minM": -3529,
+   "maxM": 1796
+  }
+ }
+}

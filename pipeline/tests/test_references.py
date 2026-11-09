@@ -63,3 +63,20 @@ def test_every_source_url_is_in_references_md():
 def test_references_md_matches_the_generator():
     r = subprocess.run([sys.executable, "-I", str(GENERATOR), "--check"], capture_output=True, text=True)
     assert r.returncode == 0, r.stdout + r.stderr
+
+
+def global_data_urls():
+    """Every URL in the Whole Moon catalogue (1.14.0), walked on its own as above."""
+    return _walk(json.loads((DATA / "global" / "sites.json").read_text(encoding="utf-8")), set())
+
+
+def test_every_whole_moon_source_url_is_in_references_md():
+    urls = global_data_urls()
+    assert "https://data.lroc.im-ldi.com/lroc/view_rdr/SHAPEFILE_ANTHROPOGENIC_OBJECTS" in urls
+    assert "https://doi.org/10.1016/j.icarus.2016.05.011" in urls
+    text = REFS.read_text(encoding="utf-8")
+    missing = sorted(u for u in urls if f"<{u}>" not in text)
+    assert not missing, (
+        f"{len(missing)} URL(s) from global/sites.json are not in docs/references.md;"
+        " run python3 -I docs/make_references.py:\n" + "\n".join(missing)
+    )

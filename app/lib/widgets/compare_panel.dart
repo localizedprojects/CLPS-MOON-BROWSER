@@ -7,6 +7,7 @@ library;
 
 import 'package:flutter/material.dart' hide Interval;
 
+import '../core/catalog.dart' show Site;
 import '../core/metrics.dart';
 import '../core/ranking.dart' show goalFor;
 import '../core/score.dart';
@@ -23,7 +24,10 @@ import 'focus_semantics.dart';
 
 /// Payload for the React comparison chart. The weights are whole percent in
 /// the formula's terms: Score = rest% × [power% Power + comms% Comms] + both% × Both.
-Map<String, dynamic> comparePayload(List<Ranked> r, ScoreWeights w, {bool requireDsn = false}) => {
+/// [mixed] (a shortlist that mixes regions, [compareMixed]) adds `mixed: true`
+/// so the chart names no single winner; the key is left out otherwise, so a
+/// polar payload is the 1.13.5 one.
+Map<String, dynamic> comparePayload(List<Ranked> r, ScoreWeights w, {bool requireDsn = false, bool mixed = false}) => {
       'type': 'compare',
       'data': {
         'weights': {
@@ -33,6 +37,7 @@ Map<String, dynamic> comparePayload(List<Ranked> r, ScoreWeights w, {bool requir
           'rest': (100 * (1 - w.both)).round(),
         },
         'earthLabel': earthMetricLabel(requireDsn: requireDsn),
+        'mixed': ?(mixed ? true : null),
         'rows': [
           for (final x in r)
             {
@@ -52,11 +57,26 @@ Map<String, dynamic> comparePayload(List<Ranked> r, ScoreWeights w, {bool requir
 /// metrics only: it never computes a series (that would block a frame), so a
 /// site the background ranking has not reached yet is simply left out.
 List<Ranked> rankedFor(AppState s) {
-  final sites = {for (final x in s.allSites) x.id: x};
+  final sites = compareSiteIndex(s);
   return rank({
     for (final id in s.compareIds)
       if ((sites[id], s.metricsFor(id)) case (final site?, final m?)) id: (site.short, m),
   }, s.weights);
+}
+
+/// Every site a shortlist can hold, by id: the polar sites and, once loaded,
+/// the whole-Moon presets and spots (1.14.0). Only the polar ones while the
+/// Whole Moon catalogue is not loaded.
+Map<String, Site> compareSiteIndex(AppState s) => {
+      for (final x in s.allSites) x.id: x,
+      if (s.global case final g?) ...{for (final x in [...g.catalog.sites, ...g.customSites]) x.id: x},
+    };
+
+/// The shortlist mixes regions (only ever by the user's choice, plan §3):
+/// it holds both a south-pole and a whole-Moon site.
+bool compareMixed(AppState s) {
+  final idx = compareSiteIndex(s);
+  return {for (final id in s.compareIds) ?idx[id]?.region}.length > 1;
 }
 
 /// Width from which the comparison chart gets the desktop layout (the chart
@@ -203,6 +223,10 @@ class CompareNumbers extends StatelessWidget {
   final ValueChanged<String>? onOpenSite;
   final VoidCallback? onSaveScorecard, onSaveChart;
 
+  /// A shortlist that mixes regions ([compareMixed], 1.14.0): the table
+  /// drops its Rank column (rows stay in score order).
+  final bool mixed;
+
   const CompareNumbers({
     super.key,
     required this.ranked,
@@ -212,6 +236,7 @@ class CompareNumbers extends StatelessWidget {
     this.onOpenSite,
     this.onSaveScorecard,
     this.onSaveChart,
+    this.mixed = false,
   });
 
   String _pct(double p) => exact ? '${p.toStringAsFixed(1)}%' : StatBar.pctText(p);
@@ -252,7 +277,7 @@ class CompareNumbers extends StatelessWidget {
         columnSpacing: 20,
         showCheckboxColumn: false,
         columns: [
-          const DataColumn(label: Text('Rank')),
+          if (!mixed) const DataColumn(label: Text('Rank')),
           const DataColumn(label: Text('Site')),
           const DataColumn(label: Text('Score'), numeric: true),
           const DataColumn(label: Text('Sunlit'), numeric: true),
@@ -270,7 +295,7 @@ class CompareNumbers extends StatelessWidget {
             DataRow(
               onSelectChanged: onOpenSite == null ? null : (_) => onOpenSite!(r.id),
               cells: [
-                DataCell(Text('${i + 1}')),
+                if (!mixed) DataCell(Text('${i + 1}')),
                 DataCell(Text(r.name)),
                 DataCell(Text(exact ? r.score.total.toStringAsFixed(1) : '${r.score.total.round()}')),
                 DataCell(Text(_pct(r.metrics.pctSunlit))),

@@ -494,7 +494,15 @@ Map<String, dynamic> _trail(List<double> az, List<double> el) {
   };
 }
 
-Map<String, dynamic> skyPayload(Site site, HorizonMask mask, SiteSeries s, Map<String, dynamic> now, double tMs, bool zoom) => {
+/// The sky plot's payload (`SkyData` in charts/src/bridge.ts). [northNote]
+/// (1.14.0) says what "N" means on the plot, a short phrase without a final
+/// full stop: the hub sends it for sites outside the south pole only
+/// (`skyNorthNote` in chart_hub.dart); without it the key is left out, so a
+/// polar payload is exactly what 1.13.5 sent and the charts keep their polar
+/// words ("N = away from the pole.").
+Map<String, dynamic> skyPayload(Site site, HorizonMask mask, SiteSeries s, Map<String, dynamic> now, double tMs, bool zoom,
+        {String? northNote}) =>
+    {
       'type': 'sky',
       'data': {
         'siteName': site.short,
@@ -507,6 +515,7 @@ Map<String, dynamic> skyPayload(Site site, HorizonMask mask, SiteSeries s, Map<S
         'now': now,
         'trails': {'sun': _trail(s.sunAz, s.sunEl), 'earth': _trail(s.earthAz, s.earthEl)},
         'zoom': zoom,
+        'northNote': ?northNote,
       },
     };
 

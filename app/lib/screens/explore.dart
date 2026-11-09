@@ -13,17 +13,23 @@ import 'package:provider/provider.dart';
 
 import '../core/catalog.dart' show Site;
 import '../core/metrics.dart' show SiteMetrics;
-import '../core/wording.dart' show dsnResolutionNote;
+import '../core/region.dart';
+import '../core/wording.dart' show dsnResolutionNote, nearTieAtTopText;
 import '../state/app_state.dart';
 import '../theme.dart';
 import '../widgets/compare_tray.dart';
-import '../widgets/explain.dart' show explainExplore;
+import '../widgets/explain.dart' show explainExploreFor;
+import '../widgets/feature_guide.dart' show GuideTarget;
 import '../widgets/focus_rings.dart';
+import '../widgets/global_map_view.dart';
 import '../widgets/goal_chips.dart';
 import '../widgets/map_focus.dart';
 import '../widgets/map_view.dart';
+import '../widgets/region_switch.dart';
 import '../widgets/site_card.dart';
 import '../widgets/site_carousel.dart';
+import '../widgets/site_glance_card.dart' show numSpans;
+import '../widgets/contrast_card.dart';
 import '../widgets/top_pick_card.dart';
 
 /// Width from which Explore shows the list and the map side by side.
@@ -76,17 +82,20 @@ class _ExploreState extends State<_Explore> {
   @override
   Widget build(BuildContext context) {
     final s = context.watch<AppState>();
-    final items = exploreItems(s);
     final wide = MediaQuery.sizeOf(context).width >= exploreTwoPaneWidth;
+    // Whole Moon: its own map and list; the polar layout below is untouched
+    if (s.region == Region.wholeMoon) return _GlobalExplore(state: s, wide: wide);
+    final items = exploreItems(s);
     final shortlisted = s.compareIds.isNotEmpty;
 
     final listContent = <Widget>[
+      const ExploreRegionRow(),
       const _Intro(),
       if (s.placingCustom) const _Placing(),
       const TopPickCard(),
       const SizedBox(height: 16),
       const GoalChips(),
-      if (s.explainInline) explainExplore,
+      if (s.explainInline) explainExploreFor(s.region),
       _ListHeader(state: s, count: items.length),
       // the cards' Earth and "both" numbers are DSN-gated under this rule
       if (s.options.requireDsn) const FidelityBadge(text: dsnResolutionNote),
@@ -477,6 +486,7 @@ class _PhoneMapState extends State<_PhoneMap> with _RevealPeek {
     return _Scroll(
       key: const PageStorageKey('explore-map'),
       children: [
+        const ExploreRegionRow(),
         if (m != null) FocusTraversalGroup(child: m) else ...[?peek, const _NoMap()],
         const SizedBox(height: 16),
         // the answer first: the top pick with its numbers and actions
@@ -491,7 +501,7 @@ class _PhoneMapState extends State<_PhoneMap> with _RevealPeek {
         if (widget.items.isEmpty) _EmptyGroup(state: s),
         const SizedBox(height: 16),
         const GoalChips(),
-        if (s.explainInline) explainExplore,
+        if (s.explainInline) explainExploreFor(s.region),
       ],
     );
   }
@@ -534,5 +544,263 @@ class _MapPaneState extends State<_MapPane> with _RevealPeek {
             : Align(alignment: Alignment.topLeft, child: mapBox),
       );
     });
+  }
+}
+
+// ---- Whole Moon (1.14.0) ----
+
+/// The Whole Moon headline.
+const globalExploreHeadline = 'Where would you land on the whole Moon?';
+
+/// "20 places where landers have touched down, each with a horizon from LOLA
+/// terrain. …"
+String globalExploreSubline(int n) => '$n places where landers have touched down, each with its own terrain horizon. '
+    'Sun means solar power; Earth in view means you can radio home.';
+
+/// Said while the whole-Moon sites load the first time.
+const globalLoadingText = 'Loading the whole-Moon sites…';
+
+/// Said when they could not be loaded.
+const globalLoadFailedText = 'The whole-Moon sites could not be loaded. South-pole mode still works.';
+
+/// The region switch above Explore. Switching to Whole Moon loads its sites
+/// the first time (a busy mark meanwhile); a failure is said in a snack bar
+/// and leaves the south pole shown.
+///
+/// The switch swaps Explore's whole body (polar and whole-Moon layouts), so
+/// the row is one element moved between them by a global key: its segments'
+/// focus nodes survive, and Enter on a segment leaves the keyboard focus on
+/// it, the newly selected one (1.14.0 device check; before, it fell back
+/// to the first control of the app, "Mission settings").
+class ExploreRegionRow extends StatelessWidget {
+  const ExploreRegionRow({super.key});
+
+  /// The one element of the row (only one Explore layout is built at a time).
+  static final _row = GlobalKey(debugLabel: 'explore-region-row');
+
+  @override
+  Widget build(BuildContext context) => _ExploreRegionRowBody(key: _row);
+}
+
+class _ExploreRegionRowBody extends StatefulWidget {
+  const _ExploreRegionRowBody({super.key});
+
+  @override
+  State<_ExploreRegionRowBody> createState() => _ExploreRegionRowState();
+}
+
+class _ExploreRegionRowState extends State<_ExploreRegionRowBody> {
+  bool _busy = false;
+
+  Future<void> _switch(AppState s, Region r) async {
+    setState(() => _busy = true);
+    var failed = false;
+    try {
+      await s.setRegion(r);
+      // setRegion keeps South pole (and sets error) when the load fails
+      failed = s.region != r;
+    } catch (e) {
+      failed = true;
+    } finally {
+      if (failed && mounted) {
+        ScaffoldMessenger.maybeOf(context)?.showSnackBar(const SnackBar(content: Text(globalLoadFailedText)));
+      }
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final s = context.read<AppState>();
+    final region = context.select((AppState s) => s.region);
+    // the guide's 'region' step points at it (1.14.0's new switch)
+    return GuideTarget(id: 'region', child: RegionSwitch(region: region, busy: _busy, onChanged: (r) => _switch(s, r)));
+  }
+}
+
+/// (rank or null, site, metrics) for every ranked whole-Moon site (presets
+/// and the spots placed in Whole Moon). Ranks are given once ranking is done.
+List<(int?, Site, SiteMetrics)> globalExploreItems(AppState s) {
+  final g = s.global;
+  if (g == null) return const [];
+  final byId = {for (final x in s.regionSites(Region.wholeMoon)) x.id: x};
+  // done means every site has its result, not just "no ranking running"
+  // (also true before the first ranking starts, or after one fails)
+  final done = s.globalRankingDone;
+  return [
+    // rankedIn, not the cached g.ranked: it is memoised on the weights, so a
+    // goal chip reorders this list too
+    for (final (i, r) in s.rankedIn(Region.wholeMoon).indexed)
+      if (byId[r.id] case final site?) (done ? i + 1 : null, site, r.metrics),
+  ];
+}
+
+/// The Whole Moon list header: "Ranked so far: …" until every whole-Moon site
+/// has its result ([AppState.globalRankingDone]), then "All N sites, best
+/// first" ([listHeaderText]).
+String globalListHeaderText(AppState s, {required int count}) => listHeaderText(
+    rankingDone: s.globalRankingDone,
+    progress: s.rankedIn(Region.wholeMoon).length,
+    total: s.global?.catalog.sites.length ?? 0,
+    count: count,
+    filtered: false);
+
+/// The near-tie sentence under the Whole Moon list header
+/// ([nearTieAtTopText] of the listed scores, best first), or null.
+String? globalNearTieText(AppState s) =>
+    nearTieAtTopText([for (final r in s.rankedIn(Region.wholeMoon)) r.score.total]);
+
+/// Whole Moon Explore: the switch, the headline, the global map (with its
+/// Earth-visible overlay and the south-pole cap), the goal chips and the
+/// ranked global list (the map's non-map alternative). No top pick here: the
+/// polar top pick never stands for the whole Moon (plan §3); the contrast
+/// card ("Pole vs the rest") takes the top-pick slot (plan §1, §2, R2).
+class _GlobalExplore extends StatefulWidget {
+  final AppState state;
+  final bool wide;
+  const _GlobalExplore({required this.state, required this.wide});
+
+  @override
+  State<_GlobalExplore> createState() => _GlobalExploreState();
+}
+
+class _GlobalExploreState extends State<_GlobalExplore> {
+  GlobalMapLayers? _layers;
+  bool _failed = false;
+  bool _started = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_started) return;
+    _started = true;
+    loadGlobalMapLayers(DefaultAssetBundle.of(context)).then((l) {
+      if (mounted) setState(() => _layers = l);
+    }, onError: (Object e) {
+      debugPrint('global map: $e');
+      if (mounted) setState(() => _failed = true);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final s = widget.state;
+    final g = s.global;
+    final items = globalExploreItems(s);
+    final n = g?.catalog.sites.length ?? 0;
+    final map = GlobalMapView(
+      key: const ValueKey('global-map-view'),
+      layers: _layers,
+      failed: _failed,
+      sites: s.regionSites(Region.wholeMoon),
+      selectedId: s.selectedId,
+      onSelect: (id) => s.openSite(id),
+      onPlaceCustom: (lat, lon) async {
+        await s.addGlobalCustomSpot(lat, lon);
+      },
+      onSouthPole: () => s.setRegion(Region.southPole),
+      polarSiteCount: s.catalog?.sites.length ?? 0,
+    );
+    final compactIntro = MediaQuery.sizeOf(context).height < exploreCompactIntroHeight;
+    final intro = Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Semantics(header: true, child: Text(globalExploreHeadline, style: compactIntro ? PHText.title : PHText.headline)),
+        if (!compactIntro && n > 0) ...[
+          const SizedBox(height: 8),
+          Text(globalExploreSubline(n), style: PHText.body.copyWith(color: PH.muted)),
+        ],
+      ]),
+    );
+    final header = Padding(
+      padding: const EdgeInsets.fromLTRB(0, 20, 0, 4),
+      child: Semantics(
+        header: true,
+        child: Text(
+          globalListHeaderText(s, count: items.length),
+          style: PHText.subtitle,
+        ),
+      ),
+    );
+    // once the order is final: say when its top is a near tie (the near-side
+    // shares differ by a few points, so ranks turn on fractions of a point)
+    final tie = s.globalRankingDone ? globalNearTieText(s) : null;
+    final list = <Widget>[
+      const ContrastCard(),
+      header,
+      if (tie != null)
+        Padding(
+          padding: const EdgeInsets.only(bottom: 4),
+          child: Text.rich(numSpans(tie, PHText.body.copyWith(color: PH.muted)), key: const ValueKey('global-near-tie')),
+        ),
+      if (g == null)
+        Semantics(
+          liveRegion: true,
+          child: Row(children: [
+            const BusyIndicator(),
+            const SizedBox(width: 12),
+            Expanded(child: Text(globalLoadingText, style: PHText.body.copyWith(color: PH.muted))),
+          ]),
+        ),
+      if (s.options.requireDsn) const FidelityBadge(text: dsnResolutionNote),
+      for (final (rank, site, m) in items) SiteCard(key: ValueKey('card-${site.id}'), site: site, metrics: m, rank: rank),
+    ];
+    final shortlisted = s.compareIds.isNotEmpty;
+    if (widget.wide) {
+      return Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        SizedBox(
+          width: 440,
+          child: FocusTraversalGroup(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+              Expanded(
+                child: _Scroll(key: const PageStorageKey('explore-global-pane'), children: [
+                  const ExploreRegionRow(),
+                  intro,
+                  const GoalChips(),
+                  if (s.explainInline) explainExploreFor(s.region),
+                  ...list,
+                ]),
+              ),
+              if (shortlisted) const Padding(padding: EdgeInsets.fromLTRB(12, 0, 12, 12), child: CompareTray()),
+            ]),
+          ),
+        ),
+        const VerticalDivider(width: 1),
+        Expanded(
+          child: FocusTraversalGroup(
+            child: SingleChildScrollView(
+              key: const PageStorageKey('explore-global-map'),
+              padding: const EdgeInsets.all(24),
+              child: Align(alignment: Alignment.topLeft, child: ConstrainedBox(constraints: const BoxConstraints(maxWidth: 1200), child: map)),
+            ),
+          ),
+        ),
+      ]);
+    }
+    return Align(
+      alignment: Alignment.topCenter,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 760),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          Expanded(
+            child: FocusTraversalGroup(
+              child: _Scroll(key: const PageStorageKey('explore-global'), children: [
+                const ExploreRegionRow(),
+                intro,
+                FocusTraversalGroup(child: map),
+                // the chips that order the list come before it, as on the
+                // wide pane (a 20-card list would push them ~4000 px down)
+                const SizedBox(height: 16),
+                const GoalChips(),
+                if (s.explainInline) explainExploreFor(s.region),
+                ...list,
+              ]),
+            ),
+          ),
+          if (shortlisted)
+            FocusTraversalGroup(child: const Padding(padding: EdgeInsets.fromLTRB(12, 4, 12, 8), child: CompareTray())),
+        ]),
+      ),
+    );
   }
 }

@@ -1,0 +1,74 @@
+{
+ "generatedUtc": "2026-11-09T00:00:00Z",
+ "synthetic": true,
+ "note": "SYNTHETIC TEST FIXTURE: made-up values for app tests (WP0); not data, never bundled.",
+ "projection": "equirectangular, sphere R=1737.4 km, lon -180..180 E left to right (near side centred), lat 90 N top to 90 S bottom; pixel (i, j) centre at lon = -180 + (i + 0.5) * 360 / width, lat = 90 - (j + 0.5) * 180 / height",
+ "hillshade": {
+  "file": "global/hillshade.webp",
+  "width": 144,
+  "height": 72,
+  "pxPerDeg": 0.4,
+  "source": "SYNTHETIC hillshade",
+  "lightAzimuthDeg": 315.0,
+  "lightAzimuthFrom": "clockwise from image up (north)",
+  "lightAltitudeDeg": 35.0,
+  "verticalExaggeration": 1.0,
+  "tint": {
+   "formula": "SYNTHETIC",
+   "base": 0.0,
+   "shade": 1.0,
+   "elevation": 0.0,
+   "percentiles": [
+    1,
+    99
+   ],
+   "zLowM": -1995.0,
+   "zHighM": 995.0
+  },
+  "note": "Display shading only (artificial light direction); not a Sun position."
+ },
+ "earthvis": {
+  "file": "global/earthvis.webp",
+  "width": 36,
+  "height": 18,
+  "pxPerDeg": 0.1,
+  "source": "SYNTHETIC Earth-visible share (a ramp around the limb)",
+  "rule": "upperLimb, flat sphere, no terrain",
+  "period": "SYNTHETIC",
+  "stepH": 6,
+  "encoding": "grey = round(255 x share)"
+ },
+ "dem": {
+  "file": "global/dem_8ppd.bin.gz",
+  "width": 144,
+  "height": 72,
+  "pxPerDeg": 0.4,
+  "source": "SYNTHETIC terrain (sum of sines)",
+  "dtype": "int16-le",
+  "unit": "m above 1737.4 km",
+  "method": "SYNTHETIC",
+  "encoding": "planar-split: r = z - (left + up - upleft) with zero padding, int16 LE; stored as all low bytes then all high bytes; gzip. Decode: un-split, then z = r + left + up - upleft row-major."
+ },
+ "thumbs": {
+  "dir": "global/thumbs/",
+  "sizePx": 128,
+  "halfWidthKm": 20.0,
+  "source": "SYNTHETIC thumbnails",
+  "files": {
+   "apollo-11-lm": "global/thumbs/apollo-11-lm.webp",
+   "change-4": "global/thumbs/change-4.webp",
+   "synthetic-limb-90e": "global/thumbs/synthetic-limb-90e.webp"
+  }
+ },
+ "assets": {
+  "global/dem_8ppd.bin.gz": "aa31d92124a2fc375a4444cd02465dd664345a82de8861af1447238c48c64419",
+  "global/earthvis.webp": "90b7cf8b7b92f88e8ccd7326f3f133667d6528c008d49f9f9d207436a1b213fa",
+  "global/hillshade.webp": "fba276f5ad3e29e799f2394b373ef32b76e19bd15ecdc86cfeaed42864c57878",
+  "global/horizons.json": "41392a355df9dd1ddb93b8f131a8b276f0e760b7e81a8e18404a306c4bac1573",
+  "global/sites.json": "99f03f13fed174ffbd34019387e78504db559bbe5a918e612074f47ae3ac133d",
+  "global/thumbs/apollo-11-lm.webp": "c862b72a3c63c400c7f5e791c879d2e51d0e6dca543d4d54d6411a6ff6256c29",
+  "global/thumbs/change-4.webp": "c862b72a3c63c400c7f5e791c879d2e51d0e6dca543d4d54d6411a6ff6256c29",
+  "global/thumbs/synthetic-limb-90e.webp": "c862b72a3c63c400c7f5e791c879d2e51d0e6dca543d4d54d6411a6ff6256c29",
+  "global/validation.json": "f9f9095b63088e5622d8cddf5ceac2e8c3ae813ba6b25c58f0ac196a4500cbc8"
+ }
+}

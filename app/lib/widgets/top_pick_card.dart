@@ -9,6 +9,7 @@ import 'package:provider/provider.dart';
 
 import '../core/metrics.dart' show SiteMetrics;
 import '../core/ranking.dart';
+import '../core/region.dart';
 import '../core/summary.dart' show date, duration;
 import '../core/wording.dart';
 import '../state/app_state.dart';
@@ -53,6 +54,8 @@ class TopPickCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final s = context.watch<AppState>();
+    // the polar top pick never stands for the whole Moon (build plan §3)
+    if (s.region == Region.wholeMoon) return const SizedBox.shrink();
     if (!s.rankingDone) return _Ranking(state: s);
     final top = s.rankedAll.firstOrNull;
     final site = top == null ? null : s.allSites.where((x) => x.id == top.id).firstOrNull;

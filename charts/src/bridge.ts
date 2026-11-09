@@ -67,6 +67,14 @@ export interface SkyData {
   now: { sun: BodyNow; earth: BodyNow }
   trails: { sun: { az: number[]; el: number[] }; earth: { az: number[]; el: number[] } }
   zoom: boolean
+  /**
+   * What "N" means on the plot, a short phrase without a final full stop
+   * (1.14.0): sent only for sites outside the south pole, as
+   * "N = toward the north pole" (chart_hub.dart skyNorthNote). Absent for
+   * polar sites, which keep "N = away from the pole." (key line) and
+   * "N points away from the pole" (classic header).
+   */
+  northNote?: string
 }
 
 /**
@@ -120,6 +128,11 @@ export interface CompareData {
   weights: { power: number; comms: number; both: number; rest: number }
   /** label of the Earth metric ('Earth in view' or 'Earth contact (DSN)') */
   earthLabel: string
+  /**
+   * true when the shortlist mixes south-pole and whole-Moon sites (1.14.0): the headline then names no
+   * winner. Left out for a single-region shortlist (every polar payload stays as in 1.13.5).
+   */
+  mixed?: boolean
 }
 
 export type HostMessage =

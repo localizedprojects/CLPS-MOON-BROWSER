@@ -3,6 +3,7 @@ import type { CompareData } from './bridge'
 import {
   buildCompare, buildCompareSimple, headline, longestDarkText, pctText, ranked, reasons, scoreLine, scoreTexts, SIMPLE_PNG_ROW_PX, weightsText, wrapAt, wrapFit,
 } from './compare'
+import { MIXED_HEADLINE } from './compare'
 import top3 from './devdata/compare.json'
 import { exportHeight } from './plotGeom'
 
@@ -58,6 +59,49 @@ describe('compare simple view (charts spec 2.3)', () => {
     expect(headline({ ...d, rows: [mk('A', 62.6), mk('B', 61.8), mk('C', 62.5)] })).toBe('Tied: A and C, both 63')
     expect(headline({ ...d, rows: [mk('A', 62.4), mk('B', 61.45)] })).toBe('Best: A · almost tied with B, 62 vs 61')
     expect(headline({ ...d, rows: [mk('A', 62.4), mk('B', 61.5), mk('C', 62)] })).toBe('Tied: A, C and B, all 62')
+  })
+
+  it('a shortlist that mixes regions (mixed: true) names no winner: headline, alt text and PNG (1.14.0)', () => {
+    const m: CompareData = { ...d, mixed: true }
+    const mk = (name: string, score: number) => ({ ...d.rows[0], name, score })
+    for (const x of [m, { ...m, rows: [mk('A', 70), mk('B', 40)] }, { ...m, rows: [mk('A', 62.4), mk('B', 61.6)] }]) {
+      for (const exact of [false, true]) {
+        expect(headline(x, exact)).toBe(MIXED_HEADLINE)
+        const alt = (exact ? buildCompare(x) : buildCompareSimple(x)).alt
+        expect(alt.startsWith(`${MIXED_HEADLINE}. `)).toBe(true)
+        const png = texts(exact ? buildCompare(x, { png: true }) : buildCompareSimple(x, { png: true })).map(plain).join('\n')
+        expect(png).toContain(MIXED_HEADLINE)
+        for (const s of [headline(x, exact), alt, png]) expect(s).not.toMatch(/Best:|Tied:|almost tied/)
+      }
+    }
+    expect(headline({ ...m, rows: [] })).toBe('No sites to compare')
+    // without the flag (every polar payload) the headline is the 1.13.5 one
+    expect(headline({ ...d, mixed: undefined }, true)).toBe(headline(d, true))
+    expect(headline(d, true).startsWith('Best: ')).toBe(true)
+  })
+
+  it('a mixed-region shortlist (mixed: true) numbers no site in the simple titles or the alt text; polar output unchanged (1.14.0)', () => {
+    const m: CompareData = { ...d, mixed: true }
+    const names = d.rows.map((r) => r.name)
+    for (const png of [false, true]) {
+      const titles = texts(buildCompareSimple(m, { png })).map((t) => plain(t.split('<br>')[0])).filter((t) => / score \d+$/.test(t))
+      expect(titles).toEqual(['Malapert peak (MP1) score 62', 'IM-1 Odysseus (landed) score 62', 'IM-2 Athena (landed) score 57'])
+      for (const t of titles) expect(t).not.toMatch(/^\d/)
+    }
+    for (const alt of [buildCompareSimple(m).alt, buildCompare(m).alt]) {
+      for (const n of names) {
+        expect(alt).toContain(n)
+        expect(alt).not.toMatch(new RegExp(`\\d\\.? ${n.replace(/[()]/g, '\\$&')}`))
+      }
+    }
+    // the same bars, scores and order as the unflagged figure: only the rank numbers and the headline go
+    const plainFig = buildCompareSimple(d), mixedFig = buildCompareSimple(m)
+    expect(JSON.stringify(mixedFig.data)).toBe(JSON.stringify(plainFig.data))
+    // without the flag (every polar payload) the numbers stay: "1 Malapert peak (MP1)" and "1. Malapert peak (MP1)"
+    expect(texts(plainFig).map((t) => plain(t.split('<br>')[0]))).toContain('1 Malapert peak (MP1) score 62')
+    expect(plainFig.alt).toContain('1. Malapert peak (MP1), score')
+    expect(buildCompareSimple({ ...d, mixed: false }).alt).toBe(plainFig.alt)
+    expect(JSON.stringify(buildCompareSimple({ ...d, mixed: false }))).toBe(JSON.stringify(plainFig))
   })
 
   it('prints every score with the same tie-aware decimals (56.72, not 56.7) (exact view and star panel)', () => {

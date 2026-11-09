@@ -49,16 +49,22 @@ export function scoreTexts(rows: CompareRow[]): string[] {
   return rows.map((r) => r.score.toFixed(dp))
 }
 
+/** The headline over a shortlist that mixes south-pole and whole-Moon sites: scores, but no single winner. */
+export const MIXED_HEADLINE = 'Scores side by side (mixed regions: no single winner)'
+
 /**
  * Exact view: "Best: Malapert peak (MP1) · almost tied with IM-1 Odysseus (landed), 61.84 vs 61.83"
  * when the runner-up is under 1 point behind, otherwise "Best: Malapert peak (MP1), score 61.84".
  * Simple view (the default): whole scores only, like the Flutter WinnerCard. Sites at the top with
  * the same whole score read "Tied: A and B, both 62"; a near tie with different whole scores reads
  * "Best: A · almost tied with B, 62 vs 61"; otherwise "Best: A, score 62".
+ * A shortlist that mixes regions ([CompareData.mixed], 1.14.0) names no winner in either view: the
+ * app's "Mixed regions" banner gives the best site for each goal instead, so this reads [MIXED_HEADLINE].
  */
 export function headline(d: CompareData, exact = false): string {
   const rows = ranked(d)
   if (!rows.length) return 'No sites to compare'
+  if (d.mixed) return MIXED_HEADLINE
   const [a, b] = rows
   if (exact) {
     const s = scoreTexts(rows)
@@ -210,6 +216,10 @@ export const SIMPLE_PNG_ROW_PX = 17
  */
 function compareAlt(d: CompareData, rows: CompareRow[], earth: string, exact: boolean): string {
   const s = scoreTexts(rows)
+  // a shortlist that mixes regions (1.14.0) is not one ranking: its rows are read without a rank number
+  if (d.mixed) return `${headline(d, exact)}. ` + rows.map((r, i) => `${r.name}, score ${s[i]}, sunlight ${r.pctSunlit.toFixed(1)}%, ` +
+    `${earth} ${r.pctEarth.toFixed(1)}%, Sun and Earth together ${r.pctBoth.toFixed(1)}%, longest dark ${longestDarkText(r)}`).join('; ') +
+    `. ${scoreLine(d.weights)} ${weightsText(d.weights)}.`
   return `${headline(d, exact)}. ` + rows.map((r, i) => `${i + 1}. ${r.name}, score ${s[i]}, sunlight ${r.pctSunlit.toFixed(1)}%, ` +
     `${earth} ${r.pctEarth.toFixed(1)}%, Sun and Earth together ${r.pctBoth.toFixed(1)}%, longest dark ${longestDarkText(r)}`).join('; ') +
     `. ${scoreLine(d.weights)} ${weightsText(d.weights)}.`
@@ -320,6 +330,8 @@ export function buildCompareSimple(d: CompareData, opts: CompareOptions = {}): F
       text: mono(esc(longestDarkText(r))), font: { size: 13, color: C.text }, hovertext: longestDarkTip(r) })
     if (i < rows.length - 1) at(`s${i}`)
   })
+  // a shortlist that mixes regions (1.14.0) is not one ranking: no rank number before a site's name (the en space after it goes too)
+  if (d.mixed) for (const a of annotations) if (typeof a.text === 'string') a.text = a.text.replace(/^<b>\d+\s/, '<b>')
   const data = metrics.map((m) => ({
     type: 'bar', orientation: 'h', name: m.label,
     y: rows.map((_, i) => `${m.key}${i}`), x: rows.map((r) => r[m.key]),

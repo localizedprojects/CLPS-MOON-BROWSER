@@ -31,6 +31,11 @@ String siteKindLabel(Site s) {
     'artemis' => 'Artemis III candidate region',
     'illumination' => 'Well-lit point from research',
     'missions' => 'Mission landing site',
+    // Whole Moon groups (1.14.0; build plan §4)
+    'apollo' => 'Apollo crewed landing site',
+    'robotic' => 'Robotic landing site (1966–76)',
+    'international' => 'National space agency landing site',
+    'commercial' => 'Commercial landing site (CLPS)',
     _ => s.kind,
   };
 }
@@ -228,6 +233,27 @@ String sampleStepText(double stepMs) {
       '${everyStep(stepMs)}$interp $rule.';
 }
 
+/// The Whole Moon catalogue's group ids, in display order (build plan §4;
+/// the names come from `global/sites.json` `groups`). The polar groups
+/// (`artemis`, `illumination`, `missions`) are unchanged.
+const List<String> kGlobalGroupIds = ['apollo', 'robotic', 'international', 'commercial'];
+
+/// What a Whole Moon site's `side` means, in words: 'Near side', 'Far side',
+/// 'Limb' ('' for a polar site or an unknown value).
+String sideLabel(String side) => switch (side) {
+      'near' => 'Near side',
+      'far' => 'Far side',
+      'limb' => 'Limb',
+      _ => '',
+    };
+
+/// The far side's line on a global site's screens (build plan §2).
+const String farSideEarthText =
+    'Earth never rises here. Direct-to-Earth radio is impossible; far-side missions use a relay satellite.';
+
+/// Why a global site has no Light & shadow map (build plan §2).
+const String lightMapPolarOnlyText = 'The Light & shadow map covers south-pole sites only in this version.';
+
 /// Shown instead of the long-term averages for a custom spot (AboutSite and
 /// the At a glance card; re-exported by widgets/about_site.dart).
 const String longTermCustomNote = 'Long-term averages are only precomputed for the preset catalogue sites';
@@ -252,3 +278,24 @@ int pctShowing(double frac) {
 /// "62%"; a disk that is partly up reads 1..99% ([pctShowing], capped at
 /// 99), never "0%" or "100%", the same number as the chips and sky chart.
 String _diskPct(double frac) => '${pctShowing(frac).clamp(1, 99)}%';
+
+/// A near tie at the top of a ranked list, in words (1.14.0 review: on the
+/// Whole Moon list the near-side sites' shares differ by a few points, so
+/// ranks 1, 2, 3… are decided by fractions of a point). [scores] are the
+/// list's scores, best first, out of 100. The sites from the first that are
+/// within [within] points of it form the run; the spread (first minus last
+/// of the run) is rounded up to 0.1, so the sentence stays true. Null unless
+/// the run has at least two sites.
+String? nearTieAtTopText(List<double> scores, {double within = 1.0}) {
+  if (scores.length < 2) return null;
+  final top = scores.first;
+  var n = 1;
+  while (n < scores.length && top - scores[n] <= within + 1e-9) {
+    n++;
+  }
+  if (n < 2) return null;
+  final spread = top - scores[n - 1];
+  final x = math.max(1, (spread * 10 - 1e-9).ceil()) / 10;
+  return 'The top $n sites score within ${x.toStringAsFixed(1)} points of each other (out of 100): '
+      'a near tie, so small differences decide their order.';
+}

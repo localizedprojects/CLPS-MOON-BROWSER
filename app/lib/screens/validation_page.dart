@@ -7,6 +7,9 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show rootBundle;
+import 'package:provider/provider.dart';
+
+import '../state/app_state.dart';
 
 import '../theme.dart';
 import '../widgets/escape_closes.dart';
@@ -171,6 +174,7 @@ class ValidationPage extends StatelessWidget {
                 _Bullet('The Explore map\'s base layer is shaded relief computed from LOLA elevations (320 m per pixel) with an artificial light from the upper left and heights exaggerated ×2. It shows the shape of the terrain, not a photo and not real lighting. Beyond 80°S (zoom out or drag the map) the relief is coarser, 480 m per pixel from LOLA LDEM_75S_120M, and the sunlight, Earth and permanent-shadow layers 960 m from LOLA AVGVISIB_75S_120M. Where a Light & shadow close-up reaches past the base map\'s edge (about 80°S), the same shading is computed on the device from the 400 m terrain grid (LOLA LDEM_75S_120M there).'),
                 _Bullet('The light & shadow map is computed on the device from the 400 m (or 800 m) LOLA elevation map. Its "sunlit or not" agrees with the per-site horizon calculations 82–94% of the time (by map resolution and horizon source), so it can differ near shadow edges.'),
               ]),
+              const GlobalValidationSection(),
               Padding(
                 padding: const EdgeInsets.fromLTRB(4, 8, 4, 0),
                 child: Text('Report generated ${v['generatedUtc'] ?? ''}. Full details: the README, formula.md and the pipeline tests.',
@@ -254,4 +258,97 @@ class _Bullet extends StatelessWidget {
           Expanded(child: Text(text, style: PHText.body)),
         ]),
       );
+}
+
+/// The Whole Moon checks (1.14.0), read from `assets/data/global/validation.json`
+/// (contract §4) only once Whole Moon is open ([AppState.global]), so a polar
+/// start loads nothing global (plan §3). Every number is the file's.
+class GlobalValidationSection extends StatefulWidget {
+  const GlobalValidationSection({super.key});
+
+  static const asset = 'assets/data/global/validation.json';
+  static const closed = 'The Whole Moon checks load once Whole Moon is opened (Explore, Whole Moon).';
+
+  @override
+  State<GlobalValidationSection> createState() => _GlobalValidationSectionState();
+}
+
+class _GlobalValidationSectionState extends State<GlobalValidationSection> {
+  Future<Map<String, dynamic>>? _v;
+
+  @override
+  Widget build(BuildContext context) {
+    final open = context.watch<AppState?>()?.global != null;
+    if (!open) {
+      return ValidationPage._section('Whole Moon', null, [
+        Text(GlobalValidationSection.closed, key: const ValueKey('global-validation-closed'), style: PHText.body.copyWith(color: PH.muted)),
+      ]);
+    }
+    _v ??= DefaultAssetBundle.of(context)
+        .loadString(GlobalValidationSection.asset)
+        .then((t) => (jsonDecode(t) as Map).cast<String, dynamic>());
+    return FutureBuilder<Map<String, dynamic>>(
+      future: _v,
+      builder: (context, snap) {
+        if (snap.hasError) {
+          return ValidationPage._section('Whole Moon', null, [
+            Text('Could not load the Whole Moon checks: ${snap.error}', style: PHText.body.copyWith(color: PH.muted)),
+          ]);
+        }
+        if (!snap.hasData) return const Padding(padding: EdgeInsets.all(16), child: Center(child: BusyIndicator(size: 28, strokeWidth: 3)));
+        return ValidationPage._section('Whole Moon', 'Checks of the Whole Moon sites, from the pipeline', _rows(snap.data!));
+      },
+    );
+  }
+
+  static Map<String, dynamic> _m(Object? x) => (x as Map?)?.cast<String, dynamic>() ?? const {};
+  static String _n(Object? x, int d, [String unit = '']) => x is num ? '${x.toStringAsFixed(d)}$unit' : '–';
+
+  List<Widget> _rows(Map<String, dynamic> v) {
+    final spice = _m(v['spiceTruth']), hz = _m(v['horizons']), q = _m(v['horizonQuality']);
+    final od = _m(q['onDevice']), l64 = _m(q['ldem64Only']), lt = _m(v['longTerm']), co = _m(v['coordinates']);
+    final shp = _m(co['shapefile']), hs = _m(v['historicSun']), cr = _m(v['crossRegion']);
+    final a11 = _m(lt['apollo11']), far = _m(lt['farSide']), crm = _m(cr['ldem64VsPolarMask']);
+    String dirs(Map<String, dynamic> x) =>
+        'Sun ${_n(_m(x['sun'])['maxArcmin'], 4, '′')}, Earth ${_n(_m(x['earth'])['maxArcmin'], 4, '′')}';
+    final hsSites = _m(hs['sites']);
+    final rows = <Widget>[
+      if (v['synthetic'] == true)
+        Padding(
+          padding: const EdgeInsets.only(bottom: 4),
+          child: FidelityBadge(key: const ValueKey('global-validation-synthetic'), text: 'Synthetic test file, not data: ${v['note'] ?? ''}'),
+        ),
+      _Row('App vs SPICE at ${(spice['sites'] as List?)?.length ?? '–'} Whole Moon sites', dirs(spice), 'Worst direction error, arcminutes'),
+      // horizons.sun/earth are the pipeline's SPICE against Horizons; the
+      // app algorithm's own figures are horizons.app (as in the polar rows)
+      _Row('Pipeline (SPICE DE440, MOON_ME) vs JPL Horizons at ${(hz['sites'] as List?)?.length ?? '–'} Whole Moon sites',
+          dirs(hz), 'Airless apparent az/el, worst error'),
+      _Row('App vs JPL Horizons at ${(hz['sites'] as List?)?.length ?? '–'} Whole Moon sites', dirs(_m(hz['app'])),
+          'Airless apparent az/el, worst error'),
+      _Row('Your own spots\' skylines vs the preset masks (${od['n'] ?? '–'} sites)',
+          'median ${_n(od['medianRmsDeg'], 1, '°')}, worst ${_n(od['worstRmsDeg'], 1, '°')}',
+          'RMS; on average ${_n(od['meanBiasDeg'], 1, '°')} (negative: too low, optimistic)'),
+      _Row('Coarse-grid-only skylines vs the two-scale masks (${l64['n'] ?? '–'} sites)',
+          'median ${_n(l64['medianRmsDeg'], 1, '°')}, worst ${_n(l64['worstRmsDeg'], 1, '°')}',
+          'RMS; on average ${_n(l64['meanBiasDeg'], 1, '°')}'),
+      _Row('Apollo 11, long-term average', 'Earth ${_n(a11['earthPct'], 0, '%')}, Sun ${_n(a11['sunPct'], 0, '%')}',
+          'Share of the time in view, terrain included', share: true),
+      for (final e in far.entries)
+        _Row('Far side, ${e.key}, long-term average', 'Earth ${_n(_m(e.value)['earthPct'], 0, '%')}',
+            'Earth never rises there', share: true),
+      _Row('Coordinates: LROC shapefile ${shp['version'] ?? '–'} (${shp['records'] ?? '–'} records)',
+          '${[for (final x in _m(co['sites']).values) if (_m(x)['inShapefile'] == true) x].length} of ${_m(co['sites']).length} sites',
+          'Sites found in the shapefile'),
+      _Row('Cross-region: ${cr['siteId'] ?? '–'}, coarse grid vs polar mask',
+          'RMS ${_n(crm['rmsDeg'], 1, '°')}, bias ${_n(crm['biasDeg'], 1, '°')}', 'The same spot from both terrain sources'),
+      _Row('Sun at historic touchdowns', hs['status'] == 'checked' && hsSites.isNotEmpty ? '${hsSites.length} sites' : 'not checked',
+          hs['status'] == 'checked' && hsSites.isNotEmpty ? 'Against the reported Sun elevation, with its source' : 'No source checked yet'),
+      for (final g in (v['gates'] as List? ?? const []))
+        _Row('Gate ${_m(g)['id']}${_m(g)['range'] is List ? ' in ${(_m(g)['range'] as List).join('–')}' : ''}',
+            '${_m(g)['pass'] == true ? 'pass' : 'FAIL'} (${_m(g)['value']})', '${_m(g)['note'] ?? ''}'),
+      if (v['frameNote'] is String)
+        Padding(padding: const EdgeInsets.only(top: 8), child: Text(v['frameNote'] as String, style: PHText.small.copyWith(color: PH.muted))),
+    ];
+    return rows;
+  }
 }

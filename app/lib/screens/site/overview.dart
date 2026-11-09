@@ -15,17 +15,20 @@ import 'package:provider/provider.dart';
 
 import '../../core/catalog.dart';
 import '../../core/countdown.dart' show countdownAt, countdownParts, spokenCountdown;
-import '../../core/landing_wording.dart' show moreHint, moreSemantics, moreSubline, moreTitle;
+import '../../core/landing_wording.dart' show moreHint, moreSemantics, moreSubline, moreSublineGlobal, moreTitle;
 import '../../core/metrics.dart' show SiteMetrics;
 import '../../core/now_line.dart';
+import '../../core/region.dart';
 import '../../core/wording.dart';
 import '../../state/app_state.dart';
 import '../../theme.dart';
-import '../../widgets/explain.dart' show explainOverview;
+import '../../widgets/explain.dart' show explainOverviewFor;
 import '../../widgets/about_site.dart';
 import '../../widgets/best_window_card.dart';
 import '../../widgets/chart_bridge.dart' show nowAt;
 import '../../widgets/expert_numbers.dart';
+import '../../widgets/global_lander_entry.dart';
+import '../../widgets/global_map_view.dart' show globalFarSideText, globalHorizonBadge, globalLightMapText, globalPositionLine;
 import '../../widgets/glyphs.dart';
 import '../../widgets/good_days_calendar.dart';
 import '../../widgets/lander_photos_card.dart';
@@ -158,8 +161,17 @@ class OverviewNowLine extends StatelessWidget {
 class _MoreRow extends StatelessWidget {
   final SiteMetrics metrics;
   final bool requireDsn, open;
+
+  /// A whole-Moon site (no light map: [moreSublineGlobal]).
+  final bool global;
   final VoidCallback onToggle;
-  const _MoreRow({required this.metrics, required this.requireDsn, required this.open, required this.onToggle});
+  const _MoreRow({
+    required this.metrics,
+    required this.requireDsn,
+    required this.open,
+    required this.onToggle,
+    this.global = false,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -207,7 +219,7 @@ class _MoreRow extends StatelessWidget {
                       peek(GlyphKind.both, 'Both', m.pctBoth),
                     ]),
                     const SizedBox(height: 2),
-                    Text(moreSubline, style: PHText.small.copyWith(color: PH.muted)),
+                    Text(global ? moreSublineGlobal : moreSubline, style: PHText.small.copyWith(color: PH.muted)),
                   ]),
                 ),
                 Icon(open ? Icons.expand_less : Icons.expand_more, color: PH.muted),
@@ -255,6 +267,10 @@ class SiteOverview extends StatelessWidget {
     final best = stale ? null : m.longestBoth;
     void open(double tMs, SiteTab tab) => s.openAt(tMs, tab);
     final open_ = s.overviewMoreShown;
+    // a whole-Moon site (1.14.0): no Light & shadow map, so no computed hero
+    // and no "See the light"; its position, horizon source and (far side)
+    // Earth line are said instead
+    final global = site.region == Region.wholeMoon;
 
     return LayoutBuilder(builder: (context, c) {
       final side = c.maxWidth < 400 ? 12.0 : 16.0;
@@ -284,7 +300,51 @@ class SiteOverview extends StatelessWidget {
                   padding: EdgeInsets.fromLTRB(4, short ? 2 : 8, 4, short ? 0 : 4),
                   child: Text(siteKindLabel(site), style: PHText.small.copyWith(color: PH.muted)),
                 ),
-                if (site.custom) ...[
+                if (global) ...[
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(4, 0, 4, 4),
+                    child: Text.rich(
+                      key: const ValueKey('global-position'),
+                      numSpans(globalPositionLine(site), PHText.small.copyWith(color: PH.text)),
+                    ),
+                  ),
+                  FidelityBadge(text: globalHorizonBadge(site, validation: s.global?.validation, map: s.global?.map)),
+                  if (site.side == 'far')
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(4, 6, 4, 2),
+                      child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                        const MeaningGlyph(GlyphKind.earth, size: 16, semantic: false),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(globalFarSideText,
+                              key: const ValueKey('far-side'), style: PHText.body.copyWith(color: PH.text)),
+                        ),
+                      ]),
+                    ),
+                  // why there is no Light & shadow chip: said with More closed
+                  // too (the default), not only inside it
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(4, 8, 4, 6),
+                    child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      const Icon(Icons.info_outline, size: 18, color: PH.muted),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(globalLightMapText,
+                            key: const ValueKey('light-polar-only'), style: PHText.small.copyWith(color: PH.muted)),
+                      ),
+                    ]),
+                  ),
+                  if (site.custom)
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: TextButton.icon(
+                        style: const ButtonStyle(minimumSize: WidgetStatePropertyAll(Size(48, 48))),
+                        onPressed: () => s.removeCustomSite(site.id),
+                        icon: const Icon(Icons.delete_outline),
+                        label: const Text('Remove this spot'),
+                      ),
+                    ),
+                ] else if (site.custom) ...[
                   const FidelityBadge(text: FidelityBadge.customHorizon),
                   Align(
                     alignment: Alignment.centerLeft,
@@ -318,7 +378,7 @@ class SiteOverview extends StatelessWidget {
                 // 3. "When should you land here?" first
                 LandingWindowCard(key: ValueKey('landing-${site.id}')),
                 if (nowAfterCard) nowLine,
-                if (s.explainInline) explainOverview,
+                if (s.explainInline) explainOverviewFor(site.region),
                 // 4. At a glance: what it is, why here, watch-outs, how it compares
                 // (the custom-horizon badge already sits above)
                 if (s.selectedGlance case final g?)
@@ -331,8 +391,13 @@ class SiteOverview extends StatelessWidget {
                         showCustomBadge: false,
                         initiallyOpen: s.expert),
                   ),
+                // a whole-Moon site's Lander's view comes right after At a
+                // glance, where a phone reaches it in a swipe or two (it was at
+                // the end of More, about 25 swipes down: 1.14.0 device check);
+                // the polar Overview is unchanged
+                if (global) globalLanderEntry(context, site),
                 // 5. everything else behind "More about this site"
-                GuideTarget(id: 'site-more', child: _MoreRow(metrics: m, requireDsn: dsn, open: open_, onToggle: () => s.setOverviewMoreOpen(!open_))),
+                GuideTarget(id: 'site-more', child: _MoreRow(metrics: m, requireDsn: dsn, open: open_, global: global, onToggle: () => s.setOverviewMoreOpen(!open_))),
               ]),
               if (open_) ...[
               const SizedBox(height: 6),
@@ -340,7 +405,7 @@ class SiteOverview extends StatelessWidget {
               // the three big numbers first, then the computed light at the
               // best moment (built only while More is open: it starts the
               // shadow engine)
-              if (showHero) ...[
+              if (!global && showHero) ...[
                 const SizedBox(height: 8),
                 _Hero(key: ValueKey('hero-${site.id}'), site: site, metrics: m, cursorMs: s.cursorMs),
                 const SizedBox(height: 6),
@@ -348,7 +413,7 @@ class SiteOverview extends StatelessWidget {
               BestWindowCard(
                 window: m.longestBoth,
                 onShowMe: best == null ? null : () => open(best.startMs, SiteTab.skyTime),
-                onSeeLight: best == null ? null : () => open(best.startMs, SiteTab.light),
+                onSeeLight: best == null || global ? null : () => open(best.startMs, SiteTab.light),
                 dsn: dsn,
               ),
               GoodDaysCalendar(

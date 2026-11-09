@@ -12,6 +12,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
+import '../core/region.dart';
 import '../state/app_state.dart';
 import '../state/chart_hub.dart';
 import '../theme.dart';
@@ -566,8 +567,9 @@ class _Loading extends StatelessWidget {
   }
 }
 
-/// Where the app is, as the web URL hash shows it: `/`, `/site/<id>`,
-/// `/site/<id>/overview|sky|light`, `/compare` or `/learn`.
+/// Where the app is, as the web URL hash shows it: `/`, `/moon` (Explore in
+/// Whole Moon), `/site/<id>`, `/site/<id>/overview|sky|light`, `/compare` or
+/// `/learn`.
 @immutable
 class ShellLocation {
   final Dest dest;
@@ -575,7 +577,14 @@ class ShellLocation {
 
   /// The Site sub-tab (null in a `#/site/<id>` link: that opens Overview).
   final SiteTab? tab;
-  const ShellLocation(this.dest, [this.siteId, this.tab]);
+
+  /// The region Explore shows: [Region.wholeMoon] only for `#/moon` (a Site
+  /// link's region comes from its site, through [AppState.openFromLink]).
+  final Region region;
+  const ShellLocation(this.dest, [this.siteId, this.tab, this.region = Region.southPole]);
+
+  /// Explore in Whole Moon (`#/moon`).
+  static const moon = ShellLocation(Dest.explore, null, null, Region.wholeMoon);
 
   static const _tabNames = {SiteTab.overview: 'overview', SiteTab.skyTime: 'sky', SiteTab.light: 'light'};
 
@@ -592,12 +601,13 @@ class ShellLocation {
       'site' => ShellLocation(Dest.site, p.length > 1 ? p[1] : null, tab),
       'compare' => const ShellLocation(Dest.compare),
       'learn' => const ShellLocation(Dest.learn),
+      'moon' => moon,
       _ => const ShellLocation(Dest.explore),
     };
   }
 
   Uri get uri => Uri(pathSegments: switch (dest) {
-        Dest.explore => const ['', ''],
+        Dest.explore => region == Region.wholeMoon ? const ['', 'moon'] : const ['', ''],
         Dest.site => ['', 'site', ?siteId, if (siteId != null && tab != null) _tabNames[tab]!],
         Dest.compare => const ['', 'compare'],
         Dest.learn => const ['', 'learn'],
@@ -605,10 +615,10 @@ class ShellLocation {
 
   @override
   bool operator ==(Object other) =>
-      other is ShellLocation && other.dest == dest && other.siteId == siteId && other.tab == tab;
+      other is ShellLocation && other.dest == dest && other.siteId == siteId && other.tab == tab && other.region == region;
 
   @override
-  int get hashCode => Object.hash(dest, siteId, tab);
+  int get hashCode => Object.hash(dest, siteId, tab, region);
 
   @override
   String toString() => uri.toString();
@@ -659,13 +669,32 @@ class ShellRouterDelegate extends RouterDelegate<ShellLocation>
   ShellLocation? _pending;
   late ShellLocation _last;
 
-  ShellLocation get _live => state.dest == Dest.site
-      ? ShellLocation(Dest.site, state.selectedId, state.siteTab)
-      : ShellLocation(state.dest);
+  ShellLocation get _live => switch (state.dest) {
+        Dest.site => ShellLocation(Dest.site, state.selectedId, state.siteTab),
+        Dest.explore when state.region == Region.wholeMoon => ShellLocation.moon,
+        final d => ShellLocation(d),
+      };
+
+  /// A whole-Moon link is being opened (its catalogue may still be loading):
+  /// the URL waits for it.
+  bool _linkBusy = false;
+
+  /// The whole-Moon site the busy link names: once it is on screen its URL
+  /// is reported at once, not only when its series compute ends (the address
+  /// bar would show the bare URL under the site meanwhile). Only that site is
+  /// ever reported while busy, never another under its link (web-10).
+  String? _linkSite;
 
   void _onState() {
     // a link waits for the first ranking
     if (!state.ready) return;
+    if (_linkBusy) {
+      if (_linkSite != null && state.dest == Dest.site && state.selectedId == _linkSite && _live != _last) {
+        _last = _live;
+        _report(replace: true);
+      }
+      return;
+    }
     final link = _pending;
     if (link != null) {
       _pending = null;
@@ -714,6 +743,25 @@ class ShellRouterDelegate extends RouterDelegate<ShellLocation>
     final id = l.siteId;
     if (l.dest == Dest.site && id != null && state.allSites.any((x) => x.id == id)) {
       state.openSite(id, tab: l.tab ?? SiteTab.overview);
+    } else if (l.dest == Dest.site && id != null && state.catalog != null) {
+      // not a polar id: a whole-Moon site (its region and catalogue come
+      // through openFromLink), else unknown
+      // a known whole-Moon id (a preset, or a spot placed in Whole Moon,
+      // which shares the custom-N form) opens first; a polar custom-spot id,
+      // or an id the loaded whole-Moon catalogue does not have, is unknown
+      // at once, as in 1.13.5
+      final g = state.global;
+      if (g != null && state.regionOf(id) == Region.wholeMoon) {
+        _openGlobal(id, l.tab ?? SiteTab.overview);
+      } else if (RegExp(r'^custom-\d+$').hasMatch(id) || g != null) {
+        _unknownSite();
+      } else {
+        _openGlobal(id, l.tab ?? SiteTab.overview);
+      }
+    } else if (l.dest == Dest.explore) {
+      // the region comes only from the link: `#/moon` or `#/`
+      state.goTo(Dest.explore);
+      if (state.region != l.region) _setRegion(l.region);
     } else if (l.dest == Dest.site && id != null) {
       // never show another site under a link that names this one (web-10)
       state.goTo(Dest.explore);
@@ -724,6 +772,71 @@ class ShellRouterDelegate extends RouterDelegate<ShellLocation>
     } else {
       state.goTo(l.dest, siteTab: l.dest == Dest.site ? l.tab : null);
     }
+  }
+
+  void _unknownSite() => _notice(unknownSiteText);
+
+  /// Explore, with [text] as a notice.
+  void _notice(String text) {
+    state.goTo(Dest.explore);
+    final ctx = navigatorKey.currentContext;
+    if (ctx != null) {
+      ScaffoldMessenger.maybeOf(ctx)?.showSnackBar(SnackBar(content: Text(text)));
+    }
+  }
+
+  /// Open the whole-Moon site [id] (loading its catalogue first), on [tab];
+  /// the Light & shadow tab, which covers south-pole sites only, opens Sky &
+  /// time. Unknown ids go to Explore with a notice. The URL is put right
+  /// once it is done, in place of the link.
+  void _openGlobal(String id, SiteTab tab) {
+    // never another site under this link while it resolves (web-10): Explore
+    // until the whole-Moon site opens, and the URL put right meanwhile
+    state.goTo(Dest.explore);
+    _linkBusy = true;
+    _linkSite = id;
+    (() async {
+      try {
+        // a whole-Moon site has no Light & shadow tab: open Sky & time
+        // straight away, so the URL reported early is already the final one
+        await state.openFromLink(id, tab: tab == SiteTab.light ? SiteTab.skyTime : tab);
+        if (state.dest == Dest.site && state.selectedId == id) {
+          final t = state.regionOf(id) == Region.wholeMoon && tab == SiteTab.light ? SiteTab.skyTime : tab;
+          if (state.siteTab != t) state.goTo(Dest.site, siteTab: t);
+        } else if (state.global == null) {
+          // the whole-Moon catalogue did not load: say so, not that the
+          // link is wrong
+          _notice(globalLoadFailedText);
+        } else {
+          _unknownSite();
+        }
+      } catch (e) {
+        debugPrint('link $id: $e');
+        _unknownSite();
+      } finally {
+        _linkBusy = false;
+        _linkSite = null;
+        _last = _live;
+        _report(replace: true);
+      }
+    })();
+  }
+
+  /// Switch Explore's region for a `#/moon` or `#/` link; a whole-Moon load
+  /// that fails stays on the south pole (and the URL says so).
+  void _setRegion(Region r) {
+    _linkBusy = true;
+    Future<void>(() async {
+      try {
+        await state.setRegion(r);
+      } catch (e) {
+        debugPrint('region $r: $e');
+      } finally {
+        _linkBusy = false;
+        _last = _live;
+        _report(replace: true);
+      }
+    });
   }
 
   @override

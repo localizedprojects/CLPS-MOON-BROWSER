@@ -16,7 +16,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 1.13.5+26
+version: 1.14.0+27
 
 environment:
   sdk: ^3.12.2
@@ -89,6 +89,9 @@ flutter:
     - assets/data/ephem/
     - assets/data/dsn/
     - assets/data/map/
+    - assets/data/global/
+    - assets/data/global/thumbs/
+    - assets/data/global/tiles/
     # the fonts' licence texts, for the app's licence page (lib/licenses.dart)
     - assets/fonts/LICENSE-IBMPlexSans.txt
     - assets/fonts/LICENSE-IBMPlexMono.txt

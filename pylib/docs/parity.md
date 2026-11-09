@@ -31,6 +31,11 @@ never committed); its full source is stored in each golden file under
   1.13.5 version number and docs), all golden values and the close-up shade and flag blobs came
   out identical, and only `provenance` was updated (`sha256` and `assetSha256` of every recorded
   file, which also brings `metrics.dart` and `sites.json` up to date, `gitHead`, `gitDirty`,
+  `generatedUtc`). On 2026-11-09 `dem.dart` gained the additive `*In(frame)` variants for the
+  1.14.0 Whole Moon Lander tiles (`map_frame.dart`; the polar functions are unchanged): the probe
+  was rerun over `59caaf9` (`gitDirty: true`; the uncommitted edits were docs only), all golden
+  values and every recorded hash of the flag, shade and DSN bytes came out identical, and only
+  `provenance` was updated in both goldens (the `dem.dart` `sha256`, `gitHead`, `gitDirty`,
   `generatedUtc`),
 - the SHA-256 of `landing.dart`, `timeseries.dart`, `visibility.dart`, `eclipse.dart` (pinned
   since 2026-10-29), `shadow.dart` and the other core files and of `light_engine.dart`, and of

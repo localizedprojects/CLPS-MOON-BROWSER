@@ -11,6 +11,8 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/catalog.dart' show Site;
+import '../../core/region.dart';
 import '../../core/wording.dart';
 import '../../state/app_state.dart';
 import '../../theme.dart';
@@ -60,6 +62,9 @@ class SiteScreen extends StatelessWidget {
   Widget _layout(BuildContext context, AppState s) {
     final size = MediaQuery.sizeOf(context);
     final short = size.height < _shortWindow;
+    // a whole-Moon site (1.14.0) has no Light & shadow map: no Light chip,
+    // and a light link or tab shows Sky & time instead
+    if (s.site.region == Region.wholeMoon) return _globalLayout(context, s, size, short);
     if (size.width >= siteTwoPaneWidth) {
       // Overview stays on the left; the right pane is Sky & time or Light & shadow
       final right = s.siteTab == SiteTab.light ? SiteTab.light : SiteTab.skyTime;
@@ -241,11 +246,87 @@ class _ChangeSite extends StatelessWidget {
   }
 }
 
-/// The shared single-select site picker; the chosen site opens on the same tab.
+/// The tab a site shows for [t]: a whole-Moon site has no Light & shadow
+/// tab, so `light` (a link, or the tab last used at the pole) is Sky & time.
+SiteTab siteTabFor(Site site, SiteTab t) => site.region == Region.wholeMoon && t == SiteTab.light ? SiteTab.skyTime : t;
+
+/// The Site screen of a whole-Moon site: Overview and Sky & time only.
+Widget _globalLayout(BuildContext context, AppState s, Size size, bool short) {
+  final tab = siteTabFor(s.site, s.siteTab);
+  if (size.width >= siteTwoPaneWidth) {
+    return Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+      FocusTraversalGroup(
+        child: SizedBox(
+          width: siteOverviewPaneWidth,
+          child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+            _Header(state: s, kindLine: false),
+            const Expanded(child: SiteOverview()),
+          ]),
+        ),
+      ),
+      Expanded(
+        child: FocusTraversalGroup(
+          child: Material(
+            color: PH.sunken,
+            // Sky & time only: no lone, already-chosen chip above it (and no
+            // "three views" guide step pointing at one)
+            child: FocusTraversalGroup(child: SkyTimeTab(state: s)),
+          ),
+        ),
+      ),
+    ]);
+  }
+  const shown = [SiteTab.overview, SiteTab.skyTime];
+  // its own guide step: two views, not the pole's three
+  final chips = GuideTarget(id: 'site-tabs-global', child: _TabChips(state: s, tabs: shown, selected: tab));
+  void swipedTo(int i) => s.goTo(Dest.site, siteTab: shown[i]);
+  final tabs = _SwipeTabs(index: shown.indexOf(tab), onSwipe: swipedTo, children: [
+    () => const SiteOverview(),
+    () => SkyTimeTab(state: s),
+  ]);
+  if (short) {
+    return HideOnScroll(
+      resetKey: (s.selectedId, tab),
+      top: LayoutBuilder(
+        builder: (context, c) => Row(children: [
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.only(left: 16),
+              child: Semantics(
+                header: true,
+                label: '${s.site.short}, ${siteKindLabel(s.site)}',
+                excludeSemantics: true,
+                child: Text(s.site.short, maxLines: 2, overflow: TextOverflow.ellipsis, style: PHText.subtitle),
+              ),
+            ),
+          ),
+          GuideTarget(id: 'change-site', child: _ChangeSite(state: s, iconOnly: true)),
+          ConstrainedBox(constraints: BoxConstraints(maxWidth: c.maxWidth * 0.75), child: chips),
+        ]),
+      ),
+      body: tabs,
+    );
+  }
+  return HideOnScroll(
+    resetKey: (s.selectedId, tab),
+    top: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+      _Header(state: s, kindLine: tab != SiteTab.overview, reserveKindLine: true),
+      chips,
+    ]),
+    body: tabs,
+  );
+}
+
+/// The shared single-select site picker (both regions, 1.14.0); the chosen
+/// site opens on the same tab. A site in the other region switches Explore's
+/// region first, so Back returns to the site's own region.
 Future<void> _showSiteList(BuildContext context, AppState s) async {
-  final ids = await showSitePicker(context, multi: false, initial: [s.selectedId]);
+  final ids = await showSitePicker(context, multi: false, initial: [s.selectedId], global: true);
   if (ids == null || ids.isEmpty) return;
-  s.openSite(ids.first, tab: s.siteTab);
+  final id = ids.first;
+  final r = s.regionOf(id);
+  if (r != s.region) await s.setRegion(r);
+  s.openSite(id, tab: s.siteTab);
 }
 
 /// The sub-tab chips (sentence case pills, neutral selection).

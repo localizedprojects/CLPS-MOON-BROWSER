@@ -15,7 +15,8 @@ near the pole and any time range:
 - the light and shadow map of the whole region or a 128 km close-up.
 
 It is the science of **Lunar Horizon**, a NASA Space Apps app, packaged so that anyone can
-use it. The default mode gives **the same numbers as the app, bit for bit** (see
+use it. It covers the south pole only: the app's Whole Moon region (since 1.14.0) is not in the
+library, which does not read `app/assets/data/global/`. The default mode gives **the same numbers as the app, bit for bit** (see
 [docs/parity.md](docs/parity.md)).
 
 ## Install

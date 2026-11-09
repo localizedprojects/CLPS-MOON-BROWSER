@@ -1,0 +1,107 @@
+// Whole Moon Explore follows the goal chips (1.14.0 review fix): the list is
+// `rankedIn(Region.wholeMoon)`, memoised on the weights, not the cached
+// ranking of the previous goal. Runs on the bundled whole-Moon data, where
+// the order changes between goals (the synthetic fixture's does not).
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:polar_horizon/core/ranking.dart';
+import 'package:polar_horizon/core/region.dart';
+import 'package:polar_horizon/core/summary.dart';
+import 'package:polar_horizon/core/wording.dart' show nearTieAtTopText;
+import 'package:polar_horizon/screens/explore.dart';
+import 'package:polar_horizon/state/app_state.dart';
+import 'package:polar_horizon/state/chart_hub.dart';
+import 'package:polar_horizon/theme.dart';
+import 'package:polar_horizon/widgets/focus_rings.dart';
+import 'package:polar_horizon/widgets/site_card.dart';
+import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+import 'global_test_state.dart';
+
+void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
+  testWidgets('a goal chip reorders the Whole Moon list and its ranks', (tester) async {
+    SharedPreferences.setMockInitialValues({});
+    final state = AppState();
+    addTearDown(state.dispose);
+    await tester.runAsync(() async {
+      await state.init();
+      await state.setRegion(Region.wholeMoon);
+    });
+    expect(state.region, Region.wholeMoon);
+    expect(state.globalRankingDone, isTrue);
+    state.setGoal(Goal.balanced);
+
+    tester.view.physicalSize = const Size(1280, 7000);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final hub = ChartHub(onEvent: (_) {});
+    addTearDown(hub.dispose);
+    await tester.pumpWidget(ChangeNotifierProvider<AppState>.value(
+      value: state,
+      child: Provider<ChartHub>.value(
+        value: hub,
+        child: MaterialApp(
+          theme: buildTheme(),
+          builder: (context, child) => FocusRings(child: child!),
+          home: const Scaffold(body: ExploreScreen()),
+        ),
+      ),
+    ));
+    await tester.pump();
+
+    List<(int?, String)> cards() => [
+          for (final c in tester.widgetList<SiteCard>(find.byType(SiteCard, skipOffstage: false))) (c.rank, c.site.id),
+        ];
+    List<(int?, String)> expected(Goal goal) {
+      final g = state.global!;
+      final ranked = rank({
+        for (final st in g.sites) st.id: (st.short, state.metricsFor(st.id)!),
+      }, weightsFor(goal));
+      return [for (final (i, r) in ranked.indexed) (i + 1, r.id)];
+    }
+
+    final balanced = cards();
+    expect(balanced, expected(Goal.balanced));
+    await tester.tap(find.bySemanticsLabel('Rank sites by ${goalLabel(Goal.earth)}'));
+    await tester.pump();
+    expect(state.goal, Goal.earth);
+    final earth = cards();
+    expect(earth, expected(Goal.earth));
+    expect(earth, isNot(balanced), reason: 'on the bundled data the order changes with the goal');
+
+    // the top of the list is a near tie on the bundled data: one computed
+    // sentence says so, with the count and spread from the listed scores
+    for (final goal in [Goal.balanced, Goal.earth, Goal.power]) {
+      state.setGoal(goal);
+      await tester.pump();
+      final scores = [for (final r in state.rankedIn(Region.wholeMoon)) r.score.total];
+      final text = nearTieAtTopText(scores);
+      final shown = find.byKey(const ValueKey('global-near-tie'), skipOffstage: false);
+      if (text == null) {
+        expect(shown, findsNothing, reason: '$goal');
+      } else {
+        expect(tester.widget<Text>(shown).textSpan!.toPlainText(), text, reason: '$goal');
+      }
+      if (goal == Goal.balanced) expect(text, isNotNull, reason: 'the near side ties under Balanced');
+    }
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  test('loaded but not ranked yet: the header says "Ranked so far", never "All 0 sites", and no ranks', () async {
+    SharedPreferences.setMockInitialValues({});
+    final state = AppState()..globalAssetBundle = GlobalSampleBundle();
+    addTearDown(state.dispose);
+    await state.init();
+    await state.ensureGlobal(); // the catalogue only: nothing whole-Moon ranked yet
+    expect(state.global!.rankRunning, isFalse);
+    expect(state.globalRankingDone, isFalse);
+    final items = globalExploreItems(state);
+    final header = globalListHeaderText(state, count: items.length);
+    expect(header, isNot(startsWith('All ')));
+    expect(header, startsWith('Ranked so far: '));
+    expect([for (final (rank, _, _) in items) rank].whereType<int>(), isEmpty);
+  });
+}

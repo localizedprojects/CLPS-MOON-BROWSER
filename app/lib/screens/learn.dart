@@ -1,6 +1,8 @@
 /// Learn: the "Explain as I go" switch, what the tool covers (the south pole
-/// only, its site groups, and why the pole is hard), three "Start here"
-/// cards, what each view shows, the glossary, "Can I trust these numbers?" (validation and
+/// by default, Whole Moon beside it, their site groups, and why the pole is
+/// hard), "South pole vs the rest of the Moon" once Whole Moon is open (the
+/// contrast card and four facts computed from the data, 1.14.0), three
+/// "Start here" cards, what each view shows, the glossary, "Can I trust these numbers?" (validation and
 /// "How it's calculated"), how the score works, keyboard shortcuts and credits.
 /// Phones get one column; from 840 dp two columns of about the same height,
 /// at most 1040 wide.
@@ -9,11 +11,14 @@ library;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../core/catalog.dart';
 import '../core/ranking.dart';
+import '../core/region.dart';
 import '../core/summary.dart';
 import '../state/app_state.dart';
 import '../theme.dart';
 import '../version.dart';
+import '../widgets/contrast_card.dart';
 import '../widgets/explain.dart';
 import '../widgets/site_card.dart' show FocusRingInkWell;
 import '../widgets/site_glance_card.dart' show numSpans;
@@ -25,7 +30,8 @@ import '../widgets/focus_semantics.dart';
 import '../widgets/licence_page.dart';
 
 /// The views explained under "What each view shows", in app order.
-const learnViews = [explainExplore, explainOverview, explainSky, explainTimeline, explainLight, explainLander, explainCompare];
+const learnViews = [explainExplore, explainOverview, explainSky, explainTimeline, explainLight, explainLander, explainCompare,
+    explainWholeMoon];
 
 class LearnScreen extends StatelessWidget {
   const LearnScreen({super.key});
@@ -48,6 +54,9 @@ class LearnScreen extends StatelessWidget {
         children: [
           const _Intro(),
           const _Coverage(),
+          // full width, outside the two columns, so their order and heights
+          // stay as in 1.13.5 (and nothing at all until Whole Moon is open)
+          const _WholeMoonContrast(),
           if (wide)
             const Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: left)),
@@ -144,9 +153,18 @@ class _Intro extends StatelessWidget {
 class _Coverage extends StatelessWidget {
   const _Coverage();
 
-  static const scope = 'Only the Moon\'s south pole: every site, and every spot you add, lies south of 80°S. That is '
-      'where the app has loaded the NASA LOLA terrain the skylines need, and where NASA\'s CLPS landers, Artemis and '
-      'other countries\' polar missions are going. Apollo and other sites near the equator are outside it.';
+  static const scope = 'South pole (the default): every site, and every spot you add, lies south of 80°S. That is '
+      'where the app has loaded the detailed NASA LOLA terrain the skylines need, and where NASA\'s CLPS landers, Artemis '
+      'and other countries\' polar missions are going. Apollo and other sites near the equator are outside it; they are '
+      'in Whole Moon, below.';
+
+  /// The Whole Moon region (1.14.0), with its groups as the site list names
+  /// them (contract §2). The northern limit is the code's.
+  static final wholeMoon = 'Whole Moon: landing sites elsewhere on the Moon, each region ranked on its own: Apollo '
+      '(crewed landings); Robotic landers 1966–76 (Surveyor, Luna); Other countries\' programmes; Commercial (CLPS). '
+      'Coordinates from the LROC catalogue of objects on the Moon, skylines from coarser whole-Moon terrain (marked '
+      'approximate). You can test your own spot there up to ${globalCustomMaxLatDeg.round()}°N. Learn then sets the '
+      'south pole beside the rest of the Moon, worked out for your dates.';
 
   /// The catalogue's groups, as the site list names them, in plain words.
   static const groups = <(String, String)>[
@@ -189,6 +207,9 @@ class _Coverage extends StatelessWidget {
               ),
             const SizedBox(height: 8),
             Text.rich(numSpans(addYourOwn, PHText.body)),
+            const SizedBox(height: 8),
+            Text.rich(numSpans(wholeMoon, PHText.body), key: const ValueKey('coverage-whole-moon')),
+            const _OpenWholeMoon(),
             const SizedBox(height: 16),
             // its own node, so it stays a header inside the card's merged text
             Semantics(container: true, header: true, child: const Text('Why the pole is hard', style: PHText.subtitle)),
@@ -197,6 +218,135 @@ class _Coverage extends StatelessWidget {
           ]),
         ),
       ]);
+}
+
+/// "Open Whole Moon" in the coverage card, while the global sites are not
+/// loaded: it enters Whole Moon (which loads them) and shows Explore.
+class _OpenWholeMoon extends StatelessWidget {
+  const _OpenWholeMoon();
+
+  @override
+  Widget build(BuildContext context) {
+    final s = context.watch<AppState>();
+    if (s.global != null) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.only(top: 8),
+      child: Align(
+        alignment: Alignment.centerLeft,
+        child: OutlinedButton.icon(
+          key: const ValueKey('learn-open-whole-moon'),
+          onPressed: () {
+            // the region loads its sites itself (and reports a failure)
+            s.setRegion(Region.wholeMoon);
+            s.goTo(Dest.explore);
+          },
+          icon: const Icon(Icons.public, size: 20),
+          label: const Text(
+            'Open Whole Moon',
+            semanticsLabel: 'Open Whole Moon: the landing sites elsewhere on the Moon, on Explore',
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// "South pole vs the rest of the Moon" (1.14.0): the contrast card and four
+/// facts, every number from the data or the core (contract §11): the highest
+/// Sun and the longest night from the contrast rows, the far side from the
+/// global catalogue, and how far a skyline error moves sunrise from the
+/// core's `sunriseShiftMinutes`. Before Whole Moon is opened nothing global is
+/// loaded (plan §3): the section is absent and the coverage card offers to
+/// open it ([_OpenWholeMoon]).
+class _WholeMoonContrast extends StatelessWidget {
+  const _WholeMoonContrast();
+
+  static const heading = 'South pole vs the rest of the Moon';
+  static const pendingFact = 'Worked out once the sites have been computed for your dates.';
+
+  @override
+  Widget build(BuildContext context) {
+    final s = context.watch<AppState>();
+    final g = s.global;
+    // nothing global is loaded before Whole Moon is opened (plan §3); until
+    // then the coverage card offers to open it ([_OpenWholeMoon])
+    if (g == null) return const SizedBox.shrink();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [_heading(heading), const ContrastCard(showTitle: false), _facts(contrastFactsFor(s), g.catalog.sites)],
+    );
+  }
+
+  Widget _facts(ContrastFacts? f, List<Site> global) {
+    final muted = PHText.body.copyWith(color: PH.muted);
+    String rowFact(String key, String what) {
+      final r = f?.row(key);
+      if (r == null || (r.poleText.isEmpty && r.restText.isEmpty)) return pendingFact;
+      String at(String v, Site? site) => v.isEmpty ? 'not known' : '$v${site == null ? '' : ' at ${site.short}'}';
+      return '$what: ${at(r.poleText, r.poleSite)} at the south pole; ${at(r.restText, r.restSite)} in Whole Moon.';
+    }
+
+    final far = [
+      for (final x in global)
+        if (x.side == 'far') x,
+    ];
+    final farFact = far.isEmpty
+        ? 'No far-side site is in the Whole Moon list.'
+        : 'Earth never rises on the far side: ${[for (final x in far) '${x.short} sees Earth ${x.longTermEarthPct.round()}% of the time'].join(', ')} in the long-term average, so a far-side lander needs a relay satellite to talk to Earth.';
+
+    String shiftFact() {
+      final pole = f?.sunriseShift(Region.southPole), rest = f?.sunriseShift(Region.wholeMoon);
+      if (pole == null && rest == null) return pendingFact;
+      String at(SunriseShift? x, String where) =>
+          x == null ? 'not worked out yet $where' : 'about ${duration(x.minutes / 60)} at ${x.site.short} ($where)';
+      final err = contrastSkylineErrorDeg.toStringAsFixed(1);
+      return 'A skyline error of $err° moves sunrise by ${at(rest, 'Whole Moon')} and by ${at(pole, 'south pole')}: '
+          'away from the pole the Sun climbs steeply through the skyline, at the pole it skims along it.';
+    }
+
+    final facts = <(String, String, String)>[
+      ('highest-sun', 'Highest Sun', rowFact('highestSun', 'The highest the Sun climbs')),
+      ('longest-night', 'Longest night', rowFact('longestNight', 'The longest night')),
+      ('far-side', 'The far side', farFact),
+      ('sunrise-shift', 'A small skyline error', shiftFact()),
+    ];
+    final sources = <String>{for (final x in global) x.maskSource};
+    final badge =
+        (f == null ? null : contrastBadgeText(f)) ??
+        (sources.isEmpty ? null : 'Approximate: the Whole Moon values use horizons from ${sources.join('; ')}.');
+    return _card(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const MicroLabel('FROM THE DATA'),
+          const SizedBox(height: 4),
+          for (final (key, title, text) in facts)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              child: Semantics(
+                container: true,
+                child: Text.rich(
+                  TextSpan(
+                    children: [
+                      TextSpan(
+                        text: '$title: ',
+                        style: PHText.body.copyWith(fontWeight: FontWeight.w600),
+                      ),
+                      numSpans(text, muted),
+                    ],
+                  ),
+                  key: ValueKey('learn-fact-$key'),
+                ),
+              ),
+            ),
+          if (badge != null) ...[
+            const SizedBox(height: 8),
+            FidelityBadge(key: const ValueKey('learn-contrast-badge'), text: badge),
+          ],
+        ],
+      ),
+    );
+  }
 }
 
 /// Three ways in, each one tap to the screen that answers it.
@@ -420,6 +570,12 @@ class _ScoreCard extends StatelessWidget {
   static String _cap(String t) => t.isEmpty ? t : t[0].toUpperCase() + t.substring(1);
 }
 
+/// Learn's line for the Lander's N key, which turns the view to the local
+/// north: away from the pole at a south-pole site ([Region.southPole], as
+/// before 1.14.0), toward the north pole at a Whole Moon site.
+String learnNorthKeyText(Region r) =>
+    r == Region.wholeMoon ? 'Face north (toward the north pole)' : _Shortcuts._northPolar;
+
 /// The Site screen's keys (bound in the shell), then the Lander's view's own
 /// (LanderViewPanel, while it has focus).
 class _Shortcuts extends StatelessWidget {
@@ -443,11 +599,20 @@ class _Shortcuts extends StatelessWidget {
     (['+', '−'], 'Zoom in or out'),
     (['S'], 'Face the Sun'),
     (['E'], 'Face Earth'),
-    (['N'], 'Face north (away from the pole)'),
+    (['N'], _northPolar),
     (['Home'], 'Level the view'),
     (['F'], 'Open the view full screen (Esc closes it)'),
     (['Esc'], 'Give the keys back to the page'),
   ];
+
+  static const _northPolar = 'Face north (away from the pole)';
+
+  /// [_landerKeys] for the site the Lander shows, in region [r]: its N key
+  /// turns to the local north (yaw 0, LanderViewPanel), away from the pole at
+  /// a south-pole site and toward the north pole at a Whole Moon site.
+  static List<(List<String>, String)> _landerKeysIn(Region r) => [
+        for (final (keys, what) in _landerKeys) (keys, what == _northPolar ? learnNorthKeyText(r) : what),
+      ];
 
   static Widget _group(String title, List<(List<String>, String)> rows) =>
       Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -467,16 +632,20 @@ class _Shortcuts extends StatelessWidget {
       ]);
 
   @override
-  Widget build(BuildContext context) => Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-        _heading('Keyboard shortcuts'),
-        _card(
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            _group('On the Site screen, when no button or slider has focus:', _keys),
-            const SizedBox(height: 12),
-            _group('In the Lander\'s view (after clicking it):', _landerKeys),
-          ]),
-        ),
-      ]);
+  Widget build(BuildContext context) {
+    // the region of the site the Lander shows
+    final region = context.select<AppState, Region>((s) => s.regionOf(s.selectedId));
+    return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+      _heading('Keyboard shortcuts'),
+      _card(
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          _group('On the Site screen, when no button or slider has focus:', _keys),
+          const SizedBox(height: 12),
+          _group('In the Lander\'s view (after clicking it):', _landerKeysIn(region)),
+        ]),
+      ),
+    ]);
+  }
 }
 
 class _KeyCap extends StatelessWidget {
@@ -522,6 +691,10 @@ class _Credits extends StatelessWidget {
 
   static const _artemisUrl = 'https://www.nasa.gov/news-release/nasa-provides-update-on-artemis-iii-moon-landing-regions/';
 
+  /// The LROC "Anthropogenic Features on the Moon" shapefile's landing page
+  /// (contract §8).
+  static const lrocObjectsUrl = 'https://data.lroc.im-ldi.com/lroc/view_rdr/SHAPEFILE_ANTHROPOGENIC_OBJECTS';
+
   /// Who, what, and an optional (web address, its screen-reader name).
   static const _items = <(String, String, (String, String)?)>[
     ('NASA/JPL NAIF SPICE', 'Sun and Earth positions, with the DE440 ephemeris and the Moon\'s orientation.', null),
@@ -543,6 +716,22 @@ class _Credits extends StatelessWidget {
           'mosaics, De Rosa et al. (2012), LROC images of IM-1 and IM-2, and Beyer et al. (2025) for VIPER. Each '
           'site\'s page lists its own sources.',
       (_artemisUrl, 'Web address of NASA\'s Artemis III landing regions update, on NASA\'s site')
+    ),
+    // 1.14.0 "Whole Moon" (contract §8): NASA PDS data, public domain
+    (
+      'Whole Moon site coordinates',
+      'The LROC "Anthropogenic Features on the Moon" shapefile (LRO-L-LROC-5-RDR-V1.0, 2026-08-14 version, NASA PDS, '
+          'public domain), with coordinates measured by Wagner, Nelson, Plescia, Robinson, Speyerer and Mazarico '
+          '(2017), "Coordinates of anthropogenic features on the Moon", Icarus 283, 92–103. Each site\'s page lists '
+          'its own sources.',
+      (lrocObjectsUrl, 'Web address of the LROC anthropogenic features catalogue, on the LROC data site'),
+    ),
+    (
+      'Whole Moon terrain',
+      'LOLA global elevation grids LDEM_16, LDEM_64 and LDEM_512 (LRO-L-LOLA-4-GDR-V1.0), and SLDEM2015, the LOLA '
+          'and Kaguya Terrain Camera merge of Barker et al. (2016), Icarus 273, 346–355, both from the NASA PDS '
+          'Geosciences Node (public domain), for the Whole Moon map and skylines.',
+      null,
     ),
     (
       'Lander photos',

@@ -6,6 +6,12 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'horizon.dart';
+import 'region.dart';
+
+/// Where a polar preset's horizon mask comes from (the pipeline's two-scale
+/// south-pole run); the default [Site.maskSource] and the fallback when a
+/// catalogue file names none.
+const String kPolarMaskSource = 'LOLA 80 m + 240 m DEM';
 
 class SiteSource {
   final String title, url, says;
@@ -30,6 +36,22 @@ class Site {
   /// True for user-placed sites (horizon from the coarse on-device DEM).
   final bool custom;
 
+  /// The region of the catalogue the site was loaded from; a custom spot's is
+  /// the region it was made in (core/region.dart). Polar sites: the default.
+  final Region region;
+
+  /// Where the horizon mask comes from, as the badge and mask source name it
+  /// (polar presets: [kPolarMaskSource]).
+  final String maskSource;
+
+  /// The named feature the site lies in or near, as its source names it
+  /// (global presets, e.g. 'Hadley–Apennine'; '' for polar sites).
+  final String place;
+
+  /// 'near', 'far' or 'limb' from the 18.6-year Earth-visible share on a flat
+  /// horizon (100 %, 0 %, anything else); '' for polar sites.
+  final String side;
+
   const Site({
     required this.id,
     required this.name,
@@ -50,9 +72,16 @@ class Site {
     this.longTermBothPct = double.nan,
     this.sources = const [],
     this.custom = false,
+    this.region = Region.southPole,
+    this.maskSource = kPolarMaskSource,
+    this.place = '',
+    this.side = '',
   });
 
-  factory Site.fromJson(Map<String, dynamic> j) {
+  /// One catalogue row. [region] is the catalogue's; [maskSource] the file's
+  /// default, overridden by the row's own `maskSource` ([kPolarMaskSource]
+  /// when neither names one).
+  factory Site.fromJson(Map<String, dynamic> j, {Region region = Region.southPole, String? maskSource}) {
     double d(String k) => (j[k] as num?)?.toDouble() ?? double.nan;
     return Site(
       id: j['id'] as String,
@@ -76,6 +105,10 @@ class Site {
         for (final s in (j['sources'] as List? ?? const []))
           SiteSource((s['title'] ?? '') as String, (s['url'] ?? '') as String, (s['says'] ?? '') as String)
       ],
+      region: region,
+      maskSource: (j['maskSource'] ?? maskSource ?? kPolarMaskSource) as String,
+      place: (j['place'] ?? '') as String,
+      side: (j['side'] ?? '') as String,
     );
   }
 
@@ -96,29 +129,45 @@ class SiteCatalog {
   final List<double> heightsM;
   final String demDescription;
 
-  SiteCatalog(this.groups, this.sites, this.masks, this.heightsM, this.demDescription);
+  /// The region every site of this catalogue belongs to.
+  final Region region;
 
-  factory SiteCatalog.parse(String sitesJson, String horizonsJson) {
+  SiteCatalog(this.groups, this.sites, this.masks, this.heightsM, this.demDescription, {this.region = Region.southPole});
+
+  /// Parse a catalogue: the polar one (`assets/data/sites.json`, the default
+  /// [region]) or the global one (`assets/data/global/sites.json`, see
+  /// docs/global_data_contract.md). A mask's source is its site's
+  /// [Site.maskSource] (the row's `maskSource`, else the file's top-level
+  /// `maskSource`, else [kPolarMaskSource]) plus the observer height, so the
+  /// polar file parses exactly as before.
+  factory SiteCatalog.parse(String sitesJson, String horizonsJson, {Region region = Region.southPole}) {
     final s = jsonDecode(sitesJson) as Map<String, dynamic>;
     final h = jsonDecode(horizonsJson) as Map<String, dynamic>;
     final step = (h['azStepDeg'] as num).toDouble();
     final heights = [for (final x in h['heightsM'] as List) (x as num).toDouble()];
     final dem = (s['dem'] ?? '') as String;
+    final fileMaskSource = (s['maskSource'] ?? kPolarMaskSource) as String;
+    final sites = [
+      for (final x in s['sites'] as List) Site.fromJson(x as Map<String, dynamic>, region: region, maskSource: fileMaskSource)
+    ];
+    final maskSourceOf = {for (final st in sites) st.id: st.maskSource};
     final masks = <String, Map<double, HorizonMask>>{};
     (h['masks'] as Map<String, dynamic>).forEach((id, byHeight) {
       final m = <double, HorizonMask>{};
+      final src = maskSourceOf[id] ?? fileMaskSource;
       (byHeight as Map<String, dynamic>).forEach((hk, centi) {
         final hm = double.parse(hk);
-        m[hm] = HorizonMask.fromCentideg(step, centi as List, source: 'LOLA 80 m + 240 m DEM, ${hk}m observer');
+        m[hm] = HorizonMask.fromCentideg(step, centi as List, source: '$src, ${hk}m observer');
       });
       masks[id] = m;
     });
     return SiteCatalog(
       [for (final g in (s['groups'] as List? ?? const [])) SiteGroup(g['id'] as String, g['name'] as String, (g['note'] ?? '') as String)],
-      [for (final x in s['sites'] as List) Site.fromJson(x as Map<String, dynamic>)],
+      sites,
       masks,
       heights,
       dem,
+      region: region,
     );
   }
 

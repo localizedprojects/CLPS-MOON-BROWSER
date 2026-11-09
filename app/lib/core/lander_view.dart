@@ -20,8 +20,9 @@ import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'constants.dart';
-import 'dem.dart' show rM, latLonToXY;
+import 'dem.dart' show rM, latLonToXY, latLonToXYIn;
 import 'geo.dart';
+import 'map_frame.dart';
 import 'horizon_compute.dart' show coarseMaxM, coarseDistances;
 import 'relief.dart' show hillshadeRow;
 import 'shadow.dart' show GridWindow, blockMeanRow, gridPixelOf, gridWindowAround;
@@ -117,6 +118,11 @@ const int landerSubMaxK = 8;
 /// Side of the near patch (400 m px): the light engine's close-up window.
 const int landerNearPx = 320;
 
+/// A whole-Moon tile's edge counts as the visible skyline at an azimuth
+/// ([LanderMesh.demEndSeen]) when the ground in its last [landerDemEndStretchM]
+/// rises to within [landerDemEndSeenTolDeg] of the drawn skyline there.
+const double landerDemEndStretchM = 5000, landerDemEndSeenTolDeg = 0.1;
+
 /// Side (px) of the far patch on a grid of [pxM] metres: 2 x [coarseMaxM].
 int landerFarPx(double pxM) => (2 * coarseMaxM / pxM).ceil();
 
@@ -162,6 +168,24 @@ V3 mapPointM(double xM, double yM, double hM) {
   final lam = math.atan2(xM, yM);
   final r = rM + hM, sg = math.sin(g);
   return V3(r * sg * math.cos(lam), r * sg * math.sin(lam), -r * math.cos(g));
+}
+
+/// [mapPointM] for a grid laid out in [frame] (`map_frame.dart`; a global
+/// Lander tile): Qᵀ of the frame point, so the vertex sits at its true
+/// body-fixed position. Exactly [mapPointM] for [MapFrame.southPole] (an
+/// identity early return).
+V3 mapPointMIn(MapFrame frame, double xM, double yM, double hM) {
+  final p = mapPointM(xM, yM, hM);
+  if (frame.isIdentity) return p;
+  return frame.toBody(p);
+}
+
+/// [gridPixelOf] (shadow.dart) for a grid laid out in [frame]; exactly
+/// [gridPixelOf] for [MapFrame.southPole].
+(double, double) gridPixelOfIn(MapFrame frame, int gridSize, double pxM, double latDeg, double lonDeg) {
+  if (frame.isIdentity) return gridPixelOf(gridSize, pxM, latDeg, lonDeg);
+  final (x, y) = latLonToXYIn(frame, latDeg, lonDeg);
+  return (gridSize / 2 - 0.5 - y / pxM, x / pxM + gridSize / 2 - 0.5);
 }
 
 /// Fractional (row, col) of map (x, y) on [p]'s grid, and the cell's
@@ -234,8 +258,9 @@ class LanderCamera {
   const LanderCamera(this.latDeg, this.lonDeg, this.groundM, this.eyeHeightM, this.enu, this.eyeM);
 }
 
-LanderCamera landerCamera(TerrainPatch near, double latDeg, double lonDeg, double observerHeightM) {
-  final (x, y) = latLonToXY(latDeg, lonDeg);
+LanderCamera landerCamera(TerrainPatch near, double latDeg, double lonDeg, double observerHeightM,
+    {MapFrame frame = MapFrame.southPole}) {
+  final (x, y) = frame.isIdentity ? latLonToXY(latDeg, lonDeg) : latLonToXYIn(frame, latDeg, lonDeg);
   final g = patchBilinearAt(near, x, y);
   if (g.isNaN) throw ArgumentError('site outside the terrain patch');
   return LanderCamera(latDeg, lonDeg, g, observerHeightM, Enu.at(latDeg, lonDeg), unitUp(latDeg, lonDeg) * (rM + g + observerHeightM));
@@ -277,6 +302,13 @@ class LanderMesh {
   // from 0 m; part 0 is then the split cells near the eye's foot)
   final Float64List skyline;
   final List<({double az0, double az1, double distM})> demEnds;
+
+  /// A whole-Moon tile's (non-identity [MapFrame]) only: per 0.5° azimuth, 1
+  /// where the tile's edge is the drawn skyline (its last
+  /// [landerDemEndStretchM] reach [skyline] within [landerDemEndSeenTolDeg]),
+  /// 0 where nearer ground hides it. Null for the polar DEM, whose data-end
+  /// line is drawn along every DEM end, as before.
+  final Uint8List? demEndSeen;
   final int gridVerticesBeforeCull;
   final int demSize; // the fine (400 m) grid; part 2 uses demSize ~/ 2 at 2 x demPxM
   final double demPxM;
@@ -286,7 +318,16 @@ class LanderMesh {
   final Float32List? relief;
   const LanderMesh(this.cam, this.e, this.n, this.u, this.alpha, this.part, this.src, this.w, this.tri, this.sectors,
       this.skyline, this.demEnds, this.gridVerticesBeforeCull, this.demSize, this.demPxM,
-      {this.relief});
+      {this.relief, this.demEndSeen});
+
+  /// Whether the data-end line may be drawn at [azDeg]: always for the polar
+  /// DEM ([demEndSeen] null); for a whole-Moon tile only where its edge is
+  /// the visible skyline.
+  bool demEndSeenAt(double azDeg) {
+    final s = demEndSeen;
+    if (s == null) return true;
+    return s[((azDeg % 360.0) / 0.5).round() % s.length] == 1;
+  }
 
   int get vertexCount => e.length;
   int get triangleCount => tri.length ~/ 3;
@@ -509,6 +550,11 @@ class LanderMeshWork {
   /// a pure function of (DEM, site, this height, [cull]).
   final double observerHeightM;
   final bool cull;
+
+  /// The map frame [heights] is laid out in (`map_frame.dart`): the polar
+  /// DEM's own ([MapFrame.southPole], the default; every step is then the
+  /// polar code's own) or a global Lander tile's, centred on its site.
+  final MapFrame frame;
   // a raised eye (D22): no lattice (400 m cells everywhere), every drawn triangle in the skyline, all solid
   late final bool _raised = observerHeightM >= landerRaisedEyeMinM;
   late final TerrainPatch near, far;
@@ -533,6 +579,8 @@ class LanderMeshWork {
   late final Float64List _sinA, _cosA;
   final List<double> _endDist = List.filled(720, double.nan);
   List<({double az0, double az1, double distM})> _ends = const [];
+  // a whole-Moon tile's only (null for the polar DEM): see LanderMesh.demEndSeen
+  Uint8List? _endSeen;
   Int32List? _sweep;
   late final Uint8List _keep;
   // the chunked sort and compaction (§8)
@@ -557,11 +605,12 @@ class LanderMeshWork {
   int _phase = 0, _unit = 0;
 
   LanderMeshWork(this.heights, this.demSize, this.demPxM,
-      {required this.latDeg, required this.lonDeg, required this.observerHeightM, this.cull = true}) {
-    final (nr, nc) = gridPixelOf(demSize, demPxM, latDeg, lonDeg);
+      {required this.latDeg, required this.lonDeg, required this.observerHeightM, this.cull = true,
+      this.frame = MapFrame.southPole}) {
+    final (nr, nc) = gridPixelOfIn(frame, demSize, demPxM, latDeg, lonDeg);
     near = _emptyPatch(demSize, demPxM, 1, gridWindowAround(demSize, nr, nc, landerNearPx));
     final fs = demSize ~/ 2, fp = demPxM * 2;
-    final (fr, fc) = gridPixelOf(fs, fp, latDeg, lonDeg);
+    final (fr, fc) = gridPixelOfIn(frame, fs, fp, latDeg, lonDeg);
     far = _emptyPatch(demSize, demPxM, 2, gridWindowAround(fs, fr, fc, landerFarPx(fp)));
     final sN = near.side, sF = far.side;
     _nL = 1 + landerNearRingsM.length * landerNearSpokes;
@@ -599,7 +648,7 @@ class LanderMeshWork {
       (() => sF, (i) => _patchRow(far, heights, demSize, i)),
       (() => sN, (i) => _hillshadeRow(near, i, _hsN)),
       (() => sF, (i) => _hillshadeRow(far, i, _hsF)),
-      (() => 1, (_) => cam = landerCamera(near, latDeg, lonDeg, observerHeightM)),
+      (() => 1, (_) => cam = landerCamera(near, latDeg, lonDeg, observerHeightM, frame: frame)),
       (() => sN, (i) => _pixelRow(near, _bNP, i)),
       (() => sN - 1, (i) => _centreRow(near, _bNC, i)),
       (() => sF, (i) => _pixelRow(far, _bFP, i)),
@@ -695,7 +744,7 @@ class LanderMeshWork {
   void _pixelRow(TerrainPatch p, int base, int i) {
     for (var j = 0; j < p.side; j++) {
       final (x, y) = gridCentreM(p.gridSize, p.pxM, p.r0 + i, p.c0 + j);
-      _setVertex(base + i * p.side + j, mapPointM(x, y, p.h[i * p.side + j]));
+      _setVertex(base + i * p.side + j, _point(x, y, p.h[i * p.side + j]));
     }
   }
 
@@ -705,12 +754,15 @@ class LanderMeshWork {
       final (x, y) = gridCentreM(p.gridSize, p.pxM, p.r0 + i, p.c0 + j);
       final h = p.h, k = i * s + j;
       final hm = (h[k] + h[k + 1] + h[k + s] + h[k + s + 1]) / 4;
-      _setVertex(base + i * (s - 1) + j, mapPointM(x + p.pxM / 2, y - p.pxM / 2, hm));
+      _setVertex(base + i * (s - 1) + j, _point(x + p.pxM / 2, y - p.pxM / 2, hm));
     }
   }
 
+  /// The body-fixed point at map (x, y) of [frame] and height h.
+  V3 _point(double x, double y, double h) => frame.isIdentity ? mapPointM(x, y, h) : mapPointMIn(frame, x, y, h);
+
   void _lattice() {
-    final (sx, sy) = latLonToXY(latDeg, lonDeg);
+    final (sx, sy) = frame.isIdentity ? latLonToXY(latDeg, lonDeg) : latLonToXYIn(frame, latDeg, lonDeg);
     final en = cam.enu;
     void put(int id, double x, double y) {
       final (r, c, (a, b, d, e)) = _fanAt(near, x, y, clamp: true)!;
@@ -722,7 +774,7 @@ class LanderMeshWork {
         _latW[4 * id + q] = ws[q];
         hh += ws[q] * hs[q];
       }
-      _setVertex(id, mapPointM(x, y, hh));
+      _setVertex(id, _point(x, y, hh));
     }
 
     put(0, sx, sy);
@@ -733,6 +785,11 @@ class LanderMeshWork {
         final ux = ct * en.up.x + st * (ca * en.north.x + sa * en.east.x);
         final uy = ct * en.up.y + st * (ca * en.north.y + sa * en.east.y);
         final uz = ct * en.up.z + st * (ca * en.north.z + sa * en.east.z);
+        if (!frame.isIdentity) {
+          final v = frame.toFrame(V3(ux, uy, uz)), kf = 2.0 * rM / (1.0 - v.z);
+          put(1 + ri * landerNearSpokes + s, kf * v.y, kf * v.x);
+          continue;
+        }
         final k = 2.0 * rM / (1.0 - uz);
         put(1 + ri * landerNearSpokes + s, k * uy, k * ux);
       }
@@ -863,15 +920,41 @@ class LanderMeshWork {
         final ux = ct * en.up.x + st * (ca * en.north.x + sa * en.east.x);
         final uy = ct * en.up.y + st * (ca * en.north.y + sa * en.east.y);
         final uz = ct * en.up.z + st * (ca * en.north.z + sa * en.east.z);
-        final kk = 2.0 * rM / (1.0 - uz);
-        final col = kk * uy / demPxM + half - 0.5, row = half - 0.5 - kk * ux / demPxM;
+        // the tile's own frame (MapFrame): south-polar for the pole, centred
+        // on the site for a whole-Moon tile, as in _lattice
+        final v = frame.isIdentity ? V3(ux, uy, uz) : frame.toFrame(V3(ux, uy, uz));
+        final kk = 2.0 * rM / (1.0 - v.z);
+        final col = kk * v.y / demPxM + half - 0.5, row = half - 0.5 - kk * v.x / demPxM;
         if (row < 0 || col < 0 || row > demSize - 1 || col > demSize - 1) {
           _endDist[i] = dist;
+          if (!frame.isIdentity) _seeEnd(i, dist, ca, sa, d);
           break;
         }
       }
     }
     if (k == 89) _ends = _mergeEnds(_endDist);
+  }
+
+  /// A whole-Moon tile only: whether its edge, [end] m out at azimuth step
+  /// [i] (cos/sin [ca], [sa]), is the drawn skyline: the highest ground of
+  /// the far patch in the last [landerDemEndStretchM] before it (seen from
+  /// the eye, on the sphere, as computeCoarseHorizon) against [_sky].
+  void _seeEnd(int i, double end, double ca, double sa, List<double> d) {
+    final en = cam.enu, r0 = rM + cam.groundM + cam.eyeHeightM;
+    var best = double.negativeInfinity;
+    for (final x in d) {
+      if (x >= end) break;
+      if (x < end - landerDemEndStretchM) continue;
+      final t = x / rM, ct = math.cos(t), st = math.sin(t);
+      final v = frame.toFrame(V3(ct * en.up.x + st * (ca * en.north.x + sa * en.east.x),
+          ct * en.up.y + st * (ca * en.north.y + sa * en.east.y), ct * en.up.z + st * (ca * en.north.z + sa * en.east.z)));
+      final kk = 2.0 * rM / (1.0 - v.z);
+      final h = patchBilinearAt(far, kk * v.y, kk * v.x);
+      if (h.isNaN) continue;
+      final r = rM + h, el = math.atan2(r * ct - r0, r * st) * rad;
+      if (el > best) best = el;
+    }
+    (_endSeen ??= Uint8List(720))[i] = best >= _sky[i] - landerDemEndSeenTolDeg ? 1 : 0;
   }
 
   void _push(double key, int id) {
@@ -1129,7 +1212,7 @@ class LanderMeshWork {
     _sec = const [];
     _mesh = LanderMesh(cam, _oe, _on, _ou, _oal, _part, _src, _ow, _tri, _secOut,
         Float64List.fromList(_sky), _ends, _bSub - _nL + _nSub, demSize, demPxM,
-        relief: _orl);
+        relief: _orl, demEndSeen: _endSeen);
     // the work buffers are not needed any more
     _buf = _asc = _remap = Int32List(0);
     _hsN = _hsF = Float32List(0);
@@ -1163,9 +1246,10 @@ List<({double az0, double az1, double distM})> _mergeEnds(List<double> d) {
 }
 
 LanderMesh buildLanderMesh(Int16List heights, int demSize, double demPxM,
-    {required double latDeg, required double lonDeg, required double observerHeightM, bool cull = true}) {
+    {required double latDeg, required double lonDeg, required double observerHeightM, bool cull = true,
+    MapFrame frame = MapFrame.southPole}) {
   final w = LanderMeshWork(heights, demSize, demPxM,
-      latDeg: latDeg, lonDeg: lonDeg, observerHeightM: observerHeightM, cull: cull);
+      latDeg: latDeg, lonDeg: lonDeg, observerHeightM: observerHeightM, cull: cull, frame: frame);
   while (!w.step(1 << 30)) {}
   return w.mesh;
 }

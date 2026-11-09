@@ -1,0 +1,158 @@
+{
+ "generatedUtc": "2026-11-09T00:00:00Z",
+ "synthetic": true,
+ "note": "SYNTHETIC TEST FIXTURE: made-up values for app tests (WP0); not data, never bundled.",
+ "region": "wholeMoon",
+ "frame": "MOON_ME (LOLA DE421 mean-Earth compatible)",
+ "coordinateFrameNote": "SYNTHETIC: coordinates made up for tests.",
+ "dem": "SYNTHETIC terrain (sum of sines)",
+ "maskSource": "SYNTHETIC two-scale terrain",
+ "observerHeightsM": [
+  2.0,
+  10.0
+ ],
+ "azStepDeg": 0.25,
+ "longTermPeriod": "SYNTHETIC period (values made up)",
+ "coordinateSource": {
+  "title": "SYNTHETIC test fixture (not a source)",
+  "url": "https://example.invalid/synthetic",
+  "says": "SYNTHETIC: this value was made up for a test.",
+  "licence": "none (synthetic)"
+ },
+ "groups": [
+  {
+   "id": "apollo",
+   "name": "Apollo (crewed landings)",
+   "note": "SYNTHETIC group note."
+  },
+  {
+   "id": "robotic",
+   "name": "Robotic landers 1966–76 (Surveyor, Luna)",
+   "note": "SYNTHETIC group note."
+  },
+  {
+   "id": "international",
+   "name": "Other countries' programmes",
+   "note": "SYNTHETIC group note."
+  },
+  {
+   "id": "commercial",
+   "name": "Commercial (CLPS)",
+   "note": "SYNTHETIC group note."
+  }
+ ],
+ "sites": [
+  {
+   "id": "apollo-11-lm",
+   "name": "SYNTHETIC Apollo 11 stand-in",
+   "short": "SYNTHETIC A11",
+   "group": "apollo",
+   "kind": "landed",
+   "confidence": "high",
+   "tier": "core",
+   "lat": 0.67,
+   "lon": 23.47,
+   "place": "SYNTHETIC Mare",
+   "side": "near",
+   "earthFlatPct": 100.0,
+   "nearField": {
+    "source": "SYNTHETIC near field",
+    "pxM": 59.0,
+    "halfWidthKm": 20.0,
+    "sha256": "6881f8259e6606a301979210e66e03bf734309784f32495a2ad1825fa6b66bf4"
+   },
+   "terrainHeightM": -1493.3,
+   "slopeDeg": 3.0,
+   "horizonMaxDeg": 2.06,
+   "horizonMaxAzDeg": 17.75,
+   "horizonMaxDistanceKm": 12.0,
+   "horizonMeanDeg": 1.2,
+   "longTermSunlitPct": 50.0,
+   "longTermEarthPct": 100.0,
+   "longTermBothPct": 50.0,
+   "notes": "SYNTHETIC TEST FIXTURE: made-up values for app tests (WP0); not data, never bundled.",
+   "sources": [
+    {
+     "title": "SYNTHETIC test fixture (not a source)",
+     "url": "https://example.invalid/synthetic",
+     "says": "SYNTHETIC: this value was made up for a test."
+    }
+   ]
+  },
+  {
+   "id": "change-4",
+   "name": "SYNTHETIC Chang'e-4 stand-in (far side)",
+   "short": "SYNTHETIC CE-4",
+   "group": "international",
+   "kind": "landed",
+   "confidence": "high",
+   "tier": "core",
+   "lat": -45.44,
+   "lon": 177.6,
+   "place": "SYNTHETIC Crater",
+   "side": "far",
+   "earthFlatPct": 0.0,
+   "nearField": {
+    "source": "SYNTHETIC near field",
+    "pxM": 59.0,
+    "halfWidthKm": 20.0,
+    "sha256": "e736ed03fc466915305341a72030f2e9d47cab7c0aebc7cd298de22729d6df04"
+   },
+   "terrainHeightM": -1954.4,
+   "slopeDeg": 3.0,
+   "horizonMaxDeg": 4.08,
+   "horizonMaxAzDeg": 225.5,
+   "horizonMaxDistanceKm": 12.0,
+   "horizonMeanDeg": 2.5,
+   "longTermSunlitPct": 48.0,
+   "longTermEarthPct": 0.0,
+   "longTermBothPct": 0.0,
+   "notes": "SYNTHETIC TEST FIXTURE: made-up values for app tests (WP0); not data, never bundled.",
+   "sources": [
+    {
+     "title": "SYNTHETIC test fixture (not a source)",
+     "url": "https://example.invalid/synthetic",
+     "says": "SYNTHETIC: this value was made up for a test."
+    }
+   ]
+  },
+  {
+   "id": "synthetic-limb-90e",
+   "name": "SYNTHETIC east-limb site",
+   "short": "SYNTHETIC limb",
+   "group": "robotic",
+   "kind": "landed",
+   "confidence": "high",
+   "tier": "core",
+   "lat": 0.0,
+   "lon": 90.0,
+   "place": "SYNTHETIC Limb",
+   "side": "limb",
+   "earthFlatPct": 46.0,
+   "nearField": {
+    "source": "none",
+    "pxM": 59.0,
+    "halfWidthKm": 20.0,
+    "sha256": "0ae6fc4fa2304aa132924dfd7d3597d55152f406fa6fa811c73513da9f301249"
+   },
+   "terrainHeightM": -1500.0,
+   "slopeDeg": 3.0,
+   "horizonMaxDeg": 1.45,
+   "horizonMaxAzDeg": 89.75,
+   "horizonMaxDistanceKm": 12.0,
+   "horizonMeanDeg": 0.8,
+   "longTermSunlitPct": 49.0,
+   "longTermEarthPct": 44.0,
+   "longTermBothPct": 21.0,
+   "notes": "SYNTHETIC TEST FIXTURE: made-up values for app tests (WP0); not data, never bundled.",
+   "sources": [
+    {
+     "title": "SYNTHETIC test fixture (not a source)",
+     "url": "https://example.invalid/synthetic",
+     "says": "SYNTHETIC: this value was made up for a test."
+    }
+   ],
+   "maskSource": "SYNTHETIC LDEM_64 only (474 m)"
+  }
+ ]
+}

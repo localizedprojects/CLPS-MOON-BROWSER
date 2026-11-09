@@ -2,7 +2,9 @@
 ///
 /// Every number here is measured, not estimated: sources are
 /// app/assets/data/validation.json, app/test/core/shadow_test.dart and
-/// formula.md (each section names its formula.md section). Keep this in step
+/// formula.md (each section names its formula.md section). The Whole Moon
+/// section has no measured number in it: those are read from
+/// assets/data/global/validation.json where they are shown. Keep this in step
 /// with README.md ("Scope", "How it works", "Validation") when they change.
 library;
 
@@ -17,11 +19,14 @@ class CalcSection {
   const CalcSection({required this.title, required this.plain, required this.maths, required this.accuracy, required this.ref});
 }
 
-/// Opening statement: what the calculations answer and how the terrain enters.
+/// Opening statement: what the calculations answer and how the terrain enters
+/// (for both regions since 1.14.0; the last section says what changes away
+/// from the pole).
 const calcScope =
     'Every calculation in this app answers one question: when do sunlight and a line of sight to Earth reach a '
-    'spot near the Moon\'s south pole? The ground enters only through its shape: NASA\'s laser-measured heights '
-    'give the skyline around each spot and the shadows across the map.';
+    'spot on the Moon, near its south pole or, in Whole Moon, anywhere else? The ground enters only through its '
+    'shape: NASA\'s laser-measured heights give the skyline around each spot and, at the south pole, the shadows '
+    'across the map.';
 
 /// What the app does not model (shown as a short list under the scope).
 const calcNotModelled = [
@@ -213,5 +218,32 @@ const calcSections = <CalcSection>[
         '(drawn dashed for reference) by about 1° and up to 5° on sharp rims; the callout words use the precise '
         'mask, and say so when the drawn terrain disagrees.',
     ref: 'formula.md §12.11; docs/landers_view_spec.md',
+  ),
+  // 1.14.0 "Whole Moon". No measured number here: the badges and the
+  // Validation page print them from global/validation.json.
+  CalcSection(
+    title: 'The whole Moon',
+    plain: 'Whole Moon runs the same calculations as the south pole: the same Sun and Earth directions, the same '
+        'skyline test, the same day counts and the same score. What changes is where the sites and the skylines come '
+        'from. Each site\'s coordinates are the LROC catalogue\'s, measured on LROC images of the landers. Its skyline '
+        'is worked out once by the data pipeline from two scales of NASA terrain: a detailed grid near the site and a '
+        'coarser global grid out to the far horizon; the badge on each site names the grids it used. A spot you add in '
+        'Whole Moon gets a rougher skyline, computed on this device from a coarse whole-Moon grid. The two regions are '
+        'never ranked together: each list, top pick and contrast row sees only its own sites. Away from the pole the '
+        'Sun climbs steeply through the skyline, so a skyline error moves sunrise by minutes; at the pole, where the '
+        'Sun skims along the skyline, the same error can move it by days. The Light & shadow map is not computed for '
+        'Whole Moon sites.',
+    maths: [
+      'mask(az) = highest terrain elevation angle along az: detailed grid near the site, global grid beyond, eye at '
+          'the observer height above the terrain',
+      'north = toward the north pole (increasing latitude); azimuth clockwise from north, as at the pole',
+      'Earth overlay = share of the long-term period with Earth above a level horizon (no terrain)',
+      'ranking: rank(South pole sites) and rank(Whole Moon sites) separately, same weights',
+      'sunrise shift ≈ skyline error / rate at which the Sun\'s elevation climbs at sunrise',
+    ],
+    accuracy: 'Approximate, and labelled so: the Whole Moon part of the Validation page gives the measured '
+        'differences between the pipeline skylines, the coarse-grid skylines and the on-device ones, and checks the '
+        'Sun and Earth directions at Whole Moon sites against SPICE and JPL Horizons.',
+    ref: 'docs/global_data_contract.md §2–4 and §11',
   ),
 ];

@@ -2,7 +2,10 @@
 /// marker. Nothing is computed: it is the same image as the main map, cropped
 /// (shaded relief from NASA LOLA laser-altimeter elevations, 320 m per pixel,
 /// lit by an artificial light from the upper left with heights exaggerated
-/// ×2; not a photo).
+/// ×2; not a photo). A Whole Moon site (1.14.0) shows its bundled thumbnail
+/// instead (`global/thumbs/<id>.webp`: 128 px, ±20 km from the near-field
+/// LOLA window, north up), with its group's marker; a global custom spot, or
+/// a thumbnail that cannot be read, shows the plain panel and the marker.
 library;
 
 import 'dart:math' as math;
@@ -13,8 +16,10 @@ import 'package:provider/provider.dart';
 
 import '../core/catalog.dart';
 import '../core/dem.dart';
+import '../core/region.dart';
 import '../state/app_state.dart';
 import '../theme.dart';
+import 'global_map_view.dart' show globalMarkerPath;
 import 'glyphs.dart';
 
 class TerrainThumb extends StatelessWidget {
@@ -27,8 +32,9 @@ class TerrainThumb extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final layers = context.select((AppState s) => s.mapLayers);
     final radius = BorderRadius.circular(math.min(PH.radiusCard, size * 0.17));
+    if (site.region == Region.wholeMoon) return _global(radius);
+    final layers = context.select((AppState s) => s.mapLayers);
     return Semantics(
       label: 'Shaded relief around ${site.short} (from NASA LOLA elevations, not a photo)',
       image: true,
@@ -45,6 +51,57 @@ class TerrainThumb extends StatelessWidget {
       ),
     );
   }
+}
+
+extension on TerrainThumb {
+  /// The Whole Moon thumbnail: the bundled image (none for a custom spot) under
+  /// the group's marker.
+  Widget _global(BorderRadius radius) {
+    const plain = ColoredBox(color: PH.panelHi);
+    return Semantics(
+      label: site.custom
+          ? 'Marker for ${site.short} (no terrain picture for a custom spot)'
+          : 'Shaded relief around ${site.short} (from NASA LOLA elevations, not a photo)',
+      image: true,
+      child: ClipRRect(
+        borderRadius: radius,
+        child: SizedBox.square(
+          dimension: size,
+          child: CustomPaint(
+            foregroundPainter: _GlobalMarkPainter(site),
+            child: site.custom
+                ? plain
+                : Image.asset('assets/data/global/thumbs/${site.id}.webp',
+                    fit: BoxFit.cover,
+                    gaplessPlayback: true,
+                    excludeFromSemantics: true,
+                    errorBuilder: (_, _, _) => plain),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// The global group marker at the centre of a Whole Moon thumbnail.
+class _GlobalMarkPainter extends CustomPainter {
+  final Site site;
+  _GlobalMarkPainter(this.site);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final c = size.center(Offset.zero);
+    final r = math.max(4.0, size.shortestSide * 0.075);
+    final marker = globalMarkerPath(site, c, r);
+    canvas.drawPath(marker, Paint()..color = site.custom ? PH.both : PH.text);
+    canvas.drawPath(marker, Paint()
+      ..color = Colors.black
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.2);
+  }
+
+  @override
+  bool shouldRepaint(covariant _GlobalMarkPainter old) => old.site.id != site.id;
 }
 
 class _ThumbPainter extends CustomPainter {

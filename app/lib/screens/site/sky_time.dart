@@ -13,19 +13,21 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/region.dart';
 import '../../core/wording.dart' show dsnResolutionNote;
 import '../../state/app_state.dart';
 import '../../state/chart_hub.dart';
 import '../../theme.dart';
 import '../../widgets/chart_focus.dart';
 import '../../widgets/expert_numbers.dart';
+import '../../widgets/global_map_view.dart' show globalFarSideText, globalHorizonBadge;
 import '../../widgets/explain.dart';
 import '../../widgets/now_status.dart';
 import '../../widgets/time_bar.dart';
 import '../../widgets/feature_guide.dart';
 import '../../widgets/keyboard_focus_ring.dart';
 
-/// The sky plot's explanation (the shared Learn card; a hollow marker means
+/// The polar sky plot's explanation (the shared Learn card; a hollow marker means
 /// "does not count" under the user's rules).
 const explainSkyTime = explainSky;
 
@@ -310,17 +312,14 @@ class _SkyTimeTabState extends State<SkyTimeTab> {
         semanticsLabel: timelineChartLabel,
         title: 'Timeline',
         landscape: true); // the elevation "waves" read across, not up (user, 2026-10-13)
-    final notes = <Widget>[
-      if (s.site.custom) const FidelityBadge(text: FidelityBadge.customHorizon),
-      if (s.options.requireDsn) const FidelityBadge(text: dsnResolutionNote),
-    ];
+    final notes = skyTimeNotes(s);
     final short = MediaQuery.sizeOf(context).height < skyTimeCompactBarHeight;
     final bar = TimeBar(state: s, compact: short);
     List<Widget> column(double width, {double? paneHeight, bool dense = false}) {
       final skyH = skyPanelHeight(width, paneHeight);
       return [
         if (!dense) ...notes,
-        if (s.explainInline) explainSkyTime,
+        if (s.explainInline) explainSkyFor(s.site.region),
         // on a wide pane the (square) plot is centred, not full width: the
         // margins beside it take the mouse wheel (the chart, a web view on
         // the web, swallows it), and its height is capped so the timeline
@@ -380,11 +379,11 @@ class _SkyTimeTabState extends State<SkyTimeTab> {
                                 ),
                                 ...notes,
                                 if (s.explainInline)
-                                  const Row(
+                                  Row(
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
-                                      Expanded(child: explainSkyTime),
-                                      Expanded(child: explainTimeline),
+                                      Expanded(child: explainSkyFor(s.site.region)),
+                                      const Expanded(child: explainTimeline),
                                     ],
                                   ),
                                 if (s.expert) ExpertReadout(state: s),
@@ -437,10 +436,7 @@ class _SkyTimeTabState extends State<SkyTimeTab> {
     final exact = s.expert;
     final sky = FocusableChart(controller: hub.sky, semanticsLabel: whereChartLabel, title: 'Where to look');
     final tl = FocusableChart(controller: hub.timeline, semanticsLabel: whenChartLabel, title: 'When', landscape: true);
-    final notes = <Widget>[
-      if (s.site.custom) const FidelityBadge(text: FidelityBadge.customHorizon),
-      if (s.options.requireDsn) const FidelityBadge(text: dsnResolutionNote),
-    ];
+    final notes = skyTimeNotes(s);
     final short = MediaQuery.sizeOf(context).height < skyTimeCompactBarHeight;
     final bar = TimeBar(state: s, compact: short);
     // the single column (also the fallback when the pane is too short to pin
@@ -453,7 +449,7 @@ class _SkyTimeTabState extends State<SkyTimeTab> {
         SizedBox(
             height: timelineFrameHeight(width - chartCardChrome, exact: exact) + chartCardChrome, child: _panel(tl)),
         if (dense) ...notes,
-        if (s.explainInline) explainSkyTime,
+        if (s.explainInline) explainSkyFor(s.site.region),
         // on a wide pane the plot is centred, not full width: the margins
         // beside it take the mouse wheel (the chart, a web view on the web,
         // swallows it)
@@ -529,11 +525,11 @@ class _SkyTimeTabState extends State<SkyTimeTab> {
                                 ),
                                 ...notes,
                                 if (s.explainInline)
-                                  const Row(
+                                  Row(
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
-                                      Expanded(flex: 7, child: explainTimeline),
-                                      Expanded(flex: 5, child: explainSkyTime),
+                                      const Expanded(flex: 7, child: explainTimeline),
+                                      Expanded(flex: 5, child: explainSkyFor(s.site.region)),
                                     ],
                                   ),
                                 if (exact) ExpertReadout(state: s),
@@ -642,4 +638,26 @@ class SimpleViewSwitch extends StatelessWidget {
           subtitle: Text(on ? 'Answers in words; off for the full charts' : 'Answers in words instead of the full charts'),
         ),
       ));
+}
+
+/// The notes under Sky & time's charts: the custom-horizon and DSN badges as
+/// before; a whole-Moon site (1.14.0) gets its own horizon badge (from its
+/// catalogue's mask source) and, on the far side, the Earth line.
+List<Widget> skyTimeNotes(AppState s) {
+  final site = s.site;
+  if (site.region != Region.wholeMoon) {
+    return [
+      if (site.custom) const FidelityBadge(text: FidelityBadge.customHorizon),
+      if (s.options.requireDsn) const FidelityBadge(text: dsnResolutionNote),
+    ];
+  }
+  return [
+    FidelityBadge(text: globalHorizonBadge(site, validation: s.global?.validation, map: s.global?.map)),
+    if (s.options.requireDsn) const FidelityBadge(text: dsnResolutionNote),
+    if (site.side == 'far')
+      Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4),
+        child: Text(globalFarSideText, key: const ValueKey('far-side-sky'), style: PHText.small.copyWith(color: PH.text)),
+      ),
+  ];
 }

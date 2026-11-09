@@ -17,6 +17,10 @@ const guideSteps = <String, List<GuideStep>>{
   'explore': [
     GuideStep('pill', 'Mission settings',
         'Your dates and lander height. Tap to change the period, a 2 m lander or a 10 m mast, and the Sun, Earth and DSN rules.'),
+    // the region switch (1.14.0); returning users see it as a one-step guide
+    GuideStep('region', 'South pole or whole Moon',
+        'South pole has the detailed terrain and the light map. Whole Moon ranks the Apollo, Luna, Surveyor, '
+        'Chang\'e, SLIM, Chandrayaan-3 and CLPS landing sites.'),
     GuideStep('map', 'The south-pole map',
         'Every landing site at its real place on NASA terrain. Tap a marker to open a site, or tap anywhere south of 80°S to test your own spot.'),
     GuideStep('map-layers', 'Map layers', 'Change what the map shows, such as average sunlight or where Earth is in view.'),
@@ -30,6 +34,9 @@ const guideSteps = <String, List<GuideStep>>{
   'site.overview': [
     GuideStep('change-site', 'Change site', 'Pick another site, or one of your own spots. It opens on the same tab.'),
     GuideStep('site-tabs', 'Three views of a site', 'Overview, Sky & time and Light & shadow. Tap one, or swipe sideways.'),
+    // a whole-Moon site (1.14.0): the light map covers south-pole sites only
+    GuideStep('site-tabs-global', 'Two views of this site',
+        'Overview and Sky & time. Tap one, or swipe sideways. The Light & shadow map covers south-pole sites only.'),
     GuideStep('mission-length', 'How long you stay', 'Choose how many days the surface mission lasts.'),
     GuideStep('landing-find', 'Find the best landing window',
         'Finds the earliest landing whose whole mission keeps the Sun and Earth above the skyline.'),

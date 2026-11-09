@@ -345,6 +345,9 @@ String useDatesSnack(double startMs, double endMs, {required bool stillFits}) {
 
 const String moreTitle = 'More about this site';
 const String moreSubline = 'Which days work, the longest night, the light map';
+
+/// A whole-Moon site's More row: it has no light map (south pole only).
+const String moreSublineGlobal = 'Which days work, the longest night, the long-term record';
 const String moreHint = 'Shows the details';
 
 /// Peek line: "Sunlit 81% · Earth in view 56% · Both 42%".

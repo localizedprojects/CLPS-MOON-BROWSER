@@ -318,3 +318,81 @@ into the bundle: the text is chosen in Dart.
   `@types/node`). WP4's test is `expect(polarBaseline()).toEqual(json.entries)`
   under the same clock; `formatBaseline` writes the file's text when it is
   re-taken.
+
+## 11. The contrast card and Learn (WP2 → WP3b)
+
+Added by WP3b on 2026-11-09, because `core/contrast.dart` was not on
+`global-1.14` yet. It names what the contrast card ("Pole vs the rest",
+`app/lib/widgets/contrast_card.dart`) and Learn's "South pole vs the rest of
+the Moon" read. The card computes nothing: every number and sentence on it
+comes from the core through the seam below.
+
+**Core (`app/lib/core/contrast.dart`, WP2).** As in WP2's draft (707616c):
+
+- `ContrastInput(Site site, SiteMetrics m, double highestSunDeg)`;
+  `enum ContrastKey {sun, earth, both, longestNight, highestSun}`;
+  `ContrastCell {double value; Site? site; bool known}`;
+  `ContrastRow {ContrastKey key; String label; bool higherIsBetter; ContrastCell pole, rest; Region? better; String poleText, restText}`.
+- `List<ContrastRow> contrastRows(List<ContrastInput> pole, List<ContrastInput> rest)`:
+  each side sees only its own region's sites (a site of the wrong region is an error).
+- `double highestSunDeg(SiteSeries s)`; `double sunriseShiftMinutes(SiteSeries s, {double errorDeg = 0.3})`.
+- `GoalVerdict {Goal goal; Ranked winner; Ranked? runnerUp; int leadPoints}`;
+  `const List<Goal> verdictGoals = [Goal.power, Goal.earth, Goal.balanced]`;
+  `List<GoalVerdict> goalVerdicts(Map<String, (String, SiteMetrics)> sites, {List<Goal> goals})`;
+  `String goalVerdictLine(GoalVerdict v)`; `bool sameWinnerEveryGoal(List<GoalVerdict> vs)`.
+- **Needed in addition:** `List<GoalVerdict> regionVerdicts(List<ContrastInput> pole, List<ContrastInput> rest, {List<Goal> goals = verdictGoals})`:
+  for each goal, the winner of each region under that goal (`rank()`,
+  `weightsFor(goal)`, each region on its own), then the verdict between those
+  two winners. An automatic choice never mixes regions (plan §3); the two
+  winners are compared only to word the contrast.
+
+**AppState (WP2), needed:**
+
+- `List<ContrastInput>? contrastInputs(Region r)`: the presets of `r` (custom
+  spots left out) with their metrics under the current options and
+  `highestSunDeg` of their series; `null` until every preset of `r` has
+  metrics (for Whole Moon also while `global` is null). It never loads global
+  files by itself (plan §3, lazy loading).
+- `({Site site, double minutes})? sunriseShiftOf(Region r, {double errorDeg = 0.3})`:
+  `sunriseShiftMinutes(series, errorDeg: errorDeg)` at the region's reference
+  site (south pole: the selected polar site, else `derosa2012-sr1-shackleton-rim`;
+  Whole Moon: the selected global site, else `kGlobalDefaultSiteId`) once
+  its series is computed; `null` before, or when the series has no sunrise.
+
+(WP2's branch as of 72b1043 has `List<ContrastInput> contrastInputs(Region r)`
+that returns the sites computed so far, never `null`. At integration either
+make it return `null` until every preset of `r` is in, or check
+`rankingDone` / `globalRankingDone` in the snippet below before using it; a
+partial list must not reach the card.)
+
+**The seam (WP3b, `contrast_card.dart`).** The card and Learn read
+`ContrastFacts? contrastFactsFor(AppState s)`. `ContrastFacts` holds
+`List<ContrastLine> rows` (`key` = the `ContrastKey` name, `label`, `poleText`, `restText`, `Site? poleSite`,
+`Site? restSite`, `Region? better`: a `ContrastRow` field for field),
+`List<String> verdictLines` (`goalVerdictLine` of each `regionVerdicts`),
+`bool sameWinner` (`sameWinnerEveryGoal`), `String period` (`periodLabel`
+of the user's dates) and `sunriseShift(Region)` (`sunriseShiftOf`). Until
+WP2 lands, `contrastFactsFor` returns `null` (the card says the comparison is
+not computed yet) and the tests use a double. At integration it becomes:
+
+```dart
+ContrastFacts? contrastFactsFor(AppState s) {
+  final pole = s.contrastInputs(Region.southPole), rest = s.contrastInputs(Region.wholeMoon);
+  if (pole == null || rest == null) return null;
+  final verdicts = regionVerdicts(pole, rest);
+  return ContrastFacts(
+    rows: [for (final r in contrastRows(pole, rest))
+      ContrastLine(key: r.key.name, label: r.label, poleText: r.poleText, restText: r.restText,
+          poleSite: r.pole.site, restSite: r.rest.site, better: r.better)],
+    verdictLines: [for (final v in verdicts) goalVerdictLine(v)],
+    sameWinner: sameWinnerEveryGoal(verdicts),
+    period: periodLabel(s.rangeStartMs, s.rangeEndMs, DateTime.now().toUtc()),
+    sunriseShift: {for (final r in Region.values) r: s.sunriseShiftOf(r, errorDeg: contrastSkylineErrorDeg)},
+  );
+}
+```
+
+Learn's far-side fact reads the catalogue (`Site.side`,
+`longTermEarthPct`, `longTermBothPct`) and the validation page reads
+`global/validation.json` (section 4) directly, both only once `global` is
+loaded.

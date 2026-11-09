@@ -26,6 +26,7 @@ import '../core/place.dart' show latLonText;
 import '../core/region.dart';
 import '../core/wording.dart' show farSideEarthText, lightMapPolarOnlyText, siteKindLabel;
 import '../theme.dart';
+import 'focus_semantics.dart';
 import 'glyphs.dart';
 
 /// Mean lunar radius of the reference sphere, km (CLAUDE.md).
@@ -398,6 +399,25 @@ class _GlobalMapViewState extends State<GlobalMapView> {
     _tc.addListener(_zoomed);
   }
 
+  /// The map's size on screen (its last layout), for the zoom buttons.
+  Size? _viewSize;
+
+  /// Zoom in or out by [factor] about the view's centre, as the polar map's
+  /// buttons do, kept within 1x-8x and with the map filling the view.
+  void _zoomStep(double factor) {
+    final size = _viewSize;
+    final inv = Matrix4.tryInvert(_tc.value);
+    if (size == null || inv == null) return;
+    final s = (_scale * factor).clamp(1.0, globalMapMaxZoom);
+    final c = size.center(Offset.zero);
+    final p = MatrixUtils.transformPoint(inv, c);
+    final tx = (c.dx - s * p.dx).clamp(size.width - size.width * s, 0.0);
+    final ty = (c.dy - s * p.dy).clamp(size.height - size.height * s, 0.0);
+    _tc.value = Matrix4.diagonal3Values(s, s, 1)
+      ..setEntry(0, 3, tx)
+      ..setEntry(1, 3, ty);
+  }
+
   @override
   void dispose() {
     _tc.removeListener(_zoomed);
@@ -528,10 +548,11 @@ class _GlobalMapViewState extends State<GlobalMapView> {
       map = LayoutBuilder(
         builder: (context, c) {
           final size = c.biggest;
+          _viewSize = size;
           return InteractiveViewer(
             transformationController: _tc,
             minScale: 1,
-            maxScale: 8,
+            maxScale: globalMapMaxZoom,
             child: GestureDetector(
               behavior: HitTestBehavior.opaque,
               // a screen-reader "tap" has no position (it would land at the
@@ -632,6 +653,17 @@ class _GlobalMapViewState extends State<GlobalMapView> {
           runSpacing: 4,
           crossAxisAlignment: WrapCrossAlignment.center,
           children: [
+            // zoom without a wheel or a pinch (a switch, a head pointer, one
+            // finger), and back to the whole Moon; beside the map's other
+            // controls, not on it: on a phone the map is 164 dp tall and a
+            // corner column would hide the far-side sites
+            if (l != null)
+              _ZoomControls(
+                zoom: _scale,
+                onIn: () => _zoomStep(2),
+                onOut: () => _zoomStep(0.5),
+                onReset: () => _tc.value = Matrix4.identity(),
+              ),
             FilterChip(
               key: const ValueKey('global-earth-toggle'),
               avatar: const MeaningGlyph(GlyphKind.earth, size: 16, semantic: false),
@@ -662,6 +694,56 @@ class _GlobalMapViewState extends State<GlobalMapView> {
           if (l.synthetic) const FidelityBadge(text: 'SYNTHETIC test map: not real terrain or data.'),
         ],
       ],
+    );
+  }
+}
+
+/// The whole-Moon map's zoom limit (the polar map's is [mapMaxZoom]).
+const globalMapMaxZoom = 8.0;
+
+/// Zoom in, Zoom out and Reset zoom: the polar map's buttons (48 dp, a
+/// label each, the theme's focus ring), each disabled at its limit.
+class _ZoomControls extends StatelessWidget {
+  final double zoom;
+  final VoidCallback onIn, onOut, onReset;
+  const _ZoomControls({required this.zoom, required this.onIn, required this.onOut, required this.onReset});
+
+  @override
+  Widget build(BuildContext context) {
+    Widget button(Key key, IconData icon, String label, bool enabled, VoidCallback onTap) => Semantics(
+      key: key,
+      container: true,
+      button: true,
+      enabled: enabled,
+      label: label,
+      onTap: enabled ? onTap : null,
+      child: FocusSemantics(
+        enabled: enabled,
+        child: IconButton(
+          onPressed: enabled ? onTap : null,
+          tooltip: label,
+          icon: Icon(icon, size: 20),
+          color: PH.text,
+          disabledColor: PH.muted.withValues(alpha: 0.5),
+          constraints: const BoxConstraints.tightFor(width: 48, height: 48),
+        ),
+      ),
+    );
+    return Material(
+      color: PH.panel,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(PH.radius),
+        side: const BorderSide(color: PH.line),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          button(const ValueKey('global-zoom-in'), Icons.add, 'Zoom in', zoom < globalMapMaxZoom - 0.001, onIn),
+          button(const ValueKey('global-zoom-out'), Icons.remove, 'Zoom out', zoom > 1.001, onOut),
+          button(const ValueKey('global-zoom-reset'), Icons.crop_free, 'Reset zoom', zoom > 1.001, onReset),
+        ],
+      ),
     );
   }
 }

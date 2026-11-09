@@ -3,6 +3,8 @@
 // semantics on, the map is not a fake button whose "tap" lands at 0° N 0° E,
 // and a pointer tap on a marker still opens it.
 import 'package:flutter/material.dart';
+import 'dart:ui' show Tristate;
+
 import 'package:flutter/semantics.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:polar_horizon/theme.dart';
@@ -126,5 +128,39 @@ void main() {
         ..paragraph()
         ..path(color: PH.text),
     );
+  });
+
+  testWidgets('Zoom in, Zoom out and Reset zoom: 48 dp, labelled, each off at its limit', (tester) async {
+    final handle = tester.ensureSemantics();
+    await pumpMap(tester);
+    final viewer = tester.widget<InteractiveViewer>(find.byType(InteractiveViewer));
+    double scale() => viewer.transformationController!.value.getMaxScaleOnAxis();
+    bool on(String key) => tester.getSemantics(find.byKey(ValueKey(key))).getSemanticsData().flagsCollection.isEnabled == Tristate.isTrue;
+    for (final (key, label) in [('global-zoom-in', 'Zoom in'), ('global-zoom-out', 'Zoom out'), ('global-zoom-reset', 'Reset zoom')]) {
+      expect(tester.getSemantics(find.byKey(ValueKey(key))).label, label);
+      final r = tester.getRect(find.byKey(ValueKey(key)));
+      expect(r.width >= 48 && r.height >= 48, isTrue, reason: '$key is ${r.size}');
+    }
+    expect([on('global-zoom-in'), on('global-zoom-out'), on('global-zoom-reset')], [true, false, false]);
+    for (var i = 0; i < 3; i++) {
+      await tester.tap(find.byKey(const ValueKey('global-zoom-in')));
+      await tester.pump();
+    }
+    expect(scale(), closeTo(8, 1e-9));
+    expect([on('global-zoom-in'), on('global-zoom-out'), on('global-zoom-reset')], [false, true, true]);
+    // zoomed about the centre: the map's middle (0° N, 0° E) stays in the middle
+    final m = viewer.transformationController!.value;
+    final paint = find.descendant(of: find.byKey(const ValueKey('global-map')), matching: find.byType(CustomPaint)).first;
+    final size = tester.getSize(paint);
+    final mid = MatrixUtils.transformPoint(m, globalMapPoint(0, 0, size));
+    expect((mid - size.center(Offset.zero)).distance, lessThan(1e-6));
+    await tester.tap(find.byKey(const ValueKey('global-zoom-out')));
+    await tester.pump();
+    expect(scale(), closeTo(4, 1e-9));
+    await tester.tap(find.byKey(const ValueKey('global-zoom-reset')));
+    await tester.pump();
+    expect(viewer.transformationController!.value, Matrix4.identity());
+    expect([on('global-zoom-in'), on('global-zoom-out'), on('global-zoom-reset')], [true, false, false]);
+    handle.dispose();
   });
 }

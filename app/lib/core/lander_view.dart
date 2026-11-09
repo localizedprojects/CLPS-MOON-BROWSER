@@ -118,6 +118,11 @@ const int landerSubMaxK = 8;
 /// Side of the near patch (400 m px): the light engine's close-up window.
 const int landerNearPx = 320;
 
+/// A whole-Moon tile's edge counts as the visible skyline at an azimuth
+/// ([LanderMesh.demEndSeen]) when the ground in its last [landerDemEndStretchM]
+/// rises to within [landerDemEndSeenTolDeg] of the drawn skyline there.
+const double landerDemEndStretchM = 5000, landerDemEndSeenTolDeg = 0.1;
+
 /// Side (px) of the far patch on a grid of [pxM] metres: 2 x [coarseMaxM].
 int landerFarPx(double pxM) => (2 * coarseMaxM / pxM).ceil();
 
@@ -297,6 +302,13 @@ class LanderMesh {
   // from 0 m; part 0 is then the split cells near the eye's foot)
   final Float64List skyline;
   final List<({double az0, double az1, double distM})> demEnds;
+
+  /// A whole-Moon tile's (non-identity [MapFrame]) only: per 0.5° azimuth, 1
+  /// where the tile's edge is the drawn skyline (its last
+  /// [landerDemEndStretchM] reach [skyline] within [landerDemEndSeenTolDeg]),
+  /// 0 where nearer ground hides it. Null for the polar DEM, whose data-end
+  /// line is drawn along every DEM end, as before.
+  final Uint8List? demEndSeen;
   final int gridVerticesBeforeCull;
   final int demSize; // the fine (400 m) grid; part 2 uses demSize ~/ 2 at 2 x demPxM
   final double demPxM;
@@ -306,7 +318,16 @@ class LanderMesh {
   final Float32List? relief;
   const LanderMesh(this.cam, this.e, this.n, this.u, this.alpha, this.part, this.src, this.w, this.tri, this.sectors,
       this.skyline, this.demEnds, this.gridVerticesBeforeCull, this.demSize, this.demPxM,
-      {this.relief});
+      {this.relief, this.demEndSeen});
+
+  /// Whether the data-end line may be drawn at [azDeg]: always for the polar
+  /// DEM ([demEndSeen] null); for a whole-Moon tile only where its edge is
+  /// the visible skyline.
+  bool demEndSeenAt(double azDeg) {
+    final s = demEndSeen;
+    if (s == null) return true;
+    return s[((azDeg % 360.0) / 0.5).round() % s.length] == 1;
+  }
 
   int get vertexCount => e.length;
   int get triangleCount => tri.length ~/ 3;
@@ -558,6 +579,8 @@ class LanderMeshWork {
   late final Float64List _sinA, _cosA;
   final List<double> _endDist = List.filled(720, double.nan);
   List<({double az0, double az1, double distM})> _ends = const [];
+  // a whole-Moon tile's only (null for the polar DEM): see LanderMesh.demEndSeen
+  Uint8List? _endSeen;
   Int32List? _sweep;
   late final Uint8List _keep;
   // the chunked sort and compaction (§8)
@@ -904,11 +927,34 @@ class LanderMeshWork {
         final col = kk * v.y / demPxM + half - 0.5, row = half - 0.5 - kk * v.x / demPxM;
         if (row < 0 || col < 0 || row > demSize - 1 || col > demSize - 1) {
           _endDist[i] = dist;
+          if (!frame.isIdentity) _seeEnd(i, dist, ca, sa, d);
           break;
         }
       }
     }
     if (k == 89) _ends = _mergeEnds(_endDist);
+  }
+
+  /// A whole-Moon tile only: whether its edge, [end] m out at azimuth step
+  /// [i] (cos/sin [ca], [sa]), is the drawn skyline: the highest ground of
+  /// the far patch in the last [landerDemEndStretchM] before it (seen from
+  /// the eye, on the sphere, as computeCoarseHorizon) against [_sky].
+  void _seeEnd(int i, double end, double ca, double sa, List<double> d) {
+    final en = cam.enu, r0 = rM + cam.groundM + cam.eyeHeightM;
+    var best = double.negativeInfinity;
+    for (final x in d) {
+      if (x >= end) break;
+      if (x < end - landerDemEndStretchM) continue;
+      final t = x / rM, ct = math.cos(t), st = math.sin(t);
+      final v = frame.toFrame(V3(ct * en.up.x + st * (ca * en.north.x + sa * en.east.x),
+          ct * en.up.y + st * (ca * en.north.y + sa * en.east.y), ct * en.up.z + st * (ca * en.north.z + sa * en.east.z)));
+      final kk = 2.0 * rM / (1.0 - v.z);
+      final h = patchBilinearAt(far, kk * v.y, kk * v.x);
+      if (h.isNaN) continue;
+      final r = rM + h, el = math.atan2(r * ct - r0, r * st) * rad;
+      if (el > best) best = el;
+    }
+    (_endSeen ??= Uint8List(720))[i] = best >= _sky[i] - landerDemEndSeenTolDeg ? 1 : 0;
   }
 
   void _push(double key, int id) {
@@ -1166,7 +1212,7 @@ class LanderMeshWork {
     _sec = const [];
     _mesh = LanderMesh(cam, _oe, _on, _ou, _oal, _part, _src, _ow, _tri, _secOut,
         Float64List.fromList(_sky), _ends, _bSub - _nL + _nSub, demSize, demPxM,
-        relief: _orl);
+        relief: _orl, demEndSeen: _endSeen);
     // the work buffers are not needed any more
     _buf = _asc = _remap = Int32List(0);
     _hsN = _hsF = Float32List(0);

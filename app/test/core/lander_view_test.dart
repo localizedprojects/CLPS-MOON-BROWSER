@@ -115,6 +115,7 @@ void expectSameMesh(LanderMesh a, LanderMesh b) {
     expect(a.sectors[s], b.sectors[s]);
   }
   expect(a.demEnds, b.demEnds);
+  expect(a.demEndSeen, b.demEndSeen);
   expect(a.gridVerticesBeforeCull, b.gridVerticesBeforeCull);
   expect(a.cam.eyeM.toString(), b.cam.eyeM.toString());
 }
@@ -696,6 +697,9 @@ void main() {
       bool covers(({double az0, double az1, double distM}) r, double az) =>
           r.az0 <= r.az1 ? az >= r.az0 && az <= r.az1 : az >= r.az0 || az <= r.az1;
       expect(m.demEnds, isNotEmpty);
+      // the polar DEM draws its data-end line along every DEM end (1.14.0: only a whole-Moon tile gates it)
+      expect(m.demEndSeen, isNull);
+      expect(m.demEndSeenAt(0), isTrue);
       final north = m.demEnds.where((r) => covers(r, 0)).toList();
       expect(north, hasLength(1));
       expect(m.demEnds.where((r) => covers(r, 180)), isEmpty);

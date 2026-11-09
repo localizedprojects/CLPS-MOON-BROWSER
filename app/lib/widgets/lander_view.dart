@@ -2637,14 +2637,25 @@ class LanderPainter extends CustomPainter {
         }
         Offset? prev, mid;
         var i = 0;
+        // a whole-Moon tile (m.demEndSeen set): the run of samples in view where its edge is the
+        // visible skyline; the label goes on such a stretch (3 samples: one dash at least), or nowhere
+        var seenRun = 0;
         for (var a = e.az0; a <= a1 + 1e-9; a += 0.5, i++) {
           if (turnDelta(cam.yaw, a).abs() > span) {
             prev = null;
+            seenRun = 0;
+            continue;
+          }
+          // a whole-Moon tile: only where its edge is the visible skyline (not along a nearer ridge)
+          if (!m.demEndSeenAt(a)) {
+            prev = null;
+            seenRun = 0;
             continue;
           }
           final p = at(v, a, skylineAt(m.skyline, a));
           if (prev != null && p != null && i.isEven) canvas.drawLine(prev, p, warn);
-          if (p != null && p.dx >= 0 && p.dx <= size.width) mid ??= p;
+          seenRun = p == null ? 0 : seenRun + 1;
+          if (p != null && p.dx >= 0 && p.dx <= size.width && (m.demEndSeen == null || seenRun >= 3)) mid ??= p;
           prev = p;
         }
         if (mid != null) {

@@ -22,6 +22,7 @@
 import type { BodyNow, SkyData } from './bridge'
 import { C, FONT, HOVER, MONO } from './theme'
 import { pctShowing } from './skyCaption'
+import { isWholeSky, zoomFits } from './skyCaption'
 
 export interface ElRange {
   lo: number
@@ -37,6 +38,8 @@ const AZ_LABEL_R = 1.09
 
 /** Range for horizon zoom: covers the terrain mask and both bodies with margin. */
 export function zoomRange(mask: number[], sunEls: number[], earthEls: number[]): ElRange {
+  // 1.14.0: paths too far from the horizon to zoom (outside the south pole): the whole sky (as sky.ts)
+  if (!zoomFits(sunEls, earthEls)) return FULL_RANGE
   const all = [...mask, ...sunEls, ...earthEls].filter((x) => Number.isFinite(x))
   // a loop, not Math.min(...all): spreading tens of thousands of arguments can overflow the stack
   let mn = -3, mx = 6
@@ -323,6 +326,9 @@ export function skyHeader(d: Pick<SkyData, 'siteName' | 'timeLabel' | 'zoom'>, r
     time: d.timeLabel,
     scale: d.zoom ? `Horizon zoom ${range.lo}°…${range.hi}° (radius exaggerated)` : 'Full sky −10°…90°',
     orient: 'N points away from the pole',
+    // 1.14.0: the zoom gave way to the whole sky (zoomRange), and a global site's payload says what N means there
+    ...(d.zoom && isWholeSky(range) ? { scale: 'Full sky −10°…90° (paths too wide to zoom)' } : {}),
+    ...((d as Partial<SkyData>).northNote !== undefined ? { orient: (d as Partial<SkyData>).northNote as string } : {}),
   }
 }
 

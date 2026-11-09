@@ -366,3 +366,31 @@ describe('sky state words (science-1, science-2)', () => {
     }
   })
 })
+
+describe('northNote (1.14.0, global sites)', () => {
+  it('replaces "N = away from the pole" in the key line; polar payloads keep it', () => {
+    const r = skyRange(SR1)
+    const withNote: SkyData = { ...SR1, northNote: 'N = toward the north pole' }
+    const g = keyLine(withNote, r)
+    expect(g).toContain('Closer to the centre = higher. N = toward the north pole. Heights stretched: edge −9°, centre 8°.')
+    expect(g).not.toContain('away from the pole')
+    const noNote: SkyData = { ...SR1, northNote: undefined }
+    expect(keyLine(SR1, r)).toBe(keyLine(noNote, r))
+    expect(keyLine(SR1, r)).toContain('Closer to the centre = higher. N = away from the pole. Heights stretched')
+    expect(keyLine(HAWORTH, skyRange(HAWORTH))).toContain('N = away from the pole.')
+  })
+  it('the export figure prints the note in its key', () => {
+    const withNote: SkyData = { ...SR1, northNote: 'N = toward the north pole' }
+    const texts = annTexts(buildSky(withNote)).join('\n')
+    expect(texts).toContain('N = toward the north pole.')
+    expect(texts).not.toContain('away from the pole')
+  })
+  it('a payload with paths far from the horizon plots the whole sky even with the zoom on', () => {
+    const high = skyData(undefined, { trails: { sun: { az: [0, 180], el: [-85, 85] }, earth: { az: [2], el: [80] } } })
+    expect(skyRange(high)).toEqual(FULL_RANGE)
+    expect(buildSky(high).range).toEqual(FULL_RANGE)
+    expect(keyLine(high, FULL_RANGE)).toContain('Whole sky: edge −10°, centre straight up (no horizon zoom')
+    // the default test payload's paths stay near the horizon: zoomed as before
+    expect(skyRange(skyData())).toEqual(zoomRange([0, 1, 0, 1], [1], [2]))
+  })
+})

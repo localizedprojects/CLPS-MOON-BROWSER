@@ -294,6 +294,7 @@ Dart decides the state. Section 4 adds it to the payload. Use "hills" in short c
 | `earthLabel` | legend | bar row label, alt |
 | `rows[].longestDarkH` | **not drawn** | **now drawn**: "Longest dark 7 d" per block; Exact star hover; alt |
 | `rows[].id` | not drawn | not drawn (identity) |
+| `mixed` (1.14.0, optional) | none | `true` only for a shortlist that mixes south-pole and whole-Moon sites: the headline (screen, aria-live, alt, PNG) reads "Scores side by side (mixed regions: no single winner)", never "Best:"; left out otherwise |
 | PNG export | figure | headline + blocks + score line (Exact adds the star panel) |
 
 ### Events and Flutter context

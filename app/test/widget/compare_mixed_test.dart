@@ -3,6 +3,8 @@
 // "Mixed regions" banner with one computed verdict per goal, each naming its
 // region in words, instead of a single winner; an all-polar shortlist keeps
 // the 1.13.5 WinnerCard and no banner. Also the #/moon route round trip.
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:polar_horizon/core/ranking.dart';
@@ -37,7 +39,7 @@ void main() {
   tearDownAll(() => state.dispose());
   setUp(() => state.setGoal(Goal.balanced));
 
-  Future<void> pumpCompare(WidgetTester tester, {Size size = const Size(390, 844), double text = 1}) async {
+  Future<ChartHub> pumpCompare(WidgetTester tester, {Size size = const Size(390, 844), double text = 1}) async {
     tester.view.physicalSize = size;
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
@@ -61,6 +63,19 @@ void main() {
       ),
     ));
     await tester.pump();
+    return hub;
+  }
+
+  /// The `data` of the compare payload [hub] sends for the current shortlist
+  /// (the chart frame is faked as attached and ready).
+  Map<String, dynamic> sentCompare(ChartHub hub) {
+    final got = <Map<String, dynamic>>[];
+    hub.compare.attach((j) => got.add(jsonDecode(j) as Map<String, dynamic>), Object());
+    hub.compare.handleRaw(jsonEncode({'type': 'ready', 'view': hub.compare.view}));
+    hub.sync(state);
+    final cmp = [for (final m in got) if (m['type'] == 'compare') m];
+    expect(cmp, isNotEmpty, reason: 'the hub sent the compare payload');
+    return cmp.last['data'] as Map<String, dynamic>;
   }
 
   /// The verdict lines Compare should show for the current shortlist.
@@ -83,6 +98,10 @@ void main() {
       expect(find.byKey(const ValueKey('mixed-regions')), findsOneWidget, reason: '$size');
       expect(find.text(mixedRegionsTitle), findsOneWidget);
       expect(find.byType(WinnerCard), findsNothing, reason: 'no single winner across regions');
+      // the verdict ranks the chosen dates' metrics (rankedFor), the chart's numbers: the banner says so
+      expect(find.text(mixedRegionsText), findsOneWidget);
+      expect(mixedRegionsText, contains('same numbers for your chosen dates'));
+      expect(mixedRegionsText, isNot(contains('18.6')));
       final lines = expectedLines();
       expect(lines, hasLength(Goal.values.length));
       expect(lines.length, 3);
@@ -93,6 +112,15 @@ void main() {
       }
       expect(tester.takeException(), isNull);
     }
+  });
+
+  testWidgets('a mixed shortlist sends mixed: true, so the chart names no single winner either', (tester) async {
+    applyShortlist(state, [...polarPair, 'apollo-11-lm']);
+    final hub = await pumpCompare(tester);
+    expect(find.byKey(const ValueKey('mixed-regions')), findsOneWidget);
+    final d = sentCompare(hub);
+    expect(d['mixed'], isTrue);
+    expect((d['rows'] as List).map((r) => (r as Map)['id']).toSet(), {...polarPair, 'apollo-11-lm'});
   });
 
   testWidgets('the mixed banner at 360 dp (also 2x text) without overflow; verdict rows are 48 dp', (tester) async {
@@ -120,12 +148,16 @@ void main() {
     applyShortlist(state, [...polarPair, 'artemis3-haworth']);
     expect(state.compareIds, [...polarPair, 'artemis3-haworth']);
     expect(compareMixed(state), isFalse);
-    await pumpCompare(tester);
+    final hub = await pumpCompare(tester);
     expect(find.byKey(const ValueKey('mixed-regions')), findsNothing);
     expect(find.text(mixedRegionsTitle), findsNothing);
     expect(find.byType(WinnerCard), findsOneWidget);
     expect(find.text(WinnerCard.headlineFor(rankedFor(state))), findsOneWidget);
     expect(tester.takeException(), isNull);
+    // the polar payload has no 'mixed' key at all (byte-identical to 1.13.5)
+    final d = sentCompare(hub);
+    expect(d.containsKey('mixed'), isFalse);
+    expect(d.keys.toList(), ['weights', 'earthLabel', 'rows']);
   });
 
   test('#/moon round-trips through ShellLocation; / is the south pole', () {

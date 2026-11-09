@@ -987,11 +987,57 @@ class _GlobalPainter extends CustomPainter {
       capLabel.paint(canvas, Offset((size.width - capLabel.width) / 2, cap.top + (cap.height - capLabel.height) / 2));
     }
     canvas.restore();
-    // near and far side, on the marker labels' navy chip: straight on the
-    // hillshade and the Earth overlay they read at about 1.5-2:1
+    // the markers (the selected one last, on top) and their names, placed
+    // first so that the leaders go under the side chips and the markers
     final sideText = <String, TextPainter>{};
     TextPainter sidePainter(String t) => sideText.putIfAbsent(t, () => _text(t, 12, k));
     final chips = globalSideChips(size, k, (t) => (sidePainter(t).width, sidePainter(t).height));
+    final r = 6 / k;
+    final ordered = [...sites.where((x) => x.id != selectedId), ...sites.where((x) => x.id == selectedId)];
+    final anchors = [for (final st in ordered) globalMapPoint(st.lat, st.lon, size)];
+    final painters = <String, TextPainter>{};
+    TextPainter painterFor(int i, String t, bool small) => painters.putIfAbsent(
+      '$i|$t|$small',
+      () => _text(t, small ? 10 : 12, k, w: ordered[i].id == selectedId ? FontWeight.w700 : FontWeight.w500),
+    );
+    var placed = const <({MapLabel label, bool small})>[];
+    if (ordered.isNotEmpty) {
+      final inv = Matrix4.tryInvert(tc.value);
+      LabelBox? bounds;
+      if (inv != null) {
+        final a = MatrixUtils.transformPoint(inv, Offset.zero);
+        final b = MatrixUtils.transformPoint(inv, Offset(size.width, size.height));
+        bounds = LabelBox(a.dx, a.dy, b.dx, b.dy);
+      }
+      placed = globalMapLabels(
+        anchors: [for (final a in anchors) (a.dx, a.dy)],
+        texts: [for (final st in ordered) st.short],
+        selected: ordered.last.id == selectedId ? ordered.length - 1 : null,
+        r: r,
+        stackWithin: globalMarkerHitDp / k,
+        measure: (i, t, small) {
+          final p = painterFor(i, t, small);
+          return (p.width + 6 / k, p.height + 2 / k);
+        },
+        bounds: bounds,
+        avoid: [for (final (_, b) in chips) b],
+      );
+    }
+    // a name set farther out than a marker's own spots gets a thin leader
+    // from its marker (under the chips and the markers)
+    final leader = Paint()
+      ..color = PH.text.withValues(alpha: 0.6)
+      ..strokeWidth = 1 / k;
+    for (final (:label, small: _) in placed) {
+      final a = anchors[label.site];
+      final b = label.box;
+      final near = Offset(a.dx.clamp(b.left, b.right), a.dy.clamp(b.top, b.bottom));
+      final d = near - a;
+      if (d.distance <= 2.4 * r + 2) continue;
+      canvas.drawLine(a + d / d.distance * 1.4 * r, near, leader);
+    }
+    // near and far side, on the marker labels' navy chip: straight on the
+    // hillshade and the Earth overlay they read at about 1.5-2:1
     for (final (t, b) in chips) {
       canvas.drawRRect(
         RRect.fromRectAndRadius(Rect.fromLTRB(b.left, b.top, b.right, b.bottom), Radius.circular(3 / k)),
@@ -999,10 +1045,6 @@ class _GlobalPainter extends CustomPainter {
       );
       sidePainter(t).paint(canvas, Offset(b.left + 3 / k, b.top + 1 / k));
     }
-    // markers, the selected one last (on top), and their names
-    final r = 6 / k;
-    final ordered = [...sites.where((x) => x.id != selectedId), ...sites.where((x) => x.id == selectedId)];
-    final anchors = [for (final st in ordered) globalMapPoint(st.lat, st.lon, size)];
     for (final (i, st) in ordered.indexed) {
       final q = anchors[i];
       final sel = st.id == selectedId;
@@ -1027,55 +1069,14 @@ class _GlobalPainter extends CustomPainter {
           ..strokeWidth = 1.5 / k,
       );
     }
-    if (ordered.isNotEmpty) {
-      final inv = Matrix4.tryInvert(tc.value);
-      LabelBox? bounds;
-      if (inv != null) {
-        final a = MatrixUtils.transformPoint(inv, Offset.zero);
-        final b = MatrixUtils.transformPoint(inv, Offset(size.width, size.height));
-        bounds = LabelBox(a.dx, a.dy, b.dx, b.dy);
-      }
-      final painters = <String, TextPainter>{};
-      TextPainter painterFor(int i, String t, bool small) => painters.putIfAbsent(
-        '$i|$t|$small',
-        () => _text(t, small ? 10 : 12, k, w: ordered[i].id == selectedId ? FontWeight.w700 : FontWeight.w500),
+    for (final (:label, :small) in placed) {
+      final p = painterFor(label.site, label.text, small);
+      final box = Rect.fromLTRB(label.box.left, label.box.top, label.box.right, label.box.bottom);
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(box, Radius.circular(3 / k)),
+        Paint()..color = globalMapChip,
       );
-      final placed = globalMapLabels(
-        anchors: [for (final a in anchors) (a.dx, a.dy)],
-        texts: [for (final st in ordered) st.short],
-        selected: ordered.last.id == selectedId ? ordered.length - 1 : null,
-        r: r,
-        stackWithin: globalMarkerHitDp / k,
-        measure: (i, t, small) {
-          final p = painterFor(i, t, small);
-          return (p.width + 6 / k, p.height + 2 / k);
-        },
-        bounds: bounds,
-        avoid: [for (final (_, b) in chips) b],
-      );
-      // a name set farther out than a marker's own spots gets a thin leader
-      // from its marker (under the chips)
-      final leader = Paint()
-        ..color = PH.text.withValues(alpha: 0.6)
-        ..strokeWidth = 1 / k;
-      for (final (:label, small: _) in placed) {
-        final a = anchors[label.site];
-        final b = label.box;
-        final near = Offset(a.dx.clamp(b.left, b.right), a.dy.clamp(b.top, b.bottom));
-        final d = near - a;
-        if (d.distance <= 2.4 * r + 2) continue;
-        canvas.drawLine(a + d / d.distance * 1.4 * r, near, leader);
-      }
-      for (final (:label, :small) in placed) {
-        final m = label;
-        final p = painterFor(m.site, m.text, small);
-        final box = Rect.fromLTRB(m.box.left, m.box.top, m.box.right, m.box.bottom);
-        canvas.drawRRect(
-          RRect.fromRectAndRadius(box, Radius.circular(3 / k)),
-          Paint()..color = globalMapChip,
-        );
-        p.paint(canvas, Offset(box.left + 3 / k, box.top + 1 / k));
-      }
+      p.paint(canvas, Offset(box.left + 3 / k, box.top + 1 / k));
     }
     if (pending case (final lat, final lon)) {
       final q = globalMapPoint(lat, lon, size);

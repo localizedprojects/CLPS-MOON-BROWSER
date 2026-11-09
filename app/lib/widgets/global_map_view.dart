@@ -411,6 +411,11 @@ class _GlobalMapViewState extends State<GlobalMapView> {
             maxScale: 8,
             child: GestureDetector(
               behavior: HitTestBehavior.opaque,
+              // a screen-reader "tap" has no position (it would land at the
+              // map's centre, 0° N 0° E): pointer taps only, as on the polar
+              // map; the list and "Add a spot by coordinates…" are the
+              // non-pointer way in
+              excludeFromSemantics: true,
               onTapUp: (d) => _tap(d.localPosition, size),
               child: CustomPaint(
                 size: size,
@@ -444,7 +449,7 @@ class _GlobalMapViewState extends State<GlobalMapView> {
               container: true,
               label:
                   'Whole-Moon map: ${widget.sites.length} sites, near side in the middle, north up. '
-                  'Tap a marker to open its site; tap open ground to add a spot. Every site is also in the list.',
+                  'Every site is in the list; add a spot with "Add a spot by coordinates…".',
               child: map,
             ),
           ),

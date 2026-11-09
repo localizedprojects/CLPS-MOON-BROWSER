@@ -566,14 +566,30 @@ const globalLoadFailedText = 'The whole-Moon sites could not be loaded. South-po
 /// The region switch above Explore. Switching to Whole Moon loads its sites
 /// the first time (a busy mark meanwhile); a failure is said in a snack bar
 /// and leaves the south pole shown.
-class ExploreRegionRow extends StatefulWidget {
+///
+/// The switch swaps Explore's whole body (polar and whole-Moon layouts), so
+/// the row is one element moved between them by a global key: its segments'
+/// focus nodes survive, and Enter on a segment leaves the keyboard focus on
+/// it, the newly selected one (1.14.0 device check; before, it fell back
+/// to the first control of the app, "Mission settings").
+class ExploreRegionRow extends StatelessWidget {
   const ExploreRegionRow({super.key});
 
+  /// The one element of the row (only one Explore layout is built at a time).
+  static final _row = GlobalKey(debugLabel: 'explore-region-row');
+
   @override
-  State<ExploreRegionRow> createState() => _ExploreRegionRowState();
+  Widget build(BuildContext context) => _ExploreRegionRowBody(key: _row);
 }
 
-class _ExploreRegionRowState extends State<ExploreRegionRow> {
+class _ExploreRegionRowBody extends StatefulWidget {
+  const _ExploreRegionRowBody({super.key});
+
+  @override
+  State<_ExploreRegionRowBody> createState() => _ExploreRegionRowState();
+}
+
+class _ExploreRegionRowState extends State<_ExploreRegionRowBody> {
   bool _busy = false;
 
   Future<void> _switch(AppState s, Region r) async {

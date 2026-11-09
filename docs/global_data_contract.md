@@ -289,4 +289,32 @@ into the bundle: the text is chosen in Dart.
   destination, region and `selectedId`.
 - `charts/src/devdata/polar_baseline_1135.json` (guard G7): the Plotly figure
   JSON (`JSON.parse(JSON.stringify(fig))`) and caption texts for the dev polar
-  payloads (sky, timeline, compare), for WP4's vitest equality test.
+  payloads (sky, timeline, compare), for WP4's vitest equality test. The file
+  is `{ meta, entries }`; `entries` is `polarBaseline()` from
+  `charts/src/polarBaseline.ts`, run at 85c472f under
+  `vi.setSystemTime(BASELINE_TIME)` (`2026-11-14T06:00:00Z`). It covers:
+  - `sky.json` and `sky_haworth.json`, and each merged by `skyNowData` with
+    `skyNow`, `skyNow_dsn` and `skyNow_haworth` (stored as `{ sameAs }` when the
+    merge gives the payload's own entry, as all three do in 1.13.5): `sky.ts`
+    `buildSky` with `{}`, `{live}`, `{live, exact}`, `{live, paths}`,
+    `{exact}`; `skyClassic.ts` `buildSky` with `{}`, `{live}`,
+    `{live, narrow}`, `{rPx: 200}`; the caption texts (`captionLine`,
+    `captionText`, `exactLine`, `markerLabel`, `keyLine`, `legendNames`,
+    `highestHillsText`, `skyHeader` and `skyAlt` of both modules) and both
+    modules' `skyDynamic` at 200 px.
+  - the three timeline payloads: `buildStrip` over `spanWindow(DEFAULT_SPAN)`
+    and `'all'` (complete and live), `buildHeights`, `buildTimelineExport`
+    (exact false and true), `timelineClassic` `buildTimeline` (wide and
+    narrow), and the totals, row labels, flags, answer lines and coming-up
+    events.
+  - `compare.json`: `buildCompare` and `buildCompareSimple` with `{}`,
+    `{narrow}` and `{png, widthPx: 400}`, `headline` (plain and exact),
+    `scoreLine`, `weightsText`, the ranked ids, `reasons(ranked(d))`,
+    `scoreTexts` and the longest-dark texts.
+
+  A figure is kept whole except its traces, which are stored as
+  `{type, name, mode, digest}`, where `digest` is the 53-bit cyrb53 hash (hex)
+  of `JSON.stringify(trace)`, in pure TypeScript (the charts have no
+  `@types/node`). WP4's test is `expect(polarBaseline()).toEqual(json.entries)`
+  under the same clock; `formatBaseline` writes the file's text when it is
+  re-taken.

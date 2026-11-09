@@ -570,6 +570,12 @@ class _ScoreCard extends StatelessWidget {
   static String _cap(String t) => t.isEmpty ? t : t[0].toUpperCase() + t.substring(1);
 }
 
+/// Learn's line for the Lander's N key, which turns the view to the local
+/// north: away from the pole at a south-pole site ([Region.southPole], as
+/// before 1.14.0), toward the north pole at a Whole Moon site.
+String learnNorthKeyText(Region r) =>
+    r == Region.wholeMoon ? 'Face north (toward the north pole)' : _Shortcuts._northPolar;
+
 /// The Site screen's keys (bound in the shell), then the Lander's view's own
 /// (LanderViewPanel, while it has focus).
 class _Shortcuts extends StatelessWidget {
@@ -593,11 +599,20 @@ class _Shortcuts extends StatelessWidget {
     (['+', '−'], 'Zoom in or out'),
     (['S'], 'Face the Sun'),
     (['E'], 'Face Earth'),
-    (['N'], 'Face north (away from the pole)'),
+    (['N'], _northPolar),
     (['Home'], 'Level the view'),
     (['F'], 'Open the view full screen (Esc closes it)'),
     (['Esc'], 'Give the keys back to the page'),
   ];
+
+  static const _northPolar = 'Face north (away from the pole)';
+
+  /// [_landerKeys] for the site the Lander shows, in region [r]: its N key
+  /// turns to the local north (yaw 0, LanderViewPanel), away from the pole at
+  /// a south-pole site and toward the north pole at a Whole Moon site.
+  static List<(List<String>, String)> _landerKeysIn(Region r) => [
+        for (final (keys, what) in _landerKeys) (keys, what == _northPolar ? learnNorthKeyText(r) : what),
+      ];
 
   static Widget _group(String title, List<(List<String>, String)> rows) =>
       Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -617,16 +632,20 @@ class _Shortcuts extends StatelessWidget {
       ]);
 
   @override
-  Widget build(BuildContext context) => Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-        _heading('Keyboard shortcuts'),
-        _card(
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            _group('On the Site screen, when no button or slider has focus:', _keys),
-            const SizedBox(height: 12),
-            _group('In the Lander\'s view (after clicking it):', _landerKeys),
-          ]),
-        ),
-      ]);
+  Widget build(BuildContext context) {
+    // the region of the site the Lander shows
+    final region = context.select<AppState, Region>((s) => s.regionOf(s.selectedId));
+    return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+      _heading('Keyboard shortcuts'),
+      _card(
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          _group('On the Site screen, when no button or slider has focus:', _keys),
+          const SizedBox(height: 12),
+          _group('In the Lander\'s view (after clicking it):', _landerKeysIn(region)),
+        ]),
+      ),
+    ]);
+  }
 }
 
 class _KeyCap extends StatelessWidget {

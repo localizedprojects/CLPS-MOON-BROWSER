@@ -167,4 +167,64 @@ void main() {
     expect(find.bySemanticsLabel('Loading the whole-Moon sites'), findsOneWidget);
     handle.dispose();
   });
+
+  // 1.14.0 device check (finding C): the outline rings the whole switch for either segment, so the
+  // focused segment carries its own 2 px ice ring, inside it, only while the keyboard highlight shows
+  testWidgets('the focused segment itself carries a 2 px ice ring (keyboard only); 48 dp and the check mark stay',
+      (tester) async {
+    await pump(tester);
+    final ring = find.byKey(const ValueKey('region-switch-ring'));
+    expect(ring, findsOneWidget);
+    bool inside(Rect r, Rect seg) =>
+        r.left >= seg.left && r.right <= seg.right && r.top >= seg.top && r.bottom <= seg.bottom;
+    // the 2 px ice rrect strokes painted inside a segment (in global coordinates): not the
+    // switch's outline, which spans both
+    List<Rect> rings() {
+      final out = <Rect>[];
+      final origin = tester.getTopLeft(ring);
+      expect(
+          tester.renderObject(ring),
+          paints
+            ..everything((m, args) {
+              if (m == #drawRRect) {
+                final p = args[1] as Paint;
+                if (p.color.toARGB32() == PH.ice.toARGB32() && p.strokeWidth == 2 && p.style == PaintingStyle.stroke) {
+                  out.add((args[0] as RRect).outerRect.shift(origin));
+                }
+              }
+              return true;
+            }));
+      final segs = [for (final r in Region.values) tester.getRect(segment(r))];
+      return [for (final r in out) if (segs.any((s) => inside(r, s))) r];
+    }
+
+    expect(rings(), isEmpty, reason: 'no segment ring before any focus');
+    for (final (tabs, r, other) in [
+      (1, Region.southPole, Region.wholeMoon),
+      (1, Region.wholeMoon, Region.southPole),
+    ]) {
+      for (var i = 0; i < tabs; i++) {
+        await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+        await tester.pump();
+      }
+      expect(focusIn(segment(r)), isTrue, reason: 'Tab reaches ${r.name}');
+      final found = rings();
+      expect(found, hasLength(1), reason: 'one ring, on the focused ${r.name} segment');
+      final segBox = tester.getRect(segment(r)), otherBox = tester.getRect(segment(other));
+      expect(inside(found.single, segBox), isTrue, reason: '${found.single} inside ${r.name} $segBox');
+      expect(found.single.overlaps(otherBox), isFalse, reason: 'not on ${other.name} $otherBox');
+      expect(segBox.height, greaterThanOrEqualTo(48));
+      expect(found.single.height, greaterThan(segBox.height - 2 * regionSegmentRingInset - 1));
+    }
+    expect(find.descendant(of: segment(Region.southPole), matching: find.byIcon(Icons.check)), findsOneWidget,
+        reason: 'the check mark stays on the selected segment');
+    // a touch hides it, a key shows it again (FocusRings), the focus staying on Whole Moon
+    await tester.tapAt(tester.getCenter(find.text('blank')));
+    await tester.pump();
+    expect(focusIn(segment(Region.wholeMoon)), isTrue);
+    expect(rings(), isEmpty, reason: 'no segment ring after a touch');
+    await tester.sendKeyEvent(LogicalKeyboardKey.shiftLeft);
+    await tester.pump();
+    expect(rings(), hasLength(1), reason: 'a key shows it again');
+  });
 }

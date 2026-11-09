@@ -17,6 +17,8 @@ Lunar Horizon compares lunar south-pole landing sites and dates by whether the S
   - the light and shadow map
   - for **user-placed custom sites**, the terrain horizon itself, from the shipped 400 m DEM
 
+Since 1.14.0 the app also has a **Whole Moon** region (landing sites elsewhere on the Moon, ranked on their own). The south pole stays the default and every formula in §1 to §17 is unchanged for it; §18 gives what the Whole Moon region adds.
+
 A custom site goes through exactly the same Dart formulas as a preset site. The only difference is where its horizon mask and terrain height come from (§5.2, §16).
 
 Every formula below cites its source as `file:line`. File shorthands are listed in §0.6. Line numbers were checked on 2026-10-12: the app, chart and test references against the tree after milestone M6 step 3 (simpler charts and the best landing window), and the pipeline references against the final-review tree built on it; the map tap references were re-checked on 2026-10-14 after the map zoom change. `python tools/check_formula_refs.py` checks that every `file:line` reference resolves to one file, that its line range lies inside that file and that backticked identifiers still exist in the code; it exits non-zero on a broken or ambiguous reference. It cannot tell whether a cited range still holds the code the text describes. `--warn` adds a heuristic for that (the identifiers next to a reference should occur in the cited lines), which prints warnings but never fails, so re-read the cited lines after any app change. The app's destinations are Explore, Site (Overview, Sky & time, Light & shadow), Compare and Learn (`shell.dart`). UI files are described by destination and feature, and the function or class name given next to a line number is the stable reference if lines move.
@@ -48,6 +50,7 @@ Values marked **derived** are plain arithmetic on the code's constants. The repo
 15. [Blender render geometry](#15-blender-render-geometry)
 16. [What runs for a custom site](#16-what-runs-for-a-custom-site)
 17. [Caveats found in the code](#17-caveats-found-in-the-code)
+18. [Whole Moon (1.14.0)](#18-whole-moon-1140)
 
 ---
 
@@ -57,7 +60,7 @@ Values marked **derived** are plain arithmetic on the code's constants. The repo
 - **Units.** Angles are in degrees unless marked rad. Vectors are in km. Heights $h$ are in metres above the reference sphere $R$.
 - **Time.** ET is TDB seconds past J2000. Unix time is UTC seconds (milliseconds in the app). The app works only in UTC Unix ms and never converts to ET.
 - **Coordinates.** Latitude $\varphi$ is planetocentric. Longitude $\lambda$ is east-positive, normalised to $[-180,180)$. The local normal is spherical.
-- **Azimuth.** Azimuth $a$ or $A$ is measured clockwise from local north, where north means increasing latitude, i.e. away from the pole. There is no refraction.
+- **Azimuth.** Azimuth $a$ or $A$ is measured clockwise from local north, where north means increasing latitude, toward the north pole (at south-polar sites: away from the pole). The wording changed for the Whole Moon region in 1.14.0 (§18.6); the numbers did not. There is no refraction.
 - **Elevation.** $e_\odot$ and $e_\oplus$ are the topocentric elevations of the Sun's and Earth's disk centres from §3.2 (`el` in the code), in degrees. They are never written $h$, which is reserved for heights.
 - **Map coordinates.** $(x,y)$ are polar-stereographic metres. $x$ points toward 90°E (image right) and $y$ toward 0°E (image up).
 - **Symbols.** ⊙ is the Sun and ⊕ the Earth. $[\cdot]$ is the Iverson bracket (1 if true, 0 otherwise). $i$ is a sample index, $n$ the number of samples and $\Delta t$ the sample step. ′ is arcmin, ″ is arcsec and pp is percentage points.
@@ -1808,3 +1811,83 @@ No files other than this one were changed while writing it.
 14. **Stale code comment (fixed).** The `nowAt` doc comment no longer mentions the removed 360 view.
 15. **Light-map close-up near the map edge (fixed).** The close-up legend now counts its shares in a 64 km disc centred on the site's own pixel (`lightFrameShares`, `LightFrame.pixelOf`), and says what share of that disc lies on the map when less than 98% does (54% for IM-1 Odysseus). `shadow_test.dart` now tests three windows that really are clamped (right edge, top edge, bottom-left corner).
 16. **Lunar eclipses (fixed in the series, 2026-10-29).** The per-sample series (§9.2) now removes the part of the Sun behind Earth (§6.5), so the availability, metrics, power, score, calendar, landing window and CSV follow it. The single-instant paths that compute the Sun on their own now include it too: `nowAt` in `chart_bridge.dart` (the sky plot and status line) removes Earth's disk from the Sun with the same `SunEclipse` term and says whether Earth, not the terrain, stops the Sun counting (`eclipse`, `eclipseHides`), and the light map (§12, `light_map.dart`) takes all direct sunlight off the picture at total cover and the full-Sun class during a partial eclipse (no ground sees the whole disk), using the site's eclipse for the whole frame (labelled). The pipeline's 18.6-year averages include them since 2026-11-03 (§9.6; at most 0.029 percentage points, 8 rounded values moved by 0.1), with the LOLA cross-check kept terrain-only (§13.9). Still not included: the dim red light Earth's atmosphere bends onto the Moon (Earth is modelled as a sharp-edged disk).
+
+## 18. Whole Moon (1.14.0)
+
+Written on 2026-11-09 for 1.14.0 against the `global-1.14` tree. The data contract is `docs/global_data_contract.md`; the measured numbers below come from `app/assets/data/global/validation.json` (generated 2026-11-09T09:06:30Z). Nothing in §1 to §17 changes for south-pole sites: the polar data files and the polar code are byte-identical to 1.13.5.
+
+### 18.1 The region rule
+
+- Two regions, `Region.southPole` and `Region.wholeMoon` (`region.dart:21`). A preset's region is the catalogue it came from (`app/assets/data/sites.json` or `app/assets/data/global/sites.json`); a custom spot's region is the region it was made in.
+- **Automatic choices never mix regions.** The ranking, the top pick, STANDS OUT, the nearest-site lookup and the "rank #k of N" lines all see only `regionSites(region)` (`app_state.dart:366`). The score maths of §10 is unchanged; only the list it sees changes.
+- **Compare mixes regions only when the user puts sites from both in it.** Then a "Mixed regions" banner and one computed verdict per goal replace the single winner sentence.
+- **Pole vs the rest.** `contrastRows` (`contrast.dart:129`) compares the best value of each region on its own sites; `regionVerdicts` (`contrast.dart:205`) ranks each region separately with `rank()` and `weightsFor(goal)` and only then compares the two winners, to word the contrast.
+- **Custom spots.** Polar: $\varphi\le-80.01°$ (`customLatAllowed`, unchanged). Whole Moon: $-80.01°<\varphi\le80.0°$ (`globalCustomLatAllowed`, `region.dart:25-30`). A Whole Moon tap at or south of −80.01° offers "Open in South-pole mode" and places nothing (`regionForTapLat`, `region.dart:36`). There is no north-pole region, and no custom spot north of 80°N.
+- **Defaults.** A cold start is Explore, South pole, Shackleton rim. Entering Whole Moon with no site selects Apollo 11 (`kGlobalDefaultSiteId`, `region.dart:39`). The region is never persisted; it comes from the URL (`#/moon`, `#/site/<global id>`) or from the user's choice.
+- **Lazy loading.** No file under `assets/data/global/` is requested until the user enters Whole Moon, opens a global link or opens the site picker's Whole Moon section (`ensureGlobal`, `app_state.dart:273`).
+
+### 18.2 Site coordinates
+
+Every one of the 20 Whole Moon presets takes its latitude and longitude from the LROC "Anthropogenic Features on the Moon" shapefile (LRO-L-LROC-5-RDR-V1.0, 2026-08-14 version, 71 records), whose coordinates were measured by Wagner et al. (2017) in LROC NAC images, for the Apollo sites combined with laser ranging. Each site's `sources[].says` quotes its record (OBJECT_ID, NAME, LATITUDE, LONGITUDE, COORD_SRC, UNCERTAIN). The shapefile is "IAU Moon 2000"; its coordinates are applied in `MOON_ME` as given. The difference from IAU-frame realisations is below about 100 m and is documented, not corrected.
+
+Checks (`validation.json` `coordinates`): every preset is in the shapefile; the Surveyor 3 to Apollo 12 LM separation from our coordinates is 156.8 m (expected 100 to 250 m, which tests the latitude and east-positive longitude handling); the near-field height at each site is within −10.7 m to +6.0 m of LOLA LDEM_64 there (gate ±150 m).
+
+### 18.3 Terrain source by latitude and the two-scale horizon
+
+A preset's horizon mask uses the unchanged polar ray-marcher (`horizon_profile`, §5.1) with the same distance schedule as the polar run: terrain inside 120 m ignored, 10 m steps to 20 km, then 0.1 % steps to 600 km. Only the terrain model differs (`GlobalTerrainModel`, `globe_dem.py:422-438`): the near-field window where it has data, otherwise LOLA LDEM_64.
+
+| Distance from the site | Terrain | Resolution |
+|---|---|---|
+| inside 120 m | ignored (as at the pole) | |
+| to the edge of the ±20 km near-field window | SLDEM2015 512 px/deg (LOLA + Kaguya Terrain Camera, Barker et al. 2016) where $|\varphi|\le59°$; LOLA LDEM_512 where $|\varphi|>59°$ (Chandrayaan-3) | 59 m |
+| beyond the window, to 600 km | LOLA LDEM_64 | 474 m at the equator |
+
+- `near_source` (`globe_dem.py:241-242`) applies the latitude rule: SLDEM2015 covers ±60° (`SLDEM_MAX_ABS_LAT`, `globe_dem.py:56`), and the 1° margin keeps the whole ±20 km window inside it.
+- If a near-field window could not be fetched, the mask would use LDEM_64 alone with terrain under 711 m (1.5 LDEM_64 pixels, `COARSE_ONLY_MIN_M`, `globe_sites.py:33`) ignored, and its badge would say so. In 1.14.0 every preset has its window.
+- The site height is the near-field height at the site; the observer is 2 m (or 10 m) above it. Slope is `local_slope_deg_latlon` on the same terrain with a 160 m baseline.
+- The 18.6-year shares are the polar `sites._fractions(..., eclipses=True)` over the polar `longTermPeriod` (2009-01-01 + 18.6 yr, hourly, 2 m observer, any part of the disk, lunar eclipses included; §6.5).
+- **Why the polar sites keep the polar DEMs.** At IM-1 the global pipeline's LDEM_64-only mask differs from the committed polar 80 m / 240 m mask by 1.09° RMS, −0.76° bias (`crossRegion`).
+
+Horizon quality (`horizonQuality`, 2 m masks, bias = other − preset, negative means the other mask is too low, i.e. optimistic):
+
+| Mask compared with the preset mask | Median RMS | Worst RMS | Mean bias |
+|---|---|---|---|
+| LOLA LDEM_64 alone (same schedule) | 0.58° | 1.26° (Apollo 11) | −0.41° |
+| On-device 8 px/deg algorithm (§18.4) | 0.80° | 2.42° (Surveyor 7) | −0.87° |
+
+Gates: the Apollo 15 mask maximum is 13.59° (range 10° to 16°); the Apollo 11 mean mask is 1.24° (below 3°).
+
+### 18.4 Whole Moon custom spots: the on-device DEM
+
+- **DEM.** `global/dem_8ppd.bin.gz`: 2880 × 1440 pixels at 8 px/deg (about 3.8 km per pixel along a meridian), the 2 × 2 mean of LOLA LDEM_16, 1 m int16, planar-split and gzipped like the polar 400 m DEM. It loads only for the first Whole Moon custom spot (`globalDem`, `app_state.dart:293`).
+- **Horizon.** `horizon_global.dart` uses the maths of §5.2 (exact spherical geometry, great-circle marching from the spherical-normal ENU) on that grid, sampled by latitude and longitude (bilinear, periodic in longitude). Terrain closer than 1.5 pixels is ignored (`globalCoarseMinPx`), then steps of a quarter pixel to 20 km, then +0.5 % per step to 300 km (`globalCoarseDistances`, `horizon_global.dart:58`), at 0.5° azimuth steps (`horizon_global.dart:36-51`). The site height is the grid's bilinear height. A Python twin writes `app/test/fixtures/global_coarse.json`, and Dart matches it to 0.01°.
+- **Badge.** Always approximate. Against the preset masks it is 0.80° RMS (median), 2.42° at worst and too low by 0.87° on average (§18.3), so it is optimistic. Near the equator the Sun climbs about 0.5° per hour, so 1° of skyline moves sunrise or sunset by about 118 min (`sunriseMinPerDeg`).
+- From then on a Whole Moon custom spot goes through the same Dart code as any site (§16), with no lander-scale slope.
+
+### 18.5 Whole Moon map layers
+
+- **Hillshade** (`global/hillshade.webp`, 2880 × 1440): equirectangular (plate carrée), near side centred, north up; LOLA LDEM_16 2 × 2 mean to 8 px/deg. Slopes use the row-wise pixel width $dx=\text{px}\cos\varphi$, periodic in longitude; light from azimuth 315° (clockwise from image up), altitude 35°, vertical exaggeration 2, with the elevation tint recorded in `map.json`. It is display shading only (an artificial light direction, not a Sun position), and it is not equal-area. Phones decode it at most 2048 px wide.
+- **Earth-visible share** (`global/earthvis.webp`, 720 × 360, 0.5°): for each pixel's unit vector $\hat{\mathbf u}$ on the 1737.4 km sphere, the share of SPICE Earth vectors $\mathbf e$ (DE440, `MOON_ME`, `LT+S`, every 6 h over 2009-01-01 + 18.6 yr, 27 175 samples) with
+  $$\mathbf e\cdot\hat{\mathbf u}>R-R_\oplus,$$
+  which is exactly "some part of Earth's disk above a flat horizon" (the upper-limb rule with exact parallax; `earth_share_grid`, `globe_map.py:131-145`), stored as grey = round(255 × share). There is no terrain: its badge says "Flat horizon (no terrain). 18.6-year share."
+- **Side of the Moon.** Each preset's `side` comes from the same flat-horizon share at its coordinates (`flat_share`, `globe_sites.py:82-91`): 100 % is `near`, 0 % is `far`, anything else `limb` (`side_of`, `globe_sites.py:94-99`). Every `side` agrees with the map pixel at the site. Chang'e-4 and Chang'e-6 are on the far side: Earth 0 %, Sun and Earth together 0 %; the app says "Earth never rises here."
+- **Thumbnails** (`global/thumbs/<id>.webp`, 128 px, ±20 km from the near-field window) use the look of the polar terrain thumbnails.
+
+### 18.6 North, the sky plot and the map frame
+
+- **North.** Local north is increasing latitude, toward the north pole; at south-polar sites that is away from the pole, the words of §0. The ENU of §3.1 and every azimuth are numerically unchanged. For a Whole Moon site the sky payload carries `northNote` = "N = toward the north pole" (`skyNorthNote`, `chart_hub.dart:35`); polar payloads do not carry it and stay as in 1.13.5.
+- **Map frame (the Lander's view at Whole Moon presets).** `MapFrame` (`map_frame.dart:23`) is `MOON_ME` turned by a rotation $Q$ with rows $(\hat{\mathbf n},\hat{\mathbf e},-\hat{\mathbf u})$ at the site's spherical normal $\hat{\mathbf u}$, so the site sits at the frame's south pole with its north up and east right. For a body unit vector $\mathbf w$, $\mathbf v=Q\mathbf w$ and the polar stereographic projection of §4.1 applies unchanged; a frame vector is the body vector $Q^{\mathsf T}\mathbf v$. `MapFrame.southPole` is exactly the identity (`map_frame.dart:38`), so the polar map and Lander are bit-for-bit as before. Azimuths and elevations never come from the map; they always come from the true body frame.
+- **Lander tiles** (`global/tiles/<id>.bin.gz`, `global/tiles.json`): one 512 × 512 tile of 400 m pixels (±102.4 km) per preset in its map frame, the area mean of 5 × 5 bilinear LOLA LDEM_64 sub-samples per pixel, rounded to 1 m, encoded like the polar 400 m DEM. Badge: "Terrain LOLA 474 m resampled to 400 m; relief under ~1 km smoothed." `app/test/fixtures/global_frame.json` checks the frame.
+
+### 18.7 Validation at the Whole Moon sites
+
+| Check | Sites | Result |
+|---|---|---|
+| App algorithm vs SPICE `spkcpo` (60 random epochs 2025 to 2035 each, 2 m observer) | all 20 | Sun 0.00015′, Earth 0.0016′ worst |
+| SPICE pipeline vs JPL Horizons airless apparent az/el (2026-12-01 and 2026-12-31 windows, 4 h steps; 40 cached responses in `pipeline/validation/global/`) | 10, including a far-side site, both ±45° bands, Chandrayaan-3 and two sites within 1° of the equator | Sun 0.000008′, Earth 0.00004′ worst; range within 0.005 km |
+| App algorithm vs JPL Horizons, same epochs | the same 10 | Sun 0.00016′, Earth 0.0015′ worst |
+| Long-term sanity | Apollo 11; Chang'e-4 and -6 | Apollo 11: Earth 100.0 %, Sun 49.8 % (gate 50 ± 4 %); far side: Earth 0.0 %, both 0.0 % |
+| Total lunar eclipse of 31 Dec 2028 | Apollo 11 (near), Chang'e-4 (far) | near side: Earth covers the whole visible Sun at maximum; far side: no visible sunlight lost |
+| Historic Sun angles at the Apollo touchdowns | | not checked (no fetchable NASA page quoted both the touchdown time and the Sun elevation), so nothing is shown |
+
+Dart is checked against SPICE truth at the Whole Moon sites by `app/test/fixtures/global_truth.json`, with the tolerances of the polar `spice_truth.json`. The LOLA AVGVISIB cross-check (§13.9) stays polar: there is no such product for the rest of the Moon. The Light & shadow map, the Blender renders and the Python library (`pylib/`) are unchanged and remain south-pole only. The DSN-in-view rule (§8) is the same everywhere: it depends only on the Moon's elevation at the stations.

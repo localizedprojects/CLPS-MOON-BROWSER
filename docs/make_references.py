@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
 """Write docs/references.md: every source URL in the site data, with the sites it supports.
 
-It reads app/assets/data/sites.json (the preset sites and the sources of their coordinates) and
-app/assets/data/curated_sites.json (the sources of the site descriptions, and the IAU-named
-features the app measures distances to). Standard library only; the output is deterministic.
+It reads app/assets/data/sites.json (the south-pole preset sites and the sources of their
+coordinates), app/assets/data/curated_sites.json (the sources of the site descriptions, and the
+IAU-named features the app measures distances to) and, since 1.14.0,
+app/assets/data/global/sites.json (the Whole Moon presets and the sources of their coordinates).
+Standard library only; the output is deterministic.
 
     python3 -I docs/make_references.py          # rewrite docs/references.md
     python3 -I docs/make_references.py --check  # exit 1 if docs/references.md is out of date
@@ -22,6 +24,7 @@ ROOT = Path(__file__).resolve().parents[1]
 DATA = ROOT / "app" / "assets" / "data"
 SITES = DATA / "sites.json"
 CURATED = DATA / "curated_sites.json"
+GLOBAL_SITES = DATA / "global" / "sites.json"
 OUT = ROOT / "docs" / "references.md"
 
 URL = re.compile(r"https?://[^\s<>\"']+")
@@ -63,10 +66,13 @@ def text_urls(node, path, found):
 def collect():
     sites = load(SITES)
     curated = load(CURATED)
-    groups = [(g["id"], g["name"]) for g in sites["groups"]]
-    group_of = {s["id"]: s["group"] for s in sites["sites"]}
-    name_of = {s["id"]: s.get("short") or s["name"] for s in sites["sites"]}
-    order = {s["id"]: i for i, s in enumerate(sites["sites"])}
+    world = load(GLOBAL_SITES) if GLOBAL_SITES.exists() else {"groups": [], "sites": []}
+    every = sites["sites"] + world["sites"]
+    groups = [(g["id"], g["name"]) for g in sites["groups"] + world["groups"]]
+    group_of = {s["id"]: s["group"] for s in every}
+    name_of = {s["id"]: s.get("short") or s["name"] for s in every}
+    order = {s["id"]: i for i, s in enumerate(every)}
+    global_ids = {s["id"] for s in world["sites"]}
 
     entries = {}  # url -> {"titles": [...], "coords": [ids], "descr": [ids], "first": n}
 
@@ -79,9 +85,14 @@ def collect():
         if site_id not in e[role]:
             e[role].append(site_id)
 
-    for s in sites["sites"]:
+    for s in every:
         for src in s.get("sources", []):
             add(src["url"], src, s["id"], "coords")
+    # The Whole Moon catalogue names its coordinate source once, in full; the per-site titles
+    # add the shapefile record, so the catalogue's title is the one shown for that URL.
+    cs = world.get("coordinateSource") or {}
+    if cs.get("url") in entries and cs.get("title"):
+        entries[cs["url"]]["preferred"] = cs["title"]
     curated_ids = sorted(curated.get("sites", {}), key=lambda i: (order.get(i, len(order)), i))
     for site_id in curated_ids:
         for src in curated["sites"][site_id].get("sources", []):
@@ -95,34 +106,38 @@ def collect():
     seen.update(f["url"] for f in features)
 
     other = {}
-    for label, doc in (("sites.json", sites), ("curated_sites.json", curated)):
+    for label, doc in (("sites.json", sites), ("curated_sites.json", curated), ("global/sites.json", world)):
         for url, paths in text_urls(doc, label, {}).items():
             if url not in seen:
                 other.setdefault(url, []).extend(paths)
 
-    return groups, group_of, name_of, order, entries, features, other
+    return groups, group_of, name_of, order, entries, features, other, global_ids
 
 
 def render() -> str:
-    groups, group_of, name_of, order, entries, features, other = collect()
+    groups, group_of, name_of, order, entries, features, other, global_ids = collect()
 
     def names(ids):
         ids = sorted(ids, key=lambda i: (order.get(i, len(order)), i))
         return ", ".join(md(name_of.get(i, i)) for i in ids)
 
     sections = {gid: [] for gid, _ in groups}
-    shared = []
+    shared, shared_global = [], []
     for url, e in entries.items():
-        gs = {group_of.get(i) for i in e["coords"] + e["descr"]}
+        ids = e["coords"] + e["descr"]
+        gs = {group_of.get(i) for i in ids}
         target = sections.get(next(iter(gs))) if len(gs) == 1 else None
+        if target is None and all(i in global_ids for i in ids):
+            target = shared_global
         (target if target is not None else shared).append((url, e))
 
     def block(items):
         lines = []
         items = sorted(items, key=lambda it: (-len(set(it[1]["coords"] + it[1]["descr"])), it[1]["first"]))
         for url, e in items:
-            if e["titles"]:
-                lines.append(f"- **{md(max(e['titles'], key=len))}**: <{url}>")
+            if e.get("preferred") or e["titles"]:
+                title = e.get("preferred") or max(e["titles"], key=len)
+                lines.append(f"- **{md(title)}**: <{url}>")
             else:
                 lines.append(f"- <{url}>")
             if e["coords"]:
@@ -141,19 +156,21 @@ def render() -> str:
     out = [
         "# References: site sources",
         "",
-        "<!-- Generated by docs/make_references.py from app/assets/data/sites.json and",
-        "app/assets/data/curated_sites.json. Do not edit by hand; run",
-        "python3 -I docs/make_references.py. pipeline/tests/test_references.py checks it. -->",
+        "<!-- Generated by docs/make_references.py from app/assets/data/sites.json,",
+        "app/assets/data/curated_sites.json and app/assets/data/global/sites.json. Do not edit by",
+        "hand; run python3 -I docs/make_references.py. pipeline/tests/test_references.py checks it. -->",
         "",
-        "This page lists every web source behind the preset sites, with the sites it supports, and",
-        "the named features the app refers to. The NASA data (SPICE kernels, LOLA elevation models,",
-        "JPL Horizons), the software and the fonts are cited in",
+        "This page lists every web source behind the preset sites (the south pole and, since 1.14.0,",
+        "the Whole Moon), with the sites it supports, and the named features the app refers to. The",
+        "NASA data (SPICE kernels, LOLA and SLDEM2015 elevation models, JPL Horizons), the software",
+        "and the fonts are cited in",
         "[submission.md](submission.md#references), in the",
         "[README](../README.md#data-sources-and-credits) and in",
         "[THIRD_PARTY_NOTICES.md](../THIRD_PARTY_NOTICES.md).",
         "",
         "- **Coordinates:** a source for the site's position or region. It is in",
-        "  `app/assets/data/sites.json`, with a note of what the source says.",
+        "  `app/assets/data/sites.json` (south pole) or `app/assets/data/global/sites.json` (Whole",
+        "  Moon), with a note of what the source says.",
         "- **Description:** a source for the site's description in the app. It is in",
         "  `app/assets/data/curated_sites.json`.",
         "",
@@ -170,6 +187,8 @@ def render() -> str:
     for gid, gname in groups:
         if sections[gid]:
             out += ["", f"## {md(gname)}", ""] + block(sections[gid])
+    if shared_global:
+        out += ["", "## Whole Moon: sources for sites in more than one group", ""] + block(shared_global)
     if shared:
         out += ["", "## Sources for sites in more than one group", ""] + block(shared)
     if features:

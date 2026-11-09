@@ -268,18 +268,17 @@ Widget _globalLayout(BuildContext context, AppState s, Size size, bool short) {
         child: FocusTraversalGroup(
           child: Material(
             color: PH.sunken,
-            child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-              FocusTraversalGroup(
-                  child: GuideTarget(id: 'site-tabs', child: _TabChips(state: s, tabs: const [SiteTab.skyTime], selected: SiteTab.skyTime))),
-              Expanded(child: FocusTraversalGroup(child: SkyTimeTab(state: s))),
-            ]),
+            // Sky & time only: no lone, already-chosen chip above it (and no
+            // "three views" guide step pointing at one)
+            child: FocusTraversalGroup(child: SkyTimeTab(state: s)),
           ),
         ),
       ),
     ]);
   }
   const shown = [SiteTab.overview, SiteTab.skyTime];
-  final chips = GuideTarget(id: 'site-tabs', child: _TabChips(state: s, tabs: shown, selected: tab));
+  // its own guide step: two views, not the pole's three
+  final chips = GuideTarget(id: 'site-tabs-global', child: _TabChips(state: s, tabs: shown, selected: tab));
   void swipedTo(int i) => s.goTo(Dest.site, siteTab: shown[i]);
   final tabs = _SwipeTabs(index: shown.indexOf(tab), onSwipe: swipedTo, children: [
     () => const SiteOverview(),

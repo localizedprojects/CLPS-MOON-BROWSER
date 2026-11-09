@@ -15,7 +15,7 @@ import 'package:provider/provider.dart';
 
 import '../../core/catalog.dart';
 import '../../core/countdown.dart' show countdownAt, countdownParts, spokenCountdown;
-import '../../core/landing_wording.dart' show moreHint, moreSemantics, moreSubline, moreTitle;
+import '../../core/landing_wording.dart' show moreHint, moreSemantics, moreSubline, moreSublineGlobal, moreTitle;
 import '../../core/metrics.dart' show SiteMetrics;
 import '../../core/now_line.dart';
 import '../../core/region.dart';
@@ -161,8 +161,17 @@ class OverviewNowLine extends StatelessWidget {
 class _MoreRow extends StatelessWidget {
   final SiteMetrics metrics;
   final bool requireDsn, open;
+
+  /// A whole-Moon site (no light map: [moreSublineGlobal]).
+  final bool global;
   final VoidCallback onToggle;
-  const _MoreRow({required this.metrics, required this.requireDsn, required this.open, required this.onToggle});
+  const _MoreRow({
+    required this.metrics,
+    required this.requireDsn,
+    required this.open,
+    required this.onToggle,
+    this.global = false,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -210,7 +219,7 @@ class _MoreRow extends StatelessWidget {
                       peek(GlyphKind.both, 'Both', m.pctBoth),
                     ]),
                     const SizedBox(height: 2),
-                    Text(moreSubline, style: PHText.small.copyWith(color: PH.muted)),
+                    Text(global ? moreSublineGlobal : moreSubline, style: PHText.small.copyWith(color: PH.muted)),
                   ]),
                 ),
                 Icon(open ? Icons.expand_less : Icons.expand_more, color: PH.muted),
@@ -383,7 +392,7 @@ class SiteOverview extends StatelessWidget {
                         initiallyOpen: s.expert),
                   ),
                 // 5. everything else behind "More about this site"
-                GuideTarget(id: 'site-more', child: _MoreRow(metrics: m, requireDsn: dsn, open: open_, onToggle: () => s.setOverviewMoreOpen(!open_))),
+                GuideTarget(id: 'site-more', child: _MoreRow(metrics: m, requireDsn: dsn, open: open_, global: global, onToggle: () => s.setOverviewMoreOpen(!open_))),
               ]),
               if (open_) ...[
               const SizedBox(height: 6),

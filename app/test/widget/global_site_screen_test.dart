@@ -6,12 +6,15 @@
 // tab shows Sky & time. Phone and wide widths, and 360 dp without overflow.
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:polar_horizon/content/guides.dart';
+import 'package:polar_horizon/core/landing_wording.dart';
 import 'package:polar_horizon/core/region.dart';
 import 'package:polar_horizon/screens/site/site_screen.dart';
 import 'package:polar_horizon/screens/site/sky_time.dart';
 import 'package:polar_horizon/state/app_state.dart';
 import 'package:polar_horizon/state/chart_hub.dart';
 import 'package:polar_horizon/theme.dart';
+import 'package:polar_horizon/widgets/feature_guide.dart';
 import 'package:polar_horizon/widgets/focus_rings.dart';
 import 'package:polar_horizon/widgets/global_map_view.dart';
 import 'package:polar_horizon/widgets/light_snapshot.dart';
@@ -94,7 +97,8 @@ void main() {
     testWidgets('$name: no Light chip or LightSnapshot; the honest line, far side, badge and position', (tester) async {
       await pumpSite(tester, size);
       expect(find.text('Light & shadow'), findsNothing, reason: 'no Light chip for a whole-Moon site');
-      expect(find.text('Sky & time'), findsWidgets, reason: 'the Sky & time chip is there');
+      // the phone's chips (wide: the right pane is Sky & time itself)
+      if (name == 'phone') expect(find.text('Sky & time'), findsWidgets, reason: 'the Sky & time chip is there');
       expect(find.byType(LightSnapshot), findsNothing);
       final position = find.byKey(const ValueKey('global-position'));
       await reveal(tester, position);
@@ -135,6 +139,35 @@ void main() {
       expect(tester.takeException(), isNull);
     });
   }
+
+  testWidgets('wide: no lone Sky & time chip over the right pane, so no tabs guide step points at one', (tester) async {
+    await pumpSite(tester, const Size(1280, 800));
+    expect(find.byType(SkyTimeTab), findsOneWidget);
+    bool target(String id) => find.byWidgetPredicate((w) => w is GuideTarget && w.id == id).evaluate().isNotEmpty;
+    expect(target('site-tabs'), isFalse, reason: 'the polar "three views" step');
+    expect(target('site-tabs-global'), isFalse, reason: 'one pane, no chips');
+    expect(find.descendant(of: find.byType(SkyTimeTab), matching: find.byType(ChoiceChip)), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('phone: the tabs guide step says two views; the More row does not promise a light map', (tester) async {
+    state.setOverviewMoreOpen(false);
+    await pumpSite(tester, const Size(390, 844));
+    bool target(String id) => find.byWidgetPredicate((w) => w is GuideTarget && w.id == id).evaluate().isNotEmpty;
+    expect(target('site-tabs'), isFalse);
+    expect(target('site-tabs-global'), isTrue);
+    final step = guideSteps['site.overview']!.firstWhere((st) => st.target == 'site-tabs-global');
+    expect(step.body, startsWith('Overview and Sky & time.'));
+    expect(step.body, contains('south-pole sites only'));
+    // the polar step keeps its words
+    expect(guideSteps['site.overview']!.firstWhere((st) => st.target == 'site-tabs').body,
+        'Overview, Sky & time and Light & shadow. Tap one, or swipe sideways.');
+    final more = find.text(moreSublineGlobal);
+    await reveal(tester, more);
+    expect(more, findsOneWidget);
+    expect(find.text(moreSubline), findsNothing, reason: '"the light map" is south pole only');
+    expect(tester.takeException(), isNull);
+  });
 
   testWidgets('360 dp (also 2x text): Overview and Sky & time without overflow', (tester) async {
     for (final text in [1.0, 2.0]) {

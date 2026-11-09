@@ -30,6 +30,9 @@ const guideSteps = <String, List<GuideStep>>{
   'site.overview': [
     GuideStep('change-site', 'Change site', 'Pick another site, or one of your own spots. It opens on the same tab.'),
     GuideStep('site-tabs', 'Three views of a site', 'Overview, Sky & time and Light & shadow. Tap one, or swipe sideways.'),
+    // a whole-Moon site (1.14.0): the light map covers south-pole sites only
+    GuideStep('site-tabs-global', 'Two views of this site',
+        'Overview and Sky & time. Tap one, or swipe sideways. The Light & shadow map covers south-pole sites only.'),
     GuideStep('mission-length', 'How long you stay', 'Choose how many days the surface mission lasts.'),
     GuideStep('landing-find', 'Find the best landing window',
         'Finds the earliest landing whose whole mission keeps the Sun and Earth above the skyline.'),

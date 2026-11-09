@@ -128,6 +128,18 @@ void main() {
     await tester.pumpWidget(const SizedBox());
   });
 
+  testWidgets('Explore: the guide points out the South pole | Whole Moon switch, right after Mission settings (1.14.0)',
+      (tester) async {
+    await show(tester);
+    await settle(tester);
+    expect(state.activeGuide, 'explore');
+    expect(find.byWidgetPredicate((w) => w is GuideTarget && w.id == 'region'), findsOneWidget);
+    final titles = await walk(tester);
+    expect(titles.take(2), ['Mission settings', 'South pole or whole Moon']);
+    expect(state.guidesSeen, contains('explore:region'));
+    await tester.pumpWidget(const SizedBox());
+  });
+
   testWidgets('Back goes a step back; Android back too, and on the first step it closes the guide', (tester) async {
     await show(tester);
     await settle(tester);

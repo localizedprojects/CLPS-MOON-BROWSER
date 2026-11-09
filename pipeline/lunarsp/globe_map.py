@@ -23,6 +23,7 @@ lon = -180 + (i + 0.5) * 360 / width, lat = 90 - (j + 0.5) * 180 / height
 
 from __future__ import annotations
 
+import gzip
 import hashlib
 import io
 import json
@@ -110,6 +111,21 @@ def grey_webp(g: np.ndarray, quality: int | None) -> bytes:
     else:
         img.save(buf, "WEBP", quality=quality, method=6)
     return buf.getvalue()
+
+
+def decode_planar_rect(blob: bytes, width: int, height: int) -> np.ndarray:
+    """Inverse of ``basemap.encode_planar`` for a ``height`` x ``width`` grid (contract section 5.4).
+
+    The residual is the 2-D difference of z (z = r + left + up - upleft), so z is the double
+    cumulative sum of r; done in int64 and wrapped to int16 it is exact even where a residual
+    wrapped."""
+    raw = np.frombuffer(gzip.decompress(blob), np.uint8)
+    n = width * height
+    if raw.size != 2 * n:
+        raise ValueError(f"planar DEM: {raw.size} bytes for {width} x {height}")
+    r = (raw[:n].astype(np.uint16) | (raw[n:].astype(np.uint16) << 8)).view(np.int16).reshape(height, width)
+    z = np.cumsum(np.cumsum(r.astype(np.int64), axis=0), axis=1)
+    return (z & 0xFFFF).astype(np.uint16).view(np.int16)
 
 
 def earth_share_grid(width: int, height: int, earth_c: np.ndarray, chunk_rows: int = 8) -> np.ndarray:
@@ -251,15 +267,14 @@ def thumb_grey(window, lat: float, lon: float, levels, px: int = THUMB_PX, half_
     n = px * k
     s = (np.arange(n) + 0.5) / n * 2 * half_km - half_km  # km, centre of each fine pixel
     xe, yn = np.meshgrid(s, -s)  # row 0 = north edge
-    dist = np.hypot(xe, yn) * 1000.0
-    azi = np.degrees(np.arctan2(xe, yn))
-    from .geometry import enu_basis
-    e, nn, u = enu_basis(lat, lon)
-    th = dist / (R_KM * 1000.0)
-    a = np.radians(azi)
-    v = (np.cos(th)[..., None] * u + np.sin(th)[..., None] * (np.cos(a)[..., None] * nn + np.sin(a)[..., None] * e))
-    la = np.degrees(np.arcsin(np.clip(v[..., 2], -1, 1)))
-    lo = np.degrees(np.arctan2(v[..., 1], v[..., 0]))
+    # Local equirectangular frame: each row keeps its own latitude and the east offset is
+    # divided by that row's cos(lat), so every sample lies inside the window's lat/lon box
+    # (an azimuthal frame's corners drift equatorward by d^2 tan(lat) / 2R, about 300 m
+    # at Chandrayaan-3, which is more than the window margin). Over +-20 km the scale
+    # differs from a true local map by less than 0.3 %.
+    la = lat + np.degrees(yn * 1000.0 / (R_KM * 1000.0))
+    lo = lon + np.degrees(xe * 1000.0 / (R_KM * 1000.0 * np.cos(np.radians(la))))
+    lo = ((lo + 180.0) % 360.0) - 180.0
     h = window.height_latlon(la.ravel(), lo.ravel()).reshape(n, n)
     if np.isnan(h).any():
         raise ValueError("thumbnail leaves the near-field window")

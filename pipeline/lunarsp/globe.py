@@ -79,7 +79,7 @@ def main(argv=None) -> None:
     ap.add_argument("--refresh", action="store_true", help="re-query JPL Horizons (horizons only)")
     a = ap.parse_args(argv)
     ids = [s for s in a.sites.split(",") if s] or None
-    steps = ["fetch", "sites", "map", "dem", "thumbs", "validate", "fixtures"] if a.step == "all" else [a.step]
+    steps = ["fetch", "sites", "map", "dem", "thumbs", "horizons", "validate", "fixtures"] if a.step == "all" else [a.step]
     for st in steps:
         t = time.time()
         if st == "fetch":

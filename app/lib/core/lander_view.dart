@@ -897,8 +897,11 @@ class LanderMeshWork {
         final ux = ct * en.up.x + st * (ca * en.north.x + sa * en.east.x);
         final uy = ct * en.up.y + st * (ca * en.north.y + sa * en.east.y);
         final uz = ct * en.up.z + st * (ca * en.north.z + sa * en.east.z);
-        final kk = 2.0 * rM / (1.0 - uz);
-        final col = kk * uy / demPxM + half - 0.5, row = half - 0.5 - kk * ux / demPxM;
+        // the tile's own frame (MapFrame): south-polar for the pole, centred
+        // on the site for a whole-Moon tile, as in _lattice
+        final v = frame.isIdentity ? V3(ux, uy, uz) : frame.toFrame(V3(ux, uy, uz));
+        final kk = 2.0 * rM / (1.0 - v.z);
+        final col = kk * v.y / demPxM + half - 0.5, row = half - 0.5 - kk * v.x / demPxM;
         if (row < 0 || col < 0 || row > demSize - 1 || col > demSize - 1) {
           _endDist[i] = dist;
           break;

@@ -130,7 +130,20 @@ class RenderRegionSegmentRing extends RenderProxyBox {
   /// The focused segment's box in this box's coordinates; null when the
   /// primary focus is not inside [child].
   Rect? focusedSegment() {
-    final box = FocusManager.instance.primaryFocus?.context?.findRenderObject();
+    // the primary focus can still name a widget that left the tree this
+    // frame (a LayoutBuilder rebuilt during layout, as a guide step does):
+    // that element is inactive or gone, and has no render object to ask for.
+    // Debug builds assert on asking; a release build gets a detached box,
+    // which the check below turns away.
+    final ctx = FocusManager.instance.primaryFocus?.context;
+    if (ctx is! Element || !ctx.mounted) return null;
+    var active = true;
+    assert(() {
+      active = ctx.debugIsActive;
+      return true;
+    }());
+    if (!active) return null;
+    final box = ctx.findRenderObject();
     if (box is! RenderBox || !box.attached || !box.hasSize) return null;
     RenderObject? o = box;
     while (o != null && !identical(o, this)) {

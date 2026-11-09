@@ -37,7 +37,9 @@ class RegionSwitch extends StatelessWidget {
           ButtonSegment(
             value: r,
             label: Text(regionSwitchLabels[r]!, maxLines: 1, softWrap: false),
-            tooltip: r == Region.southPole ? 'Detailed south-pole terrain and light map' : 'Landing sites across the whole Moon',
+            tooltip: r == Region.southPole
+                ? 'Detailed south-pole terrain and light map'
+                : 'Landing sites across the whole Moon',
           ),
       ],
       selected: {region},
@@ -60,6 +62,7 @@ class RegionSwitch extends StatelessWidget {
             LayoutBuilder(builder: (context, c) => c.maxWidth < 320 ? FittedBox(child: seg) : seg),
             if (busy)
               Semantics(
+                container: true,
                 liveRegion: true,
                 label: 'Loading the whole-Moon sites',
                 child: const BusyIndicator(size: 16),

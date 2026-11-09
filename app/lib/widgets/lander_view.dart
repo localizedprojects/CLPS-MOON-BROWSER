@@ -17,9 +17,12 @@ import 'package:flutter/scheduler.dart';
 import 'package:flutter/semantics.dart';
 import 'package:flutter/services.dart';
 
+import '../core/catalog.dart' show Site;
 import '../core/dem.dart';
 import '../core/lander_view.dart';
+import '../core/region.dart';
 import '../state/app_state.dart';
+import '../state/global_tiles.dart';
 import '../state/lander_light.dart';
 import '../state/light_engine.dart';
 import '../theme.dart';
@@ -261,6 +264,72 @@ CustomPainter landerViewpointGlyphPainter(Color color) => _ViewpointGlyph(color)
 
 /// The compass strip's tooltip and accessible name (§5).
 const landerCompassLabel = 'Compass: N is away from the pole';
+
+// ---- whole-Moon presets (1.14.0 WP5): the view from the site's own LOLA
+// tile (state/global_tiles.dart), laid out in its map frame; azimuths come
+// from the body frame. No light map there, so the ground is drawn grey ----
+
+/// The compass strip's label at a whole-Moon site: N is the local north,
+/// toward the north pole (the same direction as [landerCompassLabel] at the
+/// south pole: increasing latitude).
+const landerCompassLabelGlobal = 'Compass: N is toward the north pole';
+
+/// The compass label for [site].
+String landerCompassLabelFor(Site site) =>
+    site.region == Region.wholeMoon ? landerCompassLabelGlobal : landerCompassLabel;
+
+/// The scope line under the Lander's view at whole-Moon sites (FidelityBadge).
+const landerGlobalLightNote = 'The Light & shadow map covers south-pole sites only in this version.';
+
+/// The note under the view at a whole-Moon site: no light map, grey ground;
+/// [sunInView]: the Sun's precise-mask word says it is (partly) in view.
+String landerGlobalNote({required bool sunInView}) =>
+    '${sunInView ? '' : 'No direct sunlight here now. '}Ground light and shadow are not computed at whole-Moon '
+    'sites: the ground is drawn grey. Earthshine is not computed.';
+
+/// The caption under the view at a whole-Moon site ([landerCaption]'s words
+/// for the terrain and light).
+String landerCaptionGlobal({required String height, required String site, required String utc, String? lander}) =>
+    '${lander == null ? 'From the lander: $height above the ground at $site' : 'From a raised viewpoint: $height above '
+              'the ground at $site (the lander\'s eye is $lander)'}, $utc. Terrain from LOLA around this site; the ground '
+    'is drawn grey (light not computed); the Sun and Earth are at their exact positions.';
+
+/// The reference line's label at a whole-Moon preset: its horizon mask and
+/// the mask's source ([Site.maskSource]); raised (D22), the lander's.
+String landerMaskLabelGlobal(String maskSource, {String? lander}) =>
+    lander == null ? 'Horizon mask: $maskSource' : 'Lander\'s horizon mask, $lander: $maskSource';
+
+/// The Lander's view FidelityBadge at a whole-Moon preset: [terrain] is
+/// [GlobalTilesIndex.terrainText] (numbers from tiles.json); the rest as
+/// [landerFidelityText] says it for the polar view, for grey ground.
+String landerGlobalFidelityText(String heightText,
+    {required String terrain,
+    required String maskSource,
+    double? eyeOffsetM,
+    List<({double az0, double az1, double distM})> demEnds = const [],
+    bool relief = false,
+    String? viewpoint}) {
+  final ends = [...demEnds]..sort((a, b) => a.az0.compareTo(b.az0));
+  String deg(double a) => '${(((a % 360) + 360) % 360).round()}';
+  return 'Approximate: $terrain The drawn skyline is therefore smoothed and can sit lower than this site\'s horizon '
+      'mask (dashed; $maskSource). '
+      '${viewpoint == null ? 'Ground within 800 m is not resolved by the 400 m grid: where it would rise above the '
+          'distant skyline it is drawn see-through and hatched.' : 'Viewpoint raised to $viewpoint above the site as a '
+          'drawing aid: the same terrain seen from higher (the lander\'s eye is $heightText); the Sun and Earth words '
+          'and the dashed horizon mask stay the lander\'s.'} '
+      'Ground light and shadow are not computed at whole-Moon sites: the ground is ${relief ? 'a neutral' : 'a flat'} '
+      'grey, not a photo.'
+      '${relief ? ' Relief shading (the Relief shading switch) brightens or darkens the ground by up to 30% with the '
+          'slopes of the same LOLA heights, under a fixed drawing light from the north-west (heights 2x): a visual aid, '
+          'not sunlight.' : ''}'
+      ' The Sun and Earth are drawn in their meaning colours at true size and position (DE440, apparent, no '
+      'refraction); glyphs, labels, the 0° line, the compass and the hatching are visual aids.'
+      '${eyeOffsetM != null && eyeOffsetM.abs() > 5 ? ' The eye is ${viewpoint ?? heightText} above the 400 m surface, '
+          '${viewpoint == null ? '' : 'which is '}${eyeOffsetM.abs().round()} m ${eyeOffsetM < 0 ? 'below' : 'above'} '
+          'this site\'s catalogue height.' : ''}'
+      '${ends.isEmpty ? '' : ' Terrain data ends ${(ends.map((e) => e.distM).reduce(math.min) / 1000).round()} km away '
+          'toward azimuth ${ends.map((e) => '${deg(e.az0)}–${deg(e.az1)}°').join(', ')} (edge of this site\'s tile).'}';
+}
 
 String landerClassWord(LightClass? k) => switch (k) {
       null => 'light not computed',
@@ -544,10 +613,20 @@ class LanderViewPanelState extends State<LanderViewPanel> with TickerProviderSta
     _colors = null;
     _refreshText(); // the new site's camera (_initCamera ran in build) and 'Building the view…'
     final s = _s, lat = s.site.lat, lon = s.site.lon, h = s.landerEyeHeightM; // the eye the key names (D22)
+    final site = s.site;
     try {
-      final g = await (widget.demForTest ?? s.dem)();
-      if (!mounted || gen != _meshGen) return;
-      final w = LanderMeshWork(g.heights, g.size, g.scaleM, latDeg: lat, lonDeg: lon, observerHeightM: h);
+      final LanderMeshWork w;
+      if (site.region == Region.wholeMoon) {
+        // a whole-Moon preset (1.14.0 WP5): its own tile, laid out in its map frame
+        final t = await globalTiles.tileFor(site);
+        if (!mounted || gen != _meshGen) return;
+        w = LanderMeshWork(t.grid.heights, t.grid.size, t.grid.scaleM,
+            latDeg: lat, lonDeg: lon, observerHeightM: h, frame: t.frame);
+      } else {
+        final g = await (widget.demForTest ?? s.dem)();
+        if (!mounted || gen != _meshGen) return;
+        w = LanderMeshWork(g.heights, g.size, g.scaleM, latDeg: lat, lonDeg: lon, observerHeightM: h);
+      }
       // one unit at a time, 4 ms slices on the UI thread (D20, §8: a slice is at most 4 ms plus
       // one short unit); abandoned when the site changes or the panel is disposed
       await runSliced((r) => !mounted || gen != _meshGen || w.step(r),
@@ -729,9 +808,12 @@ class LanderViewPanelState extends State<LanderViewPanel> with TickerProviderSta
       ? 'The view could not be built: $_meshError'
       : _mesh == null
           ? 'Building the view…'
-          : _nearFrame == null
+          : _nearFrame == null && !_global
               ? 'Computing light…'
               : null;
+
+  /// A whole-Moon preset: no light frame, grey ground (1.14.0 WP5).
+  bool get _global => _s.site.region == Region.wholeMoon;
 
   void _refreshText({bool live = false}) {
     if (_s.eph == null) return;
@@ -1145,11 +1227,14 @@ class LanderViewPanelState extends State<LanderViewPanel> with TickerProviderSta
     final h = s.observerHeightM, vp = s.landerViewpoint;
     // the lander's height and, raised (D22), the viewpoint's
     final landerH = landerHeightText(h), eye = vp.raised ? landerHeightText(s.landerEyeHeightM) : null;
+    final global = _global;
     final notes = <String>[
-      if (widget.layer != LightLayer.earth && !words.sun.startsWith('in view') && !words.sun.startsWith('partly hidden'))
+      if (global)
+        landerGlobalNote(sunInView: words.sun.startsWith('in view') || words.sun.startsWith('partly hidden'))
+      else if (widget.layer != LightLayer.earth && !words.sun.startsWith('in view') && !words.sun.startsWith('partly hidden'))
         'No direct sunlight here now. Ground in shadow is drawn dark; Earthshine is not computed.',
       if (near != null && !far) landerGreyNote(playing: s.playing, web: kIsWeb),
-      landerCaption(
+      (global ? landerCaptionGlobal : landerCaption)(
         height: eye ?? landerH,
         site: s.site.short,
         utc: utcLabel(_tMs),
@@ -1201,7 +1286,8 @@ class LanderViewPanelState extends State<LanderViewPanel> with TickerProviderSta
       cam: cam,
       mesh: _mesh,
       proj: _proj,
-      colors: near == null ? null : _colors,
+      // a whole-Moon preset has no light frame: its grey ground (1.14.0 WP5)
+      colors: near == null && !global ? null : _colors,
       patterns: _patterns,
       sun: sun,
       earth: earth,
@@ -1209,10 +1295,12 @@ class LanderViewPanelState extends State<LanderViewPanel> with TickerProviderSta
       earthWord: words.earth,
       maskDeg: s.mask.elevDeg,
       maskStepDeg: s.mask.azStepDeg,
-      maskLabel: landerMaskLabel(custom: s.site.custom, lander: eye == null ? null : landerH),
+      maskLabel: global
+          ? landerMaskLabelGlobal(s.site.maskSource, lander: eye == null ? null : landerH)
+          : landerMaskLabel(custom: s.site.custom, lander: eye == null ? null : landerH),
       probe: _probe,
       probeAt: _probeAt,
-      seeThrough: near == null ? null : _seeThrough,
+      seeThrough: near == null && !global ? null : _seeThrough,
       status: status,
       // the ice frame follows the keyboard: a touch tap gives the view the
       // focus but shows no frame (1.13.5)
@@ -1320,9 +1408,9 @@ class LanderViewPanelState extends State<LanderViewPanel> with TickerProviderSta
                     // view's description
                     child: Semantics(
                       container: true,
-                      label: landerCompassLabel,
+                      label: landerCompassLabelFor(s.site),
                       child: Tooltip(
-                        message: landerCompassLabel,
+                        message: landerCompassLabelFor(s.site),
                         excludeFromSemantics: true,
                         child: GestureDetector(
                           key: const ValueKey('lander-compass'),
@@ -1466,6 +1554,7 @@ class LanderFidelityBadges extends StatelessWidget {
     final s = state, heightText = landerHeightText(s.observerHeightM);
     // from a raised viewpoint (D22): its sentence in place of the see-through one
     final viewpoint = s.landerViewpoint.raised ? landerHeightText(s.landerEyeHeightM) : null;
+    if (s.site.region == Region.wholeMoon) return _global(s, heightText, viewpoint);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -1501,6 +1590,42 @@ class LanderFidelityBadges extends StatelessWidget {
       ]
     );
   }
+
+  /// A whole-Moon preset (1.14.0 WP5): the terrain from its tile (numbers
+  /// from tiles.json), grey ground, and the light map's scope.
+  Widget _global(AppState s, String heightText, String? viewpoint) => Column(
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: [
+      FutureBuilder<GlobalTilesIndex>(
+        future: globalTiles.index(),
+        builder: (context, ix) => ValueListenableBuilder<LanderMesh?>(
+          valueListenable: mesh,
+          builder: (context, m, _) {
+            final mine =
+                m != null &&
+                m.cam.latDeg == s.site.lat &&
+                m.cam.lonDeg == s.site.lon &&
+                m.cam.eyeHeightM == s.landerEyeHeightM;
+            final terrain = ix.data?.terrainText ?? globalTiles.loadedIndex?.terrainText;
+            if (terrain == null) return const SizedBox.shrink();
+            return FidelityBadge(
+              key: const ValueKey('lander-badge'),
+              text: landerGlobalFidelityText(
+                heightText,
+                terrain: terrain,
+                maskSource: s.site.maskSource,
+                eyeOffsetM: mine ? m.cam.groundM - s.site.terrainHeightM : null,
+                demEnds: mine ? m.demEnds : const [],
+                relief: s.landerRelief,
+                viewpoint: viewpoint
+              )
+            );
+          }
+        ),
+      ),
+      const FidelityBadge(key: ValueKey('lander-global-scope'), text: landerGlobalLightNote),
+    ]
+  );
 }
 
 /// The view's drag and pinch (§7.4): it claims a drag, in any direction, as

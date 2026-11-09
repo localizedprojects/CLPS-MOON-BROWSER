@@ -14,6 +14,11 @@
 /// carry over both ways: the panel sits under the host route's PageStorage
 /// bucket (`lander-camera-<siteId>`) and adopts the mesh kept in
 /// [AppState.landerMesh], so neither opening nor closing rebuilds it.
+///
+/// A whole-Moon preset (1.14.0 WP5) has no light map: the page then asks for
+/// no frames and shows no layer switch or legend, and previous / next and the
+/// name step through the region's presets that have a Lander terrain tile
+/// (state/global_tiles.dart).
 library;
 
 import 'dart:async';
@@ -23,10 +28,12 @@ import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 
 import '../core/catalog.dart' show Site;
+import '../core/region.dart';
 import '../core/lander_view.dart' show LanderMesh, LanderViewpointHeight;
 import '../core/shadow.dart' show LightShares;
 import '../core/site_order.dart';
 import '../state/app_state.dart';
+import '../state/global_tiles.dart';
 import '../state/light_engine.dart';
 import '../state/light_loop.dart';
 import '../theme.dart';
@@ -151,7 +158,87 @@ class LanderFullScreenPageState extends State<LanderFullScreenPage> {
     super.initState();
     state.addListener(_onState);
     LightMap.framePending.value = false;
+    if (_global) _loadTiles();
   }
+
+  // ---- whole-Moon presets (1.14.0 WP5) -----------------------------------
+
+  /// The shown site is a whole-Moon preset: no light frames, layer switch or legend.
+  bool get _global => state.site.region == Region.wholeMoon;
+
+  /// The tile index, for the sites the bar steps through (once loaded).
+  void _loadTiles() {
+    if (globalTiles.loadedIndex != null) return;
+    globalTiles.index().then((_) {
+      if (mounted) setState(() {});
+    }, onError: (Object _) {});
+  }
+
+  /// The whole-Moon presets with a Lander terrain tile, in the region's order
+  /// (empty until the tile index has loaded).
+  List<Site> get _globalSites {
+    final ix = globalTiles.loadedIndex;
+    if (ix == null) return const [];
+    return [for (final x in state.regionSites(Region.wholeMoon)) if (ix.forSite(x) != null) x];
+  }
+
+  /// The sites previous / next and the name step through.
+  List<Site> get _sites => _global ? _globalSites : state.allSites;
+
+  /// The name at a whole-Moon preset: a list of the presets with a Lander's
+  /// view (the app's site picker cannot be limited to them).
+  Future<void> _pickGlobalSite() async {
+    final sites = _globalSites, current = state.selectedId;
+    final id = await showPhSheet<String>(
+      context,
+      (context) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const SheetHeader(globalPickerTitle, subtitle: 'Whole Moon sites with a terrain tile'),
+                const SizedBox(height: 8),
+                for (final x in sites)
+                  Semantics(
+                    button: true,
+                    selected: x.id == current,
+                    label: '${x.short}${x.id == current ? ', current site' : ''}',
+                    onTap: () => Navigator.pop(context, x.id),
+                    child: FocusSemantics(
+                      child: TextButton(
+                        key: ValueKey('lander-global-pick-${x.id}'),
+                        style: TextButton.styleFrom(
+                          minimumSize: const Size(48, 48),
+                          foregroundColor: PH.text,
+                          alignment: Alignment.centerLeft,
+                          padding: const EdgeInsets.symmetric(horizontal: 8),
+                        ),
+                        onPressed: () => Navigator.pop(context, x.id),
+                        child: Row(
+                          children: [
+                            // the current site: a check mark and its words, not colour alone
+                            SizedBox(width: 28, child: x.id == current ? const Icon(Icons.check, size: 20) : null),
+                            Expanded(child: Text(x.short, style: PHText.body)),
+                            if (x.id == current) Text('current', style: PHText.small.copyWith(color: PH.muted)),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+    if (!mounted || id == null) return;
+    _switchTo(id);
+  }
+
+  /// The global site list sheet's title.
+  static const globalPickerTitle = "Lander's view: change site";
 
   @override
   void dispose() {
@@ -249,13 +336,14 @@ class LanderFullScreenPageState extends State<LanderFullScreenPage> {
   /// mesh is still kept) and takes its own remembered camera, else faces the
   /// Sun, else Earth, else north.
   void _switchTo(String id) {
-    if (id == state.selectedId || !state.allSites.any((x) => x.id == id)) return;
+    if (id == state.selectedId || !_sites.any((x) => x.id == id)) return;
     rememberCamera();
     unawaited(state.openSite(id, tab: state.siteTab));
   }
 
   /// The name: the same single-select picker as "Change site".
   Future<void> _pickSite() async {
+    if (_global) return _pickGlobalSite();
     final ids = await showSitePicker(context, multi: false, initial: [state.selectedId]);
     if (!mounted || ids == null || ids.isEmpty) return;
     _switchTo(ids.first);
@@ -268,7 +356,7 @@ class LanderFullScreenPageState extends State<LanderFullScreenPage> {
   /// around; they are left out when there is no other site.
   Widget _topBar({Widget? trailing}) {
     final site = state.site;
-    final around = siteNeighbours(state.allSites, site.id);
+    final around = siteNeighbours(_sites, site.id);
     Widget step(Site to, {required bool next}) => IconButton(
       key: ValueKey(next ? 'lander-full-next' : 'lander-full-prev'),
       tooltip: '${next ? 'Next' : 'Previous'} site: ${to.short}',
@@ -334,7 +422,7 @@ class LanderFullScreenPageState extends State<LanderFullScreenPage> {
   );
 
   Widget _badges() {
-    final near = _siteNear;
+    final near = _global ? null : _siteNear;
     return LanderFidelityBadges(
       state: state,
       mesh: _mesh,
@@ -377,7 +465,7 @@ class LanderFullScreenPageState extends State<LanderFullScreenPage> {
     child: LanderViewPanel(
       key: _panel,
       state: state,
-      near: _near,
+      near: _global ? null : _near,
       layer: _layer,
       width: width,
       maxHeight: height,
@@ -388,9 +476,12 @@ class LanderFullScreenPageState extends State<LanderFullScreenPage> {
 
   @override
   Widget build(BuildContext context) {
+    // a whole-Moon preset asks for no light frames (no light map there, WP5)
+    final global = _global;
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) _loop.request();
+      if (mounted && !global) _loop.request();
     });
+    if (global) _loadTiles();
     final s = state;
     final Widget body;
     if (s.eph == null) {
@@ -427,10 +518,12 @@ class LanderFullScreenPageState extends State<LanderFullScreenPage> {
                               crossAxisAlignment: CrossAxisAlignment.stretch,
                               children: [
                                 const SizedBox(height: 8),
-                                Align(alignment: Alignment.centerLeft, child: _layerSwitch(short: true)),
-                                const SizedBox(height: 10),
-                                ?_error(),
-                                _legend(_near, _layer),
+                                if (!global) ...[
+                                  Align(alignment: Alignment.centerLeft, child: _layerSwitch(short: true)),
+                                  const SizedBox(height: 10),
+                                  ?_error(),
+                                  _legend(_near, _layer),
+                                ],
                                 _badges(),
                               ],
                             ),
@@ -449,11 +542,11 @@ class LanderFullScreenPageState extends State<LanderFullScreenPage> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               _topBar(
-                trailing: wide
+                trailing: wide && !global
                     ? Row(mainAxisSize: MainAxisSize.min, children: [_layerSwitch(short: false), _legendButton()])
                     : null,
               ),
-              if (!wide)
+              if (!wide && !global)
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 8),
                   child: Row(
@@ -472,7 +565,7 @@ class LanderFullScreenPageState extends State<LanderFullScreenPage> {
                     // [LanderFullScreenPage.notesShare] of the room, so opening the
                     // approximation text ('More') never squeezes the view or pushes
                     // the time bar off screen; the main badge comes first, in sight
-                    final error = _error();
+                    final error = global ? null : _error();
                     return Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [

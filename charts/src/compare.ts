@@ -216,6 +216,10 @@ export const SIMPLE_PNG_ROW_PX = 17
  */
 function compareAlt(d: CompareData, rows: CompareRow[], earth: string, exact: boolean): string {
   const s = scoreTexts(rows)
+  // a shortlist that mixes regions (1.14.0) is not one ranking: its rows are read without a rank number
+  if (d.mixed) return `${headline(d, exact)}. ` + rows.map((r, i) => `${r.name}, score ${s[i]}, sunlight ${r.pctSunlit.toFixed(1)}%, ` +
+    `${earth} ${r.pctEarth.toFixed(1)}%, Sun and Earth together ${r.pctBoth.toFixed(1)}%, longest dark ${longestDarkText(r)}`).join('; ') +
+    `. ${scoreLine(d.weights)} ${weightsText(d.weights)}.`
   return `${headline(d, exact)}. ` + rows.map((r, i) => `${i + 1}. ${r.name}, score ${s[i]}, sunlight ${r.pctSunlit.toFixed(1)}%, ` +
     `${earth} ${r.pctEarth.toFixed(1)}%, Sun and Earth together ${r.pctBoth.toFixed(1)}%, longest dark ${longestDarkText(r)}`).join('; ') +
     `. ${scoreLine(d.weights)} ${weightsText(d.weights)}.`
@@ -326,6 +330,8 @@ export function buildCompareSimple(d: CompareData, opts: CompareOptions = {}): F
       text: mono(esc(longestDarkText(r))), font: { size: 13, color: C.text }, hovertext: longestDarkTip(r) })
     if (i < rows.length - 1) at(`s${i}`)
   })
+  // a shortlist that mixes regions (1.14.0) is not one ranking: no rank number before a site's name (the en space after it goes too)
+  if (d.mixed) for (const a of annotations) if (typeof a.text === 'string') a.text = a.text.replace(/^<b>\d+\s/, '<b>')
   const data = metrics.map((m) => ({
     type: 'bar', orientation: 'h', name: m.label,
     y: rows.map((_, i) => `${m.key}${i}`), x: rows.map((r) => r[m.key]),

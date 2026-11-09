@@ -16,6 +16,7 @@ import 'package:polar_horizon/state/chart_hub.dart';
 import 'package:polar_horizon/theme.dart';
 import 'package:polar_horizon/widgets/compare_panel.dart';
 import 'package:polar_horizon/widgets/focus_rings.dart';
+import 'package:polar_horizon/widgets/ranked_cards.dart';
 import 'package:polar_horizon/widgets/winner_card.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -142,6 +143,49 @@ void main() {
       expect(find.bySemanticsLabel(RegExp('^${RegExp.escape(l)}\\. Open ')), findsOneWidget, reason: l);
     }
     h.dispose();
+  });
+
+  testWidgets('a mixed shortlist numbers no site: no rank chips, no "Rank n of m", no Rank column; polar keeps them', (tester) async {
+    final h = tester.ensureSemantics();
+    final cards = find.byType(RankedCards);
+    Finder chip(String n) => find.descendant(of: cards, matching: find.text(n));
+    applyShortlist(state, [...polarPair, 'apollo-11-lm']);
+    await pumpCompare(tester);
+    expect(compareMixed(state), isTrue);
+    expect(find.text(mixedShortlistTitle), findsOneWidget);
+    expect(find.text('Your shortlist, best first'), findsNothing);
+    for (final n in ['1', '2', '3']) {
+      expect(chip(n), findsNothing, reason: n);
+    }
+    expect(find.bySemanticsLabel(RegExp(r'^Rank \d+ of \d+')), findsNothing);
+    // the three cards are still there, in score order, each read with its name and score
+    final ranked = rankedFor(state);
+    expect(ranked, hasLength(3));
+    for (final r in ranked) {
+      expect(find.bySemanticsLabel('${r.name}, score ${r.score.total.round()} out of 100'), findsOneWidget, reason: r.name);
+    }
+    // the all-polar shortlist keeps the 1.13.5 numbers and heading
+    applyShortlist(state, [...polarPair, 'artemis3-haworth']);
+    await pumpCompare(tester);
+    expect(find.text('Your shortlist, best first'), findsOneWidget);
+    expect(find.text(mixedShortlistTitle), findsNothing);
+    for (final n in ['1', '2', '3']) {
+      expect(chip(n), findsOneWidget, reason: n);
+    }
+    expect(find.bySemanticsLabel(RegExp(r'^Rank [123] of 3: ')), findsNWidgets(3));
+    h.dispose();
+
+    // "All numbers": the table's Rank column only for a single-region shortlist
+    for (final mixed in [true, false]) {
+      await tester.pumpWidget(MaterialApp(
+        theme: buildTheme(),
+        home: Scaffold(body: SingleChildScrollView(child: CompareNumbers(ranked: rankedFor(state), initiallyExpanded: true, mixed: mixed))),
+      ));
+      expect(find.text('Rank'), mixed ? findsNothing : findsOneWidget, reason: 'mixed $mixed');
+      expect(find.byType(DataTable), findsOneWidget);
+      expect(tester.widget<DataTable>(find.byType(DataTable)).columns.length, mixed ? 11 : 12);
+      expect(tester.takeException(), isNull);
+    }
   });
 
   testWidgets('an all-polar shortlist keeps the WinnerCard and shows no banner', (tester) async {

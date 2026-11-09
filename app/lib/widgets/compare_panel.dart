@@ -223,6 +223,10 @@ class CompareNumbers extends StatelessWidget {
   final ValueChanged<String>? onOpenSite;
   final VoidCallback? onSaveScorecard, onSaveChart;
 
+  /// A shortlist that mixes regions ([compareMixed], 1.14.0): the table
+  /// drops its Rank column (rows stay in score order).
+  final bool mixed;
+
   const CompareNumbers({
     super.key,
     required this.ranked,
@@ -232,6 +236,7 @@ class CompareNumbers extends StatelessWidget {
     this.onOpenSite,
     this.onSaveScorecard,
     this.onSaveChart,
+    this.mixed = false,
   });
 
   String _pct(double p) => exact ? '${p.toStringAsFixed(1)}%' : StatBar.pctText(p);
@@ -272,7 +277,7 @@ class CompareNumbers extends StatelessWidget {
         columnSpacing: 20,
         showCheckboxColumn: false,
         columns: [
-          const DataColumn(label: Text('Rank')),
+          if (!mixed) const DataColumn(label: Text('Rank')),
           const DataColumn(label: Text('Site')),
           const DataColumn(label: Text('Score'), numeric: true),
           const DataColumn(label: Text('Sunlit'), numeric: true),
@@ -290,7 +295,7 @@ class CompareNumbers extends StatelessWidget {
             DataRow(
               onSelectChanged: onOpenSite == null ? null : (_) => onOpenSite!(r.id),
               cells: [
-                DataCell(Text('${i + 1}')),
+                if (!mixed) DataCell(Text('${i + 1}')),
                 DataCell(Text(r.name)),
                 DataCell(Text(exact ? r.score.total.toStringAsFixed(1) : '${r.score.total.round()}')),
                 DataCell(Text(_pct(r.metrics.pctSunlit))),

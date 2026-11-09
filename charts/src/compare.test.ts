@@ -80,6 +80,30 @@ describe('compare simple view (charts spec 2.3)', () => {
     expect(headline(d, true).startsWith('Best: ')).toBe(true)
   })
 
+  it('a mixed-region shortlist (mixed: true) numbers no site in the simple titles or the alt text; polar output unchanged (1.14.0)', () => {
+    const m: CompareData = { ...d, mixed: true }
+    const names = d.rows.map((r) => r.name)
+    for (const png of [false, true]) {
+      const titles = texts(buildCompareSimple(m, { png })).map((t) => plain(t.split('<br>')[0])).filter((t) => / score \d+$/.test(t))
+      expect(titles).toEqual(['Malapert peak (MP1) score 62', 'IM-1 Odysseus (landed) score 62', 'IM-2 Athena (landed) score 57'])
+      for (const t of titles) expect(t).not.toMatch(/^\d/)
+    }
+    for (const alt of [buildCompareSimple(m).alt, buildCompare(m).alt]) {
+      for (const n of names) {
+        expect(alt).toContain(n)
+        expect(alt).not.toMatch(new RegExp(`\\d\\.? ${n.replace(/[()]/g, '\\$&')}`))
+      }
+    }
+    // the same bars, scores and order as the unflagged figure: only the rank numbers and the headline go
+    const plainFig = buildCompareSimple(d), mixedFig = buildCompareSimple(m)
+    expect(JSON.stringify(mixedFig.data)).toBe(JSON.stringify(plainFig.data))
+    // without the flag (every polar payload) the numbers stay: "1 Malapert peak (MP1)" and "1. Malapert peak (MP1)"
+    expect(texts(plainFig).map((t) => plain(t.split('<br>')[0]))).toContain('1 Malapert peak (MP1) score 62')
+    expect(plainFig.alt).toContain('1. Malapert peak (MP1), score')
+    expect(buildCompareSimple({ ...d, mixed: false }).alt).toBe(plainFig.alt)
+    expect(JSON.stringify(buildCompareSimple({ ...d, mixed: false }))).toBe(JSON.stringify(plainFig))
+  })
+
   it('prints every score with the same tie-aware decimals (56.72, not 56.7) (exact view and star panel)', () => {
     expect(scoreTexts(ranked(d))).toEqual(['61.84', '61.83', '56.72'])
   })

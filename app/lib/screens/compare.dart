@@ -36,6 +36,10 @@ const compareWideWidth = 900.0;
 /// runner-up first; the reasons under "Why this score?").
 const compareCompactWidth = 600.0;
 
+/// The shortlist heading when it mixes regions ([compareMixed], 1.14.0):
+/// the cards and the table carry no rank numbers, and the heading says why.
+const mixedShortlistTitle = 'Your shortlist, scores side by side (mixed regions: no single ranking)';
+
 class CompareScreen extends StatefulWidget {
   const CompareScreen({super.key});
 
@@ -172,15 +176,17 @@ class _Results extends StatelessWidget {
     final customs = [for (final x in compareSiteIndex(s).values) if (x.custom) x];
     final customIds = {for (final x in customs) x.id};
     final customBadges = {for (final x in customs) x.id: customHorizonShortFor(x, s)};
+    // a mixed-region shortlist (1.14.0) is not one ranking: no rank numbers, no "best first"
+    final mixed = compareMixed(s);
     return Column(crossAxisAlignment: CrossAxisAlignment.stretch, mainAxisSize: MainAxisSize.min, children: [
       if (showWinner) ...[_Winner(state: s), const SizedBox(height: 16)],
       // the chart comes right after "Best for your priorities" (charts spec 4)
       if (showChart) ...[_Chart(state: s), const SizedBox(height: 32)],
-      Text('Your shortlist, best first', style: PHText.subtitle),
+      Text(mixed ? mixedShortlistTitle : 'Your shortlist, best first', style: PHText.subtitle),
       // DSN-gated numbers are labelled, as on Explore and the site (science-5)
       if (dsn) const FidelityBadge(text: dsnResolutionNote),
       const SizedBox(height: 8),
-      RankedCards(ranked: ranked, dsn: dsn, customIds: customIds, customBadges: customBadges, onOpen: shortlistOpener(s)),
+      RankedCards(ranked: ranked, dsn: dsn, customIds: customIds, customBadges: customBadges, onOpen: shortlistOpener(s), mixed: mixed),
       const SizedBox(height: 32),
       CalendarRace(dsn: dsn, sites: [for (final r in ranked) (r.name, monthlyCounts(s.dailyFor(r.id)))]),
       const SizedBox(height: 32),
@@ -192,6 +198,7 @@ class _Results extends StatelessWidget {
         onOpenSite: shortlistOpener(s),
         onSaveScorecard: () => hub.exportScorecard(s),
         onSaveChart: () => hub.exportComparePng(s),
+        mixed: mixed,
       ),
     ]);
   }

@@ -45,7 +45,13 @@ class RankedCards extends StatelessWidget {
   /// Width from which the cards sit side by side in columns.
   static const gridMinWidth = 640.0;
 
-  const RankedCards({super.key, required this.ranked, this.dsn = false, this.customIds = const {}, this.customBadges = const {}, this.onOpen});
+  /// A shortlist that mixes regions ([compareMixed], 1.14.0): one score
+  /// table across regions is not one ranking, so the cards carry no rank
+  /// number (still in score order, like the chart's mixed view).
+  final bool mixed;
+
+  const RankedCards(
+      {super.key, required this.ranked, this.dsn = false, this.customIds = const {}, this.customBadges = const {}, this.onOpen, this.mixed = false});
 
   @override
   Widget build(BuildContext context) => LayoutBuilder(builder: (context, c) {
@@ -60,6 +66,7 @@ class RankedCards extends StatelessWidget {
                   ? customBadges[ranked[i].id] ?? FidelityBadge.customHorizonShort
                   : null,
               onOpen: onOpen == null ? null : () => onOpen!(ranked[i].id),
+              numbered: !mixed,
             );
         if (w >= gridMinWidth) {
           // as many columns as fit at about 220 dp each, at most one per site
@@ -108,7 +115,11 @@ class _RankCard extends StatelessWidget {
   /// The custom-spot badge in a line; null for a preset.
   final String? custom;
   final VoidCallback? onOpen;
-  const _RankCard({required this.rank, required this.of, required this.r, required this.dsn, required this.custom, this.onOpen});
+
+  /// False for a mixed-region shortlist: no rank chip and no "Rank n of m".
+  final bool numbered;
+  const _RankCard(
+      {required this.rank, required this.of, required this.r, required this.dsn, required this.custom, this.onOpen, this.numbered = true});
 
   @override
   Widget build(BuildContext context) {
@@ -123,17 +134,19 @@ class _RankCard extends StatelessWidget {
         child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, mainAxisSize: MainAxisSize.min, children: [
           Semantics(
             container: true,
-            label: 'Rank $rank of $of: ${r.name}, score $score out of 100',
+            label: numbered ? 'Rank $rank of $of: ${r.name}, score $score out of 100' : '${r.name}, score $score out of 100',
             excludeSemantics: true,
             child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Container(
-                constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-                padding: const EdgeInsets.symmetric(horizontal: 6),
-                alignment: Alignment.center,
-                decoration: BoxDecoration(color: PH.panelHi, borderRadius: BorderRadius.circular(16)),
-                child: Text('$rank', style: statStyle(size: 16)),
-              ),
-              const SizedBox(width: 12),
+              if (numbered) ...[
+                Container(
+                  constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                  padding: const EdgeInsets.symmetric(horizontal: 6),
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(color: PH.panelHi, borderRadius: BorderRadius.circular(16)),
+                  child: Text('$rank', style: statStyle(size: 16)),
+                ),
+                const SizedBox(width: 12),
+              ],
               Expanded(
                 child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                   Text(r.name, style: PHText.subtitle),

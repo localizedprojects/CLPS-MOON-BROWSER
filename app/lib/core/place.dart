@@ -18,6 +18,7 @@ import 'curated.dart';
 import 'geo.dart';
 import 'horizon.dart';
 import 'landing_wording.dart' show groupedCount;
+import 'region.dart';
 
 /// Great-circle distance from the south pole along the surface, km.
 double poleDistanceKm(double lat) => (lat + 90.0) * deg * moonRadiusKm;
@@ -65,6 +66,41 @@ String directionWord(double az) {
 String directionWordTo(double az, double fromLat, double toLat) {
   final w = directionWord(az);
   return w == 'toward the pole' && toLat.isFinite && fromLat.isFinite && toLat >= fromLat ? 'across the pole' : w;
+}
+
+/// [directionWord] for a site in [region]. The south pole keeps its words
+/// (north there means away from the pole); on the whole Moon north means
+/// toward the north pole, so the sectors read [315, 45) 'to the north',
+/// [45, 135) 'to the east', [135, 225) 'to the south', [225, 315) 'to the
+/// west'. '' for NaN.
+String directionWordFor(Region region, double az) {
+  if (region == Region.southPole) return directionWord(az);
+  if (!az.isFinite) return '';
+  final a = az % 360.0;
+  if (a >= 315.0 || a < 45.0) return 'to the north';
+  if (a < 135.0) return 'to the east';
+  if (a < 225.0) return 'to the south';
+  return 'to the west';
+}
+
+/// [directionWordTo] for a site in [region]: the south pole's words (with
+/// 'across the pole'), or on the whole Moon [directionWordFor].
+String directionWordToFor(Region region, double az, double fromLat, double toLat) =>
+    region == Region.southPole ? directionWordTo(az, fromLat, toLat) : directionWordFor(region, az);
+
+/// A latitude and longitude as the Whole Moon screens print them, with two
+/// decimals and hemisphere letters: '26.13° N, 3.63° E', '45.44° S,
+/// 177.60° E', '3.01° S, 23.42° W'. A value that rounds to zero reads N or E
+/// (never '-0.00°'). '' when either input is not finite.
+String latLonText(double latDeg, double lonDeg) {
+  if (!latDeg.isFinite || !lonDeg.isFinite) return '';
+  String part(double v, String pos, String neg) {
+    final t = v.abs().toStringAsFixed(2);
+    final zero = t == '0.00';
+    return '$t° ${v < 0 && !zero ? neg : pos}';
+  }
+
+  return '${part(latDeg, 'N', 'S')}, ${part(lonDeg, 'E', 'W')}';
 }
 
 /// A distance as the card prints it: below 1 km in 10 m steps ('600 m'),

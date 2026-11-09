@@ -22,6 +22,7 @@ import 'horizon.dart';
 import 'landing_wording.dart' show ordinal;
 import 'metrics.dart';
 import 'place.dart';
+import 'region.dart';
 import 'summary.dart' show Ranked, dateTime, spellDuration;
 import 'wording.dart' show bothMetricLabel, earthMetricLabel, longTermCustomNote, siteKindLabel;
 
@@ -62,6 +63,10 @@ const String glanceNothingToWatchText = "Nothing above the app's warning thresho
 /// Details for custom spots: what the app cannot say about them.
 const String glanceCustomLimitsText = 'For your own spots there are no published sources, no 18.6-year record '
     'and no lander-scale slope; the horizon and terrain come from the 400 m map on this device.';
+
+/// [glanceCustomLimitsText] for a Whole Moon custom spot (1.14.0).
+const String glanceGlobalCustomLimitsText = 'For your own spots there are no published sources, no 18.6-year record '
+    'and no lander-scale slope; the horizon and terrain come from the 3.8 km whole-Moon map on this device.';
 
 /// Eyebrow of a glance written by the app (custom spots, uncurated presets).
 const String glanceGeneratedEyebrow = 'WRITTEN BY THE APP FROM ITS NUMBERS';
@@ -285,10 +290,18 @@ String _across(NamedFeature f, {bool gazetteer = false}) => f.diameterKm.isFinit
 /// ', where the ground rises right next to the spot.' when [distKm] is under
 /// [kNearSkylineKm], and '.' when it is unknown (custom spots). '' when
 /// [elevDeg] is not finite.
-String skylineSentence({required double elevDeg, required double azDeg, required double distKm, double heightM = 2}) {
+///
+/// [region] picks the direction words ([directionWordFor]): the south pole's
+/// (the default, unchanged) or the whole Moon's ('to the north', …).
+String skylineSentence(
+    {required double elevDeg,
+    required double azDeg,
+    required double distKm,
+    double heightM = 2,
+    Region region = Region.southPole}) {
   if (!elevDeg.isFinite) return '';
   final from = heightM.isFinite && heightM >= 0 ? 'Seen from ${_heightText(heightM)} m up, the skyline' : 'The skyline';
-  final dir = directionWord(azDeg);
+  final dir = directionWordFor(region, azDeg);
   final where = dir.isEmpty ? '' : ' $dir';
   final String tail;
   if (!distKm.isFinite || distKm < 0) {
@@ -302,10 +315,21 @@ String skylineSentence({required double elevDeg, required double azDeg, required
 }
 
 /// '6.8 km from the south pole (-89.90°, 129.20°E).', or null without
-/// coordinates.
+/// coordinates. A Whole Moon site reads [globalPositionLine] instead.
 String? positionLine(Site s) {
   if (!s.lat.isFinite || !s.lon.isFinite) return null;
+  if (s.region == Region.wholeMoon) return globalPositionLine(s);
   return '${kmText(poleDistanceKm(s.lat))} from the south pole (${_fixed(s.lat, 2)}°, ${_fixed(s.lon, 2)}°E).';
+}
+
+/// A Whole Moon site's position line (build plan §2): '26.13° N, 3.63° E ·
+/// Hadley–Apennine' ([latLonText], then the site's `place` when it has one),
+/// or null without coordinates.
+String? globalPositionLine(Site s) {
+  final ll = latLonText(s.lat, s.lon);
+  if (ll.isEmpty) return null;
+  final place = s.place.trim();
+  return place.isEmpty ? ll : '$ll · $place';
 }
 
 // ---------------------------------------------------------------------------
@@ -325,9 +349,12 @@ int? _nightOther(SiteMetrics m) => m.longestDark == null ? 0 : _floorHours(m.lon
 SiteGlance buildSiteGlance(GlanceInputs g) {
   final s = g.site;
   final custom = s.custom || s.group == 'custom';
+  // a Whole Moon site (1.14.0): no distance to the south pole, whole-Moon
+  // direction words, and its own map's name; the polar path is unchanged
+  final global = s.region == Region.wholeMoon;
   final cur = custom ? null : g.curated;
   final presets = [for (final p in g.catalogue) if (!p.custom && p.group != 'custom') p];
-  final pole = s.lat.isFinite ? poleDistanceKm(s.lat) : double.nan;
+  final pole = s.lat.isFinite && !global ? poleDistanceKm(s.lat) : double.nan;
   final poleText = kmText(pole);
   final near = nearestSite(s.lat, s.lon, presets, exceptId: custom ? null : s.id);
   final feature = nearestFeature(s.lat, s.lon, g.features, maxKm: kFeatureMaxKm);
@@ -351,16 +378,20 @@ SiteGlance buildSiteGlance(GlanceInputs g) {
   final kindLine = kind.isEmpty ? '${s.name}.' : '$kind.';
   final String whatText;
   if (custom) {
-    whatText = poleText.isEmpty ? kindLine : 'A spot you placed $poleText from the south pole.';
+    final ll = latLonText(s.lat, s.lon);
+    whatText = global
+        ? (ll.isEmpty ? kindLine : 'A spot you placed at $ll.')
+        : (poleText.isEmpty ? kindLine : 'A spot you placed $poleText from the south pole.');
   } else {
     whatText = cur != null && cur.headline.trim().isNotEmpty ? cur.headline.trim() : kindLine;
   }
   final elevation = metresText(s.terrainHeightM);
   final facts = <String>[
     if (poleText.isNotEmpty) '$poleText from the pole',
-    if (elevation.isNotEmpty) 'elevation $elevation${custom ? ' (400 m map)' : ''}',
+    if (elevation.isNotEmpty) 'elevation $elevation${custom ? (global ? ' (3.8 km map)' : ' (400 m map)') : ''}',
     // slopeText's '4.5° slope', without a negative zero (Rule N)
-    if (!custom && s.slopeDeg.isFinite) '${_fixed(s.slopeDeg, 1)}° slope on the LOLA 80 m map',
+    if (!custom && s.slopeDeg.isFinite)
+      global ? '${_fixed(s.slopeDeg, 1)}° local slope' : '${_fixed(s.slopeDeg, 1)}° slope on the LOLA 80 m map',
     if (near != null && near.km <= kNearSiteKm) '${kmText(near.km)} from ${_siteRef(near.site)}',
     if (custom && feature != null) '${kmText(feature.km)} from the IAU centre of ${feature.f.name}${_across(feature.f)}',
   ];
@@ -507,12 +538,12 @@ SiteGlance buildSiteGlance(GlanceInputs g) {
   final pos = positionLine(s);
   if (pos != null) where.add(GlanceLine(pos));
   if (near != null) {
-    final dir = directionWordTo(near.az, s.lat, near.site.lat);
+    final dir = directionWordToFor(s.region, near.az, s.lat, near.site.lat);
     where.add(GlanceLine('The nearest catalogue site is ${_siteRef(near.site)}, ${kmText(near.km)} '
         '${dir.isEmpty ? 'away' : dir}.'));
   }
   if (feature != null) {
-    final dir = directionWordTo(feature.az, s.lat, feature.f.lat);
+    final dir = directionWordToFor(s.region, feature.az, s.lat, feature.f.lat);
     // The checked text gives its own size for a feature it describes; a
     // second, different figure (the Gazetteer's) would contradict it on the
     // same card.
@@ -527,9 +558,10 @@ SiteGlance buildSiteGlance(GlanceInputs g) {
   final String sky;
   if (custom) {
     final peak = mask == null ? (elevDeg: double.nan, azDeg: double.nan) : skylinePeak(mask);
-    sky = skylineSentence(elevDeg: peak.elevDeg, azDeg: peak.azDeg, distKm: double.nan);
+    sky = skylineSentence(elevDeg: peak.elevDeg, azDeg: peak.azDeg, distKm: double.nan, region: s.region);
   } else {
-    sky = skylineSentence(elevDeg: s.horizonMaxDeg, azDeg: s.horizonMaxAzDeg, distKm: s.horizonMaxDistanceKm);
+    sky = skylineSentence(
+        elevDeg: s.horizonMaxDeg, azDeg: s.horizonMaxAzDeg, distKm: s.horizonMaxDistanceKm, region: s.region);
   }
   if (sky.isNotEmpty) ground.add(GlanceLine(sky, approximate: custom));
   final mean = mask == null ? double.nan : skylineMeanDeg(mask);
@@ -542,7 +574,9 @@ SiteGlance buildSiteGlance(GlanceInputs g) {
   }
   group(glanceGroundHeading, ground);
   group(glanceMoreWatchHeading, moreWatch);
-  if (custom) group(glanceLimitsHeading, const [GlanceLine(glanceCustomLimitsText)]);
+  if (custom) {
+    group(glanceLimitsHeading, [GlanceLine(global ? glanceGlobalCustomLimitsText : glanceCustomLimitsText)]);
+  }
 
   return SiteGlance(
     curated: isCurated,

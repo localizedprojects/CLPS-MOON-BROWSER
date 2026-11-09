@@ -576,11 +576,17 @@ class _ExploreRegionRowState extends State<ExploreRegionRow> {
 
   Future<void> _switch(AppState s, Region r) async {
     setState(() => _busy = true);
+    var failed = false;
     try {
       await s.setRegion(r);
+      // setRegion keeps South pole (and sets error) when the load fails
+      failed = s.region != r;
     } catch (e) {
-      if (mounted) ScaffoldMessenger.maybeOf(context)?.showSnackBar(const SnackBar(content: Text(globalLoadFailedText)));
+      failed = true;
     } finally {
+      if (failed && mounted) {
+        ScaffoldMessenger.maybeOf(context)?.showSnackBar(const SnackBar(content: Text(globalLoadFailedText)));
+      }
       if (mounted) setState(() => _busy = false);
     }
   }

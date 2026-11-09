@@ -762,11 +762,14 @@ class ShellRouterDelegate extends RouterDelegate<ShellLocation>
     }
   }
 
-  void _unknownSite() {
+  void _unknownSite() => _notice(unknownSiteText);
+
+  /// Explore, with [text] as a notice.
+  void _notice(String text) {
     state.goTo(Dest.explore);
     final ctx = navigatorKey.currentContext;
     if (ctx != null) {
-      ScaffoldMessenger.maybeOf(ctx)?.showSnackBar(const SnackBar(content: Text(unknownSiteText)));
+      ScaffoldMessenger.maybeOf(ctx)?.showSnackBar(SnackBar(content: Text(text)));
     }
   }
 
@@ -785,6 +788,10 @@ class ShellRouterDelegate extends RouterDelegate<ShellLocation>
         if (state.dest == Dest.site && state.selectedId == id) {
           final t = state.regionOf(id) == Region.wholeMoon && tab == SiteTab.light ? SiteTab.skyTime : tab;
           if (state.siteTab != t) state.goTo(Dest.site, siteTab: t);
+        } else if (state.global == null) {
+          // the whole-Moon catalogue did not load: say so, not that the
+          // link is wrong
+          _notice(globalLoadFailedText);
         } else {
           _unknownSite();
         }

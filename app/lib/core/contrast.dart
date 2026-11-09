@@ -12,6 +12,7 @@
 ///   extreme goals (Power first, Earth contact first) to Balanced.
 /// - [regionVerdicts]: the south pole's best site against the rest of the
 ///   Moon's best under each goal, each region ranked on its own sites.
+///   [regionVerdictLine] words one, naming each site as its region's best.
 /// - [sunriseShiftMinutes]: how far a skyline error moves sunrise, from the
 ///   rate at which the Sun climbs past the skyline at the crossings in a
 ///   series. Near the equator the Sun climbs about 0.5° an hour, so 0.3°
@@ -192,6 +193,34 @@ String goalVerdictLine(GoalVerdict v) {
   if (r == null) return '$label: ${w.name} (score $ws).';
   if (v.leadPoints == 0) return '$label: ${w.name} and ${r.name} tie (score $ws).';
   return '$label: ${w.name} leads (score $ws; next ${r.name}, ${r.score.total.round()}).';
+}
+
+/// One [regionVerdicts] verdict in words (contract §11), the south pole
+/// first. Each site is named as its region's best, never as "next": the
+/// other region's best is not the overall runner-up (a region's own second
+/// site may score higher). [poleIds] are the south-pole ids. Examples:
+/// 'Power first: the south pole leads. South pole's best: Shackleton rim,
+/// score 69; Whole Moon's best: Blue Ghost 1, score 59.', on a printed tie
+/// 'Balanced: a tie at score 70. South pole's best: …; Whole Moon's best: ….',
+/// and with one side empty 'Power first: south pole's best: …, score 69 (no
+/// Whole Moon site to compare).'.
+String regionVerdictLine(GoalVerdict v, Set<String> poleIds) {
+  final label = goalLabel(v.goal);
+  final w = v.winner, r = v.runnerUp;
+  final ws = w.score.total.round();
+  if (r == null) {
+    return poleIds.contains(w.id)
+        ? "$label: south pole's best: ${w.name}, score $ws (no Whole Moon site to compare)."
+        : "$label: Whole Moon's best: ${w.name}, score $ws (no south-pole site to compare).";
+  }
+  final poleWins = poleIds.contains(w.id);
+  final pole = poleWins ? w : r, rest = poleWins ? r : w;
+  if (v.leadPoints == 0) {
+    return "$label: a tie at score $ws. South pole's best: ${pole.name}; Whole Moon's best: ${rest.name}.";
+  }
+  return '$label: the ${poleWins ? 'south pole' : 'Whole Moon'} leads. '
+      "South pole's best: ${pole.name}, score ${pole.score.total.round()}; "
+      "Whole Moon's best: ${rest.name}, score ${rest.score.total.round()}.";
 }
 
 /// The verdict between the two regions under each of [goals] (contract §11):

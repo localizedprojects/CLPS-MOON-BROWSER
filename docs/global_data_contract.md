@@ -345,6 +345,10 @@ comes from the core through the seam below.
   `weightsFor(goal)`, each region on its own), then the verdict between those
   two winners. An automatic choice never mixes regions (plan §3); the two
   winners are compared only to word the contrast.
+  `String regionVerdictLine(GoalVerdict v, Set<String> poleIds)` words one,
+  pole first, each site as its region's best ("Power first: the south pole
+  leads. South pole's best: …, score 69; Whole Moon's best: …, score 59."),
+  never as "next": the other region's best is not the overall runner-up.
 
 **AppState (WP2), needed:**
 
@@ -370,7 +374,7 @@ series once the series itself is no longer cached. Tests:
 `ContrastFacts? contrastFactsFor(AppState s)`. `ContrastFacts` holds
 `List<ContrastLine> rows` (`key` = the `ContrastKey` name, `label`, `poleText`, `restText`, `Site? poleSite`,
 `Site? restSite`, `Region? better`: a `ContrastRow` field for field),
-`List<String> verdictLines` (`goalVerdictLine` of each `regionVerdicts`),
+`List<String> verdictLines` (`regionVerdictLine` of each `regionVerdicts`),
 `bool sameWinner` (`sameWinnerEveryGoal`), `String period` (`periodLabel`
 of the user's dates) and `sunriseShift(Region)` (`sunriseShiftOf`). `contrastFactsFor` returns `null` (the card says the comparison is not
 computed yet) until both regions are in; tests can set `debugContrastFacts`
@@ -385,7 +389,7 @@ ContrastFacts? contrastFactsFor(AppState s) {
     rows: [for (final r in contrastRows(pole, rest))
       ContrastLine(key: r.key.name, label: r.label, poleText: r.poleText, restText: r.restText,
           poleSite: r.pole.site, restSite: r.rest.site, better: r.better)],
-    verdictLines: [for (final v in verdicts) goalVerdictLine(v)],
+    verdictLines: [for (final v in verdicts) regionVerdictLine(v, {for (final x in pole) x.site.id})],
     sameWinner: sameWinnerEveryGoal(verdicts),
     period: periodLabel(s.rangeStartMs, s.rangeEndMs, DateTime.now().toUtc()),
     sunriseShift: {for (final r in Region.values) r: s.sunriseShiftOf(r, errorDeg: contrastSkylineErrorDeg)},

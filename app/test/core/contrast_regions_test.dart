@@ -107,4 +107,45 @@ void main() {
     expect(() => regionVerdicts(pole, [...rest, pole.first]), throwsArgumentError);
     expect(regionVerdicts(pole, rest, goals: const [Goal.power]).single.goal, Goal.power);
   });
+  test('regionVerdictLine names each region\'s best, pole first, and never words the other region\'s best as "next"', () {
+    // the review's case: the pole leads under Power first, but the rest's
+    // best is not the overall runner-up (the pole's second site is better)
+    final pole = [
+      ContrastInput(_site('a', Region.southPole), _m(90, 90, 80, 20), 5),
+      ContrastInput(_site('b', Region.southPole), _m(80, 85, 70, 30), 5),
+    ];
+    final rest = [
+      ContrastInput(_site('c', Region.wholeMoon), _m(50, 60, 30, 350), 80),
+      ContrastInput(_site('d', Region.wholeMoon), _m(45, 55, 25, 355), 80),
+    ];
+    final poleIds = {for (final x in pole) x.site.id};
+    for (final v in regionVerdicts(pole, rest)) {
+      final line = regionVerdictLine(v, poleIds);
+      final ws = v.winner.score.total.round(), rs = v.runnerUp!.score.total.round();
+      expect(line, '${goalLabel(v.goal)}: the south pole leads. '
+          "South pole's best: S-a, score $ws; Whole Moon's best: S-c, score $rs.");
+      expect(line, isNot(contains('next')));
+    }
+    // the rest leads: still pole first, the leader named by region
+    final weak = [ContrastInput(_site('e', Region.southPole), _m(20, 30, 10, 400), 5)];
+    final v = regionVerdicts(weak, rest, goals: const [Goal.earth]).single;
+    expect(v.winner.id, 'c');
+    expect(
+        regionVerdictLine(v, {'e'}),
+        'Earth contact first: the Whole Moon leads. '
+        "South pole's best: S-e, score ${v.runnerUp!.score.total.round()}; Whole Moon's best: S-c, score ${v.winner.score.total.round()}.");
+    // a tie at the printed precision
+    final twin = [ContrastInput(_site('f', Region.southPole), rest.first.m, 80)];
+    final tie = regionVerdicts(twin, rest, goals: const [Goal.balanced]).single;
+    expect(tie.leadPoints, 0);
+    expect(regionVerdictLine(tie, {'f'}),
+        "Balanced: a tie at score ${tie.winner.score.total.round()}. South pole's best: S-f; Whole Moon's best: S-c.");
+    // one side empty: that region is named as missing
+    final solo = regionVerdicts(pole, const [], goals: const [Goal.power]).single;
+    expect(regionVerdictLine(solo, poleIds),
+        "Power first: south pole's best: S-a, score ${solo.winner.score.total.round()} (no Whole Moon site to compare).");
+    final soloRest = regionVerdicts(const [], rest, goals: const [Goal.power]).single;
+    expect(regionVerdictLine(soloRest, const {}),
+        "Power first: Whole Moon's best: S-c, score ${soloRest.winner.score.total.round()} (no south-pole site to compare).");
+  });
 }

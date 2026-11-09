@@ -53,9 +53,13 @@ void main() {
     final handle = tester.ensureSemantics();
     await pumpMap(tester);
     final node = tester.getSemantics(find.byKey(const ValueKey('global-map')));
-    var tappable = false;
+    // the map itself takes no tap (it has no position: it would land at 0° N,
+    // 0° E); only the markers' own nodes do, one per site, each 48 dp
+    expect(node.getSemanticsData().hasAction(SemanticsAction.tap), isFalse,
+        reason: 'a semantic tap has no position: it would land at 0° N, 0° E');
+    final tappable = <SemanticsNode>[];
     void walk(SemanticsNode n) {
-      if (n.getSemanticsData().hasAction(SemanticsAction.tap)) tappable = true;
+      if (n != node && n.getSemanticsData().hasAction(SemanticsAction.tap)) tappable.add(n);
       n.visitChildren((c) {
         walk(c);
         return true;
@@ -63,7 +67,17 @@ void main() {
     }
 
     walk(node);
-    expect(tappable, isFalse, reason: 'a semantic tap has no position: it would land at 0° N, 0° E');
+    expect([for (final n in tappable) n.label.split('. ').first]..sort(), [for (final st in sites) st.short]..sort());
+    for (final n in tappable) {
+      expect(n.rect.width, greaterThanOrEqualTo(48), reason: n.label);
+    }
+    // a screen-reader tap on a marker's node opens that marker
+    final a15 = sites.firstWhere((x) => x.id != 'apollo-11-lm');
+    final target = tappable.firstWhere((n) => n.label.startsWith('${a15.short}.'));
+    target.owner!.performAction(target.id, SemanticsAction.tap);
+    await tester.pump();
+    expect(selected, [a15.id]);
+    selected.clear();
     expect(node.label, isNot(contains('Tap a marker')));
     // a pointer tap still opens the marker under it
     final paint = find.descendant(of: find.byKey(const ValueKey('global-map')), matching: find.byType(CustomPaint)).first;

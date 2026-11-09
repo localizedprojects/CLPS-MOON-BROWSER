@@ -18,12 +18,13 @@ import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart' show SemanticsProperties;
 
 import '../core/catalog.dart';
 import '../core/map_labels.dart';
 import '../core/place.dart' show latLonText;
 import '../core/region.dart';
-import '../core/wording.dart' show farSideEarthText, lightMapPolarOnlyText;
+import '../core/wording.dart' show farSideEarthText, lightMapPolarOnlyText, siteKindLabel;
 import '../theme.dart';
 import 'glyphs.dart';
 
@@ -229,29 +230,102 @@ const globalMarkerHitDp = 24.0;
 /// order. Markers reach 1.4 [r] from their centre; the selected one's ring
 /// reaches 2.4 [r], and no other name may cover it (it is an obstacle).
 /// [stackWithin] is the chooser's reach (markers closer than it are a stack).
-List<MapLabel> globalMapLabels({
+///
+/// A site [placeMapLabels] leaves unnamed (no free spot, no stack-mate to
+/// carry it) gets a fallback name ([small], measured at the smaller size), a
+/// little farther out if need be, shifted into view, first clear of the other
+/// markers and then of the names only: on a phone no marker is a bare shape
+/// (1.14.0 review). [measure] gives a text's width and height at either size.
+List<({MapLabel label, bool small})> globalMapLabels({
   required List<(double, double)> anchors,
   required List<String> texts,
   required int? selected,
   required double r,
   required double stackWithin,
-  required (double, double) Function(int site, String text) measure,
+  required (double, double) Function(int site, String text, bool small) measure,
   LabelBox? bounds,
-}) =>
-    placeMapLabels(
-      anchors: anchors,
-      reach: [for (var i = 0; i < anchors.length; i++) i == selected ? 2.4 * r : 1.4 * r],
-      texts: texts,
-      measure: measure,
-      order: [
-        ?selected,
-        for (var i = 0; i < anchors.length; i++)
-          if (i != selected) i,
-      ],
-      stacks: markerStacks(anchors, stackWithin),
-      obstacles: [if (selected != null) LabelBox.around(anchors[selected].$1, anchors[selected].$2, 2.4 * r)],
-      bounds: bounds,
-    );
+}) {
+  final reach = [for (var i = 0; i < anchors.length; i++) i == selected ? 2.4 * r : 1.4 * r];
+  final obstacles = [if (selected != null) LabelBox.around(anchors[selected].$1, anchors[selected].$2, 2.4 * r)];
+  final order = [
+    ?selected,
+    for (var i = 0; i < anchors.length; i++)
+      if (i != selected) i,
+  ];
+  final placed = placeMapLabels(
+    anchors: anchors,
+    reach: reach,
+    texts: texts,
+    measure: (i, t) => measure(i, t, false),
+    order: order,
+    stacks: markerStacks(anchors, stackWithin),
+    obstacles: obstacles,
+    bounds: bounds,
+  );
+  final out = [for (final m in placed) (label: m, small: false)];
+  final named = {for (final m in placed) ...[m.site, ...m.merged]};
+  final markers = [for (var i = 0; i < anchors.length; i++) LabelBox.around(anchors[i].$1, anchors[i].$2, reach[i])];
+  (LabelBox, LabelSpot)? spotFor(int i, String text) {
+    final (x, y) = anchors[i];
+    final (w, h) = measure(i, text, true);
+    final inView = bounds != null && x >= bounds.left && x <= bounds.right && y >= bounds.top && y <= bounds.bottom;
+    LabelBox fit(LabelBox b) {
+      if (!inView) return b;
+      final dx = b.left < bounds.left ? bounds.left - b.left : (b.right > bounds.right ? bounds.right - b.right : 0.0);
+      final dy = b.top < bounds.top ? bounds.top - b.top : (b.bottom > bounds.bottom ? bounds.bottom - b.bottom : 0.0);
+      return LabelBox(b.left + dx, b.top + dy, b.right + dx, b.bottom + dy);
+    }
+
+    for (final clearOfMarkers in [true, false]) {
+      for (final extra in [0.0, r, 2 * r, 4 * r, 6 * r, 8 * r]) {
+        for (final spot in LabelSpot.values) {
+          final b = fit(labelBoxAt(spot, x, y, reach[i], w, h, gap: 2 + extra));
+          if (b.overlaps(markers[i]) || obstacles.any(b.overlaps)) continue;
+          if (out.any((o) => o.label.box.overlaps(b))) continue;
+          if (clearOfMarkers && Iterable.generate(markers.length).any((j) => j != i && markers[j].overlaps(b))) continue;
+          return (b, spot);
+        }
+      }
+    }
+    return null;
+  }
+
+  // the unnamed sites by stack ([placeMapLabels] leaves a site unnamed only
+  // when no stack-mate carries it, so a stack is all named or all unnamed):
+  // each by its own name if they all fit, else one "Name +n" for the stack
+  final rank = {for (final (n, i) in order.indexed) i: n};
+  for (final stack in markerStacks(anchors, stackWithin)) {
+    final group = [
+      for (final i in stack)
+        if (!named.contains(i)) i
+    ]..sort((a, b) => rank[a]!.compareTo(rank[b]!));
+    if (group.isEmpty) continue;
+    final mark = out.length;
+    var all = true;
+    for (final i in group) {
+      final found = spotFor(i, texts[i]);
+      if (found == null) {
+        all = false;
+        break;
+      }
+      out.add((label: MapLabel(i, const [], texts[i], found.$1, found.$2), small: true));
+    }
+    if (!all) {
+      out.removeRange(mark, out.length);
+      final lead = group.first, text = mergedLabelText(texts[lead], group.length - 1);
+      if (spotFor(lead, text) case (final b, final spot)) {
+        out.add((label: MapLabel(lead, group.sublist(1), text, b, spot), small: true));
+      }
+    }
+    named.addAll(group);
+  }
+  return out;
+}
+
+/// A whole-Moon marker's screen-reader label: its name and kind, and how many
+/// markers overlap there (the chooser lists them).
+String globalMapSiteSemanticsLabel(Site s, int stacked) =>
+    '${s.short}. ${siteKindLabel(s)}${stacked > 1 ? '. One of $stacked overlapping markers here' : ''}';
 
 /// The navy chip under every name on the whole-Moon map (the site names and
 /// NEAR SIDE / FAR SIDE): PH.text and PH.ice read at about 7:1 or more on it.
@@ -309,8 +383,24 @@ class _GlobalMapViewState extends State<GlobalMapView> {
   bool _adding = false;
   String? _error;
 
+  // the zoom the markers' screen-reader nodes are sized for: rebuilt when
+  // the scale changes (not on a pan), so each stays 48 dp on screen
+  double _semK = 1;
+
+  void _zoomed() {
+    final k = _scale;
+    if ((k - _semK).abs() > 1e-3 && mounted) setState(() => _semK = k);
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _tc.addListener(_zoomed);
+  }
+
   @override
   void dispose() {
+    _tc.removeListener(_zoomed);
     _tc.dispose();
     super.dispose();
   }
@@ -461,6 +551,8 @@ class _GlobalMapViewState extends State<GlobalMapView> {
                   polarCount: widget.polarSiteCount,
                   tc: _tc,
                   scaler: scaler,
+                  onSelect: widget.onSelect,
+                  semK: _semK,
                 ),
               ),
             ),
@@ -689,6 +781,10 @@ class _GlobalPainter extends CustomPainter {
   final int polarCount;
   final TransformationController tc;
   final TextScaler scaler;
+  final ValueChanged<String> onSelect;
+
+  /// The zoom the screen-reader nodes are sized for (48 dp on screen).
+  final double semK;
 
   _GlobalPainter({
     required this.layers,
@@ -699,6 +795,8 @@ class _GlobalPainter extends CustomPainter {
     required this.polarCount,
     required this.tc,
     required this.scaler,
+    required this.onSelect,
+    required this.semK,
   }) : super(repaint: tc);
 
   TextPainter _text(String s, double size, double k, {Color color = PH.text, FontWeight w = FontWeight.w600}) =>
@@ -822,9 +920,9 @@ class _GlobalPainter extends CustomPainter {
         bounds = LabelBox(a.dx, a.dy, b.dx, b.dy);
       }
       final painters = <String, TextPainter>{};
-      TextPainter label(int i, String t) => painters.putIfAbsent(
-        '$i|$t',
-        () => _text(t, 12, k, w: ordered[i].id == selectedId ? FontWeight.w700 : FontWeight.w500),
+      TextPainter painterFor(int i, String t, bool small) => painters.putIfAbsent(
+        '$i|$t|$small',
+        () => _text(t, small ? 10 : 12, k, w: ordered[i].id == selectedId ? FontWeight.w700 : FontWeight.w500),
       );
       final placed = globalMapLabels(
         anchors: [for (final a in anchors) (a.dx, a.dy)],
@@ -832,14 +930,29 @@ class _GlobalPainter extends CustomPainter {
         selected: ordered.last.id == selectedId ? ordered.length - 1 : null,
         r: r,
         stackWithin: globalMarkerHitDp / k,
-        measure: (i, t) {
-          final p = label(i, t);
+        measure: (i, t, small) {
+          final p = painterFor(i, t, small);
           return (p.width + 6 / k, p.height + 2 / k);
         },
         bounds: bounds,
       );
-      for (final m in placed) {
-        final p = label(m.site, m.text);
+      // a fallback name set farther out than a marker's own spots gets a thin
+      // leader from its marker (under the chips)
+      final leader = Paint()
+        ..color = PH.text.withValues(alpha: 0.6)
+        ..strokeWidth = 1 / k;
+      for (final (:label, :small) in placed) {
+        if (!small) continue;
+        final a = anchors[label.site];
+        final b = label.box;
+        final near = Offset(a.dx.clamp(b.left, b.right), a.dy.clamp(b.top, b.bottom));
+        final d = near - a;
+        if (d.distance <= 2.4 * r + 2) continue;
+        canvas.drawLine(a + d / d.distance * 1.4 * r, near, leader);
+      }
+      for (final (:label, :small) in placed) {
+        final m = label;
+        final p = painterFor(m.site, m.text, small);
         final box = Rect.fromLTRB(m.box.left, m.box.top, m.box.right, m.box.bottom);
         canvas.drawRRect(
           RRect.fromRectAndRadius(box, Radius.circular(3 / k)),
@@ -861,6 +974,36 @@ class _GlobalPainter extends CustomPainter {
       );
     }
   }
+
+  /// One node per marker (overlapping ones too), each a 48 dp button that
+  /// opens its site, as on the polar map: a screen reader finds every site on
+  /// the map, and a click with semantics on opens the marker under it.
+  @override
+  SemanticsBuilderCallback get semanticsBuilder => (size) {
+    final at = [for (final st in sites) globalMapPoint(st.lat, st.lon, size)];
+    final stacked = {
+      for (final st in markerStacks([for (final a in at) (a.dx, a.dy)], globalMarkerHitDp / semK))
+        for (final i in st) i: st.length,
+    };
+    return [
+      for (final (i, st) in sites.indexed)
+        CustomPainterSemantics(
+          key: ValueKey('global-map-site-${st.id}'),
+          rect: Rect.fromCircle(center: at[i], radius: 24 / semK),
+          properties: SemanticsProperties(
+            label: globalMapSiteSemanticsLabel(st, stacked[i] ?? 1),
+            button: true,
+            selected: st.id == selectedId,
+            textDirection: TextDirection.ltr,
+            onTap: () => onSelect(st.id),
+          ),
+        ),
+    ];
+  };
+
+  @override
+  bool shouldRebuildSemantics(covariant _GlobalPainter old) =>
+      old.sites != sites || old.selectedId != selectedId || old.semK != semK;
 
   @override
   bool shouldRepaint(covariant _GlobalPainter old) =>

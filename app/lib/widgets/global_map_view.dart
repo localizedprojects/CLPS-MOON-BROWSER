@@ -48,7 +48,8 @@ class GlobalMapLayers {
   bool get synthetic => meta['synthetic'] == true;
 
   /// The hillshade badge: its resolution at the equator, from `map.json`.
-  String get hillshadeBadge => 'LOLA hillshade, ${kmPerPixel(pxPerDeg('hillshade')).toStringAsFixed(1)} km per pixel at the '
+  String get hillshadeBadge =>
+      'LOLA hillshade, ${kmPerPixel(pxPerDeg('hillshade')).toStringAsFixed(1)} km per pixel at the '
       'equator; not equal-area. Display shading only (artificial light direction), not a Sun position.';
 
   /// The Earth-visible overlay badge (plan §2 item 3).
@@ -113,9 +114,12 @@ Future<GlobalMapLayers> loadGlobalMapLayers(AssetBundle bundle, {String root = '
   if (running != null) return running;
   final job = _load(bundle, root);
   _loads[bundle] = job;
-  job.then<void>((_) {}, onError: (Object e) {
-    if (identical(_loads[bundle], job)) _loads[bundle] = null;
-  });
+  job.then<void>(
+    (_) {},
+    onError: (Object e) {
+      if (identical(_loads[bundle], job)) _loads[bundle] = null;
+    },
+  );
   return job;
 }
 
@@ -125,8 +129,10 @@ Future<GlobalMapLayers> _load(AssetBundle bundle, String root) async {
     final e = (meta[key] as Map).cast<String, dynamic>();
     final data = await bundle.load('$root${e['file']}');
     final w = (e['width'] as num).toInt();
-    final codec = await ui.instantiateImageCodec(data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes),
-        targetWidth: maxWidth != null && w > maxWidth ? maxWidth : null);
+    final codec = await ui.instantiateImageCodec(
+      data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes),
+      targetWidth: maxWidth != null && w > maxWidth ? maxWidth : null,
+    );
     return (await codec.getNextFrame()).image;
   }
 
@@ -154,8 +160,9 @@ Path globalMarkerPath(Site st, Offset q, double r) => globalMarkerPathFor(st.gro
 /// [globalMarkerPath] by [group] (and whether it is a spot of the user's own).
 Path globalMarkerPathFor(String group, Offset q, double r, {bool custom = false}) {
   final p = Path();
-  List<Offset> ring(int n, double start, double k) =>
-      [for (var i = 0; i < n; i++) q + Offset.fromDirection(start + i * 2 * math.pi / n, r * k)];
+  List<Offset> ring(int n, double start, double k) => [
+    for (var i = 0; i < n; i++) q + Offset.fromDirection(start + i * 2 * math.pi / n, r * k),
+  ];
   if (custom) {
     p.addPolygon(ring(4, -math.pi / 2, 1.3), true);
   } else {
@@ -218,7 +225,8 @@ class GlobalMapView extends StatefulWidget {
   /// The cap's label: "South pole: detailed terrain, 19 sites →".
   static String capText(int n) => 'South pole: detailed terrain, $n sites →';
 
-  static const northText = 'North of 80° N is not covered in this version (there is no north-pole region yet), '
+  static const northText =
+      'North of 80° N is not covered in this version (there is no north-pole region yet), '
       'so no spot can be added there.';
   static const southText = 'South of 80° S is the south-pole region, with its detailed terrain.';
 
@@ -279,21 +287,31 @@ class _GlobalMapViewState extends State<GlobalMapView> {
       context: context,
       showDragHandle: true,
       builder: (context) => SafeArea(
-        child: ListView(shrinkWrap: true, padding: const EdgeInsets.only(bottom: 12), children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
-            child: Semantics(header: true, child: Text('${near.length} sites here: pick one', style: PHText.subtitle)),
-          ),
-          for (final st in near)
-            ListTile(
-              key: ValueKey('chooser-${st.id}'),
-              minTileHeight: 48,
-              leading: SizedBox.square(dimension: 24, child: CustomPaint(painter: _MarkerIcon(st.group, custom: st.custom))),
-              title: Text(st.short),
-              subtitle: Text(globalLatLonText(st.lat, st.lon), style: numStyle(size: 13, color: PH.muted)),
-              onTap: () => Navigator.of(context).pop(st.id),
+        child: ListView(
+          shrinkWrap: true,
+          padding: const EdgeInsets.only(bottom: 12),
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+              child: Semantics(
+                header: true,
+                child: Text('${near.length} sites here: pick one', style: PHText.subtitle),
+              ),
             ),
-        ]),
+            for (final st in near)
+              ListTile(
+                key: ValueKey('chooser-${st.id}'),
+                minTileHeight: 48,
+                leading: SizedBox.square(
+                  dimension: 24,
+                  child: CustomPaint(painter: _MarkerIcon(st.group, custom: st.custom)),
+                ),
+                title: Text(st.short),
+                subtitle: Text(globalLatLonText(st.lat, st.lon), style: numStyle(size: 13, color: PH.muted)),
+                onTap: () => Navigator.of(context).pop(st.id),
+              ),
+          ],
+        ),
       ),
     );
     if (id != null && mounted) widget.onSelect(id);
@@ -318,7 +336,10 @@ class _GlobalMapViewState extends State<GlobalMapView> {
 
   Future<void> _typed() async {
     final km = widget.layers?.demKmPerPixel;
-    final r = await showDialog<(double, double)>(context: context, builder: (_) => GlobalCoordinatesDialog(demKm: km));
+    final r = await showDialog<(double, double)>(
+      context: context,
+      builder: (_) => GlobalCoordinatesDialog(demKm: km),
+    );
     if (r == null || !mounted) return;
     setState(() {
       _note = _TapNote.none;
@@ -339,115 +360,147 @@ class _GlobalMapViewState extends State<GlobalMapView> {
           child: widget.failed
               ? Padding(
                   padding: const EdgeInsets.all(16),
-                  child: Text('The whole-Moon map could not be loaded. The site list still works.',
-                      textAlign: TextAlign.center, style: PHText.body.copyWith(color: PH.muted)),
+                  child: Text(
+                    'The whole-Moon map could not be loaded. The site list still works.',
+                    textAlign: TextAlign.center,
+                    style: PHText.body.copyWith(color: PH.muted),
+                  ),
                 )
               : Semantics(label: 'Loading the whole-Moon map', child: const BusyIndicator()),
         ),
       );
     } else {
-      map = LayoutBuilder(builder: (context, c) {
-        final size = c.biggest;
-        return InteractiveViewer(
-          transformationController: _tc,
-          minScale: 1,
-          maxScale: 8,
-          child: GestureDetector(
-            behavior: HitTestBehavior.opaque,
-            onTapUp: (d) => _tap(d.localPosition, size),
-            child: CustomPaint(
-              size: size,
-              painter: _GlobalPainter(
-                layers: l,
-                sites: widget.sites,
-                selectedId: widget.selectedId,
-                earth: _earth,
-                pending: _pending,
-                polarCount: widget.polarSiteCount,
-                tc: _tc,
-                scaler: scaler,
+      map = LayoutBuilder(
+        builder: (context, c) {
+          final size = c.biggest;
+          return InteractiveViewer(
+            transformationController: _tc,
+            minScale: 1,
+            maxScale: 8,
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTapUp: (d) => _tap(d.localPosition, size),
+              child: CustomPaint(
+                size: size,
+                painter: _GlobalPainter(
+                  layers: l,
+                  sites: widget.sites,
+                  selectedId: widget.selectedId,
+                  earth: _earth,
+                  pending: _pending,
+                  polarCount: widget.polarSiteCount,
+                  tc: _tc,
+                  scaler: scaler,
+                ),
               ),
             ),
-          ),
-        );
-      });
+          );
+        },
+      );
     }
     final pending = _pending;
-    return Column(crossAxisAlignment: CrossAxisAlignment.stretch, mainAxisSize: MainAxisSize.min, children: [
-      AspectRatio(
-        aspectRatio: 2,
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(PH.radiusInner),
-          child: Semantics(
-            key: const ValueKey('global-map'),
-            container: true,
-            label: 'Whole-Moon map: ${widget.sites.length} sites, near side in the middle, north up. '
-                'Tap a marker to open its site; tap open ground to add a spot. Every site is also in the list.',
-            child: map,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        AspectRatio(
+          aspectRatio: 2,
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(PH.radiusInner),
+            child: Semantics(
+              key: const ValueKey('global-map'),
+              container: true,
+              label:
+                  'Whole-Moon map: ${widget.sites.length} sites, near side in the middle, north up. '
+                  'Tap a marker to open its site; tap open ground to add a spot. Every site is also in the list.',
+              child: map,
+            ),
           ),
         ),
-      ),
-      const SizedBox(height: 8),
-      if (pending != null)
-        _Bar(key: const ValueKey('global-add-bar'), children: [
-          Text.rich(TextSpan(children: [
-            TextSpan(text: 'Your spot: ', style: PHText.body),
-            TextSpan(text: globalLatLonText(pending.$1, pending.$2), style: numStyle(size: 15)),
-          ])),
-          FilledButton.icon(
-            style: const ButtonStyle(minimumSize: WidgetStatePropertyAll(Size(48, 48))),
-            onPressed: _adding ? null : _add,
-            icon: _adding ? const BusyIndicator(size: 16) : const Icon(Icons.add_location_alt_outlined),
-            label: const Text('Add a spot here'),
+        const SizedBox(height: 8),
+        if (pending != null)
+          _Bar(
+            key: const ValueKey('global-add-bar'),
+            children: [
+              Text.rich(
+                TextSpan(
+                  children: [
+                    TextSpan(text: 'Your spot: ', style: PHText.body),
+                    TextSpan(text: globalLatLonText(pending.$1, pending.$2), style: numStyle(size: 15)),
+                  ],
+                ),
+              ),
+              FilledButton.icon(
+                style: const ButtonStyle(minimumSize: WidgetStatePropertyAll(Size(48, 48))),
+                onPressed: _adding ? null : _add,
+                icon: _adding ? const BusyIndicator(size: 16) : const Icon(Icons.add_location_alt_outlined),
+                label: const Text('Add a spot here'),
+              ),
+              TextButton(
+                style: const ButtonStyle(minimumSize: WidgetStatePropertyAll(Size(48, 48))),
+                onPressed: _adding ? null : () => setState(() => _pending = null),
+                child: const Text('Cancel'),
+              ),
+            ],
           ),
-          TextButton(
-            style: const ButtonStyle(minimumSize: WidgetStatePropertyAll(Size(48, 48))),
-            onPressed: _adding ? null : () => setState(() => _pending = null),
-            child: const Text('Cancel'),
+        if (_note == _TapNote.south)
+          _Bar(
+            key: const ValueKey('global-south-bar'),
+            children: [
+              Text(GlobalMapView.southText, style: PHText.body),
+              FilledButton(
+                style: const ButtonStyle(minimumSize: WidgetStatePropertyAll(Size(48, 48))),
+                onPressed: widget.onSouthPole,
+                child: const Text('Open in South-pole mode'),
+              ),
+            ],
           ),
-        ]),
-      if (_note == _TapNote.south)
-        _Bar(key: const ValueKey('global-south-bar'), children: [
-          Text(GlobalMapView.southText, style: PHText.body),
-          FilledButton(
-            style: const ButtonStyle(minimumSize: WidgetStatePropertyAll(Size(48, 48))),
-            onPressed: widget.onSouthPole,
-            child: const Text('Open in South-pole mode'),
+        if (_note == _TapNote.north)
+          _Bar(
+            key: const ValueKey('global-north-bar'),
+            children: [Text(GlobalMapView.northText, style: PHText.body)],
           ),
-        ]),
-      if (_note == _TapNote.north)
-        _Bar(key: const ValueKey('global-north-bar'), children: [Text(GlobalMapView.northText, style: PHText.body)]),
-      if (_error case final e?) Semantics(liveRegion: true, child: Text(e, style: PHText.small.copyWith(color: PH.warn))),
-      Wrap(spacing: 8, runSpacing: 4, crossAxisAlignment: WrapCrossAlignment.center, children: [
-        FilterChip(
-          key: const ValueKey('global-earth-toggle'),
-          avatar: const MeaningGlyph(GlyphKind.earth, size: 16, semantic: false),
-          label: const Text('Earth in view (share)'),
-          tooltip: 'Show or hide where Earth is above a flat horizon',
-          selected: _earth,
-          onSelected: l == null ? null : (v) => setState(() => _earth = v),
+        if (_error case final e?)
+          Semantics(
+            liveRegion: true,
+            child: Text(e, style: PHText.small.copyWith(color: PH.warn)),
+          ),
+        Wrap(
+          spacing: 8,
+          runSpacing: 4,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
+            FilterChip(
+              key: const ValueKey('global-earth-toggle'),
+              avatar: const MeaningGlyph(GlyphKind.earth, size: 16, semantic: false),
+              label: const Text('Earth in view (share)'),
+              tooltip: 'Show or hide where Earth is above a flat horizon',
+              selected: _earth,
+              onSelected: l == null ? null : (v) => setState(() => _earth = v),
+            ),
+            if (widget.onPlaceCustom != null)
+              TextButton.icon(
+                style: const ButtonStyle(minimumSize: WidgetStatePropertyAll(Size(48, 48))),
+                onPressed: _adding ? null : _typed,
+                icon: const Icon(Icons.edit_location_alt_outlined),
+                label: const Text('Add a spot by coordinates…'),
+              ),
+            TextButton(
+              key: const ValueKey('global-cap-button'),
+              style: const ButtonStyle(minimumSize: WidgetStatePropertyAll(Size(48, 48))),
+              onPressed: widget.onSouthPole,
+              child: Text(GlobalMapView.capText(widget.polarSiteCount)),
+            ),
+          ],
         ),
-        if (widget.onPlaceCustom != null)
-          TextButton.icon(
-            style: const ButtonStyle(minimumSize: WidgetStatePropertyAll(Size(48, 48))),
-            onPressed: _adding ? null : _typed,
-            icon: const Icon(Icons.edit_location_alt_outlined),
-            label: const Text('Add a spot by coordinates…'),
-          ),
-        TextButton(
-          key: const ValueKey('global-cap-button'),
-          style: const ButtonStyle(minimumSize: WidgetStatePropertyAll(Size(48, 48))),
-          onPressed: widget.onSouthPole,
-          child: Text(GlobalMapView.capText(widget.polarSiteCount)),
-        ),
-      ]),
-      if (l != null) ...[
-        _Legend(earth: _earth),
-        if (_earth) const FidelityBadge(text: GlobalMapLayers.earthBadge),
-        FidelityBadge(text: l.hillshadeBadge),
-        if (l.synthetic) const FidelityBadge(text: 'SYNTHETIC test map: not real terrain or data.'),
+        if (l != null) ...[
+          _Legend(earth: _earth),
+          if (_earth) const FidelityBadge(text: GlobalMapLayers.earthBadge),
+          FidelityBadge(text: l.hillshadeBadge),
+          if (l.synthetic) const FidelityBadge(text: 'SYNTHETIC test map: not real terrain or data.'),
+        ],
       ],
-    ]);
+    );
   }
 }
 
@@ -457,12 +510,15 @@ class _Bar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-        margin: const EdgeInsets.only(bottom: 8),
-        padding: const EdgeInsets.fromLTRB(12, 8, 8, 8),
-        decoration: BoxDecoration(
-            color: PH.panelHi, borderRadius: BorderRadius.circular(PH.radiusInner), border: Border.all(color: PH.line)),
-        child: Wrap(spacing: 8, runSpacing: 4, crossAxisAlignment: WrapCrossAlignment.center, children: children),
-      );
+    margin: const EdgeInsets.only(bottom: 8),
+    padding: const EdgeInsets.fromLTRB(12, 8, 8, 8),
+    decoration: BoxDecoration(
+      color: PH.panelHi,
+      borderRadius: BorderRadius.circular(PH.radiusInner),
+      border: Border.all(color: PH.line),
+    ),
+    child: Wrap(spacing: 8, runSpacing: 4, crossAxisAlignment: WrapCrossAlignment.center, children: children),
+  );
 }
 
 /// The shapes (and the overlay's 0 %–100 % ramp) in words beside each mark.
@@ -475,33 +531,53 @@ class _Legend extends StatelessWidget {
     final muted = PHText.small.copyWith(color: PH.muted);
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Wrap(spacing: 12, runSpacing: 4, crossAxisAlignment: WrapCrossAlignment.center, children: [
-        for (final (g, words) in globalMarkerLegend)
-          Row(mainAxisSize: MainAxisSize.min, children: [
-            SizedBox.square(
-              dimension: 14,
-              child: CustomPaint(painter: _MarkerIcon(g)),
+      child: Wrap(
+        spacing: 12,
+        runSpacing: 4,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        children: [
+          for (final (g, words) in globalMarkerLegend)
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                SizedBox.square(dimension: 14, child: CustomPaint(painter: _MarkerIcon(g))),
+                const SizedBox(width: 4),
+                // a narrow phone or a large text size: the words wrap beside the mark
+                Flexible(child: Text(words, style: muted)),
+              ],
             ),
-            const SizedBox(width: 4),
-            Text(words, style: muted),
-          ]),
-        if (earth)
-          Row(mainAxisSize: MainAxisSize.min, children: [
-            Text('Earth in view: ', style: muted),
-            Text('0%', style: numStyle(size: 12, color: PH.muted)),
-            const SizedBox(width: 4),
-            Container(
-              width: 56,
-              height: 10,
-              decoration: BoxDecoration(
-                border: Border.all(color: PH.line),
-                gradient: LinearGradient(colors: [PH.earth.withValues(alpha: 0), PH.earth.withValues(alpha: 0.5)]),
-              ),
+          if (earth)
+            Wrap(
+              spacing: 4,
+              runSpacing: 2,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                Text('Earth in view:', style: muted),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text('0%', style: numStyle(size: 12, color: PH.muted)),
+                    const SizedBox(width: 4),
+                    Container(
+                      width: 56,
+                      height: 10,
+                      decoration: BoxDecoration(
+                        border: Border.all(color: PH.line),
+                        gradient: LinearGradient(
+                          colors: [PH.earth.withValues(alpha: 0), PH.earth.withValues(alpha: 0.5)],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    Flexible(
+                      child: Text('100% of the time', style: numStyle(size: 12, color: PH.muted)),
+                    ),
+                  ],
+                ),
+              ],
             ),
-            const SizedBox(width: 4),
-            Text('100% of the time', style: numStyle(size: 12, color: PH.muted)),
-          ]),
-      ]),
+        ],
+      ),
     );
   }
 }
@@ -515,10 +591,13 @@ class _MarkerIcon extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final path = globalMarkerPathFor(group, size.center(Offset.zero), size.shortestSide * 0.32, custom: custom);
     canvas.drawPath(path, Paint()..color = custom ? PH.both : PH.text);
-    canvas.drawPath(path, Paint()
-      ..style = PaintingStyle.stroke
-      ..color = PH.bg
-      ..strokeWidth = 1);
+    canvas.drawPath(
+      path,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..color = PH.bg
+        ..strokeWidth = 1,
+    );
   }
 
   @override
@@ -546,8 +625,12 @@ class _GlobalPainter extends CustomPainter {
     required this.scaler,
   }) : super(repaint: tc);
 
-  TextPainter _text(String s, double size, double k, {Color color = PH.text, FontWeight w = FontWeight.w600}) => TextPainter(
-        text: TextSpan(text: s, style: TextStyle(fontFamily: PH.sans, fontSize: scaler.scale(size) / k, fontWeight: w, color: color)),
+  TextPainter _text(String s, double size, double k, {Color color = PH.text, FontWeight w = FontWeight.w600}) =>
+      TextPainter(
+        text: TextSpan(
+          text: s,
+          style: TextStyle(fontFamily: PH.sans, fontSize: scaler.scale(size) / k, fontWeight: w, color: color),
+        ),
         textDirection: TextDirection.ltr,
       )..layout();
 
@@ -557,19 +640,24 @@ class _GlobalPainter extends CustomPainter {
     final all = Offset.zero & size;
     canvas.drawRect(all, Paint()..color = PH.panelHi);
     void raster(ui.Image img, Paint p) => canvas.drawImageRect(
-        img, Rect.fromLTWH(0, 0, img.width.toDouble(), img.height.toDouble()), all, p..filterQuality = FilterQuality.medium);
+      img,
+      Rect.fromLTWH(0, 0, img.width.toDouble(), img.height.toDouble()),
+      all,
+      p..filterQuality = FilterQuality.medium,
+    );
     raster(layers.hillshade, Paint());
     if (earth) {
       final c = PH.earth;
       raster(
-          layers.earthvis,
-          Paint()
-            ..colorFilter = ColorFilter.matrix([
-              0, 0, 0, 0, c.r * 255, //
-              0, 0, 0, 0, c.g * 255,
-              0, 0, 0, 0, c.b * 255,
-              0.5, 0, 0, 0, 0,
-            ]));
+        layers.earthvis,
+        Paint()
+          ..colorFilter = ColorFilter.matrix([
+            0, 0, 0, 0, c.r * 255, //
+            0, 0, 0, 0, c.g * 255,
+            0, 0, 0, 0, c.b * 255,
+            0.5, 0, 0, 0, 0,
+          ]),
+      );
     }
     // 30° graticule
     final grid = Paint()
@@ -618,17 +706,24 @@ class _GlobalPainter extends CustomPainter {
       final sel = st.id == selectedId;
       if (sel) {
         canvas.drawCircle(q, 2.4 * r, Paint()..color = PH.selected.withValues(alpha: 0.9));
-        canvas.drawCircle(q, 2.4 * r, Paint()
-          ..style = PaintingStyle.stroke
-          ..color = PH.text
-          ..strokeWidth = 2 / k);
+        canvas.drawCircle(
+          q,
+          2.4 * r,
+          Paint()
+            ..style = PaintingStyle.stroke
+            ..color = PH.text
+            ..strokeWidth = 2 / k,
+        );
       }
       final path = globalMarkerPath(st, q, r);
       canvas.drawPath(path, Paint()..color = st.custom ? PH.both : PH.text);
-      canvas.drawPath(path, Paint()
-        ..style = PaintingStyle.stroke
-        ..color = PH.bg
-        ..strokeWidth = 1.5 / k);
+      canvas.drawPath(
+        path,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..color = PH.bg
+          ..strokeWidth = 1.5 / k,
+      );
     }
     if (ordered.isNotEmpty) {
       final inv = Matrix4.tryInvert(tc.value);
@@ -639,8 +734,10 @@ class _GlobalPainter extends CustomPainter {
         bounds = LabelBox(a.dx, a.dy, b.dx, b.dy);
       }
       final painters = <String, TextPainter>{};
-      TextPainter label(int i, String t) =>
-          painters.putIfAbsent('$i|$t', () => _text(t, 12, k, w: ordered[i].id == selectedId ? FontWeight.w700 : FontWeight.w500));
+      TextPainter label(int i, String t) => painters.putIfAbsent(
+        '$i|$t',
+        () => _text(t, 12, k, w: ordered[i].id == selectedId ? FontWeight.w700 : FontWeight.w500),
+      );
       final sel = ordered.length - 1;
       final placed = placeMapLabels(
         anchors: [for (final a in anchors) (a.dx, a.dy)],
@@ -650,14 +747,21 @@ class _GlobalPainter extends CustomPainter {
           final p = label(i, t);
           return (p.width + 6 / k, p.height + 2 / k);
         },
-        order: [if (ordered.last.id == selectedId) sel, for (var i = 0; i < ordered.length; i++) if (ordered[i].id != selectedId) i],
+        order: [
+          if (ordered.last.id == selectedId) sel,
+          for (var i = 0; i < ordered.length; i++)
+            if (ordered[i].id != selectedId) i,
+        ],
         stacks: markerStacks([for (final a in anchors) (a.dx, a.dy)], globalMarkerHitDp / k),
         bounds: bounds,
       );
       for (final m in placed) {
         final p = label(m.site, m.text);
         final box = Rect.fromLTRB(m.box.left, m.box.top, m.box.right, m.box.bottom);
-        canvas.drawRRect(RRect.fromRectAndRadius(box, Radius.circular(3 / k)), Paint()..color = PH.bg.withValues(alpha: 0.72));
+        canvas.drawRRect(
+          RRect.fromRectAndRadius(box, Radius.circular(3 / k)),
+          Paint()..color = PH.bg.withValues(alpha: 0.72),
+        );
         p.paint(canvas, Offset(box.left + 3 / k, box.top + 1 / k));
       }
     }
@@ -665,10 +769,13 @@ class _GlobalPainter extends CustomPainter {
       final q = globalMapPoint(lat, lon, size);
       final path = globalMarkerPathFor('', q, 1.2 * r, custom: true);
       canvas.drawPath(path, Paint()..color = PH.both);
-      canvas.drawPath(path, Paint()
-        ..style = PaintingStyle.stroke
-        ..color = PH.text
-        ..strokeWidth = 2 / k);
+      canvas.drawPath(
+        path,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..color = PH.text
+          ..strokeWidth = 2 / k,
+      );
     }
   }
 
@@ -742,37 +849,42 @@ class _GlobalCoordinatesDialogState extends State<GlobalCoordinatesDialog> {
       scrollable: true,
       content: Form(
         key: _form,
-        child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-          TextFormField(
-            key: const ValueKey('global-lat'),
-            controller: _lat,
-            decoration: const InputDecoration(labelText: 'Latitude (°, above −80.01 up to 80)', errorMaxLines: 4),
-            style: numStyle(size: 16),
-            keyboardType: numbers,
-            textInputAction: TextInputAction.next,
-            autovalidateMode: AutovalidateMode.onUserInteraction,
-            validator: GlobalCoordinatesDialog.checkLat,
-          ),
-          const SizedBox(height: 12),
-          TextFormField(
-            key: const ValueKey('global-lon'),
-            controller: _lon,
-            decoration: const InputDecoration(labelText: 'Longitude (°E, −180 to 180)', errorMaxLines: 3),
-            style: numStyle(size: 16),
-            keyboardType: numbers,
-            textInputAction: TextInputAction.done,
-            autovalidateMode: AutovalidateMode.onUserInteraction,
-            validator: GlobalCoordinatesDialog.checkLon,
-            onFieldSubmitted: (_) => _submit(),
-          ),
-          const SizedBox(height: 8),
-          Text(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            TextFormField(
+              key: const ValueKey('global-lat'),
+              controller: _lat,
+              decoration: const InputDecoration(labelText: 'Latitude (°, above −80.01 up to 80)', errorMaxLines: 4),
+              style: numStyle(size: 16),
+              keyboardType: numbers,
+              textInputAction: TextInputAction.next,
+              autovalidateMode: AutovalidateMode.onUserInteraction,
+              validator: GlobalCoordinatesDialog.checkLat,
+            ),
+            const SizedBox(height: 12),
+            TextFormField(
+              key: const ValueKey('global-lon'),
+              controller: _lon,
+              decoration: const InputDecoration(labelText: 'Longitude (°E, −180 to 180)', errorMaxLines: 3),
+              style: numStyle(size: 16),
+              keyboardType: numbers,
+              textInputAction: TextInputAction.done,
+              autovalidateMode: AutovalidateMode.onUserInteraction,
+              validator: GlobalCoordinatesDialog.checkLon,
+              onFieldSubmitted: (_) => _submit(),
+            ),
+            const SizedBox(height: 8),
+            Text(
               km == null || km.isNaN
                   ? 'The horizon is computed on this device from coarse whole-Moon terrain (approximate).'
                   : 'The horizon is computed on this device from coarse whole-Moon terrain '
-                      '(${km.toStringAsFixed(1)} km per pixel; approximate).',
-              style: PHText.small.copyWith(color: PH.muted)),
-        ]),
+                        '(${km.toStringAsFixed(1)} km per pixel; approximate).',
+              style: PHText.small.copyWith(color: PH.muted),
+            ),
+          ],
+        ),
       ),
       actions: [
         TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),

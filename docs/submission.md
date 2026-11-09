@@ -79,11 +79,11 @@ Full tour (3:16): https://github.com/localizedprojects/CLPS-MOON-BROWSER/release
 Brief for judges: https://github.com/localizedprojects/CLPS-MOON-BROWSER/blob/main/docs/judge_one_pager.md
 ```
 
-> **Release.** The APK link serves the latest GitHub release. On 8 November 2026 that is
-> v1.13.3 (7 November 2026), while the web app is 1.13.5; no v1.13.4 release was published.
-> Publish v1.13.5 with `lunar-horizon.apk` and `SHA256SUMS.txt` before submitting, or this link
-> serves an older version than the web app. None of the links above change when v1.13.5 is
-> published: the APK link then serves 1.13.5, and the two video links keep pointing at the
+> **Release.** The APK link serves the latest GitHub release. On 9 November 2026 that is
+> v1.13.3 (7 November 2026), while the web app is 1.14.0 from `main`; no v1.13.4 or v1.13.5
+> release was published. Publish v1.14.0 with `lunar-horizon.apk` and `SHA256SUMS.txt` before
+> submitting, or this link serves an older version than the web app. None of the links above
+> change when v1.14.0 is published: the APK link then serves 1.14.0, and the two video links keep pointing at the
 > v1.13.3 release, so do not delete that release or its two MP4 files. After publishing, put
 > the new APK's SHA-256 in the source note at the end of `docs/judge_one_pager.md`.
 
@@ -318,8 +318,8 @@ Challenge: Lunar Landing Site Navigator (NASA Space Apps Challenge 2026): https:
   rings follow the keyboard, the Site Overview gains a line with the Sun's height and when the
   Sun and Earth next set or rise, a feature guide takes the page back to where it was, and these
   documents are brought up to date for the submission. The demo videos stay as recorded on 1.13.0.
-- 9 November 2026: app version 1.14.0 (Whole Moon) prepared on the branch `global-1.14`, for
-  merging into `main`: a Whole Moon region with 20 landed-mission sites, custom spots from 80°N
+- 9 November 2026: app version 1.14.0 committed to `main` (from the branch `global-1.14`, after
+  a review round whose fixes were merged before the version bump): a Whole Moon region with 20 landed-mission sites, custom spots from 80°N
   to just north of 80°S, a whole-Moon map, per-region ranking, the Pole vs the rest card and
   JPL Horizons checks at 10 of the new sites. The south pole stays the default and unchanged.
   The demo videos stay as recorded on 1.13.0.
@@ -327,5 +327,6 @@ Challenge: Lunar Landing Site Navigator (NASA Space Apps Challenge 2026): https:
   all 137 commits up to `004ee16`; on 7 November, all 80 up to `6f80997`).
 - The NASA Space Apps Challenge 2026 hackathon is on 14–15 November 2026.
 
-> **When v1.13.5 is published,** add "v1.13.5 on <date>, with the APK" to the releases line
-> above and move "now the latest" to it, and recount the commits in the trailer line.
+> **When v1.14.0 is published,** add "v1.14.0 on <date>, with the APK" to the releases line
+> above and move "now the latest" to it, and recount the commits in the trailer line. (No v1.13.4
+> or v1.13.5 release was published; v1.14.0 replaces them.)

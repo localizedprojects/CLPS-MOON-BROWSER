@@ -24,7 +24,7 @@ The same Flutter code runs as a web app and on Android.
 Scan the code with your phone's camera. It opens <https://localizedprojects.github.io/CLPS-MOON-BROWSER/get/>, which picks the right install for the device:
 
 - **Android:** downloads [lunar-horizon.apk](https://github.com/localizedprojects/CLPS-MOON-BROWSER/releases/latest/download/lunar-horizon.apk) from the [latest release](https://github.com/localizedprojects/CLPS-MOON-BROWSER/releases/latest). Open it and allow installing from your browser when Android asks (Android 7.0 or newer; signed with a development key, so it is installed directly, not from the Play Store). If you later switch to the Play Store version (or a build signed with a different key), uninstall this one first; Android will not update across signing keys. The latest release can be older than the web app, which is always the newest version; the release page names its version.
-  <!-- On 2026-11-08 the latest release is v1.13.3 (7 November 2026) and the web app is 1.13.5. Once the owner publishes v1.13.5, the latest release and the web app are both 1.13.5. This link stays the same as long as the APK keeps the name lunar-horizon.apk. -->
+  <!-- On 2026-11-09 the latest release is v1.13.3 (7 November 2026) and the web app is 1.14.0 (from `main`). Once the owner publishes v1.14.0, the latest release and the web app are both 1.14.0. This link stays the same as long as the APK keeps the name lunar-horizon.apk. -->
 - **iPhone and iPad:** opens the web app in Safari; use Share, then *Add to Home Screen* to keep it as an app. (Installing an iOS app file needs a paid Apple Developer account; the page has one switch, `IOS_URL` in `app/web/get/index.html`, for a TestFlight or App Store link later, and the QR code stays the same.) With a Mac you can build and run the native app yourself in Xcode: [docs/xcode.md](docs/xcode.md).
 - **Computers:** <https://localizedprojects.github.io/CLPS-MOON-BROWSER/>
 - **Privacy:** no accounts, no analytics, no ads, no tracking; see the [privacy policy](https://localizedprojects.github.io/CLPS-MOON-BROWSER/privacy/).
@@ -137,7 +137,7 @@ The work is split between offline precomputation and on-device computation:
 
 - **Offline:** the Python pipeline does the heavy, data-hungry work once. It needs about 570 MB of downloads (about 605 MB with the optional DE442 kernel).
 - **On the device:** the app ships compact results (Sun and Earth vectors, DSN masks, horizon masks, map images and a 400 m DEM reaching about 75°S; about 10.5 MB) and computes the time series, metrics, scores, custom-site horizons and the light and shadow map itself. This lets any custom location work without a server.
-- **Whole Moon (1.14.0):** `app/assets/data/global/` adds 9.5 MB (9,526,566 bytes in 48 files: the 20-site catalogue with horizon masks, the hillshade and Earth-visible map, an 8 px/deg DEM for custom spots, thumbnails and one Lander tile per site). None of it is loaded until you open Whole Moon or a link to a Whole Moon site. The ephemeris and DSN files are shared with the pole, and the app runs the same Dart code on these sites (formula.md §18).
+- **Whole Moon (1.14.0):** `app/assets/data/global/` adds 9.5 MB (9,527,276 bytes in 48 files: the 20-site catalogue with horizon masks, the hillshade and Earth-visible map, an 8 px/deg DEM for custom spots, thumbnails and one Lander tile per site). None of it is loaded until you open Whole Moon or a link to a Whole Moon site. The ephemeris and DSN files are shared with the pole, and the app runs the same Dart code on these sites (formula.md §18).
 - **Charts:** these are render-only. Flutter sends them chart-ready JSON (`window.phRender`) and they post events back. The message schema is in `charts/src/bridge.ts` and `app/lib/widgets/chart_bridge.dart`.
 
 **Key methods.** The full maths, with `file:line` references, is in [formula.md](formula.md).
@@ -625,10 +625,10 @@ CLAUDE.md                   conventions for contributors and coding agents
 
 | Suite | Location | Command | Count |
 |---|---|---|---|
-| Flutter: Dart core, state, widgets | `app/test/` | `flutter test` | 1,685 pass, 4 skipped, with `flutter analyze` clean (local run, 9 November 2026, 1.14.0 integration branch; the four light-map label tests also pass under dates faked to 14 November 2026 06:00, 16 November 2026, 15 December 2026 and 20 January 2027 UTC) |
-| Chart bundle | `charts/src/*.test.ts` | `npm test` | 266 in 21 files (local run, 9 November 2026, 1.14.0) |
-| Python pipeline | `pipeline/tests/` | `python -m pytest` | 783: 776 pass, 7 skipped, with the SPICE kernels, the 80 m and 240 m LOLA DEMs and the Whole Moon inputs in the cache (local run, 9 November 2026, 1.14.0; the 7 need DE442, the 120 m DEM, PyYAML or the `lunarhorizon` package). In CI, without that data: 583 pass, 200 skipped (a local run with an empty cache, 9 November 2026, 1.14.0) |
-| Python library | `pylib/tests/` | `python -m pytest` (from `pylib/`) | 520 pass, with the SPICE kernels in the cache (local run, 8 November 2026, 1.13.5; `pylib/` is unchanged in 1.14.0; some skip without them; CI does not run this suite) |
+| Flutter: Dart core, state, widgets | `app/test/` | `flutter test` | 1,724 pass, 4 skipped, with `flutter analyze` clean (local run, 9 November 2026, 1.14.0, and again with the date faked to 14 November 2026 06:00 UTC; the four light-map label tests also pass with it faked to 16 November 2026 12:00, 15 December 2026 12:00 and 20 January 2027 12:00 UTC) |
+| Chart bundle | `charts/src/*.test.ts` | `npm test` | 267 in 21 files (local run, 9 November 2026, 1.14.0) |
+| Python pipeline | `pipeline/tests/` | `python -m pytest` | 789: 782 pass, 7 skipped, with the SPICE kernels, the 80 m and 240 m LOLA DEMs and the Whole Moon inputs in the cache (local run, 9 November 2026, 1.14.0; the 7 need DE442, the 120 m DEM, PyYAML or the `lunarhorizon` package). In CI, without that data: 586 pass, 203 skipped (a local run with an empty cache, 9 November 2026, 1.14.0) |
+| Python library | `pylib/tests/` | `python -m pytest` (from `pylib/`) | 520 pass, with the SPICE kernels in the cache (local run, 9 November 2026, 1.14.0; `pylib/src` is unchanged in 1.14.0, and its goldens' provenance records the additive `dem.dart`; some skip without them; CI does not run this suite) |
 
 Each count is from a full run at the commit given. They change as work continues.
 

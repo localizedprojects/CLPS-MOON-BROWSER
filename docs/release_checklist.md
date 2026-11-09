@@ -102,7 +102,7 @@ Record each result in the PR description.
 - [ ] **G8, device:** on the Android 7 emulator a cold start gives South pole and Shackleton rim; the
       light map, the Lander, Compare and Learn match 1.13.5; switching to Whole Moon and back leaves the
       polar selection, goal and shortlist unchanged.
-- [ ] **Budget:** `app/assets/data/global/` is at most 12.5 MB (measured on 2026-11-09: 9,526,566 bytes
+- [ ] **Budget:** `app/assets/data/global/` is at most 12.5 MB (measured on 2026-11-09: 9,527,276 bytes
       in 48 files; `du -cb app/assets/data/global`), and `pytest tests/test_globe_map.py tests/test_globe_tiles.py`
       passes its per-file budgets.
 - [ ] **Validation gates:** from `pipeline/` with the cache, `python -m lunarsp.globe validate` ends

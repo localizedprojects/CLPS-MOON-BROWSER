@@ -19,6 +19,7 @@ import '../state/app_state.dart';
 import '../theme.dart';
 import '../widgets/compare_tray.dart';
 import '../widgets/explain.dart' show explainExploreFor;
+import '../widgets/feature_guide.dart' show GuideTarget;
 import '../widgets/focus_rings.dart';
 import '../widgets/global_map_view.dart';
 import '../widgets/goal_chips.dart';
@@ -595,7 +596,8 @@ class _ExploreRegionRowState extends State<ExploreRegionRow> {
   Widget build(BuildContext context) {
     final s = context.read<AppState>();
     final region = context.select((AppState s) => s.region);
-    return RegionSwitch(region: region, busy: _busy, onChanged: (r) => _switch(s, r));
+    // the guide's 'region' step points at it (1.14.0's new switch)
+    return GuideTarget(id: 'region', child: RegionSwitch(region: region, busy: _busy, onChanged: (r) => _switch(s, r)));
   }
 }
 

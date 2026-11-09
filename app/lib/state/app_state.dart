@@ -33,6 +33,7 @@ import '../core/landing.dart';
 import '../core/landing_wording.dart' show goalName;
 import '../core/metrics.dart';
 import '../core/ranking.dart';
+import '../core/region.dart';
 import '../core/relief.dart' show ReliefRecipe;
 import '../core/score.dart';
 import '../core/site_glance.dart' show GlanceInputs, SiteGlance, buildSiteGlance;
@@ -159,6 +160,32 @@ class LandingEntry {
 /// The start sequence ([AppState.startStage]).
 enum StartStage { intro, goal, loading, done }
 
+/// The whole-Moon catalogue and everything ranked in it (1.14.0 "Whole
+/// Moon"): its presets ([catalog], region [Region.wholeMoon]), the global
+/// custom spots and their own ranking, which never mixes with the polar one
+/// (build plan §3). It exists once the global files are loaded
+/// ([AppState.global]).
+///
+/// WP0 contract: the shape only. WP2 loads and ranks it
+/// (state/global_load.dart, app_state.dart).
+class GlobalCatalogState {
+  final SiteCatalog catalog;
+
+  /// Custom spots made in Whole Moon (−80.01 < lat ≤ 80.0); their horizons
+  /// come from the on-device 8 px/deg DEM.
+  final List<Site> customSites;
+
+  /// The global presets and custom spots ranked so far under the current
+  /// options, best first (the same `rank()` as the polar list).
+  List<Ranked> ranked;
+
+  /// A global ranking is running.
+  bool rankRunning;
+
+  GlobalCatalogState(this.catalog, {List<Site>? customSites, this.ranked = const [], this.rankRunning = false})
+      : customSites = customSites ?? [];
+}
+
 class AppState extends ChangeNotifier {
   // ---- navigation (owned by the shell) ----
 
@@ -189,6 +216,86 @@ class AppState extends ChangeNotifier {
       return;
     }
     await selectSite(id);
+  }
+
+  // ---- region (1.14.0 "Whole Moon"; WP0 contract, WP2 implements) ----
+
+  /// The region Explore shows. Never persisted: a cold start is the south
+  /// pole, and only the switch or a link (`#/moon`, `#/site/<global id>`)
+  /// changes it.
+  Region region = Region.southPole;
+
+  /// The whole-Moon catalogue, its custom spots and ranking: null until the
+  /// user enters Whole Moon, opens a global link or the site picker's Whole
+  /// Moon section (no file under `assets/data/global/` is requested before).
+  GlobalCatalogState? global;
+
+  /// Show [r] on Explore, loading the global catalogue the first time.
+  /// WP0 stub: only the south pole (the current region) is accepted; WP2
+  /// implements the switch, the lazy load and the global ranking.
+  Future<void> setRegion(Region r) async {
+    if (r == region) return;
+    throw UnimplementedError('AppState.setRegion($r) is implemented in WP2');
+  }
+
+  /// The sites of [r] (presets, then that region's custom spots): the only
+  /// list automatic choices see (ranking, top pick, STANDS OUT, nearest
+  /// site). Empty for Whole Moon until [global] is loaded.
+  List<Site> regionSites(Region r) => switch (r) {
+        Region.southPole => catalog == null ? const [] : allSites,
+        Region.wholeMoon => switch (global) {
+            final g? => [...g.catalog.sites, ...g.customSites],
+            null => const [],
+          },
+      };
+
+  /// The region of [siteId]: its catalogue's, or the region a custom spot was
+  /// made in. Ids not found (a global id before [global] is loaded) read as
+  /// the south pole.
+  Region regionOf(String siteId) => _siteOrNull(siteId)?.region ?? Region.southPole;
+
+  /// Open a `#/site/<id>` link: resolve its region (loading the global
+  /// catalogue when the id is not polar), switch to it and open the site.
+  /// WP0 stub: polar ids open as [openSite] does; WP2 implements the rest.
+  Future<void> openFromLink(String siteId) async {
+    if (catalog != null && allSites.any((x) => x.id == siteId)) {
+      await openSite(siteId);
+      return;
+    }
+    throw UnimplementedError('AppState.openFromLink($siteId) for a non-polar id is implemented in WP2');
+  }
+
+  /// Place a Whole Moon custom spot at ([lat], [lon]) with its horizon from
+  /// the on-device 8 px/deg DEM; null where [globalCustomLatAllowed] refuses
+  /// the latitude. WP0 stub: WP2 implements it.
+  Future<Site?> addGlobalCustomSpot(double lat, double lon) async {
+    if (!globalCustomLatAllowed(lat)) return null;
+    throw UnimplementedError('AppState.addGlobalCustomSpot is implemented in WP2');
+  }
+
+  /// [id] among the polar sites, then (once loaded) the global ones; null
+  /// when neither has it.
+  Site? _siteOrNull(String id) {
+    if (catalog != null) {
+      for (final x in allSites) {
+        if (x.id == id) return x;
+      }
+    }
+    return _globalSite(id);
+  }
+
+  /// [id] among the global presets and custom spots, or null (also before
+  /// [global] is loaded).
+  Site? _globalSite(String id) {
+    final g = global;
+    if (g == null) return null;
+    for (final x in g.catalog.sites) {
+      if (x.id == id) return x;
+    }
+    for (final x in g.customSites) {
+      if (x.id == id) return x;
+    }
+    return null;
   }
 
   /// "Show exact numbers (for mission planners)": readout, decimals, coordinates.
@@ -601,7 +708,9 @@ class AppState extends ChangeNotifier {
   /// Every shortlisted site has metrics under the current options.
   bool get compareReady => eph != null && catalog != null && compareIds.every((id) => metricsFor(id) != null);
 
-  Site siteById(String id) => allSites.firstWhere((x) => x.id == id);
+  /// A polar site, or (once [global] is loaded) a global one; throws a
+  /// [StateError] for an unknown id, as before.
+  Site siteById(String id) => allSites.where((x) => x.id == id).firstOrNull ?? _globalSite(id) ?? allSites.firstWhere((x) => x.id == id);
 
   /// Add [id] to the shortlist (when it has fewer than 4 sites) or remove it.
   void toggleCompare(String id) {
@@ -638,7 +747,11 @@ class AppState extends ChangeNotifier {
   static const customSiteEdgeText = customSpotEdgeText;
 
   List<Site> get allSites => [...catalog!.sites, ...customSites];
-  Site get site => customSites.where((s) => s.id == selectedId).firstOrNull ?? catalog!.byId(selectedId);
+  Site get site =>
+      customSites.where((s) => s.id == selectedId).firstOrNull ??
+      catalog!.sites.where((s) => s.id == selectedId).firstOrNull ??
+      _globalSite(selectedId) ??
+      catalog!.byId(selectedId);
   HorizonMask get mask => _maskOf(selectedId, observerHeightM);
   Observer get observer => Observer(site.lat, site.lon, site.terrainHeightM + observerHeightM);
 

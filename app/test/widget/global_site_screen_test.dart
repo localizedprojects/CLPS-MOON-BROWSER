@@ -36,8 +36,8 @@ void main() {
   setUp(() {
     bundle = GlobalSampleBundle();
     state.goTo(Dest.site, siteTab: SiteTab.overview);
-    // the hero (polar) or the honest line (whole Moon) sits inside "More
-    // about this site", as in the polar Overview tests
+    // "More about this site" open, as in the polar Overview tests (the honest
+    // line shows with it closed too: tested below)
     state.setOverviewMoreOpen(true);
   });
 
@@ -119,6 +119,19 @@ void main() {
       expect(find.byType(LightSnapshot), findsNothing);
       expect(find.byKey(const ValueKey('far-side-sky')), findsOneWidget, reason: 'Sky & time says Earth never rises');
       expect(note('Horizon from SYNTHETIC two-scale terrain.'), findsWidgets);
+      expect(tester.takeException(), isNull);
+    });
+  }
+
+  for (final (name, size) in [('phone', Size(390, 844)), ('wide', Size(1280, 800))]) {
+    testWidgets('$name: with "More about this site" closed (the default) the honest line still says why there is no Light chip',
+        (tester) async {
+      state.setOverviewMoreOpen(false);
+      await pumpSite(tester, size);
+      final honest = find.byKey(const ValueKey('light-polar-only'));
+      await reveal(tester, honest);
+      expect(plain(tester, honest), globalLightMapText);
+      expect(find.byType(LightSnapshot), findsNothing);
       expect(tester.takeException(), isNull);
     });
   }

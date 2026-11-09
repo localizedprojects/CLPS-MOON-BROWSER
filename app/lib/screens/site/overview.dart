@@ -312,6 +312,19 @@ class SiteOverview extends StatelessWidget {
                         ),
                       ]),
                     ),
+                  // why there is no Light & shadow chip: said with More closed
+                  // too (the default), not only inside it
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(4, 8, 4, 6),
+                    child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      const Icon(Icons.info_outline, size: 18, color: PH.muted),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(globalLightMapText,
+                            key: const ValueKey('light-polar-only'), style: PHText.small.copyWith(color: PH.muted)),
+                      ),
+                    ]),
+                  ),
                   if (site.custom)
                     Align(
                       alignment: Alignment.centerLeft,
@@ -378,19 +391,7 @@ class SiteOverview extends StatelessWidget {
               // the three big numbers first, then the computed light at the
               // best moment (built only while More is open: it starts the
               // shadow engine)
-              if (global)
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(4, 8, 4, 6),
-                  child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    const Icon(Icons.info_outline, size: 18, color: PH.muted),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(globalLightMapText,
-                          key: const ValueKey('light-polar-only'), style: PHText.small.copyWith(color: PH.muted)),
-                    ),
-                  ]),
-                )
-              else if (showHero) ...[
+              if (!global && showHero) ...[
                 const SizedBox(height: 8),
                 _Hero(key: ValueKey('hero-${site.id}'), site: site, metrics: m, cursorMs: s.cursorMs),
                 const SizedBox(height: 6),

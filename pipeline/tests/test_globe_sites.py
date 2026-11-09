@@ -17,7 +17,7 @@ import pytest
 from lunarsp import globe_shapefile as gs
 from lunarsp import globe_sites as gsites
 from lunarsp import globe_validate as gv
-from lunarsp.config import WEB_DATA_DIR
+from lunarsp.config import REPO_ROOT, WEB_DATA_DIR
 from lunarsp.geometry import enu_basis
 from lunarsp.horizons import Query
 from tests._support import record_max, requires_kernels
@@ -144,6 +144,46 @@ def test_sources_quote_the_shapefile_record():
         assert s["lat"] == round(float(rec["LATITUDE"]), 6), s["id"]
         lon = ((float(rec["LONGITUDE"]) + 180.0) % 360.0) - 180.0
         assert s["lon"] == round(lon, 6), s["id"]
+
+
+# The attribute fields of the cited ANTHROPOGENIC_OBJECTS_180.DBF (2026-08-14 version), in order.
+SHAPEFILE_FIELDS = ["OBJECT_ID", "SHORT_NAME", "VEHCL_NAME", "MISSION", "OBJECT", "LATITUDE", "LON_360",
+                    "LONGITUDE", "RADIUS", "RAD_SRC", "COORD_SRC", "UNCERTAIN", "DATE", "REFERENCES"]
+# A field label in a `says` quote: an upper-case word followed by its quoted text or its number.
+_QUOTED_LABEL = re.compile(r'\b([A-Z][A-Z0-9_]*) (?="|-?\d)')
+
+
+def _quoted_labels(says: str) -> list[str]:
+    """The field labels of a record quote "ANTHROPOGENIC_OBJECTS_180 record OBJECT_ID <id>: ...,
+    REFERENCES "..."" (REFERENCES last, so its free text is not scanned)."""
+    head = "ANTHROPOGENIC_OBJECTS_180 record OBJECT_ID "
+    assert says.startswith(head) and ": " in says, says[:60]
+    assert ', REFERENCES "' in says, says[-80:]
+    body = says.split(": ", 1)[1].split(', REFERENCES "')[0]
+    return ["OBJECT_ID"] + _QUOTED_LABEL.findall(body) + ["REFERENCES"]
+
+
+def test_record_quotes_name_only_shapefile_fields():
+    """`says` is presented as the record verbatim, so every label in it is a real field of the
+    cited DBF (the short name is SHORT_NAME; there is no NAME field), here and in formula §18.2."""
+    for s in _sites():
+        labels = _quoted_labels(s["sources"][0]["says"])
+        assert labels[:2] == ["OBJECT_ID", "SHORT_NAME"], (s["id"], labels)
+        assert set(labels) <= set(SHAPEFILE_FIELDS), (s["id"], sorted(set(labels) - set(SHAPEFILE_FIELDS)))
+    doc = (REPO_ROOT / "formula.md").read_text(encoding="utf-8")
+    m = re.search(r"`sources\[\]\.says` quotes its record \(([^)]*)\)", doc)
+    assert m, "formula §18.2 no longer lists the quoted fields"
+    listed = [f.strip() for f in m.group(1).split(",")]
+    assert set(listed) <= set(SHAPEFILE_FIELDS), sorted(set(listed) - set(SHAPEFILE_FIELDS))
+
+
+@requires_shapefile
+def test_record_quote_fields_match_the_cached_dbf():
+    records, _ = gs.read_records()
+    assert list(records[0]) == SHAPEFILE_FIELDS
+    for rec in gs.site_coordinates(records=records).values():
+        labels = _quoted_labels(gs.says(rec))
+        assert set(labels) <= set(rec), (rec["OBJECT_ID"], sorted(set(labels) - set(rec)))
 
 
 # --------------------------------------------------------------------------- great-circle helpers

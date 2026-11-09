@@ -1,0 +1,923 @@
+{
+ "generatedUtc": "2026-11-09T09:06:30Z",
+ "frameNote": "The shapefile gives coordinates in the IAU Moon 2000 geographic system; they are applied in MOON_ME as given. The difference from IAU-frame realisations is below about 100 m and is documented, not corrected.",
+ "spiceTruth": {
+  "description": "App algorithm (validate.app_vs_spice) vs SPICE spkcpo at every global preset (60 random epochs 2025-2035 each, observer 2 m above the terrain)",
+  "sites": [
+   "apollo-11-lm",
+   "apollo-12-lm",
+   "apollo-14-lm",
+   "apollo-15-lm",
+   "apollo-16-lm",
+   "apollo-17-lm",
+   "blue-ghost-1",
+   "chandrayaan-3-vikram",
+   "change-3",
+   "change-4",
+   "change-5",
+   "change-6",
+   "luna-16",
+   "luna-17-lunokhod-1",
+   "luna-21-lunokhod-2",
+   "luna-24",
+   "slim",
+   "surveyor-1",
+   "surveyor-3",
+   "surveyor-7"
+  ],
+  "sun": {
+   "n": 1200,
+   "maxArcmin": 0.00015019017655378182,
+   "rmsArcmin": 5.202322262156877e-05,
+   "p95Arcmin": 0.00010084835569222774,
+   "maxRangeRelErr": 6.067165985439808e-08
+  },
+  "earth": {
+   "n": 1200,
+   "maxArcmin": 0.0015579643380897545,
+   "rmsArcmin": 0.0007478494540482999,
+   "p95Arcmin": 0.001284999025413116,
+   "maxRangeRelErr": 5.070794128625725e-07
+  }
+ },
+ "horizons": {
+  "description": "SPICE (spkcpo, MOON_ME, LT+S, DE440) and the app algorithm (shipped float32 hourly ephemeris, 4-point Lagrange, site parallax) vs JPL Horizons airless apparent az/el, observer at each global site's shapefile coordinates and RADIUS",
+  "sites": [
+   "apollo-11-lm",
+   "apollo-15-lm",
+   "apollo-17-lm",
+   "blue-ghost-1",
+   "chandrayaan-3-vikram",
+   "change-3",
+   "change-4",
+   "change-6",
+   "luna-16",
+   "slim"
+  ],
+  "horizonsSettings": {
+   "api": "https://ssd.jpl.nasa.gov/api/horizons.api",
+   "centerFrame": "MEAN_ME (high precision)        {East-longitude positive}",
+   "ephemeris": "DE441",
+   "fetchedUtc": "2026-11-09T09:05:16Z",
+   "step": "4 h",
+   "windows": [
+    [
+     "2026-12-01 00:00",
+     "2026-12-31 00:00"
+    ],
+    [
+     "2031-06-01 00:00",
+     "2031-07-01 00:00"
+    ]
+   ],
+   "cache": "pipeline/validation/global/"
+  },
+  "tolerance": {
+   "arcmin": 0.01,
+   "rangeKm": 0.05
+  },
+  "sun": {
+   "n": 3620,
+   "maxArcmin": 7.764701891897499e-06,
+   "rmsArcmin": 6.285545883514346e-07,
+   "p95Arcmin": 7.756137478715802e-07,
+   "maxRangeDiffKm": 0.0026848316192626953
+  },
+  "earth": {
+   "n": 3620,
+   "maxArcmin": 3.528667237364182e-05,
+   "rmsArcmin": 2.3633380910393673e-05,
+   "p95Arcmin": 3.2982707436215094e-05,
+   "maxRangeDiffKm": 0.004086665983777493
+  },
+  "app": {
+   "sun": {
+    "n": 3620,
+    "maxArcmin": 0.00015518690603885289,
+    "rmsArcmin": 5.4170408157602705e-05,
+    "p95Arcmin": 0.00010724109526005268
+   },
+   "earth": {
+    "n": 3620,
+    "maxArcmin": 0.001539530165023963,
+    "rmsArcmin": 0.0007900124529763113,
+    "p95Arcmin": 0.0013613355396753075
+   }
+  },
+  "perSiteMaxArcmin": {
+   "apollo-11-lm": 3.528667237364182e-05,
+   "apollo-15-lm": 3.525949618382194e-05,
+   "apollo-17-lm": 3.52423227710483e-05,
+   "blue-ghost-1": 3.522527234564096e-05,
+   "chandrayaan-3-vikram": 3.522683380418483e-05,
+   "change-3": 3.5226472057520275e-05,
+   "change-4": 3.5090474621125785e-05,
+   "change-6": 3.509081610751278e-05,
+   "luna-16": 3.5223919587798085e-05,
+   "slim": 3.526710792976371e-05
+  }
+ },
+ "horizonQuality": {
+  "description": "2 m masks at each global preset. The preset (two-scale: near-field window to 20 km, LDEM_64 beyond, terrain inside 120 m ignored) against (a) the LOLA LDEM_64 (474 m) mask alone with the same schedule, and (b) the on-device 8 px/deg (3.8 km) algorithm (horizon_global.dart, its Python twin; terrain inside 1.5 px ignored) at 0.5 deg steps. bias = other - preset (negative: the other mask is too low, i.e. optimistic).",
+  "sites": {
+   "apollo-11-lm": {
+    "maskMaxDeg": 2.58,
+    "maskMeanDeg": 1.24,
+    "vsLdem64Only": {
+     "rmsDeg": 1.255,
+     "biasDeg": -1.125
+    },
+    "vsOnDevice": {
+     "rmsDeg": 1.4,
+     "biasDeg": -1.293,
+     "maxAbsDeg": 2.276
+    }
+   },
+   "apollo-12-lm": {
+    "maskMaxDeg": 2.44,
+    "maskMeanDeg": 0.5,
+    "vsLdem64Only": {
+     "rmsDeg": 0.768,
+     "biasDeg": -0.521
+    },
+    "vsOnDevice": {
+     "rmsDeg": 0.829,
+     "biasDeg": -0.595,
+     "maxAbsDeg": 2.176
+    }
+   },
+   "apollo-14-lm": {
+    "maskMaxDeg": 4.31,
+    "maskMeanDeg": 1.88,
+    "vsLdem64Only": {
+     "rmsDeg": 0.701,
+     "biasDeg": -0.592
+    },
+    "vsOnDevice": {
+     "rmsDeg": 2.224,
+     "biasDeg": -1.958,
+     "maxAbsDeg": 4.491
+    }
+   },
+   "apollo-15-lm": {
+    "maskMaxDeg": 13.59,
+    "maskMeanDeg": 5.03,
+    "vsLdem64Only": {
+     "rmsDeg": 0.383,
+     "biasDeg": -0.257
+    },
+    "vsOnDevice": {
+     "rmsDeg": 1.078,
+     "biasDeg": -0.817,
+     "maxAbsDeg": 3.16
+    }
+   },
+   "apollo-16-lm": {
+    "maskMaxDeg": 5.46,
+    "maskMeanDeg": 2.48,
+    "vsLdem64Only": {
+     "rmsDeg": 1.171,
+     "biasDeg": -0.678
+    },
+    "vsOnDevice": {
+     "rmsDeg": 1.711,
+     "biasDeg": -1.359,
+     "maxAbsDeg": 3.701
+    }
+   },
+   "apollo-17-lm": {
+    "maskMaxDeg": 14.22,
+    "maskMeanDeg": 6.55,
+    "vsLdem64Only": {
+     "rmsDeg": 0.285,
+     "biasDeg": -0.161
+    },
+    "vsOnDevice": {
+     "rmsDeg": 1.682,
+     "biasDeg": -1.314,
+     "maxAbsDeg": 4.011
+    }
+   },
+   "blue-ghost-1": {
+    "maskMaxDeg": 2.38,
+    "maskMeanDeg": 0.83,
+    "vsLdem64Only": {
+     "rmsDeg": 0.715,
+     "biasDeg": -0.574
+    },
+    "vsOnDevice": {
+     "rmsDeg": 1.071,
+     "biasDeg": -0.901,
+     "maxAbsDeg": 2.34
+    }
+   },
+   "chandrayaan-3-vikram": {
+    "maskMaxDeg": 2.47,
+    "maskMeanDeg": 1.36,
+    "vsLdem64Only": {
+     "rmsDeg": 0.099,
+     "biasDeg": -0.05
+    },
+    "vsOnDevice": {
+     "rmsDeg": 0.461,
+     "biasDeg": -0.351,
+     "maxAbsDeg": 1.276
+    }
+   },
+   "change-3": {
+    "maskMaxDeg": 1.89,
+    "maskMeanDeg": 0.13,
+    "vsLdem64Only": {
+     "rmsDeg": 0.455,
+     "biasDeg": -0.164
+    },
+    "vsOnDevice": {
+     "rmsDeg": 0.519,
+     "biasDeg": -0.302,
+     "maxAbsDeg": 1.968
+    }
+   },
+   "change-4": {
+    "maskMaxDeg": 2.98,
+    "maskMeanDeg": 1.29,
+    "vsLdem64Only": {
+     "rmsDeg": 0.316,
+     "biasDeg": -0.157
+    },
+    "vsOnDevice": {
+     "rmsDeg": 0.413,
+     "biasDeg": -0.313,
+     "maxAbsDeg": 1.152
+    }
+   },
+   "change-5": {
+    "maskMaxDeg": 2.03,
+    "maskMeanDeg": 0.2,
+    "vsLdem64Only": {
+     "rmsDeg": 0.333,
+     "biasDeg": -0.207
+    },
+    "vsOnDevice": {
+     "rmsDeg": 0.441,
+     "biasDeg": -0.296,
+     "maxAbsDeg": 1.639
+    }
+   },
+   "change-6": {
+    "maskMaxDeg": 3.29,
+    "maskMeanDeg": 0.87,
+    "vsLdem64Only": {
+     "rmsDeg": 0.692,
+     "biasDeg": -0.404
+    },
+    "vsOnDevice": {
+     "rmsDeg": 0.763,
+     "biasDeg": -0.538,
+     "maxAbsDeg": 2.022
+    }
+   },
+   "luna-16": {
+    "maskMaxDeg": 2.08,
+    "maskMeanDeg": 0.81,
+    "vsLdem64Only": {
+     "rmsDeg": 0.756,
+     "biasDeg": -0.572
+    },
+    "vsOnDevice": {
+     "rmsDeg": 1.166,
+     "biasDeg": -0.889,
+     "maxAbsDeg": 2.524
+    }
+   },
+   "luna-17-lunokhod-1": {
+    "maskMaxDeg": 1.4,
+    "maskMeanDeg": 0.63,
+    "vsLdem64Only": {
+     "rmsDeg": 0.596,
+     "biasDeg": -0.484
+    },
+    "vsOnDevice": {
+     "rmsDeg": 0.736,
+     "biasDeg": -0.656,
+     "maxAbsDeg": 1.397
+    }
+   },
+   "luna-21-lunokhod-2": {
+    "maskMaxDeg": 4.8,
+    "maskMeanDeg": 1.45,
+    "vsLdem64Only": {
+     "rmsDeg": 0.293,
+     "biasDeg": -0.192
+    },
+    "vsOnDevice": {
+     "rmsDeg": 0.546,
+     "biasDeg": -0.437,
+     "maxAbsDeg": 1.366
+    }
+   },
+   "luna-24": {
+    "maskMaxDeg": 2.13,
+    "maskMeanDeg": 0.96,
+    "vsLdem64Only": {
+     "rmsDeg": 0.295,
+     "biasDeg": -0.205
+    },
+    "vsOnDevice": {
+     "rmsDeg": 0.714,
+     "biasDeg": -0.589,
+     "maxAbsDeg": 1.571
+    }
+   },
+   "slim": {
+    "maskMaxDeg": 9.71,
+    "maskMeanDeg": 5.42,
+    "vsLdem64Only": {
+     "rmsDeg": 0.254,
+     "biasDeg": -0.167
+    },
+    "vsOnDevice": {
+     "rmsDeg": 2.323,
+     "biasDeg": -1.609,
+     "maxAbsDeg": 6.096
+    }
+   },
+   "surveyor-1": {
+    "maskMaxDeg": 1.72,
+    "maskMeanDeg": 0.63,
+    "vsLdem64Only": {
+     "rmsDeg": 0.653,
+     "biasDeg": -0.482
+    },
+    "vsOnDevice": {
+     "rmsDeg": 0.765,
+     "biasDeg": -0.626,
+     "maxAbsDeg": 1.774
+    }
+   },
+   "surveyor-3": {
+    "maskMaxDeg": 2.03,
+    "maskMeanDeg": 0.32,
+    "vsLdem64Only": {
+     "rmsDeg": 0.565,
+     "biasDeg": -0.374
+    },
+    "vsOnDevice": {
+     "rmsDeg": 0.608,
+     "biasDeg": -0.416,
+     "maxAbsDeg": 1.732
+    }
+   },
+   "surveyor-7": {
+    "maskMaxDeg": 5.57,
+    "maskMeanDeg": 3.29,
+    "vsLdem64Only": {
+     "rmsDeg": 1.202,
+     "biasDeg": -0.92
+    },
+    "vsOnDevice": {
+     "rmsDeg": 2.421,
+     "biasDeg": -2.157,
+     "maxAbsDeg": 4.266
+    }
+   }
+  },
+  "onDevice": {
+   "n": 20,
+   "medianRmsDeg": 0.797,
+   "worstRmsDeg": 2.421,
+   "worstSiteId": "surveyor-7",
+   "meanBiasDeg": -0.871
+  },
+  "ldem64Only": {
+   "n": 20,
+   "medianRmsDeg": 0.581,
+   "worstRmsDeg": 1.255,
+   "meanBiasDeg": -0.414
+  },
+  "sunriseMinPerDeg": {
+   "equator": 118.1
+  }
+ },
+ "longTerm": {
+  "description": "18.6-year averages from global/sites.json (2 m observer, upper-limb rule, terrain mask and lunar eclipses); side vs the Earth-visible map pixel at each site; the 31 Dec 2028 total lunar eclipse every 10 min (SPICE), as the share of the Sun's disk that is above the terrain but behind Earth (visible fraction without minus with the eclipse).",
+  "apollo11": {
+   "earthPct": 100.0,
+   "sunPct": 49.8
+  },
+  "farSide": {
+   "change-4": {
+    "earthPct": 0.0,
+    "bothPct": 0.0
+   },
+   "change-6": {
+    "earthPct": 0.0,
+    "bothPct": 0.0
+   }
+  },
+  "sideAgreesWithMap": true,
+  "sideBySite": {
+   "apollo-11-lm": {
+    "side": "near",
+    "mapGrey": 255,
+    "mapSide": "near",
+    "agrees": true
+   },
+   "apollo-12-lm": {
+    "side": "near",
+    "mapGrey": 255,
+    "mapSide": "near",
+    "agrees": true
+   },
+   "apollo-14-lm": {
+    "side": "near",
+    "mapGrey": 255,
+    "mapSide": "near",
+    "agrees": true
+   },
+   "apollo-15-lm": {
+    "side": "near",
+    "mapGrey": 255,
+    "mapSide": "near",
+    "agrees": true
+   },
+   "apollo-16-lm": {
+    "side": "near",
+    "mapGrey": 255,
+    "mapSide": "near",
+    "agrees": true
+   },
+   "apollo-17-lm": {
+    "side": "near",
+    "mapGrey": 255,
+    "mapSide": "near",
+    "agrees": true
+   },
+   "luna-16": {
+    "side": "near",
+    "mapGrey": 255,
+    "mapSide": "near",
+    "agrees": true
+   },
+   "luna-17-lunokhod-1": {
+    "side": "near",
+    "mapGrey": 255,
+    "mapSide": "near",
+    "agrees": true
+   },
+   "change-3": {
+    "side": "near",
+    "mapGrey": 255,
+    "mapSide": "near",
+    "agrees": true
+   },
+   "change-4": {
+    "side": "far",
+    "mapGrey": 0,
+    "mapSide": "far",
+    "agrees": true
+   },
+   "change-5": {
+    "side": "near",
+    "mapGrey": 255,
+    "mapSide": "near",
+    "agrees": true
+   },
+   "change-6": {
+    "side": "far",
+    "mapGrey": 0,
+    "mapSide": "far",
+    "agrees": true
+   },
+   "slim": {
+    "side": "near",
+    "mapGrey": 255,
+    "mapSide": "near",
+    "agrees": true
+   },
+   "chandrayaan-3-vikram": {
+    "side": "near",
+    "mapGrey": 255,
+    "mapSide": "near",
+    "agrees": true
+   },
+   "blue-ghost-1": {
+    "side": "near",
+    "mapGrey": 255,
+    "mapSide": "near",
+    "agrees": true
+   },
+   "surveyor-1": {
+    "side": "near",
+    "mapGrey": 255,
+    "mapSide": "near",
+    "agrees": true
+   },
+   "surveyor-3": {
+    "side": "near",
+    "mapGrey": 255,
+    "mapSide": "near",
+    "agrees": true
+   },
+   "surveyor-7": {
+    "side": "near",
+    "mapGrey": 255,
+    "mapSide": "near",
+    "agrees": true
+   },
+   "luna-21-lunokhod-2": {
+    "side": "near",
+    "mapGrey": 255,
+    "mapSide": "near",
+    "agrees": true
+   },
+   "luna-24": {
+    "side": "near",
+    "mapGrey": 255,
+    "mapSide": "near",
+    "agrees": true
+   }
+  },
+  "eclipse20281231": {
+   "nearSiteId": "apollo-11-lm",
+   "farSiteId": "change-4",
+   "window": [
+    "2028-12-31T14:00:00Z",
+    "2028-12-31T20:00:00Z"
+   ],
+   "nearSideSunEclipseMax": 1.0,
+   "farSideSunEclipseMax": 0.0,
+   "nearSideGeometricMax": 1.0,
+   "farSideGeometricMax": 1.0,
+   "note": "Geometric = the share of the Sun's disk behind Earth's disk, terrain ignored (SiteSeries.sunEclipse). On the far side both bodies are below the horizon, so no visible sunlight is lost."
+  }
+ },
+ "coordinates": {
+  "description": "Every preset's coordinates from the LROC anthropogenic-objects shapefile (record id, name, COORD_SRC and UNCERTAIN as given). The Surveyor 3 to Apollo 12 LM separation tests the latitude and east-positive longitude handling; heightVsLdem64M is the near-field window height minus LOLA LDEM_64 at the site.",
+  "shapefile": {
+   "version": "2026-08-14",
+   "records": 71,
+   "sha256": "f0145e0b8871053f3358c599d356a5af05db70e4da2fe8c91264e84b98e4408b"
+  },
+  "sites": {
+   "apollo-11-lm": {
+    "inShapefile": true,
+    "shapefileId": "A11_LM",
+    "shapefileName": "Apollo 11 Lunar Module",
+    "coordSrc": "Averaged Mapping Orbit NACs + Laser Ranging",
+    "uncertain": 0.3,
+    "candidateDiffDeg": 0.0
+   },
+   "apollo-12-lm": {
+    "inShapefile": true,
+    "shapefileId": "A12_LM",
+    "shapefileName": "Apollo 12 Lunar Module",
+    "coordSrc": "Averaged Mapping Orbit NACs",
+    "uncertain": 2.2,
+    "candidateDiffDeg": 0.0005
+   },
+   "apollo-14-lm": {
+    "inShapefile": true,
+    "shapefileId": "A14_LM",
+    "shapefileName": "Apollo 14 Lunar Module",
+    "coordSrc": "Averaged Mapping Orbit NACs + Laser Ranging",
+    "uncertain": 0.4,
+    "candidateDiffDeg": 0.0008
+   },
+   "apollo-15-lm": {
+    "inShapefile": true,
+    "shapefileId": "A15_LM",
+    "shapefileName": "Apollo 15 Lunar Module",
+    "coordSrc": "Averaged Mapping Orbit NACs + Laser Ranging",
+    "uncertain": 1.0,
+    "candidateDiffDeg": 0.0005
+   },
+   "apollo-16-lm": {
+    "inShapefile": true,
+    "shapefileId": "A16_LM",
+    "shapefileName": "Apollo 16 Lunar Module",
+    "coordSrc": "Averaged Mapping Orbit NACs",
+    "uncertain": 3.0,
+    "candidateDiffDeg": 0.001
+   },
+   "apollo-17-lm": {
+    "inShapefile": true,
+    "shapefileId": "A17_LM",
+    "shapefileName": "Apollo 17 Lunar Module",
+    "coordSrc": "Averaged Mapping Orbit NACs",
+    "uncertain": 3.5,
+    "candidateDiffDeg": 0.0007
+   },
+   "luna-16": {
+    "inShapefile": true,
+    "shapefileId": "Luna16",
+    "shapefileName": "Luna 16 Lander",
+    "coordSrc": "Averaged Mapping Orbit NACs",
+    "uncertain": 3.7,
+    "candidateDiffDeg": 0.0
+   },
+   "luna-17-lunokhod-1": {
+    "inShapefile": true,
+    "shapefileId": "Luna17",
+    "shapefileName": "Luna 17 Lander",
+    "coordSrc": "Averaged Mapping Orbit NACs + Laser Ranging",
+    "uncertain": 0.5,
+    "candidateDiffDeg": 0.0002
+   },
+   "change-3": {
+    "inShapefile": true,
+    "shapefileId": "ChangE3",
+    "shapefileName": "Chang'e 3 Lander",
+    "coordSrc": "Averaged NACs",
+    "uncertain": 9.1,
+    "candidateDiffDeg": 0.0001
+   },
+   "change-4": {
+    "inShapefile": true,
+    "shapefileId": "ChangE4",
+    "shapefileName": "Chang'e 4 Lander",
+    "coordSrc": "NAC DTM",
+    "uncertain": 10.0,
+    "candidateDiffDeg": 0.0137
+   },
+   "change-5": {
+    "inShapefile": true,
+    "shapefileId": "ChangE5",
+    "shapefileName": "Chang'e 5 Lander",
+    "coordSrc": "NAC DTM",
+    "uncertain": 10.0,
+    "candidateDiffDeg": 0.0
+   },
+   "change-6": {
+    "inShapefile": true,
+    "shapefileId": "ChangE6",
+    "shapefileName": "Chang'e 6 Lander",
+    "coordSrc": "NAC DTM",
+    "uncertain": 10.0,
+    "candidateDiffDeg": 0.0004
+   },
+   "slim": {
+    "inShapefile": true,
+    "shapefileId": "SLIM",
+    "shapefileName": "SLIM Lander",
+    "coordSrc": "NAC DTM",
+    "uncertain": 10.0,
+    "candidateDiffDeg": 0.0
+   },
+   "chandrayaan-3-vikram": {
+    "inShapefile": true,
+    "shapefileId": "Vikram2",
+    "shapefileName": "Chandrayaan-3 Vikram Lander",
+    "coordSrc": "NAC DTM",
+    "uncertain": 10.0,
+    "candidateDiffDeg": 0.001
+   },
+   "blue-ghost-1": {
+    "inShapefile": true,
+    "shapefileId": "BlueGhost1",
+    "shapefileName": "Blue Ghost Lander",
+    "coordSrc": "NAC DTM",
+    "uncertain": 10.0,
+    "candidateDiffDeg": 0.0003
+   },
+   "surveyor-1": {
+    "inShapefile": true,
+    "shapefileId": "Surveyor1",
+    "shapefileName": "Surveyor 1 Lander",
+    "coordSrc": "Averaged NACs",
+    "uncertain": 5.4,
+    "candidateDiffDeg": 0.0009
+   },
+   "surveyor-3": {
+    "inShapefile": true,
+    "shapefileId": "Surveyor3",
+    "shapefileName": "Surveyor 3 Lander",
+    "coordSrc": "Averaged Mapping Orbit NACs",
+    "uncertain": 2.6,
+    "candidateDiffDeg": 0.0002
+   },
+   "surveyor-7": {
+    "inShapefile": true,
+    "shapefileId": "Surveyor7",
+    "shapefileName": "Surveyor 7 Lander",
+    "coordSrc": "Averaged Mapping Orbit NACs",
+    "uncertain": 2.7,
+    "candidateDiffDeg": 0.0097
+   },
+   "luna-21-lunokhod-2": {
+    "inShapefile": true,
+    "shapefileId": "Luna21",
+    "shapefileName": "Luna 21 Lander",
+    "coordSrc": "Averaged NACs",
+    "uncertain": 13.4,
+    "candidateDiffDeg": 0.0996
+   },
+   "luna-24": {
+    "inShapefile": true,
+    "shapefileId": "Luna24",
+    "shapefileName": "Luna 24 Lander",
+    "coordSrc": "Averaged Mapping Orbit NACs",
+    "uncertain": 3.7,
+    "candidateDiffDeg": 0.0
+   }
+  },
+  "surveyor3Apollo12SeparationM": 156.8,
+  "heightVsLdem64M": {
+   "apollo-11-lm": -4.3,
+   "apollo-12-lm": 2.7,
+   "apollo-14-lm": -1.3,
+   "apollo-15-lm": -3.6,
+   "apollo-16-lm": 2.7,
+   "apollo-17-lm": -3.1,
+   "luna-16": -3.6,
+   "luna-17-lunokhod-1": -0.0,
+   "change-3": 6.0,
+   "change-4": 1.1,
+   "change-5": -1.5,
+   "change-6": -1.3,
+   "slim": 0.8,
+   "chandrayaan-3-vikram": 1.0,
+   "blue-ghost-1": -1.6,
+   "surveyor-1": 0.0,
+   "surveyor-3": 1.9,
+   "surveyor-7": -10.7,
+   "luna-21-lunokhod-2": -0.0,
+   "luna-24": -0.1
+  }
+ },
+ "historicSun": {
+  "status": "not checked",
+  "note": "No NASA page reachable from the build environment quoted both an Apollo touchdown time and the Sun elevation at touchdown, so nothing is shown."
+ },
+ "crossRegion": {
+  "description": "IM-1 (a polar preset): the global pipeline's LDEM_64-only 2 m mask against the committed polar mask (LOLA 80 m + 240 m DEMs). This is why polar sites keep the polar DEMs.",
+  "siteId": "im-1-odysseus-landed",
+  "lat": -80.13,
+  "lon": 1.44,
+  "ldem64VsPolarMask": {
+   "rmsDeg": 1.09,
+   "biasDeg": -0.758
+  }
+ },
+ "gates": [
+  {
+   "id": "V2.apollo15MaskMaxDeg",
+   "value": 13.59,
+   "range": [
+    10,
+    16
+   ],
+   "pass": true,
+   "note": "plan V2 (design phase: 13.6 deg)"
+  },
+  {
+   "id": "V2.apollo11MaskMeanDeg",
+   "value": 1.24,
+   "range": [
+    null,
+    3
+   ],
+   "pass": true,
+   "note": "plan V2 (design phase: 1.28 deg)"
+  },
+  {
+   "id": "V3.apollo11EarthPct",
+   "value": 100.0,
+   "range": [
+    100,
+    100
+   ],
+   "pass": true,
+   "note": "Earth always up at Tranquillity Base"
+  },
+  {
+   "id": "V3.apollo11SunPct",
+   "value": 49.8,
+   "range": [
+    46,
+    54
+   ],
+   "pass": true,
+   "note": "50 +- 4 % near the equator"
+  },
+  {
+   "id": "V3.farSideEarthPct",
+   "value": 0.0,
+   "range": [
+    0,
+    0
+   ],
+   "pass": true,
+   "note": "Chang'e-4 and Chang'e-6"
+  },
+  {
+   "id": "V3.farSideBothPct",
+   "value": 0.0,
+   "range": [
+    0,
+    0
+   ],
+   "pass": true,
+   "note": "Chang'e-4 and Chang'e-6"
+  },
+  {
+   "id": "V3.sideAgreesWithMap",
+   "value": 1.0,
+   "range": [
+    1,
+    1
+   ],
+   "pass": true,
+   "note": "every side vs earthvis"
+  },
+  {
+   "id": "V3.eclipse20281231NearSide",
+   "value": 1.0,
+   "range": [
+    0,
+    null
+   ],
+   "pass": true,
+   "note": "must be > 0"
+  },
+  {
+   "id": "V3.eclipse20281231FarSide",
+   "value": 0.0,
+   "range": [
+    0,
+    0
+   ],
+   "pass": true,
+   "note": "far side loses no visible Sun"
+  },
+  {
+   "id": "V4.surveyor3Apollo12M",
+   "value": 156.8,
+   "range": [
+    100,
+    250
+   ],
+   "pass": true,
+   "note": "LROC: about 180 m apart"
+  },
+  {
+   "id": "V4.heightVsLdem64M",
+   "value": -10.7,
+   "range": [
+    -150,
+    150
+   ],
+   "pass": true,
+   "note": "worst site, near-field window minus LDEM_64"
+  },
+  {
+   "id": "V4.everySiteSourced",
+   "value": 1.0,
+   "range": [
+    1,
+    1
+   ],
+   "pass": true,
+   "note": "every preset is a shapefile record (none needed an agency statement)"
+  },
+  {
+   "id": "V1.appVsSpiceMaxArcmin",
+   "value": 0.001558,
+   "range": [
+    null,
+    0.01
+   ],
+   "pass": true,
+   "note": "as spice_truth_test"
+  },
+  {
+   "id": "V1b.horizonsMaxArcmin",
+   "value": 3.5e-05,
+   "range": [
+    null,
+    0.01
+   ],
+   "pass": true,
+   "note": "SPICE vs JPL Horizons, the polar tolerance"
+  },
+  {
+   "id": "V1b.horizonsMaxRangeKm",
+   "value": 0.004087,
+   "range": [
+    null,
+    0.05
+   ],
+   "pass": true,
+   "note": "DE440 vs Horizons, the polar tolerance"
+  },
+  {
+   "id": "V1b.appVsHorizonsMaxArcmin",
+   "value": 0.00154,
+   "range": [
+    null,
+    0.01
+   ],
+   "pass": true,
+   "note": "the app algorithm vs JPL Horizons"
+  }
+ ]
+}

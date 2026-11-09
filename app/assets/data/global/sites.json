@@ -1,0 +1,886 @@
+{
+ "generatedUtc": "2026-11-09T08:59:53Z",
+ "region": "wholeMoon",
+ "frame": "MOON_ME (LOLA DE421 mean-Earth compatible)",
+ "coordinateFrameNote": "The shapefile gives coordinates in the IAU Moon 2000 geographic system; they are applied in MOON_ME as given. The difference from IAU-frame realisations is below about 100 m and is documented, not corrected.",
+ "dem": "LOLA + Kaguya SLDEM2015 512 px/deg (59 m, to 20 km; LOLA LDEM_512 where |lat| > 59 deg) + LOLA LDEM_64 (474 m, to 600 km); exact spherical-Moon geometry",
+ "maskSource": "SLDEM2015 59 m (to 20 km) + LOLA 474 m DEM",
+ "observerHeightsM": [
+  2.0,
+  10.0
+ ],
+ "azStepDeg": 0.25,
+ "longTermPeriod": "2009-01-01 + 18.6 yr, hourly, 2 m observer, any part of disk, lunar eclipses included",
+ "coordinateSource": {
+  "title": "LROC Anthropogenic Features on the Moon (LRO-L-LROC-5-RDR-V1.0, LROLRC_2001 EXTRAS/SHAPEFILE/ANTHROPOGENIC_OBJECTS, ANTHROPOGENIC_OBJECTS_180, last updated 2026-08-14, 71 records); Wagner, R. V., Nelson, D. M., Plescia, J. B., Robinson, M. S., Speyerer, E. J., & Mazarico, E. (2017). Coordinates of anthropogenic features on the Moon. Icarus, 283, 92-103. doi:10.1016/j.icarus.2016.05.011",
+  "url": "https://data.lroc.im-ldi.com/lroc/view_rdr/SHAPEFILE_ANTHROPOGENIC_OBJECTS",
+  "says": "Coordinates of anthropogenic (man-made) objects on the Moon as measured by Wagner, et al. (2017) using Lunar Reconnaissance Orbiter Camera (LROC) NAC images combined with Earth-based laser-ranging measurements. [...] More recent anthropogenic objects have also been included.",
+  "licence": "NASA PDS data, public domain (US Government work); cite Wagner et al. (2017)",
+  "sha256": "f0145e0b8871053f3358c599d356a5af05db70e4da2fe8c91264e84b98e4408b"
+ },
+ "groups": [
+  {
+   "id": "apollo",
+   "name": "Apollo (crewed landings)",
+   "note": "Lunar Module descent stages, as measured in LROC NAC images."
+  },
+  {
+   "id": "robotic",
+   "name": "Robotic landers 1966\u201376 (Surveyor, Luna)",
+   "note": "Landers located in LROC NAC images."
+  },
+  {
+   "id": "international",
+   "name": "Other countries' programmes",
+   "note": "Landers of other national programmes, located in LROC NAC images."
+  },
+  {
+   "id": "commercial",
+   "name": "Commercial (CLPS)",
+   "note": "NASA Commercial Lunar Payload Services landers, located in LROC NAC images."
+  }
+ ],
+ "sites": [
+  {
+   "id": "apollo-11-lm",
+   "name": "Apollo 11 LM, Tranquillity Base (Apollo 11)",
+   "short": "Apollo 11 LM",
+   "group": "apollo",
+   "kind": "landed",
+   "confidence": "high",
+   "tier": "core",
+   "lat": 0.67416,
+   "lon": 23.47314,
+   "place": "",
+   "side": "near",
+   "earthFlatPct": 100.0,
+   "nearField": {
+    "source": "SLDEM2015 512 px/deg",
+    "pxM": 59.2,
+    "halfWidthKm": 20.0,
+    "sha256": "a853f3109e010c657ade754312c919f6598571b60e66779a55950afa76db125a"
+   },
+   "terrainHeightM": -1929.9,
+   "slopeDeg": 2.6,
+   "horizonMaxDeg": 2.58,
+   "horizonMaxAzDeg": 208.0,
+   "horizonMaxDistanceKm": 0.4,
+   "horizonMeanDeg": 1.24,
+   "longTermSunlitPct": 49.8,
+   "longTermEarthPct": 100.0,
+   "longTermBothPct": 49.8,
+   "notes": "Coordinates from the LROC shapefile record A11_LM (Averaged Mapping Orbit NACs + Laser Ranging; stated uncertainty 0.3 m), applied in MOON_ME as given. Terrain height here -1930 m (SLDEM2015 512 px/deg near field); the record's RADIUS gives -1926 m.",
+   "sources": [
+    {
+     "title": "LROC Anthropogenic Features on the Moon (shapefile, 2026-08-14), record A11_LM",
+     "url": "https://data.lroc.im-ldi.com/lroc/view_rdr/SHAPEFILE_ANTHROPOGENIC_OBJECTS",
+     "says": "ANTHROPOGENIC_OBJECTS_180 record OBJECT_ID A11_LM: NAME \"Apollo 11 Lunar Module\" (VEHCL_NAME \"Eagle\", MISSION \"Apollo 11\", OBJECT \"Descent stage of Lunar Module \"Eagle\"\"), LATITUDE 0.674160, LONGITUDE 23.473140, COORD_SRC \"Averaged Mapping Orbit NACs + Laser Ranging\", UNCERTAIN 0.3 m, REFERENCES \"https://doi.org/10.1016/j.icarus.2016.05.011\""
+    },
+    {
+     "title": "Wagner, R. V., Nelson, D. M., Plescia, J. B., Robinson, M. S., Speyerer, E. J., & Mazarico, E. (2017). Coordinates of anthropogenic features on the Moon. Icarus, 283, 92-103. doi:10.1016/j.icarus.2016.05.011",
+     "url": "https://doi.org/10.1016/j.icarus.2016.05.011",
+     "says": "Coordinates of anthropogenic (man-made) objects on the Moon as measured by Wagner, et al. (2017) using Lunar Reconnaissance Orbiter Camera (LROC) NAC images combined with Earth-based laser-ranging measurements. [...] More recent anthropogenic objects have also been included."
+    }
+   ]
+  },
+  {
+   "id": "apollo-12-lm",
+   "name": "Apollo 12 LM, Oceanus Procellarum",
+   "short": "Apollo 12 LM",
+   "group": "apollo",
+   "kind": "landed",
+   "confidence": "high",
+   "tier": "core",
+   "lat": -3.0128,
+   "lon": -23.4219,
+   "place": "",
+   "side": "near",
+   "earthFlatPct": 100.0,
+   "nearField": {
+    "source": "SLDEM2015 512 px/deg",
+    "pxM": 59.2,
+    "halfWidthKm": 20.0,
+    "sha256": "0e8af2d898f7253ff315b98564a3d56d42959c6380f4ea7411ba34b034186a1f"
+   },
+   "terrainHeightM": -1424.9,
+   "slopeDeg": 3.4,
+   "horizonMaxDeg": 2.44,
+   "horizonMaxAzDeg": 58.75,
+   "horizonMaxDistanceKm": 0.1,
+   "horizonMeanDeg": 0.5,
+   "longTermSunlitPct": 49.8,
+   "longTermEarthPct": 100.0,
+   "longTermBothPct": 49.8,
+   "notes": "Coordinates from the LROC shapefile record A12_LM (Averaged Mapping Orbit NACs; stated uncertainty 2.2 m), applied in MOON_ME as given. Terrain height here -1425 m (SLDEM2015 512 px/deg near field); the record's RADIUS gives -1422 m.",
+   "sources": [
+    {
+     "title": "LROC Anthropogenic Features on the Moon (shapefile, 2026-08-14), record A12_LM",
+     "url": "https://data.lroc.im-ldi.com/lroc/view_rdr/SHAPEFILE_ANTHROPOGENIC_OBJECTS",
+     "says": "ANTHROPOGENIC_OBJECTS_180 record OBJECT_ID A12_LM: NAME \"Apollo 12 Lunar Module\" (VEHCL_NAME \"Intrepid\", MISSION \"Apollo 12\", OBJECT \"Descent stage of Lunar Module \"Intrepid\"\"), LATITUDE -3.012800, LONGITUDE -23.421900, COORD_SRC \"Averaged Mapping Orbit NACs\", UNCERTAIN 2.2 m, REFERENCES \"https://doi.org/10.1016/j.icarus.2016.05.011\""
+    },
+    {
+     "title": "Wagner, R. V., Nelson, D. M., Plescia, J. B., Robinson, M. S., Speyerer, E. J., & Mazarico, E. (2017). Coordinates of anthropogenic features on the Moon. Icarus, 283, 92-103. doi:10.1016/j.icarus.2016.05.011",
+     "url": "https://doi.org/10.1016/j.icarus.2016.05.011",
+     "says": "Coordinates of anthropogenic (man-made) objects on the Moon as measured by Wagner, et al. (2017) using Lunar Reconnaissance Orbiter Camera (LROC) NAC images combined with Earth-based laser-ranging measurements. [...] More recent anthropogenic objects have also been included."
+    }
+   ]
+  },
+  {
+   "id": "apollo-14-lm",
+   "name": "Apollo 14 LM, Fra Mauro",
+   "short": "Apollo 14 LM",
+   "group": "apollo",
+   "kind": "landed",
+   "confidence": "high",
+   "tier": "core",
+   "lat": -3.64589,
+   "lon": -17.47194,
+   "place": "",
+   "side": "near",
+   "earthFlatPct": 100.0,
+   "nearField": {
+    "source": "SLDEM2015 512 px/deg",
+    "pxM": 59.2,
+    "halfWidthKm": 20.0,
+    "sha256": "3cf2b50b20600adc7412daf8289727ed0f0e61268ada9c252a808c5153188274"
+   },
+   "terrainHeightM": -1063.5,
+   "slopeDeg": 1.1,
+   "horizonMaxDeg": 4.31,
+   "horizonMaxAzDeg": 74.25,
+   "horizonMaxDistanceKm": 1.4,
+   "horizonMeanDeg": 1.88,
+   "longTermSunlitPct": 49.2,
+   "longTermEarthPct": 100.0,
+   "longTermBothPct": 49.2,
+   "notes": "Coordinates from the LROC shapefile record A14_LM (Averaged Mapping Orbit NACs + Laser Ranging; stated uncertainty 0.4 m), applied in MOON_ME as given. Terrain height here -1063 m (SLDEM2015 512 px/deg near field); the record's RADIUS gives -1062 m.",
+   "sources": [
+    {
+     "title": "LROC Anthropogenic Features on the Moon (shapefile, 2026-08-14), record A14_LM",
+     "url": "https://data.lroc.im-ldi.com/lroc/view_rdr/SHAPEFILE_ANTHROPOGENIC_OBJECTS",
+     "says": "ANTHROPOGENIC_OBJECTS_180 record OBJECT_ID A14_LM: NAME \"Apollo 14 Lunar Module\" (VEHCL_NAME \"Antares\", MISSION \"Apollo 14\", OBJECT \"Descent stage of Lunar Module \"Antares\"\"), LATITUDE -3.645890, LONGITUDE -17.471940, COORD_SRC \"Averaged Mapping Orbit NACs + Laser Ranging\", UNCERTAIN 0.4 m, REFERENCES \"https://doi.org/10.1016/j.icarus.2016.05.011\""
+    },
+    {
+     "title": "Wagner, R. V., Nelson, D. M., Plescia, J. B., Robinson, M. S., Speyerer, E. J., & Mazarico, E. (2017). Coordinates of anthropogenic features on the Moon. Icarus, 283, 92-103. doi:10.1016/j.icarus.2016.05.011",
+     "url": "https://doi.org/10.1016/j.icarus.2016.05.011",
+     "says": "Coordinates of anthropogenic (man-made) objects on the Moon as measured by Wagner, et al. (2017) using Lunar Reconnaissance Orbiter Camera (LROC) NAC images combined with Earth-based laser-ranging measurements. [...] More recent anthropogenic objects have also been included."
+    }
+   ]
+  },
+  {
+   "id": "apollo-15-lm",
+   "name": "Apollo 15 LM, Hadley\u2013Apennine",
+   "short": "Apollo 15 LM",
+   "group": "apollo",
+   "kind": "landed",
+   "confidence": "high",
+   "tier": "core",
+   "lat": 26.13239,
+   "lon": 3.6333,
+   "place": "",
+   "side": "near",
+   "earthFlatPct": 100.0,
+   "nearField": {
+    "source": "SLDEM2015 512 px/deg",
+    "pxM": 59.2,
+    "halfWidthKm": 20.0,
+    "sha256": "3e1905173c1d58201901c26ec77d45159e001e44c2c700cd5124d7fdcb4a3ae3"
+   },
+   "terrainHeightM": -1927.9,
+   "slopeDeg": 1.6,
+   "horizonMaxDeg": 13.59,
+   "horizonMaxAzDeg": 179.5,
+   "horizonMaxDistanceKm": 10.4,
+   "horizonMeanDeg": 5.03,
+   "longTermSunlitPct": 47.5,
+   "longTermEarthPct": 100.0,
+   "longTermBothPct": 47.5,
+   "notes": "Coordinates from the LROC shapefile record A15_LM (Averaged Mapping Orbit NACs + Laser Ranging; stated uncertainty 1 m), applied in MOON_ME as given. Terrain height here -1928 m (SLDEM2015 512 px/deg near field); the record's RADIUS gives -1931 m.",
+   "sources": [
+    {
+     "title": "LROC Anthropogenic Features on the Moon (shapefile, 2026-08-14), record A15_LM",
+     "url": "https://data.lroc.im-ldi.com/lroc/view_rdr/SHAPEFILE_ANTHROPOGENIC_OBJECTS",
+     "says": "ANTHROPOGENIC_OBJECTS_180 record OBJECT_ID A15_LM: NAME \"Apollo 15 Lunar Module\" (VEHCL_NAME \"Falcon\", MISSION \"Apollo 15\", OBJECT \"Descent stage of Lunar Module \"Falcon\"\"), LATITUDE 26.132390, LONGITUDE 3.633300, COORD_SRC \"Averaged Mapping Orbit NACs + Laser Ranging\", UNCERTAIN 1 m, REFERENCES \"https://doi.org/10.1016/j.icarus.2016.05.011\""
+    },
+    {
+     "title": "Wagner, R. V., Nelson, D. M., Plescia, J. B., Robinson, M. S., Speyerer, E. J., & Mazarico, E. (2017). Coordinates of anthropogenic features on the Moon. Icarus, 283, 92-103. doi:10.1016/j.icarus.2016.05.011",
+     "url": "https://doi.org/10.1016/j.icarus.2016.05.011",
+     "says": "Coordinates of anthropogenic (man-made) objects on the Moon as measured by Wagner, et al. (2017) using Lunar Reconnaissance Orbiter Camera (LROC) NAC images combined with Earth-based laser-ranging measurements. [...] More recent anthropogenic objects have also been included."
+    }
+   ]
+  },
+  {
+   "id": "apollo-16-lm",
+   "name": "Apollo 16 LM, Descartes highlands",
+   "short": "Apollo 16 LM",
+   "group": "apollo",
+   "kind": "landed",
+   "confidence": "high",
+   "tier": "core",
+   "lat": -8.9734,
+   "lon": 15.5011,
+   "place": "",
+   "side": "near",
+   "earthFlatPct": 100.0,
+   "nearField": {
+    "source": "SLDEM2015 512 px/deg",
+    "pxM": 59.2,
+    "halfWidthKm": 20.0,
+    "sha256": "fad4f7b3b598bcc4301bbd97d83a6f150e70195d94e636928c48ae2c00a8e6ca"
+   },
+   "terrainHeightM": 11.4,
+   "slopeDeg": 2.8,
+   "horizonMaxDeg": 5.46,
+   "horizonMaxAzDeg": 164.25,
+   "horizonMaxDistanceKm": 5.6,
+   "horizonMeanDeg": 2.48,
+   "longTermSunlitPct": 49.8,
+   "longTermEarthPct": 100.0,
+   "longTermBothPct": 49.8,
+   "notes": "Coordinates from the LROC shapefile record A16_LM (Averaged Mapping Orbit NACs; stated uncertainty 3 m), applied in MOON_ME as given. Terrain height here 11 m (SLDEM2015 512 px/deg near field); the record's RADIUS gives 8 m.",
+   "sources": [
+    {
+     "title": "LROC Anthropogenic Features on the Moon (shapefile, 2026-08-14), record A16_LM",
+     "url": "https://data.lroc.im-ldi.com/lroc/view_rdr/SHAPEFILE_ANTHROPOGENIC_OBJECTS",
+     "says": "ANTHROPOGENIC_OBJECTS_180 record OBJECT_ID A16_LM: NAME \"Apollo 16 Lunar Module\" (VEHCL_NAME \"Orion\", MISSION \"Apollo 16\", OBJECT \"Descent stage of Lunar Module \"Orion\"\"), LATITUDE -8.973400, LONGITUDE 15.501100, COORD_SRC \"Averaged Mapping Orbit NACs\", UNCERTAIN 3 m, REFERENCES \"https://doi.org/10.1016/j.icarus.2016.05.011\""
+    },
+    {
+     "title": "Wagner, R. V., Nelson, D. M., Plescia, J. B., Robinson, M. S., Speyerer, E. J., & Mazarico, E. (2017). Coordinates of anthropogenic features on the Moon. Icarus, 283, 92-103. doi:10.1016/j.icarus.2016.05.011",
+     "url": "https://doi.org/10.1016/j.icarus.2016.05.011",
+     "says": "Coordinates of anthropogenic (man-made) objects on the Moon as measured by Wagner, et al. (2017) using Lunar Reconnaissance Orbiter Camera (LROC) NAC images combined with Earth-based laser-ranging measurements. [...] More recent anthropogenic objects have also been included."
+    }
+   ]
+  },
+  {
+   "id": "apollo-17-lm",
+   "name": "Apollo 17 LM, Taurus\u2013Littrow",
+   "short": "Apollo 17 LM",
+   "group": "apollo",
+   "kind": "landed",
+   "confidence": "high",
+   "tier": "core",
+   "lat": 20.1911,
+   "lon": 30.7723,
+   "place": "",
+   "side": "near",
+   "earthFlatPct": 100.0,
+   "nearField": {
+    "source": "SLDEM2015 512 px/deg",
+    "pxM": 59.2,
+    "halfWidthKm": 20.0,
+    "sha256": "b2a02c65d89dbe2d682c37e3da01f98bf2176601705402cd15194db483acf256"
+   },
+   "terrainHeightM": -2628.1,
+   "slopeDeg": 1.8,
+   "horizonMaxDeg": 14.22,
+   "horizonMaxAzDeg": 1.0,
+   "horizonMaxDistanceKm": 6.4,
+   "horizonMeanDeg": 6.55,
+   "longTermSunlitPct": 48.0,
+   "longTermEarthPct": 100.0,
+   "longTermBothPct": 48.0,
+   "notes": "Coordinates from the LROC shapefile record A17_LM (Averaged Mapping Orbit NACs; stated uncertainty 3.5 m), applied in MOON_ME as given. Terrain height here -2628 m (SLDEM2015 512 px/deg near field); the record's RADIUS gives -2626 m.",
+   "sources": [
+    {
+     "title": "LROC Anthropogenic Features on the Moon (shapefile, 2026-08-14), record A17_LM",
+     "url": "https://data.lroc.im-ldi.com/lroc/view_rdr/SHAPEFILE_ANTHROPOGENIC_OBJECTS",
+     "says": "ANTHROPOGENIC_OBJECTS_180 record OBJECT_ID A17_LM: NAME \"Apollo 17 Lunar Module\" (VEHCL_NAME \"Challenger\", MISSION \"Apollo 17\", OBJECT \"Descent stage of Lunar Module \"Challenger\"\"), LATITUDE 20.191100, LONGITUDE 30.772300, COORD_SRC \"Averaged Mapping Orbit NACs\", UNCERTAIN 3.5 m, REFERENCES \"https://doi.org/10.1016/j.icarus.2016.05.011\""
+    },
+    {
+     "title": "Wagner, R. V., Nelson, D. M., Plescia, J. B., Robinson, M. S., Speyerer, E. J., & Mazarico, E. (2017). Coordinates of anthropogenic features on the Moon. Icarus, 283, 92-103. doi:10.1016/j.icarus.2016.05.011",
+     "url": "https://doi.org/10.1016/j.icarus.2016.05.011",
+     "says": "Coordinates of anthropogenic (man-made) objects on the Moon as measured by Wagner, et al. (2017) using Lunar Reconnaissance Orbiter Camera (LROC) NAC images combined with Earth-based laser-ranging measurements. [...] More recent anthropogenic objects have also been included."
+    }
+   ]
+  },
+  {
+   "id": "luna-16",
+   "name": "Luna 16, Mare Fecunditatis",
+   "short": "Luna 16",
+   "group": "robotic",
+   "kind": "landed",
+   "confidence": "high",
+   "tier": "core",
+   "lat": -0.5137,
+   "lon": 56.3638,
+   "place": "",
+   "side": "near",
+   "earthFlatPct": 100.0,
+   "nearField": {
+    "source": "SLDEM2015 512 px/deg",
+    "pxM": 59.2,
+    "halfWidthKm": 20.0,
+    "sha256": "2764ff14778082410bd155a65824a3b6e3beb8f68f4093713b5cc00e36252f55"
+   },
+   "terrainHeightM": -2452.0,
+   "slopeDeg": 0.4,
+   "horizonMaxDeg": 2.08,
+   "horizonMaxAzDeg": 211.0,
+   "horizonMaxDistanceKm": 0.3,
+   "horizonMeanDeg": 0.81,
+   "longTermSunlitPct": 49.6,
+   "longTermEarthPct": 100.0,
+   "longTermBothPct": 49.6,
+   "notes": "Coordinates from the LROC shapefile record Luna16 (Averaged Mapping Orbit NACs; stated uncertainty 3.7 m), applied in MOON_ME as given. Terrain height here -2452 m (SLDEM2015 512 px/deg near field); the record's RADIUS gives -2452 m.",
+   "sources": [
+    {
+     "title": "LROC Anthropogenic Features on the Moon (shapefile, 2026-08-14), record Luna16",
+     "url": "https://data.lroc.im-ldi.com/lroc/view_rdr/SHAPEFILE_ANTHROPOGENIC_OBJECTS",
+     "says": "ANTHROPOGENIC_OBJECTS_180 record OBJECT_ID Luna16: NAME \"Luna 16 Lander\" (VEHCL_NAME \"Luna-16\", MISSION \"Luna 16\", OBJECT \"Lander\"), LATITUDE -0.513700, LONGITUDE 56.363800, COORD_SRC \"Averaged Mapping Orbit NACs\", UNCERTAIN 3.7 m, REFERENCES \"https://doi.org/10.1016/j.icarus.2016.05.011\""
+    },
+    {
+     "title": "Wagner, R. V., Nelson, D. M., Plescia, J. B., Robinson, M. S., Speyerer, E. J., & Mazarico, E. (2017). Coordinates of anthropogenic features on the Moon. Icarus, 283, 92-103. doi:10.1016/j.icarus.2016.05.011",
+     "url": "https://doi.org/10.1016/j.icarus.2016.05.011",
+     "says": "Coordinates of anthropogenic (man-made) objects on the Moon as measured by Wagner, et al. (2017) using Lunar Reconnaissance Orbiter Camera (LROC) NAC images combined with Earth-based laser-ranging measurements. [...] More recent anthropogenic objects have also been included."
+    }
+   ]
+  },
+  {
+   "id": "luna-17-lunokhod-1",
+   "name": "Luna 17 lander, Mare Imbrium",
+   "short": "Luna 17",
+   "group": "robotic",
+   "kind": "landed",
+   "confidence": "high",
+   "tier": "core",
+   "lat": 38.23764,
+   "lon": -35.00163,
+   "place": "",
+   "side": "near",
+   "earthFlatPct": 100.0,
+   "nearField": {
+    "source": "SLDEM2015 512 px/deg",
+    "pxM": 59.2,
+    "halfWidthKm": 20.0,
+    "sha256": "b10c2fced5ddefa687936230b1e3f56832034a1d7981fa4964ee9627f008970f"
+   },
+   "terrainHeightM": -2472.3,
+   "slopeDeg": 2.2,
+   "horizonMaxDeg": 1.4,
+   "horizonMaxAzDeg": 319.75,
+   "horizonMaxDistanceKm": 0.1,
+   "horizonMeanDeg": 0.63,
+   "longTermSunlitPct": 49.7,
+   "longTermEarthPct": 100.0,
+   "longTermBothPct": 49.7,
+   "notes": "Coordinates from the LROC shapefile record Luna17 (Averaged Mapping Orbit NACs + Laser Ranging; stated uncertainty 0.5 m), applied in MOON_ME as given. Terrain height here -2472 m (SLDEM2015 512 px/deg near field); the record's RADIUS gives -2471 m.",
+   "sources": [
+    {
+     "title": "LROC Anthropogenic Features on the Moon (shapefile, 2026-08-14), record Luna17",
+     "url": "https://data.lroc.im-ldi.com/lroc/view_rdr/SHAPEFILE_ANTHROPOGENIC_OBJECTS",
+     "says": "ANTHROPOGENIC_OBJECTS_180 record OBJECT_ID Luna17: NAME \"Luna 17 Lander\" (VEHCL_NAME \"Luna-17\", MISSION \"Luna 17\", OBJECT \"Lander\"), LATITUDE 38.237640, LONGITUDE -35.001630, COORD_SRC \"Averaged Mapping Orbit NACs + Laser Ranging\", UNCERTAIN 0.5 m, REFERENCES \"https://doi.org/10.1016/j.icarus.2016.05.011\""
+    },
+    {
+     "title": "Wagner, R. V., Nelson, D. M., Plescia, J. B., Robinson, M. S., Speyerer, E. J., & Mazarico, E. (2017). Coordinates of anthropogenic features on the Moon. Icarus, 283, 92-103. doi:10.1016/j.icarus.2016.05.011",
+     "url": "https://doi.org/10.1016/j.icarus.2016.05.011",
+     "says": "Coordinates of anthropogenic (man-made) objects on the Moon as measured by Wagner, et al. (2017) using Lunar Reconnaissance Orbiter Camera (LROC) NAC images combined with Earth-based laser-ranging measurements. [...] More recent anthropogenic objects have also been included."
+    }
+   ]
+  },
+  {
+   "id": "change-3",
+   "name": "Chang'e-3, northern Mare Imbrium",
+   "short": "Chang'e-3",
+   "group": "international",
+   "kind": "landed",
+   "confidence": "high",
+   "tier": "core",
+   "lat": 44.1214,
+   "lon": -19.5117,
+   "place": "",
+   "side": "near",
+   "earthFlatPct": 100.0,
+   "nearField": {
+    "source": "SLDEM2015 512 px/deg",
+    "pxM": 59.2,
+    "halfWidthKm": 20.0,
+    "sha256": "7d35062f752503cc96284ff64cc53d8afc3866c57df49322076630285ca28ff4"
+   },
+   "terrainHeightM": -2628.0,
+   "slopeDeg": 4.3,
+   "horizonMaxDeg": 1.89,
+   "horizonMaxAzDeg": 349.75,
+   "horizonMaxDistanceKm": 0.1,
+   "horizonMeanDeg": 0.13,
+   "longTermSunlitPct": 50.3,
+   "longTermEarthPct": 100.0,
+   "longTermBothPct": 50.3,
+   "notes": "Coordinates from the LROC shapefile record ChangE3 (Averaged NACs; stated uncertainty 9.1 m), applied in MOON_ME as given. Terrain height here -2628 m (SLDEM2015 512 px/deg near field); the record's RADIUS gives -2630 m.",
+   "sources": [
+    {
+     "title": "LROC Anthropogenic Features on the Moon (shapefile, 2026-08-14), record ChangE3",
+     "url": "https://data.lroc.im-ldi.com/lroc/view_rdr/SHAPEFILE_ANTHROPOGENIC_OBJECTS",
+     "says": "ANTHROPOGENIC_OBJECTS_180 record OBJECT_ID ChangE3: NAME \"Chang'e 3 Lander\" (VEHCL_NAME \"Chang'E-3\", MISSION \"Chang'e 3\", OBJECT \"Lander\"), LATITUDE 44.121400, LONGITUDE -19.511700, COORD_SRC \"Averaged NACs\", UNCERTAIN 9.1 m, REFERENCES \"https://lroc.im-ldi.com/images/637\""
+    },
+    {
+     "title": "Wagner, R. V., Nelson, D. M., Plescia, J. B., Robinson, M. S., Speyerer, E. J., & Mazarico, E. (2017). Coordinates of anthropogenic features on the Moon. Icarus, 283, 92-103. doi:10.1016/j.icarus.2016.05.011",
+     "url": "https://doi.org/10.1016/j.icarus.2016.05.011",
+     "says": "Coordinates of anthropogenic (man-made) objects on the Moon as measured by Wagner, et al. (2017) using Lunar Reconnaissance Orbiter Camera (LROC) NAC images combined with Earth-based laser-ranging measurements. [...] More recent anthropogenic objects have also been included."
+    }
+   ]
+  },
+  {
+   "id": "change-4",
+   "name": "Chang'e-4, Von K\u00e1rm\u00e1n (far side)",
+   "short": "Chang'e-4",
+   "group": "international",
+   "kind": "landed",
+   "confidence": "high",
+   "tier": "core",
+   "lat": -45.4562,
+   "lon": 177.5886,
+   "place": "",
+   "side": "far",
+   "earthFlatPct": 0.0,
+   "nearField": {
+    "source": "SLDEM2015 512 px/deg",
+    "pxM": 59.2,
+    "halfWidthKm": 20.0,
+    "sha256": "7c59eb7d95d4604442ec220e660a7bade9f6539ba50e84b7382ee7d288a2e08c"
+   },
+   "terrainHeightM": -5928.3,
+   "slopeDeg": 0.8,
+   "horizonMaxDeg": 2.98,
+   "horizonMaxAzDeg": 161.25,
+   "horizonMaxDistanceKm": 50.3,
+   "horizonMeanDeg": 1.29,
+   "longTermSunlitPct": 49.4,
+   "longTermEarthPct": 0.0,
+   "longTermBothPct": 0.0,
+   "notes": "Coordinates from the LROC shapefile record ChangE4 (NAC DTM; stated uncertainty 10 m), applied in MOON_ME as given. Terrain height here -5928 m (SLDEM2015 512 px/deg near field); the record's RADIUS gives -5928 m.",
+   "sources": [
+    {
+     "title": "LROC Anthropogenic Features on the Moon (shapefile, 2026-08-14), record ChangE4",
+     "url": "https://data.lroc.im-ldi.com/lroc/view_rdr/SHAPEFILE_ANTHROPOGENIC_OBJECTS",
+     "says": "ANTHROPOGENIC_OBJECTS_180 record OBJECT_ID ChangE4: NAME \"Chang'e 4 Lander\" (VEHCL_NAME \"Chang'E-4\", MISSION \"Chang'e 4\", OBJECT \"Lander\"), LATITUDE -45.456200, LONGITUDE 177.588600, COORD_SRC \"NAC DTM\", UNCERTAIN 10 m, REFERENCES \"https://lroc.im-ldi.com/images/1087; https://lroc.im-ldi.com/images/1092\""
+    },
+    {
+     "title": "Wagner, R. V., Nelson, D. M., Plescia, J. B., Robinson, M. S., Speyerer, E. J., & Mazarico, E. (2017). Coordinates of anthropogenic features on the Moon. Icarus, 283, 92-103. doi:10.1016/j.icarus.2016.05.011",
+     "url": "https://doi.org/10.1016/j.icarus.2016.05.011",
+     "says": "Coordinates of anthropogenic (man-made) objects on the Moon as measured by Wagner, et al. (2017) using Lunar Reconnaissance Orbiter Camera (LROC) NAC images combined with Earth-based laser-ranging measurements. [...] More recent anthropogenic objects have also been included."
+    }
+   ]
+  },
+  {
+   "id": "change-5",
+   "name": "Chang'e-5, Oceanus Procellarum",
+   "short": "Chang'e-5",
+   "group": "international",
+   "kind": "landed",
+   "confidence": "high",
+   "tier": "core",
+   "lat": 43.0576,
+   "lon": -51.9161,
+   "place": "",
+   "side": "near",
+   "earthFlatPct": 100.0,
+   "nearField": {
+    "source": "SLDEM2015 512 px/deg",
+    "pxM": 59.2,
+    "halfWidthKm": 20.0,
+    "sha256": "370426be21acf34316676de18917b228e10e44029650dc19db6d4642dc557cb0"
+   },
+   "terrainHeightM": -2544.2,
+   "slopeDeg": 1.3,
+   "horizonMaxDeg": 2.03,
+   "horizonMaxAzDeg": 200.0,
+   "horizonMaxDistanceKm": 12.7,
+   "horizonMeanDeg": 0.2,
+   "longTermSunlitPct": 50.2,
+   "longTermEarthPct": 100.0,
+   "longTermBothPct": 50.2,
+   "notes": "Coordinates from the LROC shapefile record ChangE5 (NAC DTM; stated uncertainty 10 m), applied in MOON_ME as given. Terrain height here -2544 m (SLDEM2015 512 px/deg near field); the record's RADIUS gives -2539 m.",
+   "sources": [
+    {
+     "title": "LROC Anthropogenic Features on the Moon (shapefile, 2026-08-14), record ChangE5",
+     "url": "https://data.lroc.im-ldi.com/lroc/view_rdr/SHAPEFILE_ANTHROPOGENIC_OBJECTS",
+     "says": "ANTHROPOGENIC_OBJECTS_180 record OBJECT_ID ChangE5: NAME \"Chang'e 5 Lander\" (VEHCL_NAME \"Chang'E-5\", MISSION \"Chang'e 5\", OBJECT \"Lander\"), LATITUDE 43.057600, LONGITUDE -51.916100, COORD_SRC \"NAC DTM\", UNCERTAIN 10 m, REFERENCES \"https://lroc.im-ldi.com/images/1172\""
+    },
+    {
+     "title": "Wagner, R. V., Nelson, D. M., Plescia, J. B., Robinson, M. S., Speyerer, E. J., & Mazarico, E. (2017). Coordinates of anthropogenic features on the Moon. Icarus, 283, 92-103. doi:10.1016/j.icarus.2016.05.011",
+     "url": "https://doi.org/10.1016/j.icarus.2016.05.011",
+     "says": "Coordinates of anthropogenic (man-made) objects on the Moon as measured by Wagner, et al. (2017) using Lunar Reconnaissance Orbiter Camera (LROC) NAC images combined with Earth-based laser-ranging measurements. [...] More recent anthropogenic objects have also been included."
+    }
+   ]
+  },
+  {
+   "id": "change-6",
+   "name": "Chang'e-6, Apollo basin (far side)",
+   "short": "Chang'e-6",
+   "group": "international",
+   "kind": "landed",
+   "confidence": "high",
+   "tier": "core",
+   "lat": -41.6383,
+   "lon": -153.9857,
+   "place": "",
+   "side": "far",
+   "earthFlatPct": 0.0,
+   "nearField": {
+    "source": "SLDEM2015 512 px/deg",
+    "pxM": 59.2,
+    "halfWidthKm": 20.0,
+    "sha256": "e35c5ea470cedb5ec76988d13ca8a49e2d8f4848419ea6ee64bdedbd6e0dbefb"
+   },
+   "terrainHeightM": -5256.2,
+   "slopeDeg": 1.9,
+   "horizonMaxDeg": 3.29,
+   "horizonMaxAzDeg": 184.75,
+   "horizonMaxDistanceKm": 43.1,
+   "horizonMeanDeg": 0.87,
+   "longTermSunlitPct": 49.8,
+   "longTermEarthPct": 0.0,
+   "longTermBothPct": 0.0,
+   "notes": "Coordinates from the LROC shapefile record ChangE6 (NAC DTM; stated uncertainty 10 m), applied in MOON_ME as given. Terrain height here -5256 m (SLDEM2015 512 px/deg near field); the record's RADIUS gives -5252 m.",
+   "sources": [
+    {
+     "title": "LROC Anthropogenic Features on the Moon (shapefile, 2026-08-14), record ChangE6",
+     "url": "https://data.lroc.im-ldi.com/lroc/view_rdr/SHAPEFILE_ANTHROPOGENIC_OBJECTS",
+     "says": "ANTHROPOGENIC_OBJECTS_180 record OBJECT_ID ChangE6: NAME \"Chang'e 6 Lander\" (VEHCL_NAME \"Chang'E-6\", MISSION \"Chang'e 6\", OBJECT \"Lander\"), LATITUDE -41.638300, LONGITUDE -153.985700, COORD_SRC \"NAC DTM\", UNCERTAIN 10 m, REFERENCES \"https://lroc.im-ldi.com/images/1374\""
+    },
+    {
+     "title": "Wagner, R. V., Nelson, D. M., Plescia, J. B., Robinson, M. S., Speyerer, E. J., & Mazarico, E. (2017). Coordinates of anthropogenic features on the Moon. Icarus, 283, 92-103. doi:10.1016/j.icarus.2016.05.011",
+     "url": "https://doi.org/10.1016/j.icarus.2016.05.011",
+     "says": "Coordinates of anthropogenic (man-made) objects on the Moon as measured by Wagner, et al. (2017) using Lunar Reconnaissance Orbiter Camera (LROC) NAC images combined with Earth-based laser-ranging measurements. [...] More recent anthropogenic objects have also been included."
+    }
+   ]
+  },
+  {
+   "id": "slim",
+   "name": "SLIM, near Shioli crater",
+   "short": "SLIM",
+   "group": "international",
+   "kind": "landed",
+   "confidence": "high",
+   "tier": "core",
+   "lat": -13.316,
+   "lon": 25.251,
+   "place": "",
+   "side": "near",
+   "earthFlatPct": 100.0,
+   "nearField": {
+    "source": "SLDEM2015 512 px/deg",
+    "pxM": 59.2,
+    "halfWidthKm": 20.0,
+    "sha256": "e88b049525f9291c3b90249c96429e9781255faadf97aa5ab0fec52384b8b8da"
+   },
+   "terrainHeightM": -912.5,
+   "slopeDeg": 7.7,
+   "horizonMaxDeg": 9.71,
+   "horizonMaxAzDeg": 357.75,
+   "horizonMaxDistanceKm": 2.8,
+   "horizonMeanDeg": 5.42,
+   "longTermSunlitPct": 47.9,
+   "longTermEarthPct": 100.0,
+   "longTermBothPct": 47.9,
+   "notes": "Coordinates from the LROC shapefile record SLIM (NAC DTM; stated uncertainty 10 m), applied in MOON_ME as given. Terrain height here -913 m (SLDEM2015 512 px/deg near field); the record's RADIUS gives -913 m.",
+   "sources": [
+    {
+     "title": "LROC Anthropogenic Features on the Moon (shapefile, 2026-08-14), record SLIM",
+     "url": "https://data.lroc.im-ldi.com/lroc/view_rdr/SHAPEFILE_ANTHROPOGENIC_OBJECTS",
+     "says": "ANTHROPOGENIC_OBJECTS_180 record OBJECT_ID SLIM: NAME \"SLIM Lander\" (VEHCL_NAME \"SLIM (Smart Lander for Investigating Moon)\", MISSION \"SLIM\", OBJECT \"Lander\"), LATITUDE -13.316000, LONGITUDE 25.251000, COORD_SRC \"NAC DTM\", UNCERTAIN 10 m, REFERENCES \"https://lroc.im-ldi.com/images/1358\""
+    },
+    {
+     "title": "Wagner, R. V., Nelson, D. M., Plescia, J. B., Robinson, M. S., Speyerer, E. J., & Mazarico, E. (2017). Coordinates of anthropogenic features on the Moon. Icarus, 283, 92-103. doi:10.1016/j.icarus.2016.05.011",
+     "url": "https://doi.org/10.1016/j.icarus.2016.05.011",
+     "says": "Coordinates of anthropogenic (man-made) objects on the Moon as measured by Wagner, et al. (2017) using Lunar Reconnaissance Orbiter Camera (LROC) NAC images combined with Earth-based laser-ranging measurements. [...] More recent anthropogenic objects have also been included."
+    }
+   ]
+  },
+  {
+   "id": "chandrayaan-3-vikram",
+   "name": "Chandrayaan-3 Vikram",
+   "short": "Vikram",
+   "group": "international",
+   "kind": "landed",
+   "confidence": "high",
+   "tier": "core",
+   "lat": -69.374,
+   "lon": 32.3187,
+   "place": "",
+   "side": "near",
+   "earthFlatPct": 100.0,
+   "nearField": {
+    "source": "LDEM_512",
+    "pxM": 59.2,
+    "halfWidthKm": 20.0,
+    "sha256": "a730534289374d45f1b1c995bdbb6919ea152804f5f5d540a88a8ca2f81a6615"
+   },
+   "terrainHeightM": 529.5,
+   "slopeDeg": 1.5,
+   "horizonMaxDeg": 2.47,
+   "horizonMaxAzDeg": 349.25,
+   "horizonMaxDistanceKm": 16.1,
+   "horizonMeanDeg": 1.36,
+   "longTermSunlitPct": 48.1,
+   "longTermEarthPct": 100.0,
+   "longTermBothPct": 48.1,
+   "notes": "Coordinates from the LROC shapefile record Vikram2 (NAC DTM; stated uncertainty 10 m), applied in MOON_ME as given. Terrain height here 529 m (LDEM_512 near field); the record's RADIUS gives 532 m.",
+   "sources": [
+    {
+     "title": "LROC Anthropogenic Features on the Moon (shapefile, 2026-08-14), record Vikram2",
+     "url": "https://data.lroc.im-ldi.com/lroc/view_rdr/SHAPEFILE_ANTHROPOGENIC_OBJECTS",
+     "says": "ANTHROPOGENIC_OBJECTS_180 record OBJECT_ID Vikram2: NAME \"Chandrayaan-3 Vikram Lander\" (VEHCL_NAME \"Vikram\", MISSION \"Chandrayaan-3\", OBJECT \"Lander\"), LATITUDE -69.374000, LONGITUDE 32.318700, COORD_SRC \"NAC DTM\", UNCERTAIN 10 m, REFERENCES \"https://lroc.im-ldi.com/images/1314\""
+    },
+    {
+     "title": "Wagner, R. V., Nelson, D. M., Plescia, J. B., Robinson, M. S., Speyerer, E. J., & Mazarico, E. (2017). Coordinates of anthropogenic features on the Moon. Icarus, 283, 92-103. doi:10.1016/j.icarus.2016.05.011",
+     "url": "https://doi.org/10.1016/j.icarus.2016.05.011",
+     "says": "Coordinates of anthropogenic (man-made) objects on the Moon as measured by Wagner, et al. (2017) using Lunar Reconnaissance Orbiter Camera (LROC) NAC images combined with Earth-based laser-ranging measurements. [...] More recent anthropogenic objects have also been included."
+    }
+   ],
+   "maskSource": "LOLA LDEM_512 (59 m) near field + LOLA LDEM_64 (474 m)"
+  },
+  {
+   "id": "blue-ghost-1",
+   "name": "Blue Ghost Mission 1, Mons Latreille (CLPS)",
+   "short": "Blue Ghost 1",
+   "group": "commercial",
+   "kind": "landed",
+   "confidence": "high",
+   "tier": "core",
+   "lat": 18.5622,
+   "lon": 61.8102,
+   "place": "",
+   "side": "near",
+   "earthFlatPct": 100.0,
+   "nearField": {
+    "source": "SLDEM2015 512 px/deg",
+    "pxM": 59.2,
+    "halfWidthKm": 20.0,
+    "sha256": "e869dba2292b160a4743a27cf7e5f86f9f73126896de9f7838663c9d8d0657a6"
+   },
+   "terrainHeightM": -3651.8,
+   "slopeDeg": 2.5,
+   "horizonMaxDeg": 2.38,
+   "horizonMaxAzDeg": 126.75,
+   "horizonMaxDistanceKm": 2.7,
+   "horizonMeanDeg": 0.83,
+   "longTermSunlitPct": 49.9,
+   "longTermEarthPct": 100.0,
+   "longTermBothPct": 49.9,
+   "notes": "Coordinates from the LROC shapefile record BlueGhost1 (NAC DTM; stated uncertainty 10 m), applied in MOON_ME as given. Terrain height here -3652 m (SLDEM2015 512 px/deg near field); the record's RADIUS gives -3650 m.",
+   "sources": [
+    {
+     "title": "LROC Anthropogenic Features on the Moon (shapefile, 2026-08-14), record BlueGhost1",
+     "url": "https://data.lroc.im-ldi.com/lroc/view_rdr/SHAPEFILE_ANTHROPOGENIC_OBJECTS",
+     "says": "ANTHROPOGENIC_OBJECTS_180 record OBJECT_ID BlueGhost1: NAME \"Blue Ghost Lander\" (VEHCL_NAME \"Blue Ghost\", MISSION \"Blue Ghost Mission 1\", OBJECT \"Retroreflector: Blue Ghost lander\"), LATITUDE 18.562200, LONGITUDE 61.810200, COORD_SRC \"NAC DTM\", UNCERTAIN 10 m, REFERENCES \"https://lroc.im-ldi.com/images/1407\""
+    },
+    {
+     "title": "Wagner, R. V., Nelson, D. M., Plescia, J. B., Robinson, M. S., Speyerer, E. J., & Mazarico, E. (2017). Coordinates of anthropogenic features on the Moon. Icarus, 283, 92-103. doi:10.1016/j.icarus.2016.05.011",
+     "url": "https://doi.org/10.1016/j.icarus.2016.05.011",
+     "says": "Coordinates of anthropogenic (man-made) objects on the Moon as measured by Wagner, et al. (2017) using Lunar Reconnaissance Orbiter Camera (LROC) NAC images combined with Earth-based laser-ranging measurements. [...] More recent anthropogenic objects have also been included."
+    }
+   ]
+  },
+  {
+   "id": "surveyor-1",
+   "name": "Surveyor 1, Oceanus Procellarum",
+   "short": "Surveyor 1",
+   "group": "robotic",
+   "kind": "landed",
+   "confidence": "high",
+   "tier": "extended",
+   "lat": -2.4745,
+   "lon": -43.3398,
+   "place": "",
+   "side": "near",
+   "earthFlatPct": 100.0,
+   "nearField": {
+    "source": "SLDEM2015 512 px/deg",
+    "pxM": 59.2,
+    "halfWidthKm": 20.0,
+    "sha256": "0f5036bfa41e3c6fcbbbd3f24ff6322ee89d5d5d01f3724390f35d68a2498fb7"
+   },
+   "terrainHeightM": -1887.7,
+   "slopeDeg": 2.2,
+   "horizonMaxDeg": 1.72,
+   "horizonMaxAzDeg": 23.5,
+   "horizonMaxDistanceKm": 0.2,
+   "horizonMeanDeg": 0.63,
+   "longTermSunlitPct": 49.9,
+   "longTermEarthPct": 100.0,
+   "longTermBothPct": 49.9,
+   "notes": "Coordinates from the LROC shapefile record Surveyor1 (Averaged NACs; stated uncertainty 5.4 m), applied in MOON_ME as given. Terrain height here -1888 m (SLDEM2015 512 px/deg near field); the record's RADIUS gives -1886 m.",
+   "sources": [
+    {
+     "title": "LROC Anthropogenic Features on the Moon (shapefile, 2026-08-14), record Surveyor1",
+     "url": "https://data.lroc.im-ldi.com/lroc/view_rdr/SHAPEFILE_ANTHROPOGENIC_OBJECTS",
+     "says": "ANTHROPOGENIC_OBJECTS_180 record OBJECT_ID Surveyor1: NAME \"Surveyor 1 Lander\" (VEHCL_NAME \"Surveyor 1\", MISSION \"Surveyor 1\", OBJECT \"Lander\"), LATITUDE -2.474500, LONGITUDE -43.339800, COORD_SRC \"Averaged NACs\", UNCERTAIN 5.4 m, REFERENCES \"https://doi.org/10.1016/j.icarus.2016.05.011\""
+    },
+    {
+     "title": "Wagner, R. V., Nelson, D. M., Plescia, J. B., Robinson, M. S., Speyerer, E. J., & Mazarico, E. (2017). Coordinates of anthropogenic features on the Moon. Icarus, 283, 92-103. doi:10.1016/j.icarus.2016.05.011",
+     "url": "https://doi.org/10.1016/j.icarus.2016.05.011",
+     "says": "Coordinates of anthropogenic (man-made) objects on the Moon as measured by Wagner, et al. (2017) using Lunar Reconnaissance Orbiter Camera (LROC) NAC images combined with Earth-based laser-ranging measurements. [...] More recent anthropogenic objects have also been included."
+    }
+   ]
+  },
+  {
+   "id": "surveyor-3",
+   "name": "Surveyor 3 (beside Apollo 12)",
+   "short": "Surveyor 3",
+   "group": "robotic",
+   "kind": "landed",
+   "confidence": "high",
+   "tier": "extended",
+   "lat": -3.0162,
+   "lon": -23.418,
+   "place": "",
+   "side": "near",
+   "earthFlatPct": 100.0,
+   "nearField": {
+    "source": "SLDEM2015 512 px/deg",
+    "pxM": 59.2,
+    "halfWidthKm": 20.0,
+    "sha256": "04bcf8acea005a4ec8829d0279543de4eff98bd1cf789620c2f02d62b110e663"
+   },
+   "terrainHeightM": -1425.0,
+   "slopeDeg": 4.1,
+   "horizonMaxDeg": 2.03,
+   "horizonMaxAzDeg": 11.0,
+   "horizonMaxDistanceKm": 0.2,
+   "horizonMeanDeg": 0.32,
+   "longTermSunlitPct": 50.1,
+   "longTermEarthPct": 100.0,
+   "longTermBothPct": 50.1,
+   "notes": "Coordinates from the LROC shapefile record Surveyor3 (Averaged Mapping Orbit NACs; stated uncertainty 2.6 m), applied in MOON_ME as given. Terrain height here -1425 m (SLDEM2015 512 px/deg near field); the record's RADIUS gives -1433 m.",
+   "sources": [
+    {
+     "title": "LROC Anthropogenic Features on the Moon (shapefile, 2026-08-14), record Surveyor3",
+     "url": "https://data.lroc.im-ldi.com/lroc/view_rdr/SHAPEFILE_ANTHROPOGENIC_OBJECTS",
+     "says": "ANTHROPOGENIC_OBJECTS_180 record OBJECT_ID Surveyor3: NAME \"Surveyor 3 Lander\" (VEHCL_NAME \"Surveyor 3\", MISSION \"Surveyor 3\", OBJECT \"Lander\"), LATITUDE -3.016200, LONGITUDE -23.418000, COORD_SRC \"Averaged Mapping Orbit NACs\", UNCERTAIN 2.6 m, REFERENCES \"https://doi.org/10.1016/j.icarus.2016.05.011\""
+    },
+    {
+     "title": "Wagner, R. V., Nelson, D. M., Plescia, J. B., Robinson, M. S., Speyerer, E. J., & Mazarico, E. (2017). Coordinates of anthropogenic features on the Moon. Icarus, 283, 92-103. doi:10.1016/j.icarus.2016.05.011",
+     "url": "https://doi.org/10.1016/j.icarus.2016.05.011",
+     "says": "Coordinates of anthropogenic (man-made) objects on the Moon as measured by Wagner, et al. (2017) using Lunar Reconnaissance Orbiter Camera (LROC) NAC images combined with Earth-based laser-ranging measurements. [...] More recent anthropogenic objects have also been included."
+    }
+   ]
+  },
+  {
+   "id": "surveyor-7",
+   "name": "Surveyor 7, Tycho north rim",
+   "short": "Surveyor 7",
+   "group": "robotic",
+   "kind": "landed",
+   "confidence": "high",
+   "tier": "extended",
+   "lat": -40.9811,
+   "lon": -11.5127,
+   "place": "",
+   "side": "near",
+   "earthFlatPct": 100.0,
+   "nearField": {
+    "source": "SLDEM2015 512 px/deg",
+    "pxM": 59.2,
+    "halfWidthKm": 20.0,
+    "sha256": "f20c5103ffeb9bd56634351987688ddb3582f1ccd4dbf933a367fffd60aa5a8a"
+   },
+   "terrainHeightM": 72.0,
+   "slopeDeg": 4.3,
+   "horizonMaxDeg": 5.57,
+   "horizonMaxAzDeg": 234.25,
+   "horizonMaxDistanceKm": 0.2,
+   "horizonMeanDeg": 3.29,
+   "longTermSunlitPct": 47.9,
+   "longTermEarthPct": 100.0,
+   "longTermBothPct": 47.9,
+   "notes": "Coordinates from the LROC shapefile record Surveyor7 (Averaged Mapping Orbit NACs; stated uncertainty 2.7 m), applied in MOON_ME as given. Terrain height here 72 m (SLDEM2015 512 px/deg near field); the record's RADIUS gives 73 m.",
+   "sources": [
+    {
+     "title": "LROC Anthropogenic Features on the Moon (shapefile, 2026-08-14), record Surveyor7",
+     "url": "https://data.lroc.im-ldi.com/lroc/view_rdr/SHAPEFILE_ANTHROPOGENIC_OBJECTS",
+     "says": "ANTHROPOGENIC_OBJECTS_180 record OBJECT_ID Surveyor7: NAME \"Surveyor 7 Lander\" (VEHCL_NAME \"Surveyor 7\", MISSION \"Surveyor 7\", OBJECT \"Lander\"), LATITUDE -40.981100, LONGITUDE -11.512700, COORD_SRC \"Averaged Mapping Orbit NACs\", UNCERTAIN 2.7 m, REFERENCES \"https://doi.org/10.1016/j.icarus.2016.05.011\""
+    },
+    {
+     "title": "Wagner, R. V., Nelson, D. M., Plescia, J. B., Robinson, M. S., Speyerer, E. J., & Mazarico, E. (2017). Coordinates of anthropogenic features on the Moon. Icarus, 283, 92-103. doi:10.1016/j.icarus.2016.05.011",
+     "url": "https://doi.org/10.1016/j.icarus.2016.05.011",
+     "says": "Coordinates of anthropogenic (man-made) objects on the Moon as measured by Wagner, et al. (2017) using Lunar Reconnaissance Orbiter Camera (LROC) NAC images combined with Earth-based laser-ranging measurements. [...] More recent anthropogenic objects have also been included."
+    }
+   ]
+  },
+  {
+   "id": "luna-21-lunokhod-2",
+   "name": "Luna 21 lander, Le Monnier",
+   "short": "Luna 21",
+   "group": "robotic",
+   "kind": "landed",
+   "confidence": "high",
+   "tier": "extended",
+   "lat": 25.9994,
+   "lon": 30.4076,
+   "place": "",
+   "side": "near",
+   "earthFlatPct": 100.0,
+   "nearField": {
+    "source": "SLDEM2015 512 px/deg",
+    "pxM": 59.2,
+    "halfWidthKm": 20.0,
+    "sha256": "4d47393f60b6cb1c7b569dfbf713037183d70e39c4781bf4ddea0d54a9dc9d9b"
+   },
+   "terrainHeightM": -2687.6,
+   "slopeDeg": 2.7,
+   "horizonMaxDeg": 4.8,
+   "horizonMaxAzDeg": 130.5,
+   "horizonMaxDistanceKm": 28.0,
+   "horizonMeanDeg": 1.45,
+   "longTermSunlitPct": 49.6,
+   "longTermEarthPct": 100.0,
+   "longTermBothPct": 49.6,
+   "notes": "Coordinates from the LROC shapefile record Luna21 (Averaged NACs; stated uncertainty 13.4 m), applied in MOON_ME as given. Terrain height here -2688 m (SLDEM2015 512 px/deg near field); the record's RADIUS gives -2680 m. The design-phase candidate (25.9, 30.4) was 0.100 deg away; the shapefile value is used.",
+   "sources": [
+    {
+     "title": "LROC Anthropogenic Features on the Moon (shapefile, 2026-08-14), record Luna21",
+     "url": "https://data.lroc.im-ldi.com/lroc/view_rdr/SHAPEFILE_ANTHROPOGENIC_OBJECTS",
+     "says": "ANTHROPOGENIC_OBJECTS_180 record OBJECT_ID Luna21: NAME \"Luna 21 Lander\" (VEHCL_NAME \"Luna-21\", MISSION \"Luna 21\", OBJECT \"Lander\"), LATITUDE 25.999400, LONGITUDE 30.407600, COORD_SRC \"Averaged NACs\", UNCERTAIN 13.4 m, REFERENCES \"https://doi.org/10.1016/j.icarus.2016.05.011\""
+    },
+    {
+     "title": "Wagner, R. V., Nelson, D. M., Plescia, J. B., Robinson, M. S., Speyerer, E. J., & Mazarico, E. (2017). Coordinates of anthropogenic features on the Moon. Icarus, 283, 92-103. doi:10.1016/j.icarus.2016.05.011",
+     "url": "https://doi.org/10.1016/j.icarus.2016.05.011",
+     "says": "Coordinates of anthropogenic (man-made) objects on the Moon as measured by Wagner, et al. (2017) using Lunar Reconnaissance Orbiter Camera (LROC) NAC images combined with Earth-based laser-ranging measurements. [...] More recent anthropogenic objects have also been included."
+    }
+   ]
+  },
+  {
+   "id": "luna-24",
+   "name": "Luna 24, Mare Crisium",
+   "short": "Luna 24",
+   "group": "robotic",
+   "kind": "landed",
+   "confidence": "high",
+   "tier": "extended",
+   "lat": 12.7142,
+   "lon": 62.2129,
+   "place": "",
+   "side": "near",
+   "earthFlatPct": 100.0,
+   "nearField": {
+    "source": "SLDEM2015 512 px/deg",
+    "pxM": 59.2,
+    "halfWidthKm": 20.0,
+    "sha256": "cb539ba3fbd859ec1e43b9e86bb9f342f254fd1161996546af621db8eb099978"
+   },
+   "terrainHeightM": -3673.6,
+   "slopeDeg": 1.2,
+   "horizonMaxDeg": 2.13,
+   "horizonMaxAzDeg": 153.0,
+   "horizonMaxDistanceKm": 62.4,
+   "horizonMeanDeg": 0.96,
+   "longTermSunlitPct": 49.9,
+   "longTermEarthPct": 100.0,
+   "longTermBothPct": 49.9,
+   "notes": "Coordinates from the LROC shapefile record Luna24 (Averaged Mapping Orbit NACs; stated uncertainty 3.7 m), applied in MOON_ME as given. Terrain height here -3674 m (SLDEM2015 512 px/deg near field); the record's RADIUS gives -3670 m.",
+   "sources": [
+    {
+     "title": "LROC Anthropogenic Features on the Moon (shapefile, 2026-08-14), record Luna24",
+     "url": "https://data.lroc.im-ldi.com/lroc/view_rdr/SHAPEFILE_ANTHROPOGENIC_OBJECTS",
+     "says": "ANTHROPOGENIC_OBJECTS_180 record OBJECT_ID Luna24: NAME \"Luna 24 Lander\" (VEHCL_NAME \"Luna-24\", MISSION \"Luna 24\", OBJECT \"Lander\"), LATITUDE 12.714200, LONGITUDE 62.212900, COORD_SRC \"Averaged Mapping Orbit NACs\", UNCERTAIN 3.7 m, REFERENCES \"https://doi.org/10.1016/j.icarus.2016.05.011\""
+    },
+    {
+     "title": "Wagner, R. V., Nelson, D. M., Plescia, J. B., Robinson, M. S., Speyerer, E. J., & Mazarico, E. (2017). Coordinates of anthropogenic features on the Moon. Icarus, 283, 92-103. doi:10.1016/j.icarus.2016.05.011",
+     "url": "https://doi.org/10.1016/j.icarus.2016.05.011",
+     "says": "Coordinates of anthropogenic (man-made) objects on the Moon as measured by Wagner, et al. (2017) using Lunar Reconnaissance Orbiter Camera (LROC) NAC images combined with Earth-based laser-ranging measurements. [...] More recent anthropogenic objects have also been included."
+    }
+   ]
+  }
+ ]
+}

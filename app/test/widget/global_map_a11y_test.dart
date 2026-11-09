@@ -94,4 +94,23 @@ void main() {
     }
     handle.dispose();
   });
+
+  testWidgets('NEAR SIDE and FAR SIDE sit on the navy label chip, drawn before the markers', (tester) async {
+    await pumpMap(tester);
+    final paint = find.descendant(of: find.byKey(const ValueKey('global-map')), matching: find.byType(CustomPaint)).first;
+    // after the south-pole cap (clipped, so saved and restored): three chips,
+    // each with its words, and only then the first marker
+    expect(
+      paint,
+      paints
+        ..restore()
+        ..rrect(color: globalMapChip)
+        ..paragraph()
+        ..rrect(color: globalMapChip)
+        ..paragraph()
+        ..rrect(color: globalMapChip)
+        ..paragraph()
+        ..path(color: PH.text),
+    );
+  });
 }

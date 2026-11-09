@@ -224,6 +224,10 @@ const globalMarkerLegend = [
 /// open the chooser.
 const globalMarkerHitDp = 24.0;
 
+/// The navy chip under every name on the whole-Moon map (the site names and
+/// NEAR SIDE / FAR SIDE): PH.text and PH.ice read at about 7:1 or more on it.
+final globalMapChip = PH.bg.withValues(alpha: 0.72);
+
 class GlobalMapView extends StatefulWidget {
   /// Null while the layers load (or when they failed: [failed]).
   final GlobalMapLayers? layers;
@@ -732,13 +736,25 @@ class _GlobalPainter extends CustomPainter {
       capLabel.paint(canvas, Offset((size.width - capLabel.width) / 2, cap.top + (cap.height - capLabel.height) / 2));
     }
     canvas.restore();
-    // near and far side
-    final near = _text('NEAR SIDE', 11, k, color: PH.ice);
+    // near and far side, on the marker labels' navy chip: straight on the
+    // hillshade and the Earth overlay they read at about 1.5-2:1
     final yLab = globalMapPoint(72, 0, size).dy;
-    near.paint(canvas, Offset(globalMapPoint(0, 0, size).dx - near.width / 2, yLab));
+    void side(String t, double lon) {
+      final tp = _text(t, 12, k);
+      final x = globalMapPoint(0, lon, size).dx - tp.width / 2;
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(
+          Rect.fromLTWH(x - 3 / k, yLab - 1 / k, tp.width + 6 / k, tp.height + 2 / k),
+          Radius.circular(3 / k),
+        ),
+        Paint()..color = globalMapChip,
+      );
+      tp.paint(canvas, Offset(x, yLab));
+    }
+
+    side('NEAR SIDE', 0);
     for (final lon in [-150.0, 150.0]) {
-      final far = _text('FAR SIDE', 11, k, color: PH.ice);
-      far.paint(canvas, Offset(globalMapPoint(0, lon, size).dx - far.width / 2, yLab));
+      side('FAR SIDE', lon);
     }
     // markers, the selected one last (on top), and their names
     final r = 6 / k;
@@ -803,7 +819,7 @@ class _GlobalPainter extends CustomPainter {
         final box = Rect.fromLTRB(m.box.left, m.box.top, m.box.right, m.box.bottom);
         canvas.drawRRect(
           RRect.fromRectAndRadius(box, Radius.circular(3 / k)),
-          Paint()..color = PH.bg.withValues(alpha: 0.72),
+          Paint()..color = globalMapChip,
         );
         p.paint(canvas, Offset(box.left + 3 / k, box.top + 1 / k));
       }

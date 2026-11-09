@@ -229,23 +229,9 @@ class _Winner extends StatelessWidget {
   }
 }
 
-/// Put [ids] on the shortlist. All-polar lists go through `setCompare` as
-/// before; a list with whole-Moon sites (which `setCompare` does not know
-/// yet) is rebuilt in order with `toggleCompare`, at most 4.
-// TODO(integration): one setCompare call once it accepts global ids (WP2).
-void applyShortlist(AppState s, List<String> ids) {
-  final polar = {for (final x in s.allSites) x.id};
-  if (s.global == null || ids.every(polar.contains)) {
-    s.setCompare(ids);
-    return;
-  }
-  final index = compareSiteIndex(s);
-  final keep = [for (final id in ids.toSet()) if (index.containsKey(id)) id].take(4).toList();
-  s.setCompare(const []);
-  for (final id in keep) {
-    s.toggleCompare(id);
-  }
-}
+/// Put [ids] on the shortlist: `setCompare` keeps the known ids in order (polar
+/// sites, and once Whole Moon is loaded its sites), at most 4.
+void applyShortlist(AppState s, List<String> ids) => s.setCompare(ids);
 
 /// How Compare opens a site: as before while only the polar catalogue is
 /// loaded, else through [openShortlistSite].

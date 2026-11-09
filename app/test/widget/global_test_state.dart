@@ -3,15 +3,14 @@
 // test/fixtures/global_sample (made-up values, never bundled), and an asset
 // bundle that serves those fixtures as assets/data/global/*.
 //
-// Until WP2's AppState lands, setRegion, ensureGlobal and
-// addGlobalCustomSpot are stubs there; this subclass gives them just enough
-// behaviour for the UI tests. It never changes the polar data.
+// Since the integration, setRegion and ensureGlobal are WP2's (loading the
+// fixtures through the injected bundle), counted here; addGlobalCustomSpot
+// only records the spot. It never changes the polar data.
 import 'dart:io';
 
 import 'package:flutter/services.dart';
 import 'package:polar_horizon/core/catalog.dart';
 import 'package:polar_horizon/core/region.dart';
-import 'package:polar_horizon/core/summary.dart' show rank;
 import 'package:polar_horizon/state/app_state.dart';
 
 const globalSampleDir = 'test/fixtures/global_sample';
@@ -43,6 +42,11 @@ SiteCatalog globalSampleCatalog() => SiteCatalog.parse(
     );
 
 class GlobalTestState extends AppState {
+  /// The Whole Moon files come from the fixtures, through WP2's loader.
+  GlobalTestState() {
+    globalAssetBundle = GlobalSampleBundle();
+  }
+
   /// Every setRegion call, in order.
   final List<Region> regionCalls = [];
 
@@ -52,57 +56,37 @@ class GlobalTestState extends AppState {
   /// How often the Whole Moon catalogue was loaded (ensureGlobal).
   int globalLoads = 0;
 
-  SiteCatalog? _cat;
-
-  /// Load the fixture catalogue once: [global], its masks next to the polar
-  /// ones (so series can be computed for its ids) and its metrics and
-  /// ranking. The polar selection is kept.
-  Future<GlobalCatalogState> attachGlobal() async {
+  /// Load the fixture catalogue once with WP2's `ensureGlobal`, then rank
+  /// its sites (an update that changes nothing commits the selection and
+  /// ranks both regions). The region and the selection stay as they are.
+  Future<GlobalCatalogState> attachGlobal() {
     final have = global;
-    if (have != null) return have;
+    if (have != null) return Future.value(have);
+    return _attach ??= _attachOnce();
+  }
+
+  Future<GlobalCatalogState>? _attach;
+
+  Future<GlobalCatalogState> _attachOnce() async {
     globalLoads++;
-    final cat = _cat ??= globalSampleCatalog();
-    catalog!.masks.addAll(cat.masks);
-    final g = global = GlobalCatalogState(cat);
-    final keep = selectedId;
-    for (final x in cat.sites) {
-      await selectSite(x.id);
-    }
-    await selectSite(keep);
+    final g = await super.ensureGlobal();
+    await setObserverHeight(observerHeightM);
     rankGlobal();
     notifyListeners();
     return g;
   }
 
-  /// Rank the global sites from their cached metrics.
-  void rankGlobal() {
-    final g = global!;
-    g.ranked = rank({
-      for (final x in [...g.catalog.sites, ...g.customSites])
-        if (metricsFor(x.id) case final m?) x.id: (x.short, m),
-    }, weights);
-    g.rankRunning = false;
-  }
+  /// The global sites ranked from their cached metrics (WP2's `rankedIn`).
+  void rankGlobal() => rankedIn(Region.wholeMoon);
 
-  /// WP2's load-only call (the site picker reaches it dynamically).
+  /// WP2's load-only call, counted.
+  @override
   Future<GlobalCatalogState> ensureGlobal() => attachGlobal();
-
-  String? _polarId;
 
   @override
   Future<void> setRegion(Region r) async {
     regionCalls.add(r);
-    if (r == region) return;
-    if (r == Region.wholeMoon) {
-      await attachGlobal();
-      _polarId = selectedId;
-      region = r;
-      await selectSite(kGlobalDefaultSiteId);
-    } else {
-      region = r;
-      await selectSite(_polarId ?? 'derosa2012-sr1-shackleton-rim');
-    }
-    notifyListeners();
+    await super.setRegion(r);
   }
 
   @override

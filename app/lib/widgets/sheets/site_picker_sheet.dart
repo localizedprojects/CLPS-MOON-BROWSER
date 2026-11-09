@@ -36,13 +36,11 @@ Future<List<String>?> showSitePicker(
     context, (_) => SitePickerSheet(multi: multi, initial: initial, max: max, min: multi ? min : 1, global: global));
 
 /// Load the Whole Moon catalogue for the picker without switching region
-/// (`AppState.ensureGlobal`, WP2). Called dynamically so this file builds
-/// against the WP0 stubs, which do not have it: there it fails and the
-/// section says the sites could not be loaded.
-// TODO(integration): `await s.ensureGlobal();` once WP2 is merged.
+/// (`AppState.ensureGlobal`, WP2). A failed load throws, and the section
+/// says the sites could not be loaded.
 Future<void> loadGlobalCatalog(AppState s) async {
   if (s.global != null) return;
-  await (s as dynamic).ensureGlobal();
+  await s.ensureGlobal();
 }
 
 /// The Whole Moon section's header line, closed and open.

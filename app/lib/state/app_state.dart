@@ -1008,8 +1008,16 @@ class AppState extends ChangeNotifier {
   }
 
   /// Replace the shortlist (duplicates and unknown ids dropped, at most 4 kept).
+  /// Once [global] is loaded its presets and custom spots are known too; a
+  /// polar-only state behaves as in 1.13.5.
   void setCompare(List<String> ids) {
-    final known = catalog == null ? null : {for (final s in allSites) s.id};
+    final g = global;
+    final known = catalog == null
+        ? null
+        : {
+            for (final s in allSites) s.id,
+            if (g != null) ...[for (final s in g.catalog.sites) s.id, for (final s in g.customSites) s.id],
+          };
     compareIds = [for (final id in ids.toSet()) if (known == null || known.contains(id)) id].take(4).toList();
     notifyListeners();
   }

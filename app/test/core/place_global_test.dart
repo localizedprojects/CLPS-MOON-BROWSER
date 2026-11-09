@@ -2,6 +2,8 @@
 // latitude/longitude text, the global position line, the skyline sentence,
 // the new groups and sides, and the At a glance card for a global preset and
 // a global custom spot. The south pole's words are unchanged.
+import 'dart:convert';
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -185,6 +187,22 @@ void main() {
     test('a global site without a place (blank place reads as none)', () {
       expect(globalPositionLine(_global('luna-16', lat: -0.5137, lon: 56.3638)), '0.51° S, 56.36° E');
       expect(positionLine(_global('x', lat: -3.01, lon: -23.42, place: '  ')), '3.01° S, 23.42° W');
+    });
+
+    test('the shipped Whole Moon sites: coordinates only, as no source quoted a feature name (1.14.0)', () {
+      // a place is shown only with a quoted source (contract `place`,
+      // `placeSource`); none of the 1.14.0 presets has one, so the position
+      // line is the coordinates (formula §18.2). The feature name stays in
+      // the site's name ('Apollo 15 LM, Hadley–Apennine').
+      final f = File('assets/data/global/sites.json');
+      if (!f.existsSync()) return;
+      final rows = (jsonDecode(f.readAsStringSync()) as Map)['sites'] as List;
+      expect(rows, hasLength(20));
+      for (final r in rows.cast<Map>()) {
+        expect(r['place'], '', reason: '${r['id']}: a place needs a quoted placeSource');
+        final s = _global(r['id'] as String, lat: (r['lat'] as num).toDouble(), lon: (r['lon'] as num).toDouble());
+        expect(globalPositionLine(s), latLonText(s.lat, s.lon), reason: '${r['id']}');
+      }
     });
 
     test('no coordinates: null', () {

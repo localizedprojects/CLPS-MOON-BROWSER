@@ -89,7 +89,7 @@ Row (`sites[]`), every polar key plus the global ones:
 | `confidence` | string | req | `"high"` or `"medium-high"` |
 | `tier` | string | req | `"core"` or `"extended"` |
 | `lat`, `lon` | number | req | degrees, planetocentric, east-positive in [−180, 180); from the shapefile row |
-| `place` | string | req | feature name from the source (e.g. `"Hadley–Apennine"`), or from the IAU gazetteer only when quoted |
+| `place` | string | req | feature name from the source (e.g. `"Hadley–Apennine"`), or from the IAU gazetteer only when quoted (`placeSource`); `""` for every 1.14.0 preset, as none was quoted, so the position line shows the coordinates only |
 | `side` | string | req | `"near"` (flat-horizon 18.6-yr Earth-visible share = 100 %), `"far"` (0 %), else `"limb"`; must agree with `earthvis` at the site |
 | `earthFlatPct` | number | req | that flat-horizon share, %, from which `side` is derived |
 | `maskSource` | string | | per-row override of the file's `maskSource` (e.g. Chandrayaan-3: `"LOLA LDEM_512 (59 m) near field + LOLA LDEM_64 (474 m)"`, or `"LOLA LDEM_64 (474 m) only"` where the near-field fetch failed) |

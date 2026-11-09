@@ -71,7 +71,9 @@ double kmPerPixel(double pxPerDeg) => pxPerDeg <= 0 ? double.nan : 2 * math.pi *
 /// '' when either is not finite. WP2's `latLonText` (core/place.dart).
 String globalLatLonText(double lat, double lon) => latLonText(lat, lon);
 
-/// A whole-Moon site's position line: "26.13° N, 3.63° E · Hadley–Apennine".
+/// A whole-Moon site's position line: "26.13° N, 3.63° E", plus
+/// " · <place>" when the site has a sourced place (no 1.14.0 preset has one:
+/// formula §18.2).
 String globalPositionLine(Site site) {
   final at = globalLatLonText(site.lat, site.lon);
   return site.place.isEmpty ? at : '$at · ${site.place}';

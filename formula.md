@@ -1830,6 +1830,8 @@ Written on 2026-11-09 for 1.14.0 against the `global-1.14` tree. The data contra
 
 Every one of the 20 Whole Moon presets takes its latitude and longitude from the LROC "Anthropogenic Features on the Moon" shapefile (LRO-L-LROC-5-RDR-V1.0, 2026-08-14 version, 71 records), whose coordinates were measured by Wagner et al. (2017) in LROC NAC images, for the Apollo sites combined with laser ranging. Each site's `sources[].says` quotes its record (OBJECT_ID, NAME, LATITUDE, LONGITUDE, COORD_SRC, UNCERTAIN). The shapefile is "IAU Moon 2000"; its coordinates are applied in `MOON_ME` as given. The difference from IAU-frame realisations is below about 100 m and is documented, not corrected.
 
+No 1.14.0 preset has a `place`: a feature name is shown only with a quoted source (`placeSource`, from the source or the IAU gazetteer), and none was quoted. So the Site screen's position line gives the coordinates only ("26.13° N, 3.63° E"); the feature name stays in the site's name ("Apollo 15 LM, Hadley–Apennine").
+
 Checks (`validation.json` `coordinates`): every preset is in the shapefile; the Surveyor 3 to Apollo 12 LM separation from our coordinates is 156.8 m (expected 100 to 250 m, which tests the latitude and east-positive longitude handling); the near-field height at each site is within −10.7 m to +6.0 m of LOLA LDEM_64 there (gate ±150 m).
 
 ### 18.3 Terrain source by latitude and the two-scale horizon

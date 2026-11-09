@@ -599,7 +599,9 @@ List<(int?, Site, SiteMetrics)> globalExploreItems(AppState s) {
   final g = s.global;
   if (g == null) return const [];
   final byId = {for (final x in s.regionSites(Region.wholeMoon)) x.id: x};
-  final done = !g.rankRunning;
+  // done means every site has its result, not just "no ranking running"
+  // (also true before the first ranking starts, or after one fails)
+  final done = s.globalRankingDone;
   return [
     // rankedIn, not the cached g.ranked: it is memoised on the weights, so a
     // goal chip reorders this list too
@@ -607,6 +609,16 @@ List<(int?, Site, SiteMetrics)> globalExploreItems(AppState s) {
       if (byId[r.id] case final site?) (done ? i + 1 : null, site, r.metrics),
   ];
 }
+
+/// The Whole Moon list header: "Ranked so far: …" until every whole-Moon site
+/// has its result ([AppState.globalRankingDone]), then "All N sites, best
+/// first" ([listHeaderText]).
+String globalListHeaderText(AppState s, {required int count}) => listHeaderText(
+    rankingDone: s.globalRankingDone,
+    progress: s.rankedIn(Region.wholeMoon).length,
+    total: s.global?.catalog.sites.length ?? 0,
+    count: count,
+    filtered: false);
 
 /// Whole Moon Explore: the switch, the headline, the global map (with its
 /// Earth-visible overlay and the south-pole cap), the goal chips and the
@@ -675,12 +687,7 @@ class _GlobalExploreState extends State<_GlobalExplore> {
       child: Semantics(
         header: true,
         child: Text(
-          listHeaderText(
-              rankingDone: g != null && !g.rankRunning,
-              progress: s.rankedIn(Region.wholeMoon).length,
-              total: n,
-              count: items.length,
-              filtered: false),
+          globalListHeaderText(s, count: items.length),
           style: PHText.subtitle,
         ),
       ),

@@ -16,6 +16,8 @@ import 'package:polar_horizon/widgets/site_card.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'global_test_state.dart';
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -69,5 +71,20 @@ void main() {
     expect(earth, expected(Goal.earth));
     expect(earth, isNot(balanced), reason: 'on the bundled data the order changes with the goal');
     await tester.pumpWidget(const SizedBox());
+  });
+
+  test('loaded but not ranked yet: the header says "Ranked so far", never "All 0 sites", and no ranks', () async {
+    SharedPreferences.setMockInitialValues({});
+    final state = AppState()..globalAssetBundle = GlobalSampleBundle();
+    addTearDown(state.dispose);
+    await state.init();
+    await state.ensureGlobal(); // the catalogue only: nothing whole-Moon ranked yet
+    expect(state.global!.rankRunning, isFalse);
+    expect(state.globalRankingDone, isFalse);
+    final items = globalExploreItems(state);
+    final header = globalListHeaderText(state, count: items.length);
+    expect(header, isNot(startsWith('All ')));
+    expect(header, startsWith('Ranked so far: '));
+    expect([for (final (rank, _, _) in items) rank].whereType<int>(), isEmpty);
   });
 }

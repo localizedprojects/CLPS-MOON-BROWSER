@@ -209,3 +209,21 @@ def test_ondevice_mask_reproduces_the_app_fixture(sid):
     assert h == pytest.approx(row["hSite"], abs=1e-6)
     assert len(el) == len(row["el2"]) == int(round(360.0 / fx["azStepDeg"]))
     assert np.max(np.abs(np.asarray(el) - np.asarray(row["el2"]))) <= 1e-6
+
+
+def test_sites_step_refreshes_the_map_json_asset_hashes(monkeypatch, tmp_path):
+    """`python -m lunarsp.globe sites` rewrites global/sites.json and horizons.json, whose
+    hashes map.json lists, so the step refreshes them (else the documented re-run leaves
+    map.json stale and test_map_json_hashes_match_the_files fails)."""
+    from lunarsp import globe, globe_sites
+    calls = []
+    monkeypatch.setattr(globe_sites, "build", lambda *a, **k: calls.append("build"))
+    monkeypatch.setattr(gm, "write_map", lambda update: calls.append(("write_map", dict(update))))
+    fake_map = tmp_path / "map.json"
+    monkeypatch.setattr(gm, "MAP_JSON", fake_map)
+    globe.main(["sites"])
+    assert calls == ["build"]  # no map.json yet (a fresh `all` build writes it in the map step)
+    calls.clear()
+    fake_map.write_text("{}")
+    globe.main(["sites"])
+    assert calls == ["build", ("write_map", {})]

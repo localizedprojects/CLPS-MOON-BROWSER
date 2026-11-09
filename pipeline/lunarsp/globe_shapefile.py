@@ -92,7 +92,7 @@ def load_catalog() -> dict:
 
 def says(rec: dict) -> str:
     """The quoted record, as `sources[0].says`."""
-    return (f"ANTHROPOGENIC_OBJECTS_180 record OBJECT_ID {rec['OBJECT_ID']}: NAME \"{rec['SHORT_NAME']}\" "
+    return (f"ANTHROPOGENIC_OBJECTS_180 record OBJECT_ID {rec['OBJECT_ID']}: SHORT_NAME \"{rec['SHORT_NAME']}\" "
             f"(VEHCL_NAME \"{rec['VEHCL_NAME']}\", MISSION \"{rec['MISSION']}\", OBJECT \"{rec['OBJECT']}\"), "
             f"LATITUDE {rec['LATITUDE']:.6f}, LONGITUDE {rec['LONGITUDE']:.6f}, "
             f"COORD_SRC \"{rec['COORD_SRC']}\", UNCERTAIN {rec['UNCERTAIN']:g} m, "

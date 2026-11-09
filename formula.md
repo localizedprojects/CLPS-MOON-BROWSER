@@ -1828,7 +1828,7 @@ Written on 2026-11-09 for 1.14.0 against the `global-1.14` tree. The data contra
 
 ### 18.2 Site coordinates
 
-Every one of the 20 Whole Moon presets takes its latitude and longitude from the LROC "Anthropogenic Features on the Moon" shapefile (LRO-L-LROC-5-RDR-V1.0, 2026-08-14 version, 71 records), whose coordinates were measured by Wagner et al. (2017) in LROC NAC images, for the Apollo sites combined with laser ranging. Each site's `sources[].says` quotes its record (OBJECT_ID, NAME, LATITUDE, LONGITUDE, COORD_SRC, UNCERTAIN). The shapefile is "IAU Moon 2000"; its coordinates are applied in `MOON_ME` as given. The difference from IAU-frame realisations is below about 100 m and is documented, not corrected.
+Every one of the 20 Whole Moon presets takes its latitude and longitude from the LROC "Anthropogenic Features on the Moon" shapefile (LRO-L-LROC-5-RDR-V1.0, 2026-08-14 version, 71 records), whose coordinates were measured by Wagner et al. (2017) in LROC NAC images, for the Apollo sites combined with laser ranging. Each site's `sources[].says` quotes its record (OBJECT_ID, SHORT_NAME, LATITUDE, LONGITUDE, COORD_SRC, UNCERTAIN). The shapefile is "IAU Moon 2000"; its coordinates are applied in `MOON_ME` as given. The difference from IAU-frame realisations is below about 100 m and is documented, not corrected.
 
 Checks (`validation.json` `coordinates`): every preset is in the shapefile; the Surveyor 3 to Apollo 12 LM separation from our coordinates is 156.8 m (expected 100 to 250 m, which tests the latitude and east-positive longitude handling); the near-field height at each site is within −10.7 m to +6.0 m of LOLA LDEM_64 there (gate ±150 m).
 

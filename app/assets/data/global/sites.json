@@ -1,5 +1,5 @@
 {
- "generatedUtc": "2026-11-09T08:59:53Z",
+ "generatedUtc": "2026-11-09T14:26:00Z",
  "region": "wholeMoon",
  "frame": "MOON_ME (LOLA DE421 mean-Earth compatible)",
  "coordinateFrameNote": "The shapefile gives coordinates in the IAU Moon 2000 geographic system; they are applied in MOON_ME as given. The difference from IAU-frame realisations is below about 100 m and is documented, not corrected.",
@@ -74,7 +74,7 @@
     {
      "title": "LROC Anthropogenic Features on the Moon (shapefile, 2026-08-14), record A11_LM",
      "url": "https://data.lroc.im-ldi.com/lroc/view_rdr/SHAPEFILE_ANTHROPOGENIC_OBJECTS",
-     "says": "ANTHROPOGENIC_OBJECTS_180 record OBJECT_ID A11_LM: NAME \"Apollo 11 Lunar Module\" (VEHCL_NAME \"Eagle\", MISSION \"Apollo 11\", OBJECT \"Descent stage of Lunar Module \"Eagle\"\"), LATITUDE 0.674160, LONGITUDE 23.473140, COORD_SRC \"Averaged Mapping Orbit NACs + Laser Ranging\", UNCERTAIN 0.3 m, REFERENCES \"https://doi.org/10.1016/j.icarus.2016.05.011\""
+     "says": "ANTHROPOGENIC_OBJECTS_180 record OBJECT_ID A11_LM: SHORT_NAME \"Apollo 11 Lunar Module\" (VEHCL_NAME \"Eagle\", MISSION \"Apollo 11\", OBJECT \"Descent stage of Lunar Module \"Eagle\"\"), LATITUDE 0.674160, LONGITUDE 23.473140, COORD_SRC \"Averaged Mapping Orbit NACs + Laser Ranging\", UNCERTAIN 0.3 m, REFERENCES \"https://doi.org/10.1016/j.icarus.2016.05.011\""
     },
     {
      "title": "Wagner, R. V., Nelson, D. M., Plescia, J. B., Robinson, M. S., Speyerer, E. J., & Mazarico, E. (2017). Coordinates of anthropogenic features on the Moon. Icarus, 283, 92-103. doi:10.1016/j.icarus.2016.05.011",
@@ -116,7 +116,7 @@
     {
      "title": "LROC Anthropogenic Features on the Moon (shapefile, 2026-08-14), record A12_LM",
      "url": "https://data.lroc.im-ldi.com/lroc/view_rdr/SHAPEFILE_ANTHROPOGENIC_OBJECTS",
-     "says": "ANTHROPOGENIC_OBJECTS_180 record OBJECT_ID A12_LM: NAME \"Apollo 12 Lunar Module\" (VEHCL_NAME \"Intrepid\", MISSION \"Apollo 12\", OBJECT \"Descent stage of Lunar Module \"Intrepid\"\"), LATITUDE -3.012800, LONGITUDE -23.421900, COORD_SRC \"Averaged Mapping Orbit NACs\", UNCERTAIN 2.2 m, REFERENCES \"https://doi.org/10.1016/j.icarus.2016.05.011\""
+     "says": "ANTHROPOGENIC_OBJECTS_180 record OBJECT_ID A12_LM: SHORT_NAME \"Apollo 12 Lunar Module\" (VEHCL_NAME \"Intrepid\", MISSION \"Apollo 12\", OBJECT \"Descent stage of Lunar Module \"Intrepid\"\"), LATITUDE -3.012800, LONGITUDE -23.421900, COORD_SRC \"Averaged Mapping Orbit NACs\", UNCERTAIN 2.2 m, REFERENCES \"https://doi.org/10.1016/j.icarus.2016.05.011\""
     },
     {
      "title": "Wagner, R. V., Nelson, D. M., Plescia, J. B., Robinson, M. S., Speyerer, E. J., & Mazarico, E. (2017). Coordinates of anthropogenic features on the Moon. Icarus, 283, 92-103. doi:10.1016/j.icarus.2016.05.011",
@@ -158,7 +158,7 @@
     {
      "title": "LROC Anthropogenic Features on the Moon (shapefile, 2026-08-14), record A14_LM",
      "url": "https://data.lroc.im-ldi.com/lroc/view_rdr/SHAPEFILE_ANTHROPOGENIC_OBJECTS",
-     "says": "ANTHROPOGENIC_OBJECTS_180 record OBJECT_ID A14_LM: NAME \"Apollo 14 Lunar Module\" (VEHCL_NAME \"Antares\", MISSION \"Apollo 14\", OBJECT \"Descent stage of Lunar Module \"Antares\"\"), LATITUDE -3.645890, LONGITUDE -17.471940, COORD_SRC \"Averaged Mapping Orbit NACs + Laser Ranging\", UNCERTAIN 0.4 m, REFERENCES \"https://doi.org/10.1016/j.icarus.2016.05.011\""
+     "says": "ANTHROPOGENIC_OBJECTS_180 record OBJECT_ID A14_LM: SHORT_NAME \"Apollo 14 Lunar Module\" (VEHCL_NAME \"Antares\", MISSION \"Apollo 14\", OBJECT \"Descent stage of Lunar Module \"Antares\"\"), LATITUDE -3.645890, LONGITUDE -17.471940, COORD_SRC \"Averaged Mapping Orbit NACs + Laser Ranging\", UNCERTAIN 0.4 m, REFERENCES \"https://doi.org/10.1016/j.icarus.2016.05.011\""
     },
     {
      "title": "Wagner, R. V., Nelson, D. M., Plescia, J. B., Robinson, M. S., Speyerer, E. J., & Mazarico, E. (2017). Coordinates of anthropogenic features on the Moon. Icarus, 283, 92-103. doi:10.1016/j.icarus.2016.05.011",
@@ -200,7 +200,7 @@
     {
      "title": "LROC Anthropogenic Features on the Moon (shapefile, 2026-08-14), record A15_LM",
      "url": "https://data.lroc.im-ldi.com/lroc/view_rdr/SHAPEFILE_ANTHROPOGENIC_OBJECTS",
-     "says": "ANTHROPOGENIC_OBJECTS_180 record OBJECT_ID A15_LM: NAME \"Apollo 15 Lunar Module\" (VEHCL_NAME \"Falcon\", MISSION \"Apollo 15\", OBJECT \"Descent stage of Lunar Module \"Falcon\"\"), LATITUDE 26.132390, LONGITUDE 3.633300, COORD_SRC \"Averaged Mapping Orbit NACs + Laser Ranging\", UNCERTAIN 1 m, REFERENCES \"https://doi.org/10.1016/j.icarus.2016.05.011\""
+     "says": "ANTHROPOGENIC_OBJECTS_180 record OBJECT_ID A15_LM: SHORT_NAME \"Apollo 15 Lunar Module\" (VEHCL_NAME \"Falcon\", MISSION \"Apollo 15\", OBJECT \"Descent stage of Lunar Module \"Falcon\"\"), LATITUDE 26.132390, LONGITUDE 3.633300, COORD_SRC \"Averaged Mapping Orbit NACs + Laser Ranging\", UNCERTAIN 1 m, REFERENCES \"https://doi.org/10.1016/j.icarus.2016.05.011\""
     },
     {
      "title": "Wagner, R. V., Nelson, D. M., Plescia, J. B., Robinson, M. S., Speyerer, E. J., & Mazarico, E. (2017). Coordinates of anthropogenic features on the Moon. Icarus, 283, 92-103. doi:10.1016/j.icarus.2016.05.011",
@@ -242,7 +242,7 @@
     {
      "title": "LROC Anthropogenic Features on the Moon (shapefile, 2026-08-14), record A16_LM",
      "url": "https://data.lroc.im-ldi.com/lroc/view_rdr/SHAPEFILE_ANTHROPOGENIC_OBJECTS",
-     "says": "ANTHROPOGENIC_OBJECTS_180 record OBJECT_ID A16_LM: NAME \"Apollo 16 Lunar Module\" (VEHCL_NAME \"Orion\", MISSION \"Apollo 16\", OBJECT \"Descent stage of Lunar Module \"Orion\"\"), LATITUDE -8.973400, LONGITUDE 15.501100, COORD_SRC \"Averaged Mapping Orbit NACs\", UNCERTAIN 3 m, REFERENCES \"https://doi.org/10.1016/j.icarus.2016.05.011\""
+     "says": "ANTHROPOGENIC_OBJECTS_180 record OBJECT_ID A16_LM: SHORT_NAME \"Apollo 16 Lunar Module\" (VEHCL_NAME \"Orion\", MISSION \"Apollo 16\", OBJECT \"Descent stage of Lunar Module \"Orion\"\"), LATITUDE -8.973400, LONGITUDE 15.501100, COORD_SRC \"Averaged Mapping Orbit NACs\", UNCERTAIN 3 m, REFERENCES \"https://doi.org/10.1016/j.icarus.2016.05.011\""
     },
     {
      "title": "Wagner, R. V., Nelson, D. M., Plescia, J. B., Robinson, M. S., Speyerer, E. J., & Mazarico, E. (2017). Coordinates of anthropogenic features on the Moon. Icarus, 283, 92-103. doi:10.1016/j.icarus.2016.05.011",
@@ -284,7 +284,7 @@
     {
      "title": "LROC Anthropogenic Features on the Moon (shapefile, 2026-08-14), record A17_LM",
      "url": "https://data.lroc.im-ldi.com/lroc/view_rdr/SHAPEFILE_ANTHROPOGENIC_OBJECTS",
-     "says": "ANTHROPOGENIC_OBJECTS_180 record OBJECT_ID A17_LM: NAME \"Apollo 17 Lunar Module\" (VEHCL_NAME \"Challenger\", MISSION \"Apollo 17\", OBJECT \"Descent stage of Lunar Module \"Challenger\"\"), LATITUDE 20.191100, LONGITUDE 30.772300, COORD_SRC \"Averaged Mapping Orbit NACs\", UNCERTAIN 3.5 m, REFERENCES \"https://doi.org/10.1016/j.icarus.2016.05.011\""
+     "says": "ANTHROPOGENIC_OBJECTS_180 record OBJECT_ID A17_LM: SHORT_NAME \"Apollo 17 Lunar Module\" (VEHCL_NAME \"Challenger\", MISSION \"Apollo 17\", OBJECT \"Descent stage of Lunar Module \"Challenger\"\"), LATITUDE 20.191100, LONGITUDE 30.772300, COORD_SRC \"Averaged Mapping Orbit NACs\", UNCERTAIN 3.5 m, REFERENCES \"https://doi.org/10.1016/j.icarus.2016.05.011\""
     },
     {
      "title": "Wagner, R. V., Nelson, D. M., Plescia, J. B., Robinson, M. S., Speyerer, E. J., & Mazarico, E. (2017). Coordinates of anthropogenic features on the Moon. Icarus, 283, 92-103. doi:10.1016/j.icarus.2016.05.011",
@@ -326,7 +326,7 @@
     {
      "title": "LROC Anthropogenic Features on the Moon (shapefile, 2026-08-14), record Luna16",
      "url": "https://data.lroc.im-ldi.com/lroc/view_rdr/SHAPEFILE_ANTHROPOGENIC_OBJECTS",
-     "says": "ANTHROPOGENIC_OBJECTS_180 record OBJECT_ID Luna16: NAME \"Luna 16 Lander\" (VEHCL_NAME \"Luna-16\", MISSION \"Luna 16\", OBJECT \"Lander\"), LATITUDE -0.513700, LONGITUDE 56.363800, COORD_SRC \"Averaged Mapping Orbit NACs\", UNCERTAIN 3.7 m, REFERENCES \"https://doi.org/10.1016/j.icarus.2016.05.011\""
+     "says": "ANTHROPOGENIC_OBJECTS_180 record OBJECT_ID Luna16: SHORT_NAME \"Luna 16 Lander\" (VEHCL_NAME \"Luna-16\", MISSION \"Luna 16\", OBJECT \"Lander\"), LATITUDE -0.513700, LONGITUDE 56.363800, COORD_SRC \"Averaged Mapping Orbit NACs\", UNCERTAIN 3.7 m, REFERENCES \"https://doi.org/10.1016/j.icarus.2016.05.011\""
     },
     {
      "title": "Wagner, R. V., Nelson, D. M., Plescia, J. B., Robinson, M. S., Speyerer, E. J., & Mazarico, E. (2017). Coordinates of anthropogenic features on the Moon. Icarus, 283, 92-103. doi:10.1016/j.icarus.2016.05.011",
@@ -368,7 +368,7 @@
     {
      "title": "LROC Anthropogenic Features on the Moon (shapefile, 2026-08-14), record Luna17",
      "url": "https://data.lroc.im-ldi.com/lroc/view_rdr/SHAPEFILE_ANTHROPOGENIC_OBJECTS",
-     "says": "ANTHROPOGENIC_OBJECTS_180 record OBJECT_ID Luna17: NAME \"Luna 17 Lander\" (VEHCL_NAME \"Luna-17\", MISSION \"Luna 17\", OBJECT \"Lander\"), LATITUDE 38.237640, LONGITUDE -35.001630, COORD_SRC \"Averaged Mapping Orbit NACs + Laser Ranging\", UNCERTAIN 0.5 m, REFERENCES \"https://doi.org/10.1016/j.icarus.2016.05.011\""
+     "says": "ANTHROPOGENIC_OBJECTS_180 record OBJECT_ID Luna17: SHORT_NAME \"Luna 17 Lander\" (VEHCL_NAME \"Luna-17\", MISSION \"Luna 17\", OBJECT \"Lander\"), LATITUDE 38.237640, LONGITUDE -35.001630, COORD_SRC \"Averaged Mapping Orbit NACs + Laser Ranging\", UNCERTAIN 0.5 m, REFERENCES \"https://doi.org/10.1016/j.icarus.2016.05.011\""
     },
     {
      "title": "Wagner, R. V., Nelson, D. M., Plescia, J. B., Robinson, M. S., Speyerer, E. J., & Mazarico, E. (2017). Coordinates of anthropogenic features on the Moon. Icarus, 283, 92-103. doi:10.1016/j.icarus.2016.05.011",
@@ -410,7 +410,7 @@
     {
      "title": "LROC Anthropogenic Features on the Moon (shapefile, 2026-08-14), record ChangE3",
      "url": "https://data.lroc.im-ldi.com/lroc/view_rdr/SHAPEFILE_ANTHROPOGENIC_OBJECTS",
-     "says": "ANTHROPOGENIC_OBJECTS_180 record OBJECT_ID ChangE3: NAME \"Chang'e 3 Lander\" (VEHCL_NAME \"Chang'E-3\", MISSION \"Chang'e 3\", OBJECT \"Lander\"), LATITUDE 44.121400, LONGITUDE -19.511700, COORD_SRC \"Averaged NACs\", UNCERTAIN 9.1 m, REFERENCES \"https://lroc.im-ldi.com/images/637\""
+     "says": "ANTHROPOGENIC_OBJECTS_180 record OBJECT_ID ChangE3: SHORT_NAME \"Chang'e 3 Lander\" (VEHCL_NAME \"Chang'E-3\", MISSION \"Chang'e 3\", OBJECT \"Lander\"), LATITUDE 44.121400, LONGITUDE -19.511700, COORD_SRC \"Averaged NACs\", UNCERTAIN 9.1 m, REFERENCES \"https://lroc.im-ldi.com/images/637\""
     },
     {
      "title": "Wagner, R. V., Nelson, D. M., Plescia, J. B., Robinson, M. S., Speyerer, E. J., & Mazarico, E. (2017). Coordinates of anthropogenic features on the Moon. Icarus, 283, 92-103. doi:10.1016/j.icarus.2016.05.011",
@@ -452,7 +452,7 @@
     {
      "title": "LROC Anthropogenic Features on the Moon (shapefile, 2026-08-14), record ChangE4",
      "url": "https://data.lroc.im-ldi.com/lroc/view_rdr/SHAPEFILE_ANTHROPOGENIC_OBJECTS",
-     "says": "ANTHROPOGENIC_OBJECTS_180 record OBJECT_ID ChangE4: NAME \"Chang'e 4 Lander\" (VEHCL_NAME \"Chang'E-4\", MISSION \"Chang'e 4\", OBJECT \"Lander\"), LATITUDE -45.456200, LONGITUDE 177.588600, COORD_SRC \"NAC DTM\", UNCERTAIN 10 m, REFERENCES \"https://lroc.im-ldi.com/images/1087; https://lroc.im-ldi.com/images/1092\""
+     "says": "ANTHROPOGENIC_OBJECTS_180 record OBJECT_ID ChangE4: SHORT_NAME \"Chang'e 4 Lander\" (VEHCL_NAME \"Chang'E-4\", MISSION \"Chang'e 4\", OBJECT \"Lander\"), LATITUDE -45.456200, LONGITUDE 177.588600, COORD_SRC \"NAC DTM\", UNCERTAIN 10 m, REFERENCES \"https://lroc.im-ldi.com/images/1087; https://lroc.im-ldi.com/images/1092\""
     },
     {
      "title": "Wagner, R. V., Nelson, D. M., Plescia, J. B., Robinson, M. S., Speyerer, E. J., & Mazarico, E. (2017). Coordinates of anthropogenic features on the Moon. Icarus, 283, 92-103. doi:10.1016/j.icarus.2016.05.011",
@@ -494,7 +494,7 @@
     {
      "title": "LROC Anthropogenic Features on the Moon (shapefile, 2026-08-14), record ChangE5",
      "url": "https://data.lroc.im-ldi.com/lroc/view_rdr/SHAPEFILE_ANTHROPOGENIC_OBJECTS",
-     "says": "ANTHROPOGENIC_OBJECTS_180 record OBJECT_ID ChangE5: NAME \"Chang'e 5 Lander\" (VEHCL_NAME \"Chang'E-5\", MISSION \"Chang'e 5\", OBJECT \"Lander\"), LATITUDE 43.057600, LONGITUDE -51.916100, COORD_SRC \"NAC DTM\", UNCERTAIN 10 m, REFERENCES \"https://lroc.im-ldi.com/images/1172\""
+     "says": "ANTHROPOGENIC_OBJECTS_180 record OBJECT_ID ChangE5: SHORT_NAME \"Chang'e 5 Lander\" (VEHCL_NAME \"Chang'E-5\", MISSION \"Chang'e 5\", OBJECT \"Lander\"), LATITUDE 43.057600, LONGITUDE -51.916100, COORD_SRC \"NAC DTM\", UNCERTAIN 10 m, REFERENCES \"https://lroc.im-ldi.com/images/1172\""
     },
     {
      "title": "Wagner, R. V., Nelson, D. M., Plescia, J. B., Robinson, M. S., Speyerer, E. J., & Mazarico, E. (2017). Coordinates of anthropogenic features on the Moon. Icarus, 283, 92-103. doi:10.1016/j.icarus.2016.05.011",
@@ -536,7 +536,7 @@
     {
      "title": "LROC Anthropogenic Features on the Moon (shapefile, 2026-08-14), record ChangE6",
      "url": "https://data.lroc.im-ldi.com/lroc/view_rdr/SHAPEFILE_ANTHROPOGENIC_OBJECTS",
-     "says": "ANTHROPOGENIC_OBJECTS_180 record OBJECT_ID ChangE6: NAME \"Chang'e 6 Lander\" (VEHCL_NAME \"Chang'E-6\", MISSION \"Chang'e 6\", OBJECT \"Lander\"), LATITUDE -41.638300, LONGITUDE -153.985700, COORD_SRC \"NAC DTM\", UNCERTAIN 10 m, REFERENCES \"https://lroc.im-ldi.com/images/1374\""
+     "says": "ANTHROPOGENIC_OBJECTS_180 record OBJECT_ID ChangE6: SHORT_NAME \"Chang'e 6 Lander\" (VEHCL_NAME \"Chang'E-6\", MISSION \"Chang'e 6\", OBJECT \"Lander\"), LATITUDE -41.638300, LONGITUDE -153.985700, COORD_SRC \"NAC DTM\", UNCERTAIN 10 m, REFERENCES \"https://lroc.im-ldi.com/images/1374\""
     },
     {
      "title": "Wagner, R. V., Nelson, D. M., Plescia, J. B., Robinson, M. S., Speyerer, E. J., & Mazarico, E. (2017). Coordinates of anthropogenic features on the Moon. Icarus, 283, 92-103. doi:10.1016/j.icarus.2016.05.011",
@@ -578,7 +578,7 @@
     {
      "title": "LROC Anthropogenic Features on the Moon (shapefile, 2026-08-14), record SLIM",
      "url": "https://data.lroc.im-ldi.com/lroc/view_rdr/SHAPEFILE_ANTHROPOGENIC_OBJECTS",
-     "says": "ANTHROPOGENIC_OBJECTS_180 record OBJECT_ID SLIM: NAME \"SLIM Lander\" (VEHCL_NAME \"SLIM (Smart Lander for Investigating Moon)\", MISSION \"SLIM\", OBJECT \"Lander\"), LATITUDE -13.316000, LONGITUDE 25.251000, COORD_SRC \"NAC DTM\", UNCERTAIN 10 m, REFERENCES \"https://lroc.im-ldi.com/images/1358\""
+     "says": "ANTHROPOGENIC_OBJECTS_180 record OBJECT_ID SLIM: SHORT_NAME \"SLIM Lander\" (VEHCL_NAME \"SLIM (Smart Lander for Investigating Moon)\", MISSION \"SLIM\", OBJECT \"Lander\"), LATITUDE -13.316000, LONGITUDE 25.251000, COORD_SRC \"NAC DTM\", UNCERTAIN 10 m, REFERENCES \"https://lroc.im-ldi.com/images/1358\""
     },
     {
      "title": "Wagner, R. V., Nelson, D. M., Plescia, J. B., Robinson, M. S., Speyerer, E. J., & Mazarico, E. (2017). Coordinates of anthropogenic features on the Moon. Icarus, 283, 92-103. doi:10.1016/j.icarus.2016.05.011",
@@ -620,7 +620,7 @@
     {
      "title": "LROC Anthropogenic Features on the Moon (shapefile, 2026-08-14), record Vikram2",
      "url": "https://data.lroc.im-ldi.com/lroc/view_rdr/SHAPEFILE_ANTHROPOGENIC_OBJECTS",
-     "says": "ANTHROPOGENIC_OBJECTS_180 record OBJECT_ID Vikram2: NAME \"Chandrayaan-3 Vikram Lander\" (VEHCL_NAME \"Vikram\", MISSION \"Chandrayaan-3\", OBJECT \"Lander\"), LATITUDE -69.374000, LONGITUDE 32.318700, COORD_SRC \"NAC DTM\", UNCERTAIN 10 m, REFERENCES \"https://lroc.im-ldi.com/images/1314\""
+     "says": "ANTHROPOGENIC_OBJECTS_180 record OBJECT_ID Vikram2: SHORT_NAME \"Chandrayaan-3 Vikram Lander\" (VEHCL_NAME \"Vikram\", MISSION \"Chandrayaan-3\", OBJECT \"Lander\"), LATITUDE -69.374000, LONGITUDE 32.318700, COORD_SRC \"NAC DTM\", UNCERTAIN 10 m, REFERENCES \"https://lroc.im-ldi.com/images/1314\""
     },
     {
      "title": "Wagner, R. V., Nelson, D. M., Plescia, J. B., Robinson, M. S., Speyerer, E. J., & Mazarico, E. (2017). Coordinates of anthropogenic features on the Moon. Icarus, 283, 92-103. doi:10.1016/j.icarus.2016.05.011",
@@ -663,7 +663,7 @@
     {
      "title": "LROC Anthropogenic Features on the Moon (shapefile, 2026-08-14), record BlueGhost1",
      "url": "https://data.lroc.im-ldi.com/lroc/view_rdr/SHAPEFILE_ANTHROPOGENIC_OBJECTS",
-     "says": "ANTHROPOGENIC_OBJECTS_180 record OBJECT_ID BlueGhost1: NAME \"Blue Ghost Lander\" (VEHCL_NAME \"Blue Ghost\", MISSION \"Blue Ghost Mission 1\", OBJECT \"Retroreflector: Blue Ghost lander\"), LATITUDE 18.562200, LONGITUDE 61.810200, COORD_SRC \"NAC DTM\", UNCERTAIN 10 m, REFERENCES \"https://lroc.im-ldi.com/images/1407\""
+     "says": "ANTHROPOGENIC_OBJECTS_180 record OBJECT_ID BlueGhost1: SHORT_NAME \"Blue Ghost Lander\" (VEHCL_NAME \"Blue Ghost\", MISSION \"Blue Ghost Mission 1\", OBJECT \"Retroreflector: Blue Ghost lander\"), LATITUDE 18.562200, LONGITUDE 61.810200, COORD_SRC \"NAC DTM\", UNCERTAIN 10 m, REFERENCES \"https://lroc.im-ldi.com/images/1407\""
     },
     {
      "title": "Wagner, R. V., Nelson, D. M., Plescia, J. B., Robinson, M. S., Speyerer, E. J., & Mazarico, E. (2017). Coordinates of anthropogenic features on the Moon. Icarus, 283, 92-103. doi:10.1016/j.icarus.2016.05.011",
@@ -705,7 +705,7 @@
     {
      "title": "LROC Anthropogenic Features on the Moon (shapefile, 2026-08-14), record Surveyor1",
      "url": "https://data.lroc.im-ldi.com/lroc/view_rdr/SHAPEFILE_ANTHROPOGENIC_OBJECTS",
-     "says": "ANTHROPOGENIC_OBJECTS_180 record OBJECT_ID Surveyor1: NAME \"Surveyor 1 Lander\" (VEHCL_NAME \"Surveyor 1\", MISSION \"Surveyor 1\", OBJECT \"Lander\"), LATITUDE -2.474500, LONGITUDE -43.339800, COORD_SRC \"Averaged NACs\", UNCERTAIN 5.4 m, REFERENCES \"https://doi.org/10.1016/j.icarus.2016.05.011\""
+     "says": "ANTHROPOGENIC_OBJECTS_180 record OBJECT_ID Surveyor1: SHORT_NAME \"Surveyor 1 Lander\" (VEHCL_NAME \"Surveyor 1\", MISSION \"Surveyor 1\", OBJECT \"Lander\"), LATITUDE -2.474500, LONGITUDE -43.339800, COORD_SRC \"Averaged NACs\", UNCERTAIN 5.4 m, REFERENCES \"https://doi.org/10.1016/j.icarus.2016.05.011\""
     },
     {
      "title": "Wagner, R. V., Nelson, D. M., Plescia, J. B., Robinson, M. S., Speyerer, E. J., & Mazarico, E. (2017). Coordinates of anthropogenic features on the Moon. Icarus, 283, 92-103. doi:10.1016/j.icarus.2016.05.011",
@@ -747,7 +747,7 @@
     {
      "title": "LROC Anthropogenic Features on the Moon (shapefile, 2026-08-14), record Surveyor3",
      "url": "https://data.lroc.im-ldi.com/lroc/view_rdr/SHAPEFILE_ANTHROPOGENIC_OBJECTS",
-     "says": "ANTHROPOGENIC_OBJECTS_180 record OBJECT_ID Surveyor3: NAME \"Surveyor 3 Lander\" (VEHCL_NAME \"Surveyor 3\", MISSION \"Surveyor 3\", OBJECT \"Lander\"), LATITUDE -3.016200, LONGITUDE -23.418000, COORD_SRC \"Averaged Mapping Orbit NACs\", UNCERTAIN 2.6 m, REFERENCES \"https://doi.org/10.1016/j.icarus.2016.05.011\""
+     "says": "ANTHROPOGENIC_OBJECTS_180 record OBJECT_ID Surveyor3: SHORT_NAME \"Surveyor 3 Lander\" (VEHCL_NAME \"Surveyor 3\", MISSION \"Surveyor 3\", OBJECT \"Lander\"), LATITUDE -3.016200, LONGITUDE -23.418000, COORD_SRC \"Averaged Mapping Orbit NACs\", UNCERTAIN 2.6 m, REFERENCES \"https://doi.org/10.1016/j.icarus.2016.05.011\""
     },
     {
      "title": "Wagner, R. V., Nelson, D. M., Plescia, J. B., Robinson, M. S., Speyerer, E. J., & Mazarico, E. (2017). Coordinates of anthropogenic features on the Moon. Icarus, 283, 92-103. doi:10.1016/j.icarus.2016.05.011",
@@ -789,7 +789,7 @@
     {
      "title": "LROC Anthropogenic Features on the Moon (shapefile, 2026-08-14), record Surveyor7",
      "url": "https://data.lroc.im-ldi.com/lroc/view_rdr/SHAPEFILE_ANTHROPOGENIC_OBJECTS",
-     "says": "ANTHROPOGENIC_OBJECTS_180 record OBJECT_ID Surveyor7: NAME \"Surveyor 7 Lander\" (VEHCL_NAME \"Surveyor 7\", MISSION \"Surveyor 7\", OBJECT \"Lander\"), LATITUDE -40.981100, LONGITUDE -11.512700, COORD_SRC \"Averaged Mapping Orbit NACs\", UNCERTAIN 2.7 m, REFERENCES \"https://doi.org/10.1016/j.icarus.2016.05.011\""
+     "says": "ANTHROPOGENIC_OBJECTS_180 record OBJECT_ID Surveyor7: SHORT_NAME \"Surveyor 7 Lander\" (VEHCL_NAME \"Surveyor 7\", MISSION \"Surveyor 7\", OBJECT \"Lander\"), LATITUDE -40.981100, LONGITUDE -11.512700, COORD_SRC \"Averaged Mapping Orbit NACs\", UNCERTAIN 2.7 m, REFERENCES \"https://doi.org/10.1016/j.icarus.2016.05.011\""
     },
     {
      "title": "Wagner, R. V., Nelson, D. M., Plescia, J. B., Robinson, M. S., Speyerer, E. J., & Mazarico, E. (2017). Coordinates of anthropogenic features on the Moon. Icarus, 283, 92-103. doi:10.1016/j.icarus.2016.05.011",
@@ -831,7 +831,7 @@
     {
      "title": "LROC Anthropogenic Features on the Moon (shapefile, 2026-08-14), record Luna21",
      "url": "https://data.lroc.im-ldi.com/lroc/view_rdr/SHAPEFILE_ANTHROPOGENIC_OBJECTS",
-     "says": "ANTHROPOGENIC_OBJECTS_180 record OBJECT_ID Luna21: NAME \"Luna 21 Lander\" (VEHCL_NAME \"Luna-21\", MISSION \"Luna 21\", OBJECT \"Lander\"), LATITUDE 25.999400, LONGITUDE 30.407600, COORD_SRC \"Averaged NACs\", UNCERTAIN 13.4 m, REFERENCES \"https://doi.org/10.1016/j.icarus.2016.05.011\""
+     "says": "ANTHROPOGENIC_OBJECTS_180 record OBJECT_ID Luna21: SHORT_NAME \"Luna 21 Lander\" (VEHCL_NAME \"Luna-21\", MISSION \"Luna 21\", OBJECT \"Lander\"), LATITUDE 25.999400, LONGITUDE 30.407600, COORD_SRC \"Averaged NACs\", UNCERTAIN 13.4 m, REFERENCES \"https://doi.org/10.1016/j.icarus.2016.05.011\""
     },
     {
      "title": "Wagner, R. V., Nelson, D. M., Plescia, J. B., Robinson, M. S., Speyerer, E. J., & Mazarico, E. (2017). Coordinates of anthropogenic features on the Moon. Icarus, 283, 92-103. doi:10.1016/j.icarus.2016.05.011",
@@ -873,7 +873,7 @@
     {
      "title": "LROC Anthropogenic Features on the Moon (shapefile, 2026-08-14), record Luna24",
      "url": "https://data.lroc.im-ldi.com/lroc/view_rdr/SHAPEFILE_ANTHROPOGENIC_OBJECTS",
-     "says": "ANTHROPOGENIC_OBJECTS_180 record OBJECT_ID Luna24: NAME \"Luna 24 Lander\" (VEHCL_NAME \"Luna-24\", MISSION \"Luna 24\", OBJECT \"Lander\"), LATITUDE 12.714200, LONGITUDE 62.212900, COORD_SRC \"Averaged Mapping Orbit NACs\", UNCERTAIN 3.7 m, REFERENCES \"https://doi.org/10.1016/j.icarus.2016.05.011\""
+     "says": "ANTHROPOGENIC_OBJECTS_180 record OBJECT_ID Luna24: SHORT_NAME \"Luna 24 Lander\" (VEHCL_NAME \"Luna-24\", MISSION \"Luna 24\", OBJECT \"Lander\"), LATITUDE 12.714200, LONGITUDE 62.212900, COORD_SRC \"Averaged Mapping Orbit NACs\", UNCERTAIN 3.7 m, REFERENCES \"https://doi.org/10.1016/j.icarus.2016.05.011\""
     },
     {
      "title": "Wagner, R. V., Nelson, D. M., Plescia, J. B., Robinson, M. S., Speyerer, E. J., & Mazarico, E. (2017). Coordinates of anthropogenic features on the Moon. Icarus, 283, 92-103. doi:10.1016/j.icarus.2016.05.011",

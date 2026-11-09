@@ -480,6 +480,39 @@ class AppState extends ChangeNotifier {
     return g != null && eph != null && !g.rankRunning && g.sites.every((x) => _results.containsKey(_cacheKey(x.id)));
   }
 
+  /// A shortlisted Whole Moon site (preset or custom spot) has no result
+  /// under the current options. Never true before [global] is loaded, nor
+  /// for a polar-only shortlist.
+  bool get _shortlistLacksGlobal {
+    final g = global;
+    if (g == null || eph == null || catalog == null) return false;
+    final ids = {for (final x in g.sites) x.id};
+    return compareIds.any((id) => ids.contains(id) && !_results.containsKey(_cacheKey(id)));
+  }
+
+  /// Compare waits for the Whole Moon ranking: a shortlisted Whole Moon site
+  /// has no numbers yet and that ranking is working them out.
+  bool get globalShortlistWorking => (global?.rankRunning ?? false) && _shortlistLacksGlobal;
+
+  /// (Whole Moon sites with a result under the current options, all of
+  /// them): the progress Compare shows while [globalShortlistWorking].
+  (int, int) get globalRankProgress {
+    final g = global;
+    if (g == null || eph == null) return (0, 0);
+    final all = g.sites;
+    return (all.where((x) => _results.containsKey(_cacheKey(x.id))).length, all.length);
+  }
+
+  /// Rank the Whole Moon sites when the shortlist holds one without numbers
+  /// (finding F: the picker's Whole Moon section only loads the catalogue,
+  /// so a site added from it on the south pole was never worked out). Its
+  /// own list and generation ([_rankGlobal], which keeps every finished
+  /// result and puts the shortlist first); the polar ranking is untouched
+  /// and a polar-only shortlist starts nothing.
+  void _rankShortlistedGlobal() {
+    if (_shortlistLacksGlobal) unawaited(_rankGlobal());
+  }
+
   /// Rank the sites of both regions, the current one first (each its own
   /// list, with the same `rank()` and cache). Nothing global before [global]
   /// is loaded.
@@ -1052,6 +1085,7 @@ class AppState extends ChangeNotifier {
       return;
     }
     notifyListeners();
+    _rankShortlistedGlobal();
   }
 
   /// Replace the shortlist (duplicates and unknown ids dropped, at most 4 kept).
@@ -1067,6 +1101,7 @@ class AppState extends ChangeNotifier {
           };
     compareIds = [for (final id in ids.toSet()) if (known == null || known.contains(id)) id].take(4).toList();
     notifyListeners();
+    _rankShortlistedGlobal();
   }
 
   void setWeights(ScoreWeights w) {

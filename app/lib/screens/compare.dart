@@ -325,7 +325,8 @@ class _PickMore extends StatelessWidget {
 }
 
 /// The shortlist's numbers are still being worked out (they come from the
-/// ranking, which runs in the background after any settings change).
+/// ranking, which runs in the background after any settings change; a
+/// shortlisted Whole Moon site from the Whole Moon ranking, its own list).
 class _Waiting extends StatelessWidget {
   final AppState state;
   const _Waiting({required this.state});
@@ -335,7 +336,10 @@ class _Waiting extends StatelessWidget {
     final s = state;
     // a finished ranking that still lacks a shortlisted site will not fill in
     // by itself: no busy sign then; any problem is shown either way
-    final working = !s.rankingDone;
+    final polarWorking = !s.rankingDone;
+    final globalWorking = !polarWorking && s.globalShortlistWorking;
+    final working = polarWorking || globalWorking;
+    final (globalDone, globalTotal) = s.globalRankProgress;
     final err = s.error;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 8),
@@ -345,9 +349,11 @@ class _Waiting extends StatelessWidget {
           if (working) const BusyIndicator(),
           if (working) const SizedBox(height: 16),
           Text(
-            working
+            polarWorking
                 ? 'Working out the numbers for your shortlist… ${s.rankProgress} of ${s.rankTotal} sites ranked'
-                : 'The numbers for your shortlist are not available for these settings.',
+                : globalWorking
+                    ? 'Working out the numbers for your shortlist… $globalDone of $globalTotal Whole Moon sites ranked'
+                    : 'The numbers for your shortlist are not available for these settings.',
             textAlign: TextAlign.center,
             style: PHText.body.copyWith(color: PH.muted, fontFeatures: const [FontFeature.tabularFigures()]),
           ),

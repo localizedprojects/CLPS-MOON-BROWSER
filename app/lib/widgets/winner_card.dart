@@ -343,10 +343,12 @@ class WinnerCard extends StatelessWidget {
 /// The banner over a shortlist that mixes south-pole and whole-Moon sites.
 const mixedRegionsTitle = 'Mixed regions';
 
-/// Why a mixed shortlist gets one verdict per goal instead of one winner.
+/// Why a mixed shortlist gets one verdict per goal instead of one winner. The
+/// verdict ranks the shortlist's metrics for the chosen dates (`rankedFor`),
+/// the same numbers as the chart under it.
 const mixedRegionsText = 'Your shortlist has south-pole and whole-Moon sites. Light and Earth contact work '
     'differently at the pole than elsewhere, so there is no single winner: here is the best site for each goal, '
-    'worked out from the same 18.6-year numbers.';
+    'worked out from the same numbers for your chosen dates.';
 
 /// The region in words, beside a site's name (never colour alone).
 String regionWord(Region r) => r == Region.wholeMoon ? 'whole Moon' : 'south pole';

@@ -22,7 +22,7 @@ import '../core/horizon.dart' show HorizonMask;
 import '../core/region.dart' show Region;
 import '../core/timeseries.dart' show SeriesOptions, SiteSeries;
 import '../widgets/chart_bridge.dart';
-import '../widgets/compare_panel.dart' show comparePayload, rankedFor;
+import '../widgets/compare_panel.dart' show compareMixed, comparePayload, rankedFor;
 import '../widgets/save_file.dart';
 import 'app_state.dart';
 
@@ -275,7 +275,7 @@ class ChartHub {
     final ms = [for (final id in s.compareIds) s.metricsFor(id)];
     if (ms.any((m) => m == null)) return; // the ranking has not reached them yet
     final key = '${s.compareIds.join(',')}|${s.weights.power}|${s.weights.both}|${s.options.requireDsn}|'
-        '${[for (final id in s.compareIds) s.allSites.where((x) => x.id == id).firstOrNull?.short].join(',')}';
+        '${[for (final id in s.compareIds) s.allSites.where((x) => x.id == id).firstOrNull?.short].join(',')}|${compareMixed(s)}';
     var same = key == _compareKey && ms.length == _compareMetrics.length;
     for (var i = 0; same && i < ms.length; i++) {
       same = identical(ms[i], _compareMetrics[i]);
@@ -284,7 +284,8 @@ class ChartHub {
     _compareKey = key;
     _compareMetrics = ms;
     final ranked = rankedFor(s);
-    compare.send(withCompareExtras(comparePayload(ranked, s.weights, requireDsn: s.options.requireDsn), ranked));
+    compare.send(withCompareExtras(
+        comparePayload(ranked, s.weights, requireDsn: s.options.requireDsn, mixed: compareMixed(s)), ranked));
     sentPayloads['compare'] = sentPayloads['compare']! + 1;
   }
 

@@ -24,7 +24,10 @@ import 'focus_semantics.dart';
 
 /// Payload for the React comparison chart. The weights are whole percent in
 /// the formula's terms: Score = rest% × [power% Power + comms% Comms] + both% × Both.
-Map<String, dynamic> comparePayload(List<Ranked> r, ScoreWeights w, {bool requireDsn = false}) => {
+/// [mixed] (a shortlist that mixes regions, [compareMixed]) adds `mixed: true`
+/// so the chart names no single winner; the key is left out otherwise, so a
+/// polar payload is the 1.13.5 one.
+Map<String, dynamic> comparePayload(List<Ranked> r, ScoreWeights w, {bool requireDsn = false, bool mixed = false}) => {
       'type': 'compare',
       'data': {
         'weights': {
@@ -34,6 +37,7 @@ Map<String, dynamic> comparePayload(List<Ranked> r, ScoreWeights w, {bool requir
           'rest': (100 * (1 - w.both)).round(),
         },
         'earthLabel': earthMetricLabel(requireDsn: requireDsn),
+        'mixed': ?(mixed ? true : null),
         'rows': [
           for (final x in r)
             {

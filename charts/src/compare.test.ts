@@ -3,6 +3,7 @@ import type { CompareData } from './bridge'
 import {
   buildCompare, buildCompareSimple, headline, longestDarkText, pctText, ranked, reasons, scoreLine, scoreTexts, SIMPLE_PNG_ROW_PX, weightsText, wrapAt, wrapFit,
 } from './compare'
+import { MIXED_HEADLINE } from './compare'
 import top3 from './devdata/compare.json'
 import { exportHeight } from './plotGeom'
 
@@ -58,6 +59,25 @@ describe('compare simple view (charts spec 2.3)', () => {
     expect(headline({ ...d, rows: [mk('A', 62.6), mk('B', 61.8), mk('C', 62.5)] })).toBe('Tied: A and C, both 63')
     expect(headline({ ...d, rows: [mk('A', 62.4), mk('B', 61.45)] })).toBe('Best: A · almost tied with B, 62 vs 61')
     expect(headline({ ...d, rows: [mk('A', 62.4), mk('B', 61.5), mk('C', 62)] })).toBe('Tied: A, C and B, all 62')
+  })
+
+  it('a shortlist that mixes regions (mixed: true) names no winner: headline, alt text and PNG (1.14.0)', () => {
+    const m: CompareData = { ...d, mixed: true }
+    const mk = (name: string, score: number) => ({ ...d.rows[0], name, score })
+    for (const x of [m, { ...m, rows: [mk('A', 70), mk('B', 40)] }, { ...m, rows: [mk('A', 62.4), mk('B', 61.6)] }]) {
+      for (const exact of [false, true]) {
+        expect(headline(x, exact)).toBe(MIXED_HEADLINE)
+        const alt = (exact ? buildCompare(x) : buildCompareSimple(x)).alt
+        expect(alt.startsWith(`${MIXED_HEADLINE}. `)).toBe(true)
+        const png = texts(exact ? buildCompare(x, { png: true }) : buildCompareSimple(x, { png: true })).map(plain).join('\n')
+        expect(png).toContain(MIXED_HEADLINE)
+        for (const s of [headline(x, exact), alt, png]) expect(s).not.toMatch(/Best:|Tied:|almost tied/)
+      }
+    }
+    expect(headline({ ...m, rows: [] })).toBe('No sites to compare')
+    // without the flag (every polar payload) the headline is the 1.13.5 one
+    expect(headline({ ...d, mixed: undefined }, true)).toBe(headline(d, true))
+    expect(headline(d, true).startsWith('Best: ')).toBe(true)
   })
 
   it('prints every score with the same tie-aware decimals (56.72, not 56.7) (exact view and star panel)', () => {

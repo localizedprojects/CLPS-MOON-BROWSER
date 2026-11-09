@@ -128,6 +128,11 @@ export interface CompareData {
   weights: { power: number; comms: number; both: number; rest: number }
   /** label of the Earth metric ('Earth in view' or 'Earth contact (DSN)') */
   earthLabel: string
+  /**
+   * true when the shortlist mixes south-pole and whole-Moon sites (1.14.0): the headline then names no
+   * winner. Left out for a single-region shortlist (every polar payload stays as in 1.13.5).
+   */
+  mixed?: boolean
 }
 
 export type HostMessage =

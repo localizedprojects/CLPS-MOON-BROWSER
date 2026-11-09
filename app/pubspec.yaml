@@ -91,6 +91,7 @@ flutter:
     - assets/data/map/
     - assets/data/global/
     - assets/data/global/thumbs/
+    - assets/data/global/tiles/
     # the fonts' licence texts, for the app's licence page (lib/licenses.dart)
     - assets/fonts/LICENSE-IBMPlexSans.txt
     - assets/fonts/LICENSE-IBMPlexMono.txt

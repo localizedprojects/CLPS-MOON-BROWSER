@@ -20,8 +20,9 @@ import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'constants.dart';
-import 'dem.dart' show rM, latLonToXY;
+import 'dem.dart' show rM, latLonToXY, latLonToXYIn;
 import 'geo.dart';
+import 'map_frame.dart';
 import 'horizon_compute.dart' show coarseMaxM, coarseDistances;
 import 'relief.dart' show hillshadeRow;
 import 'shadow.dart' show GridWindow, blockMeanRow, gridPixelOf, gridWindowAround;
@@ -164,6 +165,24 @@ V3 mapPointM(double xM, double yM, double hM) {
   return V3(r * sg * math.cos(lam), r * sg * math.sin(lam), -r * math.cos(g));
 }
 
+/// [mapPointM] for a grid laid out in [frame] (`map_frame.dart`; a global
+/// Lander tile): Qᵀ of the frame point, so the vertex sits at its true
+/// body-fixed position. Exactly [mapPointM] for [MapFrame.southPole] (an
+/// identity early return).
+V3 mapPointMIn(MapFrame frame, double xM, double yM, double hM) {
+  final p = mapPointM(xM, yM, hM);
+  if (frame.isIdentity) return p;
+  return frame.toBody(p);
+}
+
+/// [gridPixelOf] (shadow.dart) for a grid laid out in [frame]; exactly
+/// [gridPixelOf] for [MapFrame.southPole].
+(double, double) gridPixelOfIn(MapFrame frame, int gridSize, double pxM, double latDeg, double lonDeg) {
+  if (frame.isIdentity) return gridPixelOf(gridSize, pxM, latDeg, lonDeg);
+  final (x, y) = latLonToXYIn(frame, latDeg, lonDeg);
+  return (gridSize / 2 - 0.5 - y / pxM, x / pxM + gridSize / 2 - 0.5);
+}
+
 /// Fractional (row, col) of map (x, y) on [p]'s grid, and the cell's
 /// top-left corner (clamped like PolarGrid.sampleXY); null outside, or with
 /// [clamp] the nearest point of the patch (only for a near-field lattice
@@ -234,8 +253,9 @@ class LanderCamera {
   const LanderCamera(this.latDeg, this.lonDeg, this.groundM, this.eyeHeightM, this.enu, this.eyeM);
 }
 
-LanderCamera landerCamera(TerrainPatch near, double latDeg, double lonDeg, double observerHeightM) {
-  final (x, y) = latLonToXY(latDeg, lonDeg);
+LanderCamera landerCamera(TerrainPatch near, double latDeg, double lonDeg, double observerHeightM,
+    {MapFrame frame = MapFrame.southPole}) {
+  final (x, y) = frame.isIdentity ? latLonToXY(latDeg, lonDeg) : latLonToXYIn(frame, latDeg, lonDeg);
   final g = patchBilinearAt(near, x, y);
   if (g.isNaN) throw ArgumentError('site outside the terrain patch');
   return LanderCamera(latDeg, lonDeg, g, observerHeightM, Enu.at(latDeg, lonDeg), unitUp(latDeg, lonDeg) * (rM + g + observerHeightM));
@@ -509,6 +529,11 @@ class LanderMeshWork {
   /// a pure function of (DEM, site, this height, [cull]).
   final double observerHeightM;
   final bool cull;
+
+  /// The map frame [heights] is laid out in (`map_frame.dart`): the polar
+  /// DEM's own ([MapFrame.southPole], the default; every step is then the
+  /// polar code's own) or a global Lander tile's, centred on its site.
+  final MapFrame frame;
   // a raised eye (D22): no lattice (400 m cells everywhere), every drawn triangle in the skyline, all solid
   late final bool _raised = observerHeightM >= landerRaisedEyeMinM;
   late final TerrainPatch near, far;
@@ -557,11 +582,12 @@ class LanderMeshWork {
   int _phase = 0, _unit = 0;
 
   LanderMeshWork(this.heights, this.demSize, this.demPxM,
-      {required this.latDeg, required this.lonDeg, required this.observerHeightM, this.cull = true}) {
-    final (nr, nc) = gridPixelOf(demSize, demPxM, latDeg, lonDeg);
+      {required this.latDeg, required this.lonDeg, required this.observerHeightM, this.cull = true,
+      this.frame = MapFrame.southPole}) {
+    final (nr, nc) = gridPixelOfIn(frame, demSize, demPxM, latDeg, lonDeg);
     near = _emptyPatch(demSize, demPxM, 1, gridWindowAround(demSize, nr, nc, landerNearPx));
     final fs = demSize ~/ 2, fp = demPxM * 2;
-    final (fr, fc) = gridPixelOf(fs, fp, latDeg, lonDeg);
+    final (fr, fc) = gridPixelOfIn(frame, fs, fp, latDeg, lonDeg);
     far = _emptyPatch(demSize, demPxM, 2, gridWindowAround(fs, fr, fc, landerFarPx(fp)));
     final sN = near.side, sF = far.side;
     _nL = 1 + landerNearRingsM.length * landerNearSpokes;
@@ -599,7 +625,7 @@ class LanderMeshWork {
       (() => sF, (i) => _patchRow(far, heights, demSize, i)),
       (() => sN, (i) => _hillshadeRow(near, i, _hsN)),
       (() => sF, (i) => _hillshadeRow(far, i, _hsF)),
-      (() => 1, (_) => cam = landerCamera(near, latDeg, lonDeg, observerHeightM)),
+      (() => 1, (_) => cam = landerCamera(near, latDeg, lonDeg, observerHeightM, frame: frame)),
       (() => sN, (i) => _pixelRow(near, _bNP, i)),
       (() => sN - 1, (i) => _centreRow(near, _bNC, i)),
       (() => sF, (i) => _pixelRow(far, _bFP, i)),
@@ -695,7 +721,7 @@ class LanderMeshWork {
   void _pixelRow(TerrainPatch p, int base, int i) {
     for (var j = 0; j < p.side; j++) {
       final (x, y) = gridCentreM(p.gridSize, p.pxM, p.r0 + i, p.c0 + j);
-      _setVertex(base + i * p.side + j, mapPointM(x, y, p.h[i * p.side + j]));
+      _setVertex(base + i * p.side + j, _point(x, y, p.h[i * p.side + j]));
     }
   }
 
@@ -705,12 +731,15 @@ class LanderMeshWork {
       final (x, y) = gridCentreM(p.gridSize, p.pxM, p.r0 + i, p.c0 + j);
       final h = p.h, k = i * s + j;
       final hm = (h[k] + h[k + 1] + h[k + s] + h[k + s + 1]) / 4;
-      _setVertex(base + i * (s - 1) + j, mapPointM(x + p.pxM / 2, y - p.pxM / 2, hm));
+      _setVertex(base + i * (s - 1) + j, _point(x + p.pxM / 2, y - p.pxM / 2, hm));
     }
   }
 
+  /// The body-fixed point at map (x, y) of [frame] and height h.
+  V3 _point(double x, double y, double h) => frame.isIdentity ? mapPointM(x, y, h) : mapPointMIn(frame, x, y, h);
+
   void _lattice() {
-    final (sx, sy) = latLonToXY(latDeg, lonDeg);
+    final (sx, sy) = frame.isIdentity ? latLonToXY(latDeg, lonDeg) : latLonToXYIn(frame, latDeg, lonDeg);
     final en = cam.enu;
     void put(int id, double x, double y) {
       final (r, c, (a, b, d, e)) = _fanAt(near, x, y, clamp: true)!;
@@ -722,7 +751,7 @@ class LanderMeshWork {
         _latW[4 * id + q] = ws[q];
         hh += ws[q] * hs[q];
       }
-      _setVertex(id, mapPointM(x, y, hh));
+      _setVertex(id, _point(x, y, hh));
     }
 
     put(0, sx, sy);
@@ -733,6 +762,11 @@ class LanderMeshWork {
         final ux = ct * en.up.x + st * (ca * en.north.x + sa * en.east.x);
         final uy = ct * en.up.y + st * (ca * en.north.y + sa * en.east.y);
         final uz = ct * en.up.z + st * (ca * en.north.z + sa * en.east.z);
+        if (!frame.isIdentity) {
+          final v = frame.toFrame(V3(ux, uy, uz)), kf = 2.0 * rM / (1.0 - v.z);
+          put(1 + ri * landerNearSpokes + s, kf * v.y, kf * v.x);
+          continue;
+        }
         final k = 2.0 * rM / (1.0 - uz);
         put(1 + ri * landerNearSpokes + s, k * uy, k * ux);
       }
@@ -1163,9 +1197,10 @@ List<({double az0, double az1, double distM})> _mergeEnds(List<double> d) {
 }
 
 LanderMesh buildLanderMesh(Int16List heights, int demSize, double demPxM,
-    {required double latDeg, required double lonDeg, required double observerHeightM, bool cull = true}) {
+    {required double latDeg, required double lonDeg, required double observerHeightM, bool cull = true,
+    MapFrame frame = MapFrame.southPole}) {
   final w = LanderMeshWork(heights, demSize, demPxM,
-      latDeg: latDeg, lonDeg: lonDeg, observerHeightM: observerHeightM, cull: cull);
+      latDeg: latDeg, lonDeg: lonDeg, observerHeightM: observerHeightM, cull: cull, frame: frame);
   while (!w.step(1 << 30)) {}
   return w.mesh;
 }

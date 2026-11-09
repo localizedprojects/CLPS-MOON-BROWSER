@@ -124,7 +124,7 @@ void main() {
     expect(() => computeGlobalHorizon(_flat(72, 36, 0), double.nan, 0), throwsArgumentError);
   });
 
-  test('Dart matches the Python twin (global_coarse.json) to 0.01° (skipped until WP1 lands)', () {
+  test('Dart matches the Python twin (global_coarse.json) to 0.01°', () {
     final mp = jsonDecode(File(_realMap).readAsStringSync()) as Map<String, dynamic>;
     final dem = mp['dem'] as Map;
     final info = CylDemInfo.fromJson(dem);

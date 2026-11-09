@@ -734,10 +734,14 @@ class ShellRouterDelegate extends RouterDelegate<ShellLocation>
     } else if (l.dest == Dest.site && id != null && state.catalog != null) {
       // not a polar id: a whole-Moon site (its region and catalogue come
       // through openFromLink), else unknown
-      // a polar custom-spot id, or an id the loaded whole-Moon catalogue
-      // does not have, is unknown at once, as in 1.13.5
+      // a known whole-Moon id (a preset, or a spot placed in Whole Moon,
+      // which shares the custom-N form) opens first; a polar custom-spot id,
+      // or an id the loaded whole-Moon catalogue does not have, is unknown
+      // at once, as in 1.13.5
       final g = state.global;
-      if (RegExp(r'^custom-\d+$').hasMatch(id) || (g != null && state.regionOf(id) != Region.wholeMoon)) {
+      if (g != null && state.regionOf(id) == Region.wholeMoon) {
+        _openGlobal(id, l.tab ?? SiteTab.overview);
+      } else if (RegExp(r'^custom-\d+$').hasMatch(id) || g != null) {
         _unknownSite();
       } else {
         _openGlobal(id, l.tab ?? SiteTab.overview);

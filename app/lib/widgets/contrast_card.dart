@@ -14,7 +14,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../core/catalog.dart';
-import '../core/contrast.dart' show contrastRows, goalVerdictLine, regionVerdicts, sameWinnerEveryGoal;
+import '../core/contrast.dart' show contrastRows, regionVerdictLine, regionVerdicts, sameWinnerEveryGoal;
 import '../core/region.dart';
 import '../core/wording.dart' show periodLabel;
 import '../state/app_state.dart';
@@ -61,7 +61,7 @@ typedef SunriseShift = ({Site site, double minutes});
 class ContrastFacts {
   final List<ContrastLine> rows;
 
-  /// `goalVerdictLine` of each of the core's `regionVerdicts`, in order.
+  /// `regionVerdictLine` of each of the core's `regionVerdicts`, in order.
   final List<String> verdictLines;
 
   /// The same site wins under every goal (`sameWinnerEveryGoal`).
@@ -115,7 +115,7 @@ ContrastFacts? contrastFactsFor(AppState s) {
             restSite: r.rest.site,
             better: r.better),
     ],
-    verdictLines: [for (final v in verdicts) goalVerdictLine(v)],
+    verdictLines: [for (final v in verdicts) regionVerdictLine(v, {for (final x in pole) x.site.id})],
     sameWinner: sameWinnerEveryGoal(verdicts),
     period: periodLabel(s.rangeStartMs, s.rangeEndMs, DateTime.now().toUtc()),
     sunriseShift: {for (final r in Region.values) r: s.sunriseShiftOf(r, errorDeg: contrastSkylineErrorDeg)},

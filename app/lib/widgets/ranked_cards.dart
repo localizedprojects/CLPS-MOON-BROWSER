@@ -35,13 +35,17 @@ class RankedCards extends StatelessWidget {
   /// Ids of custom spots (their horizons are approximate).
   final Set<String> customIds;
 
+  /// The one-line badge of a custom spot whose text is not the polar
+  /// [FidelityBadge.customHorizonShort] (a Whole Moon spot's DEM differs).
+  final Map<String, String> customBadges;
+
   /// Open a site in Site; null hides the buttons.
   final ValueChanged<String>? onOpen;
 
   /// Width from which the cards sit side by side in columns.
   static const gridMinWidth = 640.0;
 
-  const RankedCards({super.key, required this.ranked, this.dsn = false, this.customIds = const {}, this.onOpen});
+  const RankedCards({super.key, required this.ranked, this.dsn = false, this.customIds = const {}, this.customBadges = const {}, this.onOpen});
 
   @override
   Widget build(BuildContext context) => LayoutBuilder(builder: (context, c) {
@@ -52,7 +56,9 @@ class RankedCards extends StatelessWidget {
               of: n,
               r: ranked[i],
               dsn: dsn,
-              custom: customIds.contains(ranked[i].id),
+              custom: customIds.contains(ranked[i].id)
+                  ? customBadges[ranked[i].id] ?? FidelityBadge.customHorizonShort
+                  : null,
               onOpen: onOpen == null ? null : () => onOpen!(ranked[i].id),
             );
         if (w >= gridMinWidth) {
@@ -97,7 +103,10 @@ class RankedCards extends StatelessWidget {
 class _RankCard extends StatelessWidget {
   final int rank, of;
   final Ranked r;
-  final bool dsn, custom;
+  final bool dsn;
+
+  /// The custom-spot badge in a line; null for a preset.
+  final String? custom;
   final VoidCallback? onOpen;
   const _RankCard({required this.rank, required this.of, required this.r, required this.dsn, required this.custom, this.onOpen});
 
@@ -155,9 +164,9 @@ class _RankCard extends StatelessWidget {
                   style: PHText.small.copyWith(fontFeatures: const [FontFeature.tabularFigures()])),
             ),
           ]),
-          if (custom) ...[
+          if (custom case final String badge) ...[
             const SizedBox(height: 4),
-            const FidelityBadge(text: FidelityBadge.customHorizonShort),
+            FidelityBadge(text: badge),
           ],
           if (onOpen != null) ...[
             const SizedBox(height: 12),

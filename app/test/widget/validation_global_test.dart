@@ -1,5 +1,6 @@
 // 1.14.0 WP3b: the Validation page's Whole Moon section reads
 // global/validation.json only once Whole Moon is open, and prints its values.
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -14,10 +15,20 @@ import 'package:provider/provider.dart';
 
 class _Bundle extends CachingAssetBundle {
   final asked = <String>[];
+
+  /// Applied to the decoded fixture validation.json before it is served.
+  final void Function(Map<String, dynamic> v)? edit;
+  _Bundle({this.edit});
+
   @override
   Future<ByteData> load(String key) async {
     asked.add(key);
     final f = key == GlobalValidationSection.asset ? 'test/fixtures/global_sample/validation.json' : key;
+    if (edit != null && key == GlobalValidationSection.asset) {
+      final v = jsonDecode(File(f).readAsStringSync()) as Map<String, dynamic>;
+      edit!(v);
+      return ByteData.sublistView(Uint8List.fromList(utf8.encode(jsonEncode(v))));
+    }
     return ByteData.sublistView(File(f).readAsBytesSync());
   }
 }
@@ -73,5 +84,35 @@ void main() {
     expect(find.text('RMS 1.5°, bias -1.2°'), findsOneWidget);
     expect(find.textContaining('pass ('), findsWidgets);
     expect(find.text('SYNTHETIC frame note.'), findsOneWidget);
+  });
+
+  testWidgets('the App row prints horizons.app; the Pipeline row prints horizons.sun / earth', (tester) async {
+    final s = AppState();
+    addTearDown(s.dispose);
+    s.global = GlobalCatalogState(
+      SiteCatalog.parse(
+        File('test/fixtures/global_sample/sites.json').readAsStringSync(),
+        File('test/fixtures/global_sample/horizons.json').readAsStringSync(),
+        region: Region.wholeMoon,
+      ),
+    );
+    final b = _Bundle(edit: (v) {
+      final hz = v['horizons'] as Map<String, dynamic>;
+      (hz['sun'] as Map)['maxArcmin'] = 0.0031;
+      (hz['earth'] as Map)['maxArcmin'] = 0.0042;
+      hz['app'] = {
+        'sun': {'maxArcmin': 0.000155},
+        'earth': {'maxArcmin': 0.00154},
+      };
+    });
+    await pump(tester, s, b);
+    Finder row(String label) => find
+        .ancestor(of: find.textContaining(label), matching: find.byWidgetPredicate((w) => '${w.runtimeType}' == '_Row'))
+        .first;
+    expect(find.descendant(of: row('App vs JPL Horizons'), matching: find.text('Sun 0.0002′, Earth 0.0015′')), findsOneWidget);
+    expect(
+      find.descendant(of: row('Pipeline (SPICE DE440, MOON_ME) vs JPL Horizons'), matching: find.text('Sun 0.0031′, Earth 0.0042′')),
+      findsOneWidget,
+    );
   });
 }

@@ -14,11 +14,12 @@ import 'package:provider/provider.dart';
 import '../core/catalog.dart' show Site;
 import '../core/metrics.dart' show SiteMetrics;
 import '../core/region.dart';
-import '../core/wording.dart' show dsnResolutionNote;
+import '../core/wording.dart' show dsnResolutionNote, nearTieAtTopText;
 import '../state/app_state.dart';
 import '../theme.dart';
 import '../widgets/compare_tray.dart';
 import '../widgets/explain.dart' show explainExploreFor;
+import '../widgets/feature_guide.dart' show GuideTarget;
 import '../widgets/focus_rings.dart';
 import '../widgets/global_map_view.dart';
 import '../widgets/goal_chips.dart';
@@ -27,6 +28,8 @@ import '../widgets/map_view.dart';
 import '../widgets/region_switch.dart';
 import '../widgets/site_card.dart';
 import '../widgets/site_carousel.dart';
+import '../widgets/site_glance_card.dart' show numSpans;
+import '../widgets/contrast_card.dart';
 import '../widgets/top_pick_card.dart';
 
 /// Width from which Explore shows the list and the map side by side.
@@ -575,11 +578,17 @@ class _ExploreRegionRowState extends State<ExploreRegionRow> {
 
   Future<void> _switch(AppState s, Region r) async {
     setState(() => _busy = true);
+    var failed = false;
     try {
       await s.setRegion(r);
+      // setRegion keeps South pole (and sets error) when the load fails
+      failed = s.region != r;
     } catch (e) {
-      if (mounted) ScaffoldMessenger.maybeOf(context)?.showSnackBar(const SnackBar(content: Text(globalLoadFailedText)));
+      failed = true;
     } finally {
+      if (failed && mounted) {
+        ScaffoldMessenger.maybeOf(context)?.showSnackBar(const SnackBar(content: Text(globalLoadFailedText)));
+      }
       if (mounted) setState(() => _busy = false);
     }
   }
@@ -588,7 +597,8 @@ class _ExploreRegionRowState extends State<ExploreRegionRow> {
   Widget build(BuildContext context) {
     final s = context.read<AppState>();
     final region = context.select((AppState s) => s.region);
-    return RegionSwitch(region: region, busy: _busy, onChanged: (r) => _switch(s, r));
+    // the guide's 'region' step points at it (1.14.0's new switch)
+    return GuideTarget(id: 'region', child: RegionSwitch(region: region, busy: _busy, onChanged: (r) => _switch(s, r)));
   }
 }
 
@@ -598,17 +608,37 @@ List<(int?, Site, SiteMetrics)> globalExploreItems(AppState s) {
   final g = s.global;
   if (g == null) return const [];
   final byId = {for (final x in s.regionSites(Region.wholeMoon)) x.id: x};
-  final done = !g.rankRunning;
+  // done means every site has its result, not just "no ranking running"
+  // (also true before the first ranking starts, or after one fails)
+  final done = s.globalRankingDone;
   return [
-    for (final (i, r) in g.ranked.indexed)
+    // rankedIn, not the cached g.ranked: it is memoised on the weights, so a
+    // goal chip reorders this list too
+    for (final (i, r) in s.rankedIn(Region.wholeMoon).indexed)
       if (byId[r.id] case final site?) (done ? i + 1 : null, site, r.metrics),
   ];
 }
 
+/// The Whole Moon list header: "Ranked so far: …" until every whole-Moon site
+/// has its result ([AppState.globalRankingDone]), then "All N sites, best
+/// first" ([listHeaderText]).
+String globalListHeaderText(AppState s, {required int count}) => listHeaderText(
+    rankingDone: s.globalRankingDone,
+    progress: s.rankedIn(Region.wholeMoon).length,
+    total: s.global?.catalog.sites.length ?? 0,
+    count: count,
+    filtered: false);
+
+/// The near-tie sentence under the Whole Moon list header
+/// ([nearTieAtTopText] of the listed scores, best first), or null.
+String? globalNearTieText(AppState s) =>
+    nearTieAtTopText([for (final r in s.rankedIn(Region.wholeMoon)) r.score.total]);
+
 /// Whole Moon Explore: the switch, the headline, the global map (with its
 /// Earth-visible overlay and the south-pole cap), the goal chips and the
 /// ranked global list (the map's non-map alternative). No top pick here: the
-/// polar top pick never stands for the whole Moon (plan §3).
+/// polar top pick never stands for the whole Moon (plan §3); the contrast
+/// card ("Pole vs the rest") takes the top-pick slot (plan §1, §2, R2).
 class _GlobalExplore extends StatefulWidget {
   final AppState state;
   final bool wide;
@@ -671,18 +701,22 @@ class _GlobalExploreState extends State<_GlobalExplore> {
       child: Semantics(
         header: true,
         child: Text(
-          listHeaderText(
-              rankingDone: g != null && !g.rankRunning,
-              progress: g?.ranked.length ?? 0,
-              total: n,
-              count: items.length,
-              filtered: false),
+          globalListHeaderText(s, count: items.length),
           style: PHText.subtitle,
         ),
       ),
     );
+    // once the order is final: say when its top is a near tie (the near-side
+    // shares differ by a few points, so ranks turn on fractions of a point)
+    final tie = s.globalRankingDone ? globalNearTieText(s) : null;
     final list = <Widget>[
+      const ContrastCard(),
       header,
+      if (tie != null)
+        Padding(
+          padding: const EdgeInsets.only(bottom: 4),
+          child: Text.rich(numSpans(tie, PHText.body.copyWith(color: PH.muted)), key: const ValueKey('global-near-tie')),
+        ),
       if (g == null)
         Semantics(
           liveRegion: true,
@@ -738,10 +772,12 @@ class _GlobalExploreState extends State<_GlobalExplore> {
                 const ExploreRegionRow(),
                 intro,
                 FocusTraversalGroup(child: map),
-                ...list,
+                // the chips that order the list come before it, as on the
+                // wide pane (a 20-card list would push them ~4000 px down)
                 const SizedBox(height: 16),
                 const GoalChips(),
                 if (s.explainInline) explainExploreFor(s.region),
+                ...list,
               ]),
             ),
           ),

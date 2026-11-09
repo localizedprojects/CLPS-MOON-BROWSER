@@ -95,7 +95,9 @@ void main() {
       expect(f.rows[i].better, rows[i].better);
     }
     final vs = regionVerdicts(pole, rest);
-    expect(f.verdictLines, [for (final v in vs) goalVerdictLine(v)]);
+    // worded by region, pole first: the other region's best is no overall
+    // runner-up ('next')
+    expect(f.verdictLines, [for (final v in vs) regionVerdictLine(v, {for (final x in pole) x.site.id})]);
     expect(f.sameWinner, sameWinnerEveryGoal(vs));
     expect(f.sunriseShift(Region.wholeMoon)!.minutes, at.minutes);
 

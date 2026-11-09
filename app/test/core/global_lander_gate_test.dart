@@ -68,4 +68,29 @@ void main() {
     },
     skip: haveHorizons ? false : 'needs WP1\'s $horizonsPath',
   );
+
+  test('a whole-Moon tile ends at its edge (~102 km) in every direction, not at the first sample', () {
+    final index = GlobalTilesIndex.parse(File('assets/data/global/tiles.json').readAsStringSync());
+    for (final id in ['apollo-15-lm', 'apollo-11-lm', 'change-4']) {
+      final info = index.tiles[id]!;
+      final grid = PolarGrid.decodePlanarSplit(
+        File('assets/data/${info.file}').readAsBytesSync(),
+        index.grid.size,
+        index.grid.pxM,
+      );
+      final mesh = buildLanderMesh(
+        grid.heights,
+        grid.size,
+        grid.scaleM,
+        latDeg: info.centreLat,
+        lonDeg: info.centreLon,
+        observerHeightM: 2,
+        frame: MapFrame.at(info.centreLat, info.centreLon),
+      );
+      expect(mesh.demEnds, isNotEmpty, reason: id);
+      final nearest = mesh.demEnds.map((e) => e.distM).reduce((a, b) => a < b ? a : b);
+      expect(nearest, greaterThan(90000), reason: '$id: the tile covers about ±102 km');
+      expect(nearest, lessThan(110000), reason: id);
+    }
+  });
 }

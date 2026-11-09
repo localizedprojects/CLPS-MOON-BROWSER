@@ -13,6 +13,7 @@ import 'package:polar_horizon/state/chart_hub.dart';
 import 'package:polar_horizon/theme.dart';
 import 'package:polar_horizon/widgets/focus_rings.dart';
 import 'package:polar_horizon/widgets/global_map_view.dart';
+import 'package:polar_horizon/widgets/goal_chips.dart';
 import 'package:polar_horizon/widgets/region_switch.dart';
 import 'package:polar_horizon/widgets/site_card.dart';
 import 'package:polar_horizon/widgets/top_pick_card.dart';
@@ -93,6 +94,7 @@ void main() {
         expect(seg.selected, {Region.southPole});
         expect(find.byKey(const ValueKey('global-map-view')), findsNothing);
         expect(find.byType(TopPickCard), findsOneWidget, reason: 'polar Explore is unchanged');
+        expect(find.byKey(const ValueKey('contrast-card')), findsNothing, reason: 'no contrast card in South pole');
       }
       await tester.pump(const Duration(seconds: 1));
       expect(bundle.globalRequests, isEmpty, reason: 'nothing under assets/data/global/ at a polar cold start');
@@ -143,11 +145,27 @@ void main() {
         }
         expect(find.byType(SiteCard), findsNWidgets(fixtureIds.length));
         expect(find.byType(TopPickCard), findsNothing, reason: 'no top pick in Whole Moon');
+        expect(find.byKey(const ValueKey('contrast-card')), findsOneWidget, reason: 'the contrast card takes the top-pick slot ($size)');
         final seg = tester.widget<SegmentedButton<Region>>(find.byKey(const ValueKey('region-switch')));
         expect(seg.selected, {Region.wholeMoon});
         expect(_note('SYNTHETIC test map: not real terrain or data.'), findsOneWidget);
         expect(_note(GlobalMapLayers.earthBadge), findsOneWidget, reason: 'the Earth overlay is on by default');
         expect(tester.takeException(), isNull);
+      }
+    });
+
+    testWidgets('on a phone the goal chips sit under the map, above the ranked cards (as on the wide pane)', (tester) async {
+      for (final size in [const Size(360, 800), const Size(1280, 800)]) {
+        await pumpExplore(tester, size);
+        final chips = tester.getTopLeft(find.byType(GoalChips, skipOffstage: false));
+        final firstCard = [
+          for (final e in find.byType(SiteCard, skipOffstage: false).evaluate()) tester.getTopLeft(find.byWidget(e.widget)).dy,
+        ].reduce((a, b) => a < b ? a : b);
+        expect(chips.dy, lessThan(firstCard), reason: 'the chips that order the list come before it ($size)');
+        if (size.width < exploreTwoPaneWidth) {
+          final map = tester.getTopLeft(find.byKey(const ValueKey('global-map-view')));
+          expect(chips.dy, greaterThan(map.dy), reason: 'under the map on a phone');
+        }
       }
     });
 
@@ -157,6 +175,7 @@ void main() {
         expect(tester.takeException(), isNull, reason: 'Explore at x$text');
         expect(find.byKey(const ValueKey('global-map-view')), findsOneWidget);
         expect(tester.getRect(find.byKey(const ValueKey('global-map-view'))).right, lessThanOrEqualTo(360));
+        expect(find.byKey(const ValueKey('contrast-card'), skipOffstage: false), findsOneWidget);
       }
       // the map on its own, with its cap and add flow
       final layers = (await tester.runAsync(() => loadGlobalMapLayers(bundle)))!;

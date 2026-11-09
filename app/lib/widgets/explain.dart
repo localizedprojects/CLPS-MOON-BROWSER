@@ -34,10 +34,11 @@ const glossary = <String, String>{
   'Longest night': 'The longest unbroken stretch in your chosen dates with no sunlight at the spot. Batteries and '
       'heaters have to last at least this long.',
   'Near side':
-      'The half of the Moon that faces Earth. The Moon turns once per orbit, so from there Earth stays in '
-      'the sky all the time, only rocking a little with libration; Apollo and most landers went there.',
+      'The half of the Moon that faces Earth. The Moon turns once per orbit, so from most of it Earth stays in '
+      'the sky all the time, only rocking a little with libration; within a few degrees of the edge (the limb), '
+      'libration makes Earth rise and set. Apollo and most landers went there.',
   'Far side':
-      'The half of the Moon that faces away from Earth. Earth never rises there, so a lander cannot talk '
+      'The half of the Moon that faces away from Earth. Earth never rises over most of it, so a lander cannot talk '
       'straight to Earth and needs a relay satellite. It is not dark: it gets as much sunlight as the near side.',
 };
 
@@ -215,7 +216,7 @@ const explainWholeMoon = ExplainCard(
       'where Apollo, Luna, Surveyor, Chang\'e, SLIM, Chandrayaan-3 and commercial landers set down, from the LROC '
       'catalogue of objects on the Moon. Each region is ranked only on its own sites, with the same score. Away from the '
       'pole the Sun rises and sets once per lunar day and climbs high, so a site has a long day and then a long night; '
-      'on the near side Earth hangs in the sky all the time and on the far side it never rises. The skylines come from '
+      'over most of the near side Earth hangs in the sky all the time and over most of the far side it never rises. The skylines come from '
       'coarser whole-Moon terrain, so their numbers carry an "approximate" badge. South pole stays the default, and the '
       'Light & shadow map covers south-pole sites only.',
   terms: ['Near side', 'Far side', 'Libration'],

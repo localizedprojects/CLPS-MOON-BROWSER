@@ -18,13 +18,15 @@ import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart' show SemanticsProperties;
 
 import '../core/catalog.dart';
 import '../core/map_labels.dart';
 import '../core/place.dart' show latLonText;
 import '../core/region.dart';
-import '../core/wording.dart' show farSideEarthText, lightMapPolarOnlyText;
+import '../core/wording.dart' show farSideEarthText, lightMapPolarOnlyText, siteKindLabel;
 import '../theme.dart';
+import 'focus_semantics.dart';
 import 'glyphs.dart';
 
 /// Mean lunar radius of the reference sphere, km (CLAUDE.md).
@@ -69,7 +71,9 @@ double kmPerPixel(double pxPerDeg) => pxPerDeg <= 0 ? double.nan : 2 * math.pi *
 /// '' when either is not finite. WP2's `latLonText` (core/place.dart).
 String globalLatLonText(double lat, double lon) => latLonText(lat, lon);
 
-/// A whole-Moon site's position line: "26.13° N, 3.63° E · Hadley–Apennine".
+/// A whole-Moon site's position line: "26.13° N, 3.63° E", plus
+/// " · " and the place when the site has a sourced one (no 1.14.0 preset has one:
+/// formula §18.2).
 String globalPositionLine(Site site) {
   final at = globalLatLonText(site.lat, site.lon);
   return site.place.isEmpty ? at : '$at · ${site.place}';
@@ -82,14 +86,56 @@ const globalFarSideText = farSideEarthText;
 /// `lightMapPolarOnlyText`).
 const globalLightMapText = lightMapPolarOnlyText;
 
+/// The on-device whole-Moon DEM's pixel size, km, from a decoded
+/// `global/map.json` (its `dem` entry); null when it is missing.
+double? globalDemKm(Map<String, dynamic>? map) {
+  final dem = map?['dem'];
+  final px = dem is Map ? dem['pxPerDeg'] : null;
+  return px is num && px > 0 ? kmPerPixel(px.toDouble()) : null;
+}
+
+String _deg1(num x) => '${x.toStringAsFixed(1)}°';
+
+
+/// A Whole Moon custom spot's badge in a line, for lists (the global
+/// counterpart of [FidelityBadge.customHorizonShort], which names the polar
+/// 400 m DEM): "Approximate horizon (3.8 km whole-Moon DEM, computed on this
+/// device)", the size from `map.json` ([globalDemKm]).
+String globalCustomHorizonShort(double? km) => km == null || !km.isFinite
+    ? 'Approximate horizon (coarse whole-Moon DEM, computed on this device)'
+    : 'Approximate horizon (${km.toStringAsFixed(1)} km whole-Moon DEM, computed on this device)';
+
 /// The FidelityBadge for a whole-Moon site's horizon, from its catalogue's
 /// [Site.maskSource]: a preset names its terrain; a custom spot says it was
-/// computed on this device from the coarse whole-Moon DEM.
-String globalHorizonBadge(Site site) {
+/// computed on this device from the coarse whole-Moon DEM and quotes the
+/// measured error from `global/validation.json` ([validation]'s
+/// `horizonQuality`: the on-device algorithm against the preset masks) and
+/// the DEM's size from `global/map.json` ([map]). Without those files it
+/// names the DEM only.
+String globalHorizonBadge(Site site, {Map<String, dynamic>? validation, Map<String, dynamic>? map}) {
   final src = site.maskSource.trim();
   if (site.custom) {
-    return 'Approximate horizon: computed on this device from the $src. '
-        'Near the equator 1° of skyline moves sunrise or sunset by about 2 h. Use for exploration, not final decisions.';
+    final hq = validation?['horizonQuality'];
+    final od = hq is Map ? hq['onDevice'] : null;
+    final sr = hq is Map ? hq['sunriseMinPerDeg'] : null;
+    final eq = sr is Map ? sr['equator'] : null;
+    final km = globalDemKm(map);
+    final b = StringBuffer(km != null
+        ? 'Approximate horizon: coarse whole-Moon terrain (${km.toStringAsFixed(1)} km/px), computed on this device.'
+        : 'Approximate horizon: computed on this device from the ${src.replaceAll(RegExp(r'\s*\(on device\)$'), '')}.');
+    if (od is Map && od['medianRmsDeg'] is num && od['worstRmsDeg'] is num && od['meanBiasDeg'] is num) {
+      final bias = od['meanBiasDeg'] as num;
+      final lean = bias <= 0
+          ? 'too low on average by ${_deg1(-bias)} (optimistic)'
+          : 'too high on average by ${_deg1(bias)} (pessimistic)';
+      b.write(' Measured against the preset masks: median RMS ${_deg1(od['medianRmsDeg'] as num)}, '
+          'worst ${_deg1(od['worstRmsDeg'] as num)}, $lean.');
+    }
+    // the 1.14.0 figure (118 min) when the file lacks it
+    final hours = eq is num && eq >= 30 ? (eq / 60).round() : 2;
+    b.write(' Near the equator 1° of skyline moves sunrise or sunset by about $hours h.');
+    b.write(' Use for exploration, not final decisions.');
+    return b.toString();
   }
   if (src.toLowerCase().startsWith('horizon')) return src.endsWith('.') ? src : '$src.';
   return 'Horizon from $src${src.endsWith('.') ? '' : '.'}';
@@ -182,6 +228,112 @@ const globalMarkerLegend = [
 /// open the chooser.
 const globalMarkerHitDp = 24.0;
 
+/// The site names on the whole-Moon map, placed with [placeMapLabels]: the
+/// selected site ([selected], an index into [anchors]) first, then the rest in
+/// order. Markers reach 1.4 [r] from their centre; the selected one's ring
+/// reaches 2.4 [r], and no other name may cover it (it is an obstacle).
+/// [stackWithin] is the chooser's reach (markers closer than it are a stack).
+///
+/// A site [placeMapLabels] leaves unnamed (no free spot, no stack-mate to
+/// carry it) gets a fallback name ([small], measured at the smaller size), a
+/// little farther out if need be, shifted into view, first clear of the other
+/// markers and then of the names only: on a phone no marker is a bare shape
+/// (1.14.0 review). [measure] gives a text's width and height at either size.
+List<({MapLabel label, bool small})> globalMapLabels({
+  required List<(double, double)> anchors,
+  required List<String> texts,
+  required int? selected,
+  required double r,
+  required double stackWithin,
+  required (double, double) Function(int site, String text, bool small) measure,
+  LabelBox? bounds,
+}) {
+  final reach = [for (var i = 0; i < anchors.length; i++) i == selected ? 2.4 * r : 1.4 * r];
+  final obstacles = [if (selected != null) LabelBox.around(anchors[selected].$1, anchors[selected].$2, 2.4 * r)];
+  final order = [
+    ?selected,
+    for (var i = 0; i < anchors.length; i++)
+      if (i != selected) i,
+  ];
+  final placed = placeMapLabels(
+    anchors: anchors,
+    reach: reach,
+    texts: texts,
+    measure: (i, t) => measure(i, t, false),
+    order: order,
+    stacks: markerStacks(anchors, stackWithin),
+    obstacles: obstacles,
+    bounds: bounds,
+  );
+  final out = [for (final m in placed) (label: m, small: false)];
+  final named = {for (final m in placed) ...[m.site, ...m.merged]};
+  final markers = [for (var i = 0; i < anchors.length; i++) LabelBox.around(anchors[i].$1, anchors[i].$2, reach[i])];
+  (LabelBox, LabelSpot)? spotFor(int i, String text) {
+    final (x, y) = anchors[i];
+    final (w, h) = measure(i, text, true);
+    final inView = bounds != null && x >= bounds.left && x <= bounds.right && y >= bounds.top && y <= bounds.bottom;
+    LabelBox fit(LabelBox b) {
+      if (!inView) return b;
+      final dx = b.left < bounds.left ? bounds.left - b.left : (b.right > bounds.right ? bounds.right - b.right : 0.0);
+      final dy = b.top < bounds.top ? bounds.top - b.top : (b.bottom > bounds.bottom ? bounds.bottom - b.bottom : 0.0);
+      return LabelBox(b.left + dx, b.top + dy, b.right + dx, b.bottom + dy);
+    }
+
+    for (final clearOfMarkers in [true, false]) {
+      for (final extra in [0.0, r, 2 * r, 4 * r, 6 * r, 8 * r]) {
+        for (final spot in LabelSpot.values) {
+          final b = fit(labelBoxAt(spot, x, y, reach[i], w, h, gap: 2 + extra));
+          if (b.overlaps(markers[i]) || obstacles.any(b.overlaps)) continue;
+          if (out.any((o) => o.label.box.overlaps(b))) continue;
+          if (clearOfMarkers && Iterable.generate(markers.length).any((j) => j != i && markers[j].overlaps(b))) continue;
+          return (b, spot);
+        }
+      }
+    }
+    return null;
+  }
+
+  // the unnamed sites by stack ([placeMapLabels] leaves a site unnamed only
+  // when no stack-mate carries it, so a stack is all named or all unnamed):
+  // each by its own name if they all fit, else one "Name +n" for the stack
+  final rank = {for (final (n, i) in order.indexed) i: n};
+  for (final stack in markerStacks(anchors, stackWithin)) {
+    final group = [
+      for (final i in stack)
+        if (!named.contains(i)) i
+    ]..sort((a, b) => rank[a]!.compareTo(rank[b]!));
+    if (group.isEmpty) continue;
+    final mark = out.length;
+    var all = true;
+    for (final i in group) {
+      final found = spotFor(i, texts[i]);
+      if (found == null) {
+        all = false;
+        break;
+      }
+      out.add((label: MapLabel(i, const [], texts[i], found.$1, found.$2), small: true));
+    }
+    if (!all) {
+      out.removeRange(mark, out.length);
+      final lead = group.first, text = mergedLabelText(texts[lead], group.length - 1);
+      if (spotFor(lead, text) case (final b, final spot)) {
+        out.add((label: MapLabel(lead, group.sublist(1), text, b, spot), small: true));
+      }
+    }
+    named.addAll(group);
+  }
+  return out;
+}
+
+/// A whole-Moon marker's screen-reader label: its name and kind, and how many
+/// markers overlap there (the chooser lists them).
+String globalMapSiteSemanticsLabel(Site s, int stacked) =>
+    '${s.short}. ${siteKindLabel(s)}${stacked > 1 ? '. One of $stacked overlapping markers here' : ''}';
+
+/// The navy chip under every name on the whole-Moon map (the site names and
+/// NEAR SIDE / FAR SIDE): PH.text and PH.ice read at about 7:1 or more on it.
+final globalMapChip = PH.bg.withValues(alpha: 0.72);
+
 class GlobalMapView extends StatefulWidget {
   /// Null while the layers load (or when they failed: [failed]).
   final GlobalMapLayers? layers;
@@ -234,8 +386,43 @@ class _GlobalMapViewState extends State<GlobalMapView> {
   bool _adding = false;
   String? _error;
 
+  // the zoom the markers' screen-reader nodes are sized for: rebuilt when
+  // the scale changes (not on a pan), so each stays 48 dp on screen
+  double _semK = 1;
+
+  void _zoomed() {
+    final k = _scale;
+    if ((k - _semK).abs() > 1e-3 && mounted) setState(() => _semK = k);
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _tc.addListener(_zoomed);
+  }
+
+  /// The map's size on screen (its last layout), for the zoom buttons.
+  Size? _viewSize;
+
+  /// Zoom in or out by [factor] about the view's centre, as the polar map's
+  /// buttons do, kept within 1x-8x and with the map filling the view.
+  void _zoomStep(double factor) {
+    final size = _viewSize;
+    final inv = Matrix4.tryInvert(_tc.value);
+    if (size == null || inv == null) return;
+    final s = (_scale * factor).clamp(1.0, globalMapMaxZoom);
+    final c = size.center(Offset.zero);
+    final p = MatrixUtils.transformPoint(inv, c);
+    final tx = (c.dx - s * p.dx).clamp(size.width - size.width * s, 0.0);
+    final ty = (c.dy - s * p.dy).clamp(size.height - size.height * s, 0.0);
+    _tc.value = Matrix4.diagonal3Values(s, s, 1)
+      ..setEntry(0, 3, tx)
+      ..setEntry(1, 3, ty);
+  }
+
   @override
   void dispose() {
+    _tc.removeListener(_zoomed);
     _tc.dispose();
     super.dispose();
   }
@@ -363,12 +550,18 @@ class _GlobalMapViewState extends State<GlobalMapView> {
       map = LayoutBuilder(
         builder: (context, c) {
           final size = c.biggest;
+          _viewSize = size;
           return InteractiveViewer(
             transformationController: _tc,
             minScale: 1,
-            maxScale: 8,
+            maxScale: globalMapMaxZoom,
             child: GestureDetector(
               behavior: HitTestBehavior.opaque,
+              // a screen-reader "tap" has no position (it would land at the
+              // map's centre, 0° N 0° E): pointer taps only, as on the polar
+              // map; the list and "Add a spot by coordinates…" are the
+              // non-pointer way in
+              excludeFromSemantics: true,
               onTapUp: (d) => _tap(d.localPosition, size),
               child: CustomPaint(
                 size: size,
@@ -381,6 +574,8 @@ class _GlobalMapViewState extends State<GlobalMapView> {
                   polarCount: widget.polarSiteCount,
                   tc: _tc,
                   scaler: scaler,
+                  onSelect: widget.onSelect,
+                  semK: _semK,
                 ),
               ),
             ),
@@ -402,7 +597,7 @@ class _GlobalMapViewState extends State<GlobalMapView> {
               container: true,
               label:
                   'Whole-Moon map: ${widget.sites.length} sites, near side in the middle, north up. '
-                  'Tap a marker to open its site; tap open ground to add a spot. Every site is also in the list.',
+                  'Every site is in the list; add a spot with "Add a spot by coordinates…".',
               child: map,
             ),
           ),
@@ -460,6 +655,17 @@ class _GlobalMapViewState extends State<GlobalMapView> {
           runSpacing: 4,
           crossAxisAlignment: WrapCrossAlignment.center,
           children: [
+            // zoom without a wheel or a pinch (a switch, a head pointer, one
+            // finger), and back to the whole Moon; beside the map's other
+            // controls, not on it: on a phone the map is 164 dp tall and a
+            // corner column would hide the far-side sites
+            if (l != null)
+              _ZoomControls(
+                zoom: _scale,
+                onIn: () => _zoomStep(2),
+                onOut: () => _zoomStep(0.5),
+                onReset: () => _tc.value = Matrix4.identity(),
+              ),
             FilterChip(
               key: const ValueKey('global-earth-toggle'),
               avatar: const MeaningGlyph(GlyphKind.earth, size: 16, semantic: false),
@@ -494,20 +700,76 @@ class _GlobalMapViewState extends State<GlobalMapView> {
   }
 }
 
+/// The whole-Moon map's zoom limit (the polar map's is [mapMaxZoom]).
+const globalMapMaxZoom = 8.0;
+
+/// Zoom in, Zoom out and Reset zoom: the polar map's buttons (48 dp, a
+/// label each, the theme's focus ring), each disabled at its limit.
+class _ZoomControls extends StatelessWidget {
+  final double zoom;
+  final VoidCallback onIn, onOut, onReset;
+  const _ZoomControls({required this.zoom, required this.onIn, required this.onOut, required this.onReset});
+
+  @override
+  Widget build(BuildContext context) {
+    Widget button(Key key, IconData icon, String label, bool enabled, VoidCallback onTap) => Semantics(
+      key: key,
+      container: true,
+      button: true,
+      enabled: enabled,
+      label: label,
+      onTap: enabled ? onTap : null,
+      child: FocusSemantics(
+        enabled: enabled,
+        child: IconButton(
+          onPressed: enabled ? onTap : null,
+          tooltip: label,
+          icon: Icon(icon, size: 20),
+          color: PH.text,
+          disabledColor: PH.muted.withValues(alpha: 0.5),
+          constraints: const BoxConstraints.tightFor(width: 48, height: 48),
+        ),
+      ),
+    );
+    return Material(
+      color: PH.panel,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(PH.radius),
+        side: const BorderSide(color: PH.line),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          button(const ValueKey('global-zoom-in'), Icons.add, 'Zoom in', zoom < globalMapMaxZoom - 0.001, onIn),
+          button(const ValueKey('global-zoom-out'), Icons.remove, 'Zoom out', zoom > 1.001, onOut),
+          button(const ValueKey('global-zoom-reset'), Icons.crop_free, 'Reset zoom', zoom > 1.001, onReset),
+        ],
+      ),
+    );
+  }
+}
+
 class _Bar extends StatelessWidget {
   final List<Widget> children;
   const _Bar({super.key, required this.children});
 
+  // a live region, as the polar map's "check this spot" bar: a screen reader
+  // says the spot, the south-cap note or the north refusal when it appears
   @override
-  Widget build(BuildContext context) => Container(
-    margin: const EdgeInsets.only(bottom: 8),
-    padding: const EdgeInsets.fromLTRB(12, 8, 8, 8),
-    decoration: BoxDecoration(
-      color: PH.panelHi,
-      borderRadius: BorderRadius.circular(PH.radiusInner),
-      border: Border.all(color: PH.line),
+  Widget build(BuildContext context) => Semantics(
+    container: true,
+    liveRegion: true,
+    child: Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.fromLTRB(12, 8, 8, 8),
+      decoration: BoxDecoration(
+        color: PH.panelHi,
+        borderRadius: BorderRadius.circular(PH.radiusInner),
+        border: Border.all(color: PH.line),
+      ),
+      child: Wrap(spacing: 8, runSpacing: 4, crossAxisAlignment: WrapCrossAlignment.center, children: children),
     ),
-    child: Wrap(spacing: 8, runSpacing: 4, crossAxisAlignment: WrapCrossAlignment.center, children: children),
   );
 }
 
@@ -530,7 +792,7 @@ class _Legend extends StatelessWidget {
             Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                SizedBox.square(dimension: 14, child: CustomPaint(painter: _MarkerIcon(g))),
+                SizedBox.square(dimension: 18, child: CustomPaint(painter: _MarkerIcon(g))),
                 const SizedBox(width: 4),
                 // a narrow phone or a large text size: the words wrap beside the mark
                 Flexible(child: Text(words, style: muted)),
@@ -603,6 +865,10 @@ class _GlobalPainter extends CustomPainter {
   final int polarCount;
   final TransformationController tc;
   final TextScaler scaler;
+  final ValueChanged<String> onSelect;
+
+  /// The zoom the screen-reader nodes are sized for (48 dp on screen).
+  final double semK;
 
   _GlobalPainter({
     required this.layers,
@@ -613,6 +879,8 @@ class _GlobalPainter extends CustomPainter {
     required this.polarCount,
     required this.tc,
     required this.scaler,
+    required this.onSelect,
+    required this.semK,
   }) : super(repaint: tc);
 
   TextPainter _text(String s, double size, double k, {Color color = PH.text, FontWeight w = FontWeight.w600}) =>
@@ -679,13 +947,25 @@ class _GlobalPainter extends CustomPainter {
       capLabel.paint(canvas, Offset((size.width - capLabel.width) / 2, cap.top + (cap.height - capLabel.height) / 2));
     }
     canvas.restore();
-    // near and far side
-    final near = _text('NEAR SIDE', 11, k, color: PH.ice);
+    // near and far side, on the marker labels' navy chip: straight on the
+    // hillshade and the Earth overlay they read at about 1.5-2:1
     final yLab = globalMapPoint(72, 0, size).dy;
-    near.paint(canvas, Offset(globalMapPoint(0, 0, size).dx - near.width / 2, yLab));
+    void side(String t, double lon) {
+      final tp = _text(t, 12, k);
+      final x = globalMapPoint(0, lon, size).dx - tp.width / 2;
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(
+          Rect.fromLTWH(x - 3 / k, yLab - 1 / k, tp.width + 6 / k, tp.height + 2 / k),
+          Radius.circular(3 / k),
+        ),
+        Paint()..color = globalMapChip,
+      );
+      tp.paint(canvas, Offset(x, yLab));
+    }
+
+    side('NEAR SIDE', 0);
     for (final lon in [-150.0, 150.0]) {
-      final far = _text('FAR SIDE', 11, k, color: PH.ice);
-      far.paint(canvas, Offset(globalMapPoint(0, lon, size).dx - far.width / 2, yLab));
+      side('FAR SIDE', lon);
     }
     // markers, the selected one last (on top), and their names
     final r = 6 / k;
@@ -724,33 +1004,43 @@ class _GlobalPainter extends CustomPainter {
         bounds = LabelBox(a.dx, a.dy, b.dx, b.dy);
       }
       final painters = <String, TextPainter>{};
-      TextPainter label(int i, String t) => painters.putIfAbsent(
-        '$i|$t',
-        () => _text(t, 12, k, w: ordered[i].id == selectedId ? FontWeight.w700 : FontWeight.w500),
+      TextPainter painterFor(int i, String t, bool small) => painters.putIfAbsent(
+        '$i|$t|$small',
+        () => _text(t, small ? 10 : 12, k, w: ordered[i].id == selectedId ? FontWeight.w700 : FontWeight.w500),
       );
-      final sel = ordered.length - 1;
-      final placed = placeMapLabels(
+      final placed = globalMapLabels(
         anchors: [for (final a in anchors) (a.dx, a.dy)],
-        reach: [for (final _ in ordered) 1.4 * r],
         texts: [for (final st in ordered) st.short],
-        measure: (i, t) {
-          final p = label(i, t);
+        selected: ordered.last.id == selectedId ? ordered.length - 1 : null,
+        r: r,
+        stackWithin: globalMarkerHitDp / k,
+        measure: (i, t, small) {
+          final p = painterFor(i, t, small);
           return (p.width + 6 / k, p.height + 2 / k);
         },
-        order: [
-          if (ordered.last.id == selectedId) sel,
-          for (var i = 0; i < ordered.length; i++)
-            if (ordered[i].id != selectedId) i,
-        ],
-        stacks: markerStacks([for (final a in anchors) (a.dx, a.dy)], globalMarkerHitDp / k),
         bounds: bounds,
       );
-      for (final m in placed) {
-        final p = label(m.site, m.text);
+      // a fallback name set farther out than a marker's own spots gets a thin
+      // leader from its marker (under the chips)
+      final leader = Paint()
+        ..color = PH.text.withValues(alpha: 0.6)
+        ..strokeWidth = 1 / k;
+      for (final (:label, :small) in placed) {
+        if (!small) continue;
+        final a = anchors[label.site];
+        final b = label.box;
+        final near = Offset(a.dx.clamp(b.left, b.right), a.dy.clamp(b.top, b.bottom));
+        final d = near - a;
+        if (d.distance <= 2.4 * r + 2) continue;
+        canvas.drawLine(a + d / d.distance * 1.4 * r, near, leader);
+      }
+      for (final (:label, :small) in placed) {
+        final m = label;
+        final p = painterFor(m.site, m.text, small);
         final box = Rect.fromLTRB(m.box.left, m.box.top, m.box.right, m.box.bottom);
         canvas.drawRRect(
           RRect.fromRectAndRadius(box, Radius.circular(3 / k)),
-          Paint()..color = PH.bg.withValues(alpha: 0.72),
+          Paint()..color = globalMapChip,
         );
         p.paint(canvas, Offset(box.left + 3 / k, box.top + 1 / k));
       }
@@ -768,6 +1058,36 @@ class _GlobalPainter extends CustomPainter {
       );
     }
   }
+
+  /// One node per marker (overlapping ones too), each a 48 dp button that
+  /// opens its site, as on the polar map: a screen reader finds every site on
+  /// the map, and a click with semantics on opens the marker under it.
+  @override
+  SemanticsBuilderCallback get semanticsBuilder => (size) {
+    final at = [for (final st in sites) globalMapPoint(st.lat, st.lon, size)];
+    final stacked = {
+      for (final st in markerStacks([for (final a in at) (a.dx, a.dy)], globalMarkerHitDp / semK))
+        for (final i in st) i: st.length,
+    };
+    return [
+      for (final (i, st) in sites.indexed)
+        CustomPainterSemantics(
+          key: ValueKey('global-map-site-${st.id}'),
+          rect: Rect.fromCircle(center: at[i], radius: 24 / semK),
+          properties: SemanticsProperties(
+            label: globalMapSiteSemanticsLabel(st, stacked[i] ?? 1),
+            button: true,
+            selected: st.id == selectedId,
+            textDirection: TextDirection.ltr,
+            onTap: () => onSelect(st.id),
+          ),
+        ),
+    ];
+  };
+
+  @override
+  bool shouldRebuildSemantics(covariant _GlobalPainter old) =>
+      old.sites != sites || old.selectedId != selectedId || old.semK != semK;
 
   @override
   bool shouldRepaint(covariant _GlobalPainter old) =>

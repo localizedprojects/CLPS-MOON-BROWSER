@@ -89,7 +89,7 @@ Row (`sites[]`), every polar key plus the global ones:
 | `confidence` | string | req | `"high"` or `"medium-high"` |
 | `tier` | string | req | `"core"` or `"extended"` |
 | `lat`, `lon` | number | req | degrees, planetocentric, east-positive in [−180, 180); from the shapefile row |
-| `place` | string | req | feature name from the source (e.g. `"Hadley–Apennine"`), or from the IAU gazetteer only when quoted |
+| `place` | string | req | feature name from the source (e.g. `"Hadley–Apennine"`), or from the IAU gazetteer only when quoted (`placeSource`); `""` for every 1.14.0 preset, as none was quoted, so the position line shows the coordinates only |
 | `side` | string | req | `"near"` (flat-horizon 18.6-yr Earth-visible share = 100 %), `"far"` (0 %), else `"limb"`; must agree with `earthvis` at the site |
 | `earthFlatPct` | number | req | that flat-horizon share, %, from which `side` is derived |
 | `maskSource` | string | | per-row override of the file's `maskSource` (e.g. Chandrayaan-3: `"LOLA LDEM_512 (59 m) near field + LOLA LDEM_64 (474 m)"`, or `"LOLA LDEM_64 (474 m) only"` where the near-field fetch failed) |
@@ -345,6 +345,10 @@ comes from the core through the seam below.
   `weightsFor(goal)`, each region on its own), then the verdict between those
   two winners. An automatic choice never mixes regions (plan §3); the two
   winners are compared only to word the contrast.
+  `String regionVerdictLine(GoalVerdict v, Set<String> poleIds)` words one,
+  pole first, each site as its region's best ("Power first: the south pole
+  leads. South pole's best: …, score 69; Whole Moon's best: …, score 59."),
+  never as "next": the other region's best is not the overall runner-up.
 
 **AppState (WP2), needed:**
 
@@ -370,7 +374,7 @@ series once the series itself is no longer cached. Tests:
 `ContrastFacts? contrastFactsFor(AppState s)`. `ContrastFacts` holds
 `List<ContrastLine> rows` (`key` = the `ContrastKey` name, `label`, `poleText`, `restText`, `Site? poleSite`,
 `Site? restSite`, `Region? better`: a `ContrastRow` field for field),
-`List<String> verdictLines` (`goalVerdictLine` of each `regionVerdicts`),
+`List<String> verdictLines` (`regionVerdictLine` of each `regionVerdicts`),
 `bool sameWinner` (`sameWinnerEveryGoal`), `String period` (`periodLabel`
 of the user's dates) and `sunriseShift(Region)` (`sunriseShiftOf`). `contrastFactsFor` returns `null` (the card says the comparison is not
 computed yet) until both regions are in; tests can set `debugContrastFacts`
@@ -385,7 +389,7 @@ ContrastFacts? contrastFactsFor(AppState s) {
     rows: [for (final r in contrastRows(pole, rest))
       ContrastLine(key: r.key.name, label: r.label, poleText: r.poleText, restText: r.restText,
           poleSite: r.pole.site, restSite: r.rest.site, better: r.better)],
-    verdictLines: [for (final v in verdicts) goalVerdictLine(v)],
+    verdictLines: [for (final v in verdicts) regionVerdictLine(v, {for (final x in pole) x.site.id})],
     sameWinner: sameWinnerEveryGoal(verdicts),
     period: periodLabel(s.rangeStartMs, s.rangeEndMs, DateTime.now().toUtc()),
     sunriseShift: {for (final r in Region.values) r: s.sunriseShiftOf(r, errorDeg: contrastSkylineErrorDeg)},

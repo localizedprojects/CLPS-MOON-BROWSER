@@ -135,7 +135,7 @@ void main() {
     expect(hi, lessThan(12000));
   });
 
-  test('the bundled DEM matches global_coarse.json (skipped until WP1 lands)', () {
+  test('the bundled DEM matches global_coarse.json', () {
     final m = jsonDecode(File(_realMap).readAsStringSync()) as Map<String, dynamic>;
     expect(m['synthetic'], isNot(true), reason: 'a bundled file is never synthetic');
     final g = _gridFromMap(_realMap, 'assets/data/global');

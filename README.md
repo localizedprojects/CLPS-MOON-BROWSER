@@ -1,11 +1,13 @@
 # Lunar Horizon
 
-**A lunar south-pole site and date planner.** It is an entry for the NASA Space Apps Challenge 2026 challenge [*Lunar Landing Site Navigator*](https://www.spaceappschallenge.org/2026/challenges/lunar-landing-site-navigator/). Not an official NASA product.
+**A lunar landing site and date planner: the south pole first, and since 1.14.0 the whole Moon.** It is an entry for the NASA Space Apps Challenge 2026 challenge [*Lunar Landing Site Navigator*](https://www.spaceappschallenge.org/2026/challenges/lunar-landing-site-navigator/). Not an official NASA product.
 
 Lunar Horizon answers one question: *which south-pole landing site, on which dates, gives the best solar power and direct-to-Earth communication?* For each site it works out when the Sun and the Earth are above the real terrain horizon. It uses NASA/JPL SPICE ephemerides and Lunar Reconnaissance Orbiter (LRO) LOLA elevation data, and turns the results into rankings, charts, a light-and-shadow map and plain-language summaries. It is built for:
 
 - **the public and educators:** a plain answer first, with explanations next to each view
 - **mission planners:** exact numbers, adjustable visibility rules, and CSV export with provenance
+
+Since version 1.14.0 a **Whole Moon** region (Explore › *Whole Moon*) adds 20 landed-mission sites elsewhere on the Moon, from Apollo 11 to Blue Ghost Mission 1, so the south pole can be compared with the rest of the Moon. The south pole stays the default, and each region is ranked on its own ([below](#whole-moon-1140)).
 
 The same Flutter code runs as a web app and on Android.
 
@@ -90,6 +92,27 @@ All coordinates come with citations in `app/assets/data/sites.json`.
 | Artemis III candidate regions (8) | Haworth, Malapert Massif, Mons Mouton Plateau, Mons Mouton, Nobile Rim 1, Nobile Rim 2, de Gerlache Rim 2, Peak near Cabeus B | Approximate centres of the roughly 15 × 15 km regions, from LROC mosaic extents and Henriksen et al. (2023). These are **not** official landing points. Slater Plain is omitted because no published centre was found. |
 | ESA Lunar Lander candidate sites (De Rosa et al. 2012) (5) | SR1, CR1, SV1, MP1, GR1 | Points given in De Rosa et al. (2012), Table 2: the centres of its regions of interest, chosen there for long sunlight |
 | Missions: NASA CLPS and international (6) | IM-1 Odysseus (landed), IM-2 Athena (landed), IM-2 Athena (intended target), VIPER mission-area centre, Chang'e-7 (planned), LUPEX / Chandrayaan-5 (candidate) | LROC landed positions and published mission-area centres. The Chang'e-7 and LUPEX points are unofficial, secondhand candidates (low confidence), not announced landing coordinates. |
+
+
+### Whole Moon (1.14.0)
+
+Explore has a **South pole | Whole Moon** switch. The app always starts at the south pole; `#/moon` (or a link to a Whole Moon site) opens the other region, and nothing of it is downloaded until you open it.
+
+- **The map:** the whole Moon on one equirectangular map (near side centred, north up, 30° grid, "Near side" and "Far side" labels), shaded from LOLA heights, with a computed overlay of where Earth is ever above a flat horizon. Each site has a marker whose shape shows its group, and a direct label. The hatched cap south of 80°S takes you back to the south pole, which has its own detailed map.
+- **Ranking:** the Whole Moon sites are ranked among themselves only, with the same "What matters most?" chips. An automatic choice never mixes the regions, because near-equator sites have roughly 50 % sunlight and constant Earth, a different trade-off from the pole. The **Pole vs the rest** card puts the two side by side: each region's best value for sunlight, Earth in view, both together, the longest night and the highest Sun, and a computed verdict per goal.
+- **Site pages:** Overview, Sky & time and the Lander's view work as at the pole. On the far side (Chang'e-4 and Chang'e-6) the app says that Earth never rises and that direct-to-Earth radio is impossible there. The Light & shadow map stays south-pole only, and the site page says so.
+- **Compare:** can mix the regions only when you add sites from both; a "Mixed regions" banner and one verdict per goal then replace the single winner.
+- **Custom spots:** tap the Whole Moon map (or type coordinates) anywhere from 80.0°N to just north of 80.01°S. The horizon is computed on the device from a 3.8 km whole-Moon DEM and is labelled approximate with its measured error (§[Validation](#validation)).
+- **Learn:** *South pole vs the rest of the Moon* explains the difference, with computed facts (the highest Sun, the longest night, the far side, and how much a 0.3° skyline error moves sunrise in each region).
+
+| Group | Sites | Source of coordinates |
+|---|---|---|
+| Apollo (crewed landings) (6) | Apollo 11, 12, 14, 15, 16 and 17 Lunar Modules | LROC "Anthropogenic Features on the Moon" shapefile (Wagner et al. 2017), for every site |
+| Robotic landers 1966–76 (Surveyor, Luna) (7) | Luna 16, Luna 17, Surveyor 1, Surveyor 3, Surveyor 7, Luna 21, Luna 24 | the same shapefile |
+| Other countries' programmes (6) | Chang'e-3, Chang'e-4 (far side), Chang'e-5, Chang'e-6 (far side), SLIM, Chandrayaan-3 Vikram | the same shapefile |
+| Commercial (CLPS) (1) | Blue Ghost Mission 1 | the same shapefile |
+
+Each site's record (name, coordinates, coordinate source and uncertainty) is quoted in `app/assets/data/global/sites.json`. Sites with no measured landing point (for example Luna 9, IM-3, crash sites) are left out. The 18.6-year averages there are about 48 to 50 % sunlight, Earth 100 % on the near side and 0 % on the far side.
 
 ---
 

@@ -679,10 +679,22 @@ class ShellRouterDelegate extends RouterDelegate<ShellLocation>
   /// the URL waits for it.
   bool _linkBusy = false;
 
+  /// The whole-Moon site the busy link names: once it is on screen its URL
+  /// is reported at once, not only when its series compute ends (the address
+  /// bar would show the bare URL under the site meanwhile). Only that site is
+  /// ever reported while busy, never another under its link (web-10).
+  String? _linkSite;
+
   void _onState() {
     // a link waits for the first ranking
     if (!state.ready) return;
-    if (_linkBusy) return;
+    if (_linkBusy) {
+      if (_linkSite != null && state.dest == Dest.site && state.selectedId == _linkSite && _live != _last) {
+        _last = _live;
+        _report(replace: true);
+      }
+      return;
+    }
     final link = _pending;
     if (link != null) {
       _pending = null;
@@ -782,9 +794,12 @@ class ShellRouterDelegate extends RouterDelegate<ShellLocation>
     // until the whole-Moon site opens, and the URL put right meanwhile
     state.goTo(Dest.explore);
     _linkBusy = true;
+    _linkSite = id;
     (() async {
       try {
-        await state.openFromLink(id);
+        // a whole-Moon site has no Light & shadow tab: open Sky & time
+        // straight away, so the URL reported early is already the final one
+        await state.openFromLink(id, tab: tab == SiteTab.light ? SiteTab.skyTime : tab);
         if (state.dest == Dest.site && state.selectedId == id) {
           final t = state.regionOf(id) == Region.wholeMoon && tab == SiteTab.light ? SiteTab.skyTime : tab;
           if (state.siteTab != t) state.goTo(Dest.site, siteTab: t);
@@ -800,6 +815,7 @@ class ShellRouterDelegate extends RouterDelegate<ShellLocation>
         _unknownSite();
       } finally {
         _linkBusy = false;
+        _linkSite = null;
         _last = _live;
         _report(replace: true);
       }

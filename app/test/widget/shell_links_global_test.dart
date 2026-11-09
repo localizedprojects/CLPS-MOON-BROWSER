@@ -2,6 +2,8 @@
 // fixtures (test/fixtures/global_sample, made-up values): Back/Forward
 // between a Whole Moon custom spot's tabs stays on that spot (its id shares
 // the custom-N form with polar spots, which links never carry).
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:polar_horizon/core/region.dart';
@@ -31,6 +33,20 @@ class _Browser extends RouteInformationProvider with ChangeNotifier {
       {RouteInformationReportingType type = RouteInformationReportingType.none}) {
     reports.add((routeInformation.uri.path, type));
     _value = routeInformation;
+  }
+}
+
+/// Holds [selectSite]'s future open until [gate] completes, after the site
+/// is selected (as the real series compute does, for about 12 s on the web).
+class _GatedState extends AppState {
+  Completer<void>? gate;
+
+  @override
+  Future<void> selectSite(String id) async {
+    final g = gate;
+    final f = super.selectSite(id);
+    if (g != null) await g.future;
+    await f;
   }
 }
 
@@ -96,5 +112,37 @@ void main() {
       expect(browser.reports.where((r) => r.$1 == '/moon' || r.$1 == '/'), isEmpty, reason: 'the URL is not replaced');
       await tester.pump(const Duration(seconds: 10));
     });
+  });
+  testWidgets('a whole-Moon link reports its URL once its site is on screen, before the compute ends', (tester) async {
+    SharedPreferences.setMockInitialValues({});
+    final state = _GatedState()..globalAssetBundle = GlobalSampleBundle();
+    addTearDown(state.dispose);
+    await tester.runAsync(state.init);
+    expect(state.region, Region.southPole);
+    final (browser, delegate) = await pump(tester, state, start: '/');
+    final gate = state.gate = Completer<void>();
+    const id = 'apollo-11-lm';
+    browser.go('/site/$id');
+    for (var i = 0; i < 200 && !(state.dest == Dest.site && state.selectedId == id); i++) {
+      await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 20)));
+      await tester.pump();
+    }
+    await tester.pump();
+    expect(state.dest, Dest.site);
+    expect(state.selectedId, id);
+    expect(gate.isCompleted, isFalse, reason: 'openFromLink is still running');
+    expect(delegate.currentConfiguration, ShellLocation(Dest.site, id, SiteTab.overview));
+    expect(browser.reports.last, ('/site/$id/overview', RouteInformationReportingType.neglect),
+        reason: 'the URL names the site on screen, in place of the link');
+    expect(browser.reports.where((r) => r.$1 == '/' || r.$1 == '/moon'), isEmpty, reason: 'never the bare URL under the site');
+    gate.complete();
+    for (var i = 0; i < 10; i++) {
+      await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 20)));
+      await tester.pump();
+    }
+    expect(browser.reports.last.$1, '/site/$id/overview');
+    expect(browser.reports.every((r) => r.$2 == RouteInformationReportingType.neglect), isTrue,
+        reason: 'no history entry is added: ${browser.reports}');
+    await tester.pump(const Duration(seconds: 10));
   });
 }

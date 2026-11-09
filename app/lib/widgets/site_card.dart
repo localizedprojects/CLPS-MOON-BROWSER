@@ -8,12 +8,14 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../core/catalog.dart';
+import '../core/region.dart';
 import '../core/metrics.dart' show SiteMetrics;
 import '../core/summary.dart' show duration;
 import '../core/wording.dart';
 import '../state/app_state.dart';
 import '../theme.dart';
 import 'focus_rings.dart';
+import 'global_map_view.dart' show globalCustomHorizonShort, globalDemKm;
 import 'glyphs.dart';
 import 'stat_bar.dart';
 import 'terrain_thumb.dart';
@@ -24,7 +26,15 @@ String longestNightText(SiteMetrics m) =>
     m.longestDark == null ? 'No night in this period' : 'Longest night: ${duration(m.longestDarkHours)}';
 
 /// The card's one screen-reader sentence.
-String siteCardLabel(Site site, SiteMetrics m, {int? rank, required bool requireDsn, bool selected = false}) {
+/// A custom spot's badge in a line, for lists: the polar 400 m text for a
+/// south-pole spot, the coarse whole-Moon DEM's (size from `map.json`) for a
+/// spot placed in Whole Moon.
+String customHorizonShortFor(Site site, AppState s) => site.region == Region.wholeMoon
+    ? globalCustomHorizonShort(globalDemKm(s.global?.map))
+    : FidelityBadge.customHorizonShort;
+
+String siteCardLabel(Site site, SiteMetrics m,
+    {int? rank, required bool requireDsn, bool selected = false, String customBadge = FidelityBadge.customHorizonShort}) {
   final b = StringBuffer();
   if (rank != null) b.write('Number $rank. ');
   b.write('${site.short}. ${siteKindLabel(site)}. ');
@@ -32,7 +42,7 @@ String siteCardLabel(Site site, SiteMetrics m, {int? rank, required bool require
   b.write('Sunlit ${StatBar.pctText(m.pctSunlit)}, ${earthMetricLabel(requireDsn: requireDsn)} '
       '${StatBar.pctText(m.pctEarth)}, both together ${StatBar.pctText(m.pctBoth)}. ');
   b.write('${longestNightText(m)}.');
-  if (site.custom) b.write(' ${FidelityBadge.customHorizonShort}.');
+  if (site.custom) b.write(' $customBadge.');
   return b.toString();
 }
 
@@ -67,6 +77,7 @@ class SiteCard extends StatelessWidget {
     final inCompare = s.compareIds.contains(site.id);
     final full = s.compareIds.length >= 4;
     final thumb = compact ? 56.0 : 72.0;
+    final customBadge = site.custom ? customHorizonShortFor(site, s) : '';
 
     final head = Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
       if (rank != null) ...[
@@ -103,7 +114,7 @@ class SiteCard extends StatelessWidget {
         const SizedBox(width: 8),
         Expanded(child: Text(longestNightText(m), style: PHText.small.copyWith(color: PH.muted))),
       ]),
-      if (site.custom) const FidelityBadge(text: FidelityBadge.customHorizonShort),
+      if (site.custom) FidelityBadge(text: customBadge),
     ]);
 
     final actions = Wrap(alignment: WrapAlignment.end, spacing: 8, runSpacing: 4, children: [
@@ -146,7 +157,7 @@ class SiteCard extends StatelessWidget {
             container: true,
             button: true,
             selected: sel,
-            label: siteCardLabel(site, m, rank: rank, requireDsn: dsn, selected: sel),
+            label: siteCardLabel(site, m, rank: rank, requireDsn: dsn, selected: sel, customBadge: customBadge),
             hint: 'Opens the site',
             onTap: () => s.openSite(site.id),
             child: FocusSemantics(child: FocusRingInkWell(

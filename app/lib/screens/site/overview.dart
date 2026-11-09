@@ -299,7 +299,7 @@ class SiteOverview extends StatelessWidget {
                       numSpans(globalPositionLine(site), PHText.small.copyWith(color: PH.text)),
                     ),
                   ),
-                  FidelityBadge(text: globalHorizonBadge(site)),
+                  FidelityBadge(text: globalHorizonBadge(site, validation: s.global?.validation, map: s.global?.map)),
                   if (site.side == 'far')
                     Padding(
                       padding: const EdgeInsets.fromLTRB(4, 6, 4, 2),

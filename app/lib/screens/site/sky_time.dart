@@ -652,7 +652,7 @@ List<Widget> skyTimeNotes(AppState s) {
     ];
   }
   return [
-    FidelityBadge(text: globalHorizonBadge(site)),
+    FidelityBadge(text: globalHorizonBadge(site, validation: s.global?.validation, map: s.global?.map)),
     if (s.options.requireDsn) const FidelityBadge(text: dsnResolutionNote),
     if (site.side == 'far')
       Padding(

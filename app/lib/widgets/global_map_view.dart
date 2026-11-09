@@ -82,14 +82,56 @@ const globalFarSideText = farSideEarthText;
 /// `lightMapPolarOnlyText`).
 const globalLightMapText = lightMapPolarOnlyText;
 
+/// The on-device whole-Moon DEM's pixel size, km, from a decoded
+/// `global/map.json` (its `dem` entry); null when it is missing.
+double? globalDemKm(Map<String, dynamic>? map) {
+  final dem = map?['dem'];
+  final px = dem is Map ? dem['pxPerDeg'] : null;
+  return px is num && px > 0 ? kmPerPixel(px.toDouble()) : null;
+}
+
+String _deg1(num x) => '${x.toStringAsFixed(1)}°';
+
+
+/// A Whole Moon custom spot's badge in a line, for lists (the global
+/// counterpart of [FidelityBadge.customHorizonShort], which names the polar
+/// 400 m DEM): "Approximate horizon (3.8 km whole-Moon DEM, computed on this
+/// device)", the size from `map.json` ([globalDemKm]).
+String globalCustomHorizonShort(double? km) => km == null || !km.isFinite
+    ? 'Approximate horizon (coarse whole-Moon DEM, computed on this device)'
+    : 'Approximate horizon (${km.toStringAsFixed(1)} km whole-Moon DEM, computed on this device)';
+
 /// The FidelityBadge for a whole-Moon site's horizon, from its catalogue's
 /// [Site.maskSource]: a preset names its terrain; a custom spot says it was
-/// computed on this device from the coarse whole-Moon DEM.
-String globalHorizonBadge(Site site) {
+/// computed on this device from the coarse whole-Moon DEM and quotes the
+/// measured error from `global/validation.json` ([validation]'s
+/// `horizonQuality`: the on-device algorithm against the preset masks) and
+/// the DEM's size from `global/map.json` ([map]). Without those files it
+/// names the DEM only.
+String globalHorizonBadge(Site site, {Map<String, dynamic>? validation, Map<String, dynamic>? map}) {
   final src = site.maskSource.trim();
   if (site.custom) {
-    return 'Approximate horizon: computed on this device from the $src. '
-        'Near the equator 1° of skyline moves sunrise or sunset by about 2 h. Use for exploration, not final decisions.';
+    final hq = validation?['horizonQuality'];
+    final od = hq is Map ? hq['onDevice'] : null;
+    final sr = hq is Map ? hq['sunriseMinPerDeg'] : null;
+    final eq = sr is Map ? sr['equator'] : null;
+    final km = globalDemKm(map);
+    final b = StringBuffer(km != null
+        ? 'Approximate horizon: coarse whole-Moon terrain (${km.toStringAsFixed(1)} km/px), computed on this device.'
+        : 'Approximate horizon: computed on this device from the ${src.replaceAll(RegExp(r'\s*\(on device\)$'), '')}.');
+    if (od is Map && od['medianRmsDeg'] is num && od['worstRmsDeg'] is num && od['meanBiasDeg'] is num) {
+      final bias = od['meanBiasDeg'] as num;
+      final lean = bias <= 0
+          ? 'too low on average by ${_deg1(-bias)} (optimistic)'
+          : 'too high on average by ${_deg1(bias)} (pessimistic)';
+      b.write(' Measured against the preset masks: median RMS ${_deg1(od['medianRmsDeg'] as num)}, '
+          'worst ${_deg1(od['worstRmsDeg'] as num)}, $lean.');
+    }
+    // the 1.14.0 figure (118 min) when the file lacks it
+    final hours = eq is num && eq >= 30 ? (eq / 60).round() : 2;
+    b.write(' Near the equator 1° of skyline moves sunrise or sunset by about $hours h.');
+    b.write(' Use for exploration, not final decisions.');
+    return b.toString();
   }
   if (src.toLowerCase().startsWith('horizon')) return src.endsWith('.') ? src : '$src.';
   return 'Horizon from $src${src.endsWith('.') ? '' : '.'}';

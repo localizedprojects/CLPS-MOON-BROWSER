@@ -19,10 +19,12 @@ import '../theme.dart';
 import '../widgets/calendar_race.dart';
 import '../widgets/compare_panel.dart';
 import '../widgets/explain.dart';
+import '../widgets/global_map_view.dart' show globalHorizonBadge;
 import '../widgets/goal_chips.dart';
 import '../widgets/ranked_cards.dart';
 import '../widgets/sheets/site_picker_sheet.dart';
 import '../widgets/shortlist_bar.dart';
+import '../widgets/site_card.dart' show customHorizonShortFor;
 import '../widgets/winner_card.dart';
 import '../widgets/feature_guide.dart';
 import '../widgets/focus_semantics.dart';
@@ -67,11 +69,16 @@ class _CompareScreenState extends State<CompareScreen> {
       for (final id in s.compareIds)
         if (index[id] case final Site site) site,
     ];
-    final custom = shortlisted.any((x) => x.custom);
+    // a custom spot's horizon is approximate: the polar 400 m text for a
+    // south-pole spot, the measured whole-Moon text for a Whole Moon spot
+    final polarCustom = shortlisted.any((x) => x.custom && x.region != Region.wholeMoon);
+    final globalCustom = shortlisted.where((x) => x.custom && x.region == Region.wholeMoon).firstOrNull;
 
     final setup = <Widget>[
       ShortlistBar(sites: shortlisted, onRemove: s.toggleCompare, onAdd: () => _pick(context, s)),
-      if (custom) const FidelityBadge(text: FidelityBadge.customHorizon),
+      if (polarCustom) const FidelityBadge(text: FidelityBadge.customHorizon),
+      if (globalCustom != null)
+        FidelityBadge(text: globalHorizonBadge(globalCustom, validation: s.global?.validation, map: s.global?.map)),
       const SizedBox(height: 24),
       const GoalChips(),
       const SizedBox(height: 8),
@@ -162,7 +169,9 @@ class _Results extends StatelessWidget {
     final hub = context.read<ChartHub>();
     final ranked = rankedFor(s);
     final dsn = s.options.requireDsn;
-    final customIds = {for (final x in compareSiteIndex(s).values) if (x.custom) x.id};
+    final customs = [for (final x in compareSiteIndex(s).values) if (x.custom) x];
+    final customIds = {for (final x in customs) x.id};
+    final customBadges = {for (final x in customs) x.id: customHorizonShortFor(x, s)};
     return Column(crossAxisAlignment: CrossAxisAlignment.stretch, mainAxisSize: MainAxisSize.min, children: [
       if (showWinner) ...[_Winner(state: s), const SizedBox(height: 16)],
       // the chart comes right after "Best for your priorities" (charts spec 4)
@@ -171,7 +180,7 @@ class _Results extends StatelessWidget {
       // DSN-gated numbers are labelled, as on Explore and the site (science-5)
       if (dsn) const FidelityBadge(text: dsnResolutionNote),
       const SizedBox(height: 8),
-      RankedCards(ranked: ranked, dsn: dsn, customIds: customIds, onOpen: shortlistOpener(s)),
+      RankedCards(ranked: ranked, dsn: dsn, customIds: customIds, customBadges: customBadges, onOpen: shortlistOpener(s)),
       const SizedBox(height: 32),
       CalendarRace(dsn: dsn, sites: [for (final r in ranked) (r.name, monthlyCounts(s.dailyFor(r.id)))]),
       const SizedBox(height: 32),

@@ -102,7 +102,7 @@ void main() {
       expect(s.regionSites(Region.wholeMoon), isEmpty);
       expect(s.rankedIn(Region.wholeMoon), isEmpty);
       expect(s.rankedIn(Region.southPole), same(s.rankedAll));
-      expect(s.contrastInputs(Region.wholeMoon), isEmpty);
+      expect(s.contrastInputs(Region.wholeMoon), isNull, reason: 'null, never a partial list, until loaded and ranked');
       expect(s.regionOf('apollo-11-lm'), Region.southPole, reason: 'unknown until loaded');
     });
 
@@ -159,7 +159,7 @@ void main() {
         expect(rest.map((r) => (r.id, r.score.total)), again.map((r) => (r.id, r.score.total)));
       }
       s.setGoal(Goal.balanced);
-      final pole = s.contrastInputs(Region.southPole), rest = s.contrastInputs(Region.wholeMoon);
+      final pole = s.contrastInputs(Region.southPole)!, rest = s.contrastInputs(Region.wholeMoon)!;
       expect(pole.map((x) => x.site.id).toSet(), polarIds);
       expect(rest.map((x) => x.site.id).toSet(), globalIds);
       expect(rest.every((x) => x.highestSunDeg.isFinite), isTrue);

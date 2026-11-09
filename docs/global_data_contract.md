@@ -241,7 +241,7 @@ resampled to 400 m; relief under ~1 km smoothed."
 | File | Written by | Content |
 |---|---|---|
 | `app/test/fixtures/global_truth.json` | `globe fixtures` | SPICE truth at global sites: the `spice_truth.json` keys `generated`, `source`, `maskAzStepDeg`, `azel` (`{lat, lon, h, unixMs, sun: [az, el, rangeKm], earth: […]}`) and `series` (`{siteId, lat, lon, heightM, t0Ms, stepMs, sun: {az, el, frac, hz}, earth: {…}}`) at ≥ 8 global sites (§10 V1); and `eclipse2028` (`{siteId, unixMs: [], sunEclipse: []}` for a near-side and a far-side site during the 31 Dec 2028 total lunar eclipse) |
-| `app/test/fixtures/global_coarse.json` | `globe fixtures` | the coarse-horizon fixture on the 8 px/deg DEM: `{width, height, pxPerDeg, sum, samples: [[i, j, z]], sites: [{id, lat, lon, hSite, el2: number[]}]}`, `el2` the 2 m mask at 2° steps (180 values) from the Python twin of `horizon_global.dart` (Dart must match to 0.01°) |
+| `app/test/fixtures/global_coarse.json` | `globe fixtures` | the coarse-horizon fixture on the 8 px/deg DEM: `{width, height, pxPerDeg, sum, samplesOrder, samples: [[row, column, z]], sites: [{id, lat, lon, hSite, el2: number[]}]}` (each sample is `[row, column, z]`, row first, as `samplesOrder` states; corrected at integration from `[i, j, z]`), `el2` the 2 m mask at 2° steps (180 values) from the Python twin of `horizon_global.dart` (Dart must match to 0.01°) |
 | `app/test/fixtures/global_frame.json` | `globe_tiles` (WP5) | the tile frame check |
 | `app/test/fixtures/global_sample/` | WP0 (`make_global_sample.py`) | synthetic, schema-valid stand-ins (below) |
 
@@ -359,11 +359,12 @@ comes from the core through the seam below.
   Whole Moon: the selected global site, else `kGlobalDefaultSiteId`) once
   its series is computed; `null` before, or when the series has no sunrise.
 
-(WP2's branch as of 72b1043 has `List<ContrastInput> contrastInputs(Region r)`
-that returns the sites computed so far, never `null`. At integration either
-make it return `null` until every preset of `r` is in, or check
-`rankingDone` / `globalRankingDone` in the snippet below before using it; a
-partial list must not reach the card.)
+(Done at integration: `contrastInputs(Region)` returns `null` until every
+preset of the region has metrics, so a partial list never reaches the card;
+`regionVerdicts` is in `core/contrast.dart`; `sunriseShiftOf` reads the
+reference site's series, or the per-degree shift kept for every computed
+series once the series itself is no longer cached. Tests:
+`test/core/contrast_regions_test.dart`, `test/widget/contrast_card_state_test.dart`.)
 
 **The seam (WP3b, `contrast_card.dart`).** The card and Learn read
 `ContrastFacts? contrastFactsFor(AppState s)`. `ContrastFacts` holds
@@ -371,9 +372,9 @@ partial list must not reach the card.)
 `Site? restSite`, `Region? better`: a `ContrastRow` field for field),
 `List<String> verdictLines` (`goalVerdictLine` of each `regionVerdicts`),
 `bool sameWinner` (`sameWinnerEveryGoal`), `String period` (`periodLabel`
-of the user's dates) and `sunriseShift(Region)` (`sunriseShiftOf`). Until
-WP2 lands, `contrastFactsFor` returns `null` (the card says the comparison is
-not computed yet) and the tests use a double. At integration it becomes:
+of the user's dates) and `sunriseShift(Region)` (`sunriseShiftOf`). `contrastFactsFor` returns `null` (the card says the comparison is not
+computed yet) until both regions are in; tests can set `debugContrastFacts`
+to a double. Its body is:
 
 ```dart
 ContrastFacts? contrastFactsFor(AppState s) {

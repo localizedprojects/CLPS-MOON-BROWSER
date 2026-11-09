@@ -14,7 +14,9 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../core/catalog.dart';
+import '../core/contrast.dart' show contrastRows, goalVerdictLine, regionVerdicts, sameWinnerEveryGoal;
 import '../core/region.dart';
+import '../core/wording.dart' show periodLabel;
 import '../state/app_state.dart';
 import '../theme.dart';
 import 'site_glance_card.dart' show numSpans;
@@ -89,12 +91,36 @@ class ContrastFacts {
   List<Site> get restSites => [for (final r in rows) ?r.restSite];
 }
 
-/// The card's numbers for [s], or null while they are not computed yet.
+/// The card's numbers for [s], or null while they are not computed yet
+/// (until every preset of both regions has metrics under the current
+/// options; Whole Moon also needs its catalogue loaded).
 ///
 /// Contract §11: built from `contrastRows`, `regionVerdicts` and
-/// `AppState.contrastInputs` / `sunriseShiftOf` once WP2's core and state are
-/// in; until then nothing provides them and the card says so.
-ContrastFacts? contrastFactsFor(AppState s) => debugContrastFacts?.call(s);
+/// `AppState.contrastInputs` / `sunriseShiftOf`. [debugContrastFacts], when
+/// set, stands in for it.
+ContrastFacts? contrastFactsFor(AppState s) {
+  if (debugContrastFacts case final f?) return f(s);
+  final pole = s.contrastInputs(Region.southPole), rest = s.contrastInputs(Region.wholeMoon);
+  if (pole == null || rest == null) return null;
+  final verdicts = regionVerdicts(pole, rest);
+  return ContrastFacts(
+    rows: [
+      for (final r in contrastRows(pole, rest))
+        ContrastLine(
+            key: r.key.name,
+            label: r.label,
+            poleText: r.poleText,
+            restText: r.restText,
+            poleSite: r.pole.site,
+            restSite: r.rest.site,
+            better: r.better),
+    ],
+    verdictLines: [for (final v in verdicts) goalVerdictLine(v)],
+    sameWinner: sameWinnerEveryGoal(verdicts),
+    period: periodLabel(s.rangeStartMs, s.rangeEndMs, DateTime.now().toUtc()),
+    sunriseShift: {for (final r in Region.values) r: s.sunriseShiftOf(r, errorDeg: contrastSkylineErrorDeg)},
+  );
+}
 
 /// A stand-in for [contrastFactsFor] in tests (a double of the core).
 @visibleForTesting

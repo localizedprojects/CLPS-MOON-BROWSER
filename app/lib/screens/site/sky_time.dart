@@ -27,7 +27,7 @@ import '../../widgets/time_bar.dart';
 import '../../widgets/feature_guide.dart';
 import '../../widgets/keyboard_focus_ring.dart';
 
-/// The sky plot's explanation (the shared Learn card; a hollow marker means
+/// The polar sky plot's explanation (the shared Learn card; a hollow marker means
 /// "does not count" under the user's rules).
 const explainSkyTime = explainSky;
 
@@ -319,7 +319,7 @@ class _SkyTimeTabState extends State<SkyTimeTab> {
       final skyH = skyPanelHeight(width, paneHeight);
       return [
         if (!dense) ...notes,
-        if (s.explainInline) explainSkyTime,
+        if (s.explainInline) explainSkyFor(s.site.region),
         // on a wide pane the (square) plot is centred, not full width: the
         // margins beside it take the mouse wheel (the chart, a web view on
         // the web, swallows it), and its height is capped so the timeline
@@ -379,11 +379,11 @@ class _SkyTimeTabState extends State<SkyTimeTab> {
                                 ),
                                 ...notes,
                                 if (s.explainInline)
-                                  const Row(
+                                  Row(
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
-                                      Expanded(child: explainSkyTime),
-                                      Expanded(child: explainTimeline),
+                                      Expanded(child: explainSkyFor(s.site.region)),
+                                      const Expanded(child: explainTimeline),
                                     ],
                                   ),
                                 if (s.expert) ExpertReadout(state: s),
@@ -449,7 +449,7 @@ class _SkyTimeTabState extends State<SkyTimeTab> {
         SizedBox(
             height: timelineFrameHeight(width - chartCardChrome, exact: exact) + chartCardChrome, child: _panel(tl)),
         if (dense) ...notes,
-        if (s.explainInline) explainSkyTime,
+        if (s.explainInline) explainSkyFor(s.site.region),
         // on a wide pane the plot is centred, not full width: the margins
         // beside it take the mouse wheel (the chart, a web view on the web,
         // swallows it)
@@ -525,11 +525,11 @@ class _SkyTimeTabState extends State<SkyTimeTab> {
                                 ),
                                 ...notes,
                                 if (s.explainInline)
-                                  const Row(
+                                  Row(
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
-                                      Expanded(flex: 7, child: explainTimeline),
-                                      Expanded(flex: 5, child: explainSkyTime),
+                                      const Expanded(flex: 7, child: explainTimeline),
+                                      Expanded(flex: 5, child: explainSkyFor(s.site.region)),
                                     ],
                                   ),
                                 if (exact) ExpertReadout(state: s),

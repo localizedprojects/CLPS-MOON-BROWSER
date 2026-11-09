@@ -21,7 +21,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../content/guides.dart';
 import '../core/catalog.dart';
-import '../core/contrast.dart' show ContrastInput, highestSunDeg;
+import '../core/contrast.dart' show ContrastInput, highestSunDeg, sunriseShiftMinutes;
 import '../core/curated.dart' show CuratedCatalog;
 import '../core/daily.dart';
 import '../core/dem.dart';
@@ -546,15 +546,62 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// The contrast card's inputs for [r] ([contrastRows]): every site of that
-  /// region with metrics under the current options, with the Sun's highest
-  /// elevation in the period.
-  List<ContrastInput> contrastInputs(Region r) => [
-        for (final st in regionSites(r))
-          if (eph != null)
-            if (_results[_cacheKey(st.id)] case final res?)
-              if (_sunMax[_cacheKey(st.id)] case final hi?) ContrastInput(st, res.metrics, hi),
-      ];
+  /// The contrast card's inputs for [r] ([contrastRows], contract §11): the
+  /// presets of that region (custom spots left out) with their metrics under
+  /// the current options and the Sun's highest elevation in the period.
+  /// Null until every preset of [r] has metrics, and for Whole Moon while
+  /// [global] is not loaded: a partial list never reaches the card. It never
+  /// loads global files by itself.
+  List<ContrastInput>? contrastInputs(Region r) {
+    if (eph == null || catalog == null) return null;
+    final presets = switch (r) {
+      Region.southPole => catalog!.sites,
+      Region.wholeMoon => global?.catalog.sites,
+    };
+    if (presets == null || presets.isEmpty) return null;
+    final out = <ContrastInput>[];
+    for (final st in presets) {
+      final key = _cacheKey(st.id);
+      final res = _results[key], hi = _sunMax[key];
+      if (res == null || hi == null) return null;
+      out.add(ContrastInput(st, res.metrics, hi));
+    }
+    return out;
+  }
+
+  /// The site the contrast card's sensitivity fact is worked out at for [r]:
+  /// the south pole's selected site (else `derosa2012-sr1-shackleton-rim`),
+  /// or the Whole Moon's (else [kGlobalDefaultSiteId]).
+  String contrastReferenceId(Region r) {
+    if (region == r) return selectedId;
+    return switch (r) {
+      Region.southPole => _polarSelectedId ?? 'derosa2012-sr1-shackleton-rim',
+      Region.wholeMoon => _globalSelectedId ?? kGlobalDefaultSiteId,
+    };
+  }
+
+  /// How far a skyline error of [errorDeg] moves sunrise at [r]'s reference
+  /// site ([contrastReferenceId]; `sunriseShiftMinutes`, contract §11), once
+  /// its series has been computed under the current options; null before,
+  /// when the site is unknown (a global id before [global] is loaded) or
+  /// when the series has no sunrise. It computes and loads nothing itself.
+  ({Site site, double minutes})? sunriseShiftOf(Region r, {double errorDeg = 0.3}) {
+    if (eph == null || catalog == null) return null;
+    final id = contrastReferenceId(r);
+    final st = _siteOrNull(id);
+    if (st == null || st.region != r) return null;
+    final key = _cacheKey(id);
+    final ser = _series[key];
+    final double minutes;
+    if (ser != null) {
+      minutes = sunriseShiftMinutes(ser, errorDeg: errorDeg);
+    } else if (_sunrisePerDeg[key] case final perDeg?) {
+      minutes = errorDeg * perDeg; // sunriseShiftMinutes is errorDeg / rate
+    } else {
+      return null;
+    }
+    return minutes.isFinite ? (site: st, minutes: minutes) : null;
+  }
 
   /// [id] among the polar sites, then (once loaded) the global ones; null
   /// when neither has it.
@@ -1085,6 +1132,10 @@ class AppState extends ChangeNotifier {
   /// [_results] for the contrast card ([contrastInputs]).
   final Map<String, double> _sunMax = {};
 
+  /// The sunrise shift per degree of skyline error of every computed series
+  /// ([sunriseShiftOf] when the series itself is no longer kept).
+  final Map<String, double> _sunrisePerDeg = {};
+
   /// Full series, least recently stored first; trimmed to [_seriesKeep], never
   /// dropping the selected or compared sites under the current options.
   final Map<String, SiteSeries> _series = {};
@@ -1177,6 +1228,7 @@ class AppState extends ChangeNotifier {
   _SiteResult _store(String key, SiteSeries s) {
     final r = _results[key] ??= _SiteResult(computeMetrics(s), dailySummaries(s));
     _sunMax[key] ??= highestSunDeg(s);
+    _sunrisePerDeg[key] ??= sunriseShiftMinutes(s, errorDeg: 1);
     _resultsStamp++;
     _series.remove(key);
     _series[key] = s;
@@ -1784,6 +1836,7 @@ class AppState extends ChangeNotifier {
     customSites.removeAt(i);
     _customMasks.remove(id);
     _sunMax.removeWhere((k, _) => k.startsWith('$id|'));
+    _sunrisePerDeg.removeWhere((k, _) => k.startsWith('$id|'));
     if (_polarSelectedId == id) _polarSelectedId = null;
     compareIds = [...compareIds]..remove(id);
     _results.removeWhere((k, _) => k.startsWith('$id|'));
@@ -1822,6 +1875,7 @@ class AppState extends ChangeNotifier {
     _results.removeWhere((k, _) => k.startsWith('$id|'));
     _series.removeWhere((k, _) => k.startsWith('$id|'));
     _sunMax.removeWhere((k, _) => k.startsWith('$id|'));
+    _sunrisePerDeg.removeWhere((k, _) => k.startsWith('$id|'));
     _resultsStamp++;
     if (_committed?.selectedId == id) _committed = null;
     if (_good?.selectedId == id) _good = null;

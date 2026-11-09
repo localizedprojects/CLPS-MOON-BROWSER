@@ -18,7 +18,7 @@ import '../core/wording.dart' show dsnResolutionNote;
 import '../state/app_state.dart';
 import '../theme.dart';
 import '../widgets/compare_tray.dart';
-import '../widgets/explain.dart' show explainExplore;
+import '../widgets/explain.dart' show explainExploreFor;
 import '../widgets/focus_rings.dart';
 import '../widgets/global_map_view.dart';
 import '../widgets/goal_chips.dart';
@@ -92,7 +92,7 @@ class _ExploreState extends State<_Explore> {
       const TopPickCard(),
       const SizedBox(height: 16),
       const GoalChips(),
-      if (s.explainInline) explainExplore,
+      if (s.explainInline) explainExploreFor(s.region),
       _ListHeader(state: s, count: items.length),
       // the cards' Earth and "both" numbers are DSN-gated under this rule
       if (s.options.requireDsn) const FidelityBadge(text: dsnResolutionNote),
@@ -498,7 +498,7 @@ class _PhoneMapState extends State<_PhoneMap> with _RevealPeek {
         if (widget.items.isEmpty) _EmptyGroup(state: s),
         const SizedBox(height: 16),
         const GoalChips(),
-        if (s.explainInline) explainExplore,
+        if (s.explainInline) explainExploreFor(s.region),
       ],
     );
   }
@@ -707,7 +707,7 @@ class _GlobalExploreState extends State<_GlobalExplore> {
                   const ExploreRegionRow(),
                   intro,
                   const GoalChips(),
-                  if (s.explainInline) explainExplore,
+                  if (s.explainInline) explainExploreFor(s.region),
                   ...list,
                 ]),
               ),
@@ -741,7 +741,7 @@ class _GlobalExploreState extends State<_GlobalExplore> {
                 ...list,
                 const SizedBox(height: 16),
                 const GoalChips(),
-                if (s.explainInline) explainExplore,
+                if (s.explainInline) explainExploreFor(s.region),
               ]),
             ),
           ),

@@ -22,7 +22,7 @@ import '../../core/region.dart';
 import '../../core/wording.dart';
 import '../../state/app_state.dart';
 import '../../theme.dart';
-import '../../widgets/explain.dart' show explainOverview;
+import '../../widgets/explain.dart' show explainOverviewFor;
 import '../../widgets/about_site.dart';
 import '../../widgets/best_window_card.dart';
 import '../../widgets/chart_bridge.dart' show nowAt;
@@ -356,7 +356,7 @@ class SiteOverview extends StatelessWidget {
                 // 3. "When should you land here?" first
                 LandingWindowCard(key: ValueKey('landing-${site.id}')),
                 if (nowAfterCard) nowLine,
-                if (s.explainInline) explainOverview,
+                if (s.explainInline) explainOverviewFor(site.region),
                 // 4. At a glance: what it is, why here, watch-outs, how it compares
                 // (the custom-horizon badge already sits above)
                 if (s.selectedGlance case final g?)

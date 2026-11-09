@@ -10,6 +10,8 @@
 ///   may mix regions by the user's choice), the winner under each goal with
 ///   the unchanged score formula (`score.dart`, `weightsFor`), from the
 ///   extreme goals (Power first, Earth contact first) to Balanced.
+/// - [regionVerdicts]: the south pole's best site against the rest of the
+///   Moon's best under each goal, each region ranked on its own sites.
 /// - [sunriseShiftMinutes]: how far a skyline error moves sunrise, from the
 ///   rate at which the Sun climbs past the skyline at the crossings in a
 ///   series. Near the equator the Sun climbs about 0.5° an hour, so 0.3°
@@ -190,6 +192,38 @@ String goalVerdictLine(GoalVerdict v) {
   if (r == null) return '$label: ${w.name} (score $ws).';
   if (v.leadPoints == 0) return '$label: ${w.name} and ${r.name} tie (score $ws).';
   return '$label: ${w.name} leads (score $ws; next ${r.name}, ${r.score.total.round()}).';
+}
+
+/// The verdict between the two regions under each of [goals] (contract §11):
+/// the winner of [pole] and the winner of [rest] under that goal, each region
+/// ranked on its own sites with the unchanged `rank()` and `weightsFor(goal)`,
+/// then those two winners compared (the better one is the [GoalVerdict]'s
+/// winner, the other its runner-up). An automatic choice never mixes the
+/// regions (build plan §3): the winners only word the contrast. A site in
+/// the wrong list is an error; with one side empty the verdict names the
+/// other side's winner alone, and with both empty there is none.
+List<GoalVerdict> regionVerdicts(List<ContrastInput> pole, List<ContrastInput> rest, {List<Goal> goals = verdictGoals}) {
+  for (final x in pole) {
+    if (x.site.region != Region.southPole) throw ArgumentError('${x.site.id} is not a south-pole site');
+  }
+  for (final x in rest) {
+    if (x.site.region != Region.wholeMoon) throw ArgumentError('${x.site.id} is not a Whole Moon site');
+  }
+  Map<String, (String, SiteMetrics)> of(List<ContrastInput> xs) => {for (final x in xs) x.site.id: (x.site.short, x.m)};
+  final p = of(pole), r = of(rest);
+  if (p.isEmpty && r.isEmpty) return const [];
+  return [
+    for (final g in goals)
+      () {
+        final w = weightsFor(g);
+        final finalists = <String, (String, SiteMetrics)>{
+          if (p.isNotEmpty) ...{for (final x in [rank(p, w).first]) x.id: (x.name, x.metrics)},
+          if (r.isNotEmpty) ...{for (final x in [rank(r, w).first]) x.id: (x.name, x.metrics)},
+        };
+        final both = rank(finalists, w);
+        return GoalVerdict(g, both.first, both.length > 1 ? both[1] : null);
+      }(),
+  ];
 }
 
 /// Whether one site wins under every goal of [vs].

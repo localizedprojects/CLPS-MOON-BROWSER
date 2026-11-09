@@ -391,6 +391,11 @@ class SiteOverview extends StatelessWidget {
                         showCustomBadge: false,
                         initiallyOpen: s.expert),
                   ),
+                // a whole-Moon site's Lander's view comes right after At a
+                // glance, where a phone reaches it in a swipe or two (it was at
+                // the end of More, about 25 swipes down: 1.14.0 device check);
+                // the polar Overview is unchanged
+                if (global) globalLanderEntry(context, site),
                 // 5. everything else behind "More about this site"
                 GuideTarget(id: 'site-more', child: _MoreRow(metrics: m, requireDsn: dsn, open: open_, global: global, onToggle: () => s.setOverviewMoreOpen(!open_))),
               ]),
@@ -426,7 +431,6 @@ class SiteOverview extends StatelessWidget {
                   child: Text(from, style: PHText.small.copyWith(color: PH.muted)),
                 ),
               AboutSite(key: ValueKey('about-${site.id}'), site: site),
-              if (global) globalLanderEntry(context, site),
               // the two landed landers: links to their real photos on NASA's pages
               ?LanderPhotosCard.forSite(site.id, key: ValueKey('lander-photos-${site.id}')),
               if (s.expert) ExpertNumbers(state: s),

@@ -74,4 +74,24 @@ void main() {
     expect(selected, ['apollo-11-lm']);
     handle.dispose();
   });
+
+  testWidgets('the bars a map tap opens are live regions (the spot, the south cap, the north refusal)',
+      (tester) async {
+    final handle = tester.ensureSemantics();
+    await pumpMap(tester);
+    final paint = find.descendant(of: find.byKey(const ValueKey('global-map')), matching: find.byType(CustomPaint)).first;
+    final box = tester.getRect(paint);
+    for (final (lat, lon, key) in [
+      (10.0, -60.0, 'global-add-bar'),
+      (-85.0, 60.0, 'global-south-bar'),
+      (85.0, 60.0, 'global-north-bar'),
+    ]) {
+      await tester.tapAt(box.topLeft + globalMapPoint(lat, lon, box.size));
+      await tester.pump();
+      final data = tester.getSemantics(find.byKey(ValueKey(key))).getSemanticsData();
+      expect(data.flagsCollection.isLiveRegion, isTrue, reason: key);
+      expect(data.label, isNotEmpty, reason: '$key has words to announce');
+    }
+    handle.dispose();
+  });
 }

@@ -545,16 +545,22 @@ class _Bar extends StatelessWidget {
   final List<Widget> children;
   const _Bar({super.key, required this.children});
 
+  // a live region, as the polar map's "check this spot" bar: a screen reader
+  // says the spot, the south-cap note or the north refusal when it appears
   @override
-  Widget build(BuildContext context) => Container(
-    margin: const EdgeInsets.only(bottom: 8),
-    padding: const EdgeInsets.fromLTRB(12, 8, 8, 8),
-    decoration: BoxDecoration(
-      color: PH.panelHi,
-      borderRadius: BorderRadius.circular(PH.radiusInner),
-      border: Border.all(color: PH.line),
+  Widget build(BuildContext context) => Semantics(
+    container: true,
+    liveRegion: true,
+    child: Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.fromLTRB(12, 8, 8, 8),
+      decoration: BoxDecoration(
+        color: PH.panelHi,
+        borderRadius: BorderRadius.circular(PH.radiusInner),
+        border: Border.all(color: PH.line),
+      ),
+      child: Wrap(spacing: 8, runSpacing: 4, crossAxisAlignment: WrapCrossAlignment.center, children: children),
     ),
-    child: Wrap(spacing: 8, runSpacing: 4, crossAxisAlignment: WrapCrossAlignment.center, children: children),
   );
 }
 

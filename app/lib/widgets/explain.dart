@@ -4,6 +4,7 @@ library;
 
 import 'package:flutter/material.dart';
 
+import '../core/region.dart';
 import '../theme.dart';
 import 'sheets/explain_sheet.dart';
 import 'site_card.dart' show FocusRingInkWell;
@@ -32,6 +33,12 @@ const glossary = <String, String>{
   'Good day': 'A UTC day on which the Sun and Earth are both up together for at least half of the day.',
   'Longest night': 'The longest unbroken stretch in your chosen dates with no sunlight at the spot. Batteries and '
       'heaters have to last at least this long.',
+  'Near side':
+      'The half of the Moon that faces Earth. The Moon turns once per orbit, so from there Earth stays in '
+      'the sky all the time, only rocking a little with libration; Apollo and most landers went there.',
+  'Far side':
+      'The half of the Moon that faces away from Earth. Earth never rises there, so a lander cannot talk '
+      'straight to Earth and needs a relay satellite. It is not dark: it gets as much sunlight as the near side.',
 };
 
 /// A tappable/hoverable jargon word with a dotted underline (a link, so it
@@ -194,3 +201,79 @@ const explainCompare = ExplainCard(
       'days by month" counts the days each site has the Sun and Earth up together for at least half the day.',
   terms: ['Power proxy', 'DTE', 'DSN'],
 );
+
+// 1.14.0 "Whole Moon": the same cards for sites away from the pole. The polar
+// cards above are unchanged; the views pick a card by region ([explainExploreFor],
+// [explainOverviewFor], [explainSkyFor]). No measured number is written here:
+// the numbers are on the cards, from data.
+
+/// What the Whole Moon region is (Learn's "What each view shows").
+const explainWholeMoon = ExplainCard(
+  title: 'Whole Moon: landing sites beyond the pole',
+  body:
+      'The switch at the top of Explore changes South pole to Whole Moon: a map of the whole Moon with the places '
+      'where Apollo, Luna, Surveyor, Chang\'e, SLIM, Chandrayaan-3 and commercial landers set down, from the LROC '
+      'catalogue of objects on the Moon. Each region is ranked only on its own sites, with the same score. Away from the '
+      'pole the Sun rises and sets once per lunar day and climbs high, so a site has a long day and then a long night; '
+      'on the near side Earth hangs in the sky all the time and on the far side it never rises. The skylines come from '
+      'coarser whole-Moon terrain, so their numbers carry an "approximate" badge. South pole stays the default, and the '
+      'Light & shadow map covers south-pole sites only.',
+  terms: ['Near side', 'Far side', 'Libration'],
+);
+
+/// Explore in Whole Moon.
+const explainExploreGlobal = ExplainCard(
+  title: 'Explore, Whole Moon: landing sites across the Moon',
+  body:
+      'The map shows the whole Moon, the near side in the middle and north at the top. Shading marks where Earth '
+      'is in view on a level horizon, and each site has a shape for its group and a label. The hatched cap around the '
+      'south pole takes you back to South pole, with its detailed terrain. The list ranks the Whole Moon sites only, '
+      'by the goal you pick under "What matters most?", and the contrast card sets the best of each region side by '
+      'side. Tap the map, or type coordinates, to test a spot of your own; its skyline is rougher, so it is marked '
+      'approximate.',
+  terms: ['Near side', 'Far side', 'Terrain horizon', 'Longest night'],
+);
+
+/// Site overview for a Whole Moon site.
+const explainOverviewGlobal = ExplainCard(
+  title: 'Site overview: one spot at a glance',
+  body:
+      'The three big numbers say how often the site has sunlight, Earth in view, and both. "Which days work?" '
+      'marks every good day, and "Plan for the dark" gives the longest night its batteries must survive; away from the '
+      'pole that night comes every lunar day. "At a glance" says what the place is, why it is on the list and what to '
+      'watch out for; on the far side Earth never rises, so contact needs a relay satellite. The skyline comes from '
+      'whole-Moon terrain and is marked approximate. The Light & shadow map covers south-pole sites only in this '
+      'version.',
+  terms: ['Good day', 'Longest night', 'Far side'],
+);
+
+/// Sky & time for a Whole Moon site.
+const explainSkyGlobal = ExplainCard(
+  title: 'Sky plot: where the Sun and Earth are, as seen from the site',
+  body:
+      'Imagine lying on your back at the landing site. North (toward the north pole) is at the top, the centre is '
+      'overhead, and the grey band is the mountain skyline. A filled marker means the body counts as up under your '
+      'rules; a hollow one means it does not count: it is hidden behind terrain, or only part of it is above the '
+      'skyline and your rule needs more (or, with the DSN rule on, no DSN station can see the Moon). Away from the '
+      'pole the Sun can climb high overhead, so the radial scale fits the heights it reaches over your dates. On the '
+      'far side Earth stays below the horizon.',
+  terms: ['Azimuth', 'Elevation', 'Terrain horizon', 'Far side'],
+);
+
+/// Explore's card for [r] (the polar card is unchanged).
+ExplainCard explainExploreFor(Region r) => switch (r) {
+  Region.southPole => explainExplore,
+  Region.wholeMoon => explainExploreGlobal,
+};
+
+/// Site overview's card for a site of region [r].
+ExplainCard explainOverviewFor(Region r) => switch (r) {
+  Region.southPole => explainOverview,
+  Region.wholeMoon => explainOverviewGlobal,
+};
+
+/// Sky & time's card for a site of region [r].
+ExplainCard explainSkyFor(Region r) => switch (r) {
+  Region.southPole => explainSky,
+  Region.wholeMoon => explainSkyGlobal,
+};

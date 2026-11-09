@@ -353,15 +353,21 @@ comes from the core through the seam below.
   `highestSunDeg` of their series; `null` until every preset of `r` has
   metrics (for Whole Moon also while `global` is null). It never loads global
   files by itself (plan §3, lazy loading).
-- `({Site site, double minutes})? sunriseShiftOf(Region r)`:
-  `sunriseShiftMinutes(series, errorDeg: 0.3)` at the region's reference
+- `({Site site, double minutes})? sunriseShiftOf(Region r, {double errorDeg = 0.3})`:
+  `sunriseShiftMinutes(series, errorDeg: errorDeg)` at the region's reference
   site (south pole: the selected polar site, else `derosa2012-sr1-shackleton-rim`;
   Whole Moon: the selected global site, else `kGlobalDefaultSiteId`) once
   its series is computed; `null` before, or when the series has no sunrise.
 
+(WP2's branch as of 72b1043 has `List<ContrastInput> contrastInputs(Region r)`
+that returns the sites computed so far, never `null`. At integration either
+make it return `null` until every preset of `r` is in, or check
+`rankingDone` / `globalRankingDone` in the snippet below before using it; a
+partial list must not reach the card.)
+
 **The seam (WP3b, `contrast_card.dart`).** The card and Learn read
 `ContrastFacts? contrastFactsFor(AppState s)`. `ContrastFacts` holds
-`List<ContrastLine> rows` (`label`, `poleText`, `restText`, `Site? poleSite`,
+`List<ContrastLine> rows` (`key` = the `ContrastKey` name, `label`, `poleText`, `restText`, `Site? poleSite`,
 `Site? restSite`, `Region? better`: a `ContrastRow` field for field),
 `List<String> verdictLines` (`goalVerdictLine` of each `regionVerdicts`),
 `bool sameWinner` (`sameWinnerEveryGoal`), `String period` (`periodLabel`
@@ -376,12 +382,12 @@ ContrastFacts? contrastFactsFor(AppState s) {
   final verdicts = regionVerdicts(pole, rest);
   return ContrastFacts(
     rows: [for (final r in contrastRows(pole, rest))
-      ContrastLine(label: r.label, poleText: r.poleText, restText: r.restText,
+      ContrastLine(key: r.key.name, label: r.label, poleText: r.poleText, restText: r.restText,
           poleSite: r.pole.site, restSite: r.rest.site, better: r.better)],
     verdictLines: [for (final v in verdicts) goalVerdictLine(v)],
     sameWinner: sameWinnerEveryGoal(verdicts),
     period: periodLabel(s.rangeStartMs, s.rangeEndMs, DateTime.now().toUtc()),
-    sunriseShift: {for (final r in Region.values) r: s.sunriseShiftOf(r)},
+    sunriseShift: {for (final r in Region.values) r: s.sunriseShiftOf(r, errorDeg: contrastSkylineErrorDeg)},
   );
 }
 ```

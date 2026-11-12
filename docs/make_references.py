@@ -4,7 +4,8 @@
 It reads app/assets/data/sites.json (the south-pole preset sites and the sources of their
 coordinates), app/assets/data/curated_sites.json (the sources of the site descriptions, and the
 IAU-named features the app measures distances to) and, since 1.14.0,
-app/assets/data/global/sites.json (the Whole Moon presets and the sources of their coordinates).
+app/assets/data/global/sites.json (the Whole Moon presets and the sources of their coordinates;
+since 1.14.1 the last source of a site with a `place` is the NASA page that names the place).
 Standard library only; the output is deterministic.
 
     python3 -I docs/make_references.py          # rewrite docs/references.md
@@ -74,20 +75,24 @@ def collect():
     order = {s["id"]: i for i, s in enumerate(every)}
     global_ids = {s["id"] for s in world["sites"]}
 
-    entries = {}  # url -> {"titles": [...], "coords": [ids], "descr": [ids], "first": n}
+    entries = {}  # url -> {"titles": [...], "coords": [ids], "place": [ids], "descr": [ids], "first": n}
 
     def add(url, src, site_id, role):
         # curated_sites.json marks a source whose title is only its domain with "titled": false
         title = src.get("title", "") if src.get("titled", True) else ""
-        e = entries.setdefault(url, {"titles": [], "coords": [], "descr": [], "first": len(entries)})
+        e = entries.setdefault(url, {"titles": [], "coords": [], "place": [], "descr": [], "first": len(entries)})
         if title and title not in e["titles"]:
             e["titles"].append(title)
         if site_id not in e[role]:
             e[role].append(site_id)
 
     for s in every:
-        for src in s.get("sources", []):
-            add(src["url"], src, s["id"], "coords")
+        srcs = s.get("sources", [])
+        for k, src in enumerate(srcs):
+            # A Whole Moon site with a place lists its placeSource last (global_data_contract.md):
+            # that page names the place; it is not a coordinate source.
+            last = s["id"] in global_ids and s.get("place") and k == len(srcs) - 1 and k > 0
+            add(src["url"], src, s["id"], "place" if last else "coords")
     # The Whole Moon catalogue names its coordinate source once, in full; the per-site titles
     # add the shapefile record, so the catalogue's title is the one shown for that URL.
     cs = world.get("coordinateSource") or {}
@@ -124,7 +129,7 @@ def render() -> str:
     sections = {gid: [] for gid, _ in groups}
     shared, shared_global = [], []
     for url, e in entries.items():
-        ids = e["coords"] + e["descr"]
+        ids = e["coords"] + e["place"] + e["descr"]
         gs = {group_of.get(i) for i in ids}
         target = sections.get(next(iter(gs))) if len(gs) == 1 else None
         if target is None and all(i in global_ids for i in ids):
@@ -133,7 +138,7 @@ def render() -> str:
 
     def block(items):
         lines = []
-        items = sorted(items, key=lambda it: (-len(set(it[1]["coords"] + it[1]["descr"])), it[1]["first"]))
+        items = sorted(items, key=lambda it: (-len(set(it[1]["coords"] + it[1]["place"] + it[1]["descr"])), it[1]["first"]))
         for url, e in items:
             if e.get("preferred") or e["titles"]:
                 title = e.get("preferred") or max(e["titles"], key=len)
@@ -142,12 +147,15 @@ def render() -> str:
                 lines.append(f"- <{url}>")
             if e["coords"]:
                 lines.append(f"  - Coordinates: {names(e['coords'])}")
+            if e["place"]:
+                lines.append(f"  - Place name: {names(e['place'])}")
             if e["descr"]:
                 lines.append(f"  - Description: {names(e['descr'])}")
         return lines
 
     coords = sum(1 for e in entries.values() if e["coords"])
     descr = sum(1 for e in entries.values() if e["descr"])
+    places = sum(1 for e in entries.values() if e["place"])
     both = sum(1 for e in entries.values() if e["coords"] and e["descr"])
     feature_urls = {f["url"] for f in features}
     total = len(set(entries) | feature_urls | set(other))
@@ -171,11 +179,14 @@ def render() -> str:
         "- **Coordinates:** a source for the site's position or region. It is in",
         "  `app/assets/data/sites.json` (south pole) or `app/assets/data/global/sites.json` (Whole",
         "  Moon), with a note of what the source says.",
+        "- **Place name:** a NASA page that names the place on a Whole Moon site's position line",
+        "  (`place`, quoted in the last entry of its `sources`). It is not a source of coordinates.",
         "- **Description:** a source for the site's description in the app. It is in",
         "  `app/assets/data/curated_sites.json`.",
         "",
         textwrap.fill(
-            f"There are {total} distinct URLs: {coords} for coordinates and {descr} for descriptions"
+            f"There are {total} distinct URLs: {coords} for coordinates, {places} for place names"
+            f" and {descr} for descriptions"
             f" ({both} are both), and {len(features)} for named features"
             + (f" ({also} of them also cited for a site)" if also else "")
             + (f", and {len(other)} in other text fields." if other else ".")

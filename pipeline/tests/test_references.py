@@ -80,3 +80,47 @@ def test_every_whole_moon_source_url_is_in_references_md():
         f"{len(missing)} URL(s) from global/sites.json are not in docs/references.md;"
         " run python3 -I docs/make_references.py:\n" + "\n".join(missing)
     )
+
+
+def _reference_blocks(text):
+    """docs/references.md as url -> {role: [site names]}, from its '- ... <url>' lines and the
+    '  - Role: a, b' lines under them."""
+    blocks, current = {}, None
+    for line in text.splitlines():
+        if line.startswith("- "):
+            found = re.findall(r"<(https?://[^>]+)>", line)
+            current = blocks.setdefault(found[-1], {}) if found else None
+        elif current is not None and line.startswith("  - ") and ": " in line:
+            role, _, names = line[4:].partition(": ")
+            current.setdefault(role, []).extend(
+                n.replace("\\", "") for n in names.split(", "))
+        elif not line.strip() or line.startswith("#"):
+            current = None
+    return blocks
+
+
+def test_whole_moon_place_sources_are_not_listed_as_coordinates():
+    """1.14.1: a Whole Moon site with a `place` lists its placeSource last in `sources`
+    (docs/global_data_contract.md). That NASA page names the place; the coordinates come only
+    from the LROC shapefile (Wagner et al. 2017), so references.md lists it as a place name."""
+    world = json.loads((DATA / "global" / "sites.json").read_text(encoding="utf-8"))
+    text = REFS.read_text(encoding="utf-8")
+    blocks = _reference_blocks(text)
+    shapefile = "https://data.lroc.im-ldi.com/lroc/view_rdr/SHAPEFILE_ANTHROPOGENIC_OBJECTS"
+    checked = 0
+    for s in world["sites"]:
+        if not s.get("place"):
+            continue
+        name = s.get("short") or s["name"]
+        coords = [src["url"] for src in s["sources"][:-1]]
+        place_url = s["sources"][-1]["url"]
+        assert shapefile in coords, s["id"]
+        assert place_url not in coords, s["id"]
+        roles = blocks.get(place_url, {})
+        assert name in roles.get("Place name", []), (s["id"], place_url, roles)
+        assert name not in roles.get("Coordinates", []), (s["id"], place_url, roles)
+        assert name in blocks[shapefile].get("Coordinates", []), s["id"]
+        checked += 1
+    assert checked == 20, checked
+    assert "- **Place name:**" in text and "It is not a source of coordinates." in text
+    assert re.search(r"\d+ for coordinates, \d+ for place names\s+and \d+ for descriptions", text)

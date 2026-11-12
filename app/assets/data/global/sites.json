@@ -1,5 +1,5 @@
 {
- "generatedUtc": "2026-11-09T15:22:04Z",
+ "generatedUtc": "2026-11-12T12:28:33Z",
  "region": "wholeMoon",
  "frame": "MOON_ME (LOLA DE421 mean-Earth compatible)",
  "coordinateFrameNote": "\"IAU Moon 2000\" is only the shapefile's spherical datum (R = 1737.4 km, prime meridian 0); it carries no rotation model. Its coordinates were measured in LROC NAC images combined with Earth-based laser ranging (the retroreflector rows cite the DE430 lunar coordinates) and are in the Mean Earth frame, so they are applied in MOON_ME as given. The app does not use the IAU_MOON rotation, which differs from DE440 Mean Earth by up to about 155 m (mean about 72 m) over 2000-2040 (moon_de440_250416.tf).",
@@ -51,7 +51,7 @@
    "tier": "core",
    "lat": 0.67416,
    "lon": 23.47314,
-   "place": "",
+   "place": "Mare Tranquillitatis",
    "side": "near",
    "earthFlatPct": 100.0,
    "nearField": {
@@ -80,6 +80,11 @@
      "title": "Wagner, R. V., Nelson, D. M., Plescia, J. B., Robinson, M. S., Speyerer, E. J., & Mazarico, E. (2017). Coordinates of anthropogenic features on the Moon. Icarus, 283, 92-103. doi:10.1016/j.icarus.2016.05.011",
      "url": "https://doi.org/10.1016/j.icarus.2016.05.011",
      "says": "Coordinates of anthropogenic (man-made) objects on the Moon as measured by Wagner, et al. (2017) using Lunar Reconnaissance Orbiter Camera (LROC) NAC images combined with Earth-based laser-ranging measurements. [...] More recent anthropogenic objects have also been included."
+    },
+    {
+     "title": "Apollo 11 and Landing Site 2 in the Sea of Tranquility (NASA)",
+     "url": "https://www.nasa.gov/image-article/apollo-11-landing-site-2-sea-of-tranquility/",
+     "says": "Apollo 11 did launch on schedule and landed on Site 2, which is located at 23 degrees 42 minutes 28 seconds east longitude and 0 degrees 42 minutes 50 seconds north latitude in southwestern Mare Tranquillitatis (Sea of Tranquility)."
     }
    ]
   },
@@ -93,7 +98,7 @@
    "tier": "core",
    "lat": -3.0128,
    "lon": -23.4219,
-   "place": "",
+   "place": "Oceanus Procellarum",
    "side": "near",
    "earthFlatPct": 100.0,
    "nearField": {
@@ -122,6 +127,11 @@
      "title": "Wagner, R. V., Nelson, D. M., Plescia, J. B., Robinson, M. S., Speyerer, E. J., & Mazarico, E. (2017). Coordinates of anthropogenic features on the Moon. Icarus, 283, 92-103. doi:10.1016/j.icarus.2016.05.011",
      "url": "https://doi.org/10.1016/j.icarus.2016.05.011",
      "says": "Coordinates of anthropogenic (man-made) objects on the Moon as measured by Wagner, et al. (2017) using Lunar Reconnaissance Orbiter Camera (LROC) NAC images combined with Earth-based laser-ranging measurements. [...] More recent anthropogenic objects have also been included."
+    },
+    {
+     "title": "Lunar Reconnaissance Orbiter Looks at Apollo 12, Surveyor 3 Landing Sites (NASA)",
+     "url": "https://www.nasa.gov/missions/lunar-reconnaissance-orbiter-looks-at-apollo-12-surveyor-3-landing-sites/",
+     "says": "Two-and-a-half years later, on Nov. 19, 1969, Apollo 12 demonstrated the lunar module\u2019s capability to make a pinpoint landing by setting down on the edge of Surveyor Crater, about 170 yards (155 meters) from the deactivated Surveyor 3 spacecraft. Almost 45 years later, LROC (short for the LRO Camera) imaged the same area of Oceanus Procellarum that Lunar Orbiter 3 photographed."
     }
    ]
   },
@@ -135,7 +145,7 @@
    "tier": "core",
    "lat": -3.64589,
    "lon": -17.47194,
-   "place": "",
+   "place": "Fra Mauro highlands",
    "side": "near",
    "earthFlatPct": 100.0,
    "nearField": {
@@ -164,6 +174,11 @@
      "title": "Wagner, R. V., Nelson, D. M., Plescia, J. B., Robinson, M. S., Speyerer, E. J., & Mazarico, E. (2017). Coordinates of anthropogenic features on the Moon. Icarus, 283, 92-103. doi:10.1016/j.icarus.2016.05.011",
      "url": "https://doi.org/10.1016/j.icarus.2016.05.011",
      "says": "Coordinates of anthropogenic (man-made) objects on the Moon as measured by Wagner, et al. (2017) using Lunar Reconnaissance Orbiter Camera (LROC) NAC images combined with Earth-based laser-ranging measurements. [...] More recent anthropogenic objects have also been included."
+    },
+    {
+     "title": "50 Years Ago: Apollo 14 Lands at Fra Mauro (NASA)",
+     "url": "https://www.nasa.gov/history/50-years-ago-apollo-14-lands-at-fra-mauro/",
+     "says": "Shepard and Mitchell touched down in the Fra Mauro highlands region and conducted two lunar surface excursions lasting more than nine hours in total."
     }
    ]
   },
@@ -177,7 +192,7 @@
    "tier": "core",
    "lat": 26.13239,
    "lon": 3.6333,
-   "place": "",
+   "place": "Hadley\u2013Apennine",
    "side": "near",
    "earthFlatPct": 100.0,
    "nearField": {
@@ -206,6 +221,11 @@
      "title": "Wagner, R. V., Nelson, D. M., Plescia, J. B., Robinson, M. S., Speyerer, E. J., & Mazarico, E. (2017). Coordinates of anthropogenic features on the Moon. Icarus, 283, 92-103. doi:10.1016/j.icarus.2016.05.011",
      "url": "https://doi.org/10.1016/j.icarus.2016.05.011",
      "says": "Coordinates of anthropogenic (man-made) objects on the Moon as measured by Wagner, et al. (2017) using Lunar Reconnaissance Orbiter Camera (LROC) NAC images combined with Earth-based laser-ranging measurements. [...] More recent anthropogenic objects have also been included."
+    },
+    {
+     "title": "50 Years Ago: Apollo 15 on the Moon at Hadley-Apennine (NASA)",
+     "url": "https://www.nasa.gov/history/50-years-ago-apollo-15-on-the-moon-at-hadley-apennine/",
+     "says": "Scott and Irwin touched down at the Hadley-Apennine site and conducted four spacewalks, including three excursions using the Lunar Roving Vehicle, for a combined total of 19 hours."
     }
    ]
   },
@@ -219,7 +239,7 @@
    "tier": "core",
    "lat": -8.9734,
    "lon": 15.5011,
-   "place": "",
+   "place": "Descartes highlands",
    "side": "near",
    "earthFlatPct": 100.0,
    "nearField": {
@@ -248,6 +268,11 @@
      "title": "Wagner, R. V., Nelson, D. M., Plescia, J. B., Robinson, M. S., Speyerer, E. J., & Mazarico, E. (2017). Coordinates of anthropogenic features on the Moon. Icarus, 283, 92-103. doi:10.1016/j.icarus.2016.05.011",
      "url": "https://doi.org/10.1016/j.icarus.2016.05.011",
      "says": "Coordinates of anthropogenic (man-made) objects on the Moon as measured by Wagner, et al. (2017) using Lunar Reconnaissance Orbiter Camera (LROC) NAC images combined with Earth-based laser-ranging measurements. [...] More recent anthropogenic objects have also been included."
+    },
+    {
+     "title": "Apollo 16 Heads Home to Earth (NASA)",
+     "url": "https://www.nasa.gov/history/apollo-16-heads-home-to-earth/",
+     "says": "On April 23, 1972, following three days exploring the Descartes highlands site on the Moon, Apollo 16 astronauts John W. Young and Charles M. Duke lifted off aboard the Lunar Module (LM) Orion \u2026"
     }
    ]
   },
@@ -261,7 +286,7 @@
    "tier": "core",
    "lat": 20.1911,
    "lon": 30.7723,
-   "place": "",
+   "place": "Taurus\u2013Littrow",
    "side": "near",
    "earthFlatPct": 100.0,
    "nearField": {
@@ -290,6 +315,11 @@
      "title": "Wagner, R. V., Nelson, D. M., Plescia, J. B., Robinson, M. S., Speyerer, E. J., & Mazarico, E. (2017). Coordinates of anthropogenic features on the Moon. Icarus, 283, 92-103. doi:10.1016/j.icarus.2016.05.011",
      "url": "https://doi.org/10.1016/j.icarus.2016.05.011",
      "says": "Coordinates of anthropogenic (man-made) objects on the Moon as measured by Wagner, et al. (2017) using Lunar Reconnaissance Orbiter Camera (LROC) NAC images combined with Earth-based laser-ranging measurements. [...] More recent anthropogenic objects have also been included."
+    },
+    {
+     "title": "Apollo 17: Mission Details (NASA)",
+     "url": "https://www.nasa.gov/missions/apollo/apollo-17-mission-details/",
+     "says": "The lunar landing site was the Taurus-Littrow highlands and valley area."
     }
    ]
   },
@@ -303,7 +333,7 @@
    "tier": "core",
    "lat": -0.5137,
    "lon": 56.3638,
-   "place": "",
+   "place": "Mare Fecunditatis",
    "side": "near",
    "earthFlatPct": 100.0,
    "nearField": {
@@ -332,6 +362,11 @@
      "title": "Wagner, R. V., Nelson, D. M., Plescia, J. B., Robinson, M. S., Speyerer, E. J., & Mazarico, E. (2017). Coordinates of anthropogenic features on the Moon. Icarus, 283, 92-103. doi:10.1016/j.icarus.2016.05.011",
      "url": "https://doi.org/10.1016/j.icarus.2016.05.011",
      "says": "Coordinates of anthropogenic (man-made) objects on the Moon as measured by Wagner, et al. (2017) using Lunar Reconnaissance Orbiter Camera (LROC) NAC images combined with Earth-based laser-ranging measurements. [...] More recent anthropogenic objects have also been included."
+    },
+    {
+     "title": "Luna 16 (NASA Science)",
+     "url": "https://science.nasa.gov/photojournal/luna-16/",
+     "says": "The lunar landing occurred on the basaltic plains of Mare Fecunditatis; about 101 grams (3.5 ounces) of lunar material were returned."
     }
    ]
   },
@@ -345,7 +380,7 @@
    "tier": "core",
    "lat": 38.23764,
    "lon": -35.00163,
-   "place": "",
+   "place": "Mare Imbrium",
    "side": "near",
    "earthFlatPct": 100.0,
    "nearField": {
@@ -374,6 +409,11 @@
      "title": "Wagner, R. V., Nelson, D. M., Plescia, J. B., Robinson, M. S., Speyerer, E. J., & Mazarico, E. (2017). Coordinates of anthropogenic features on the Moon. Icarus, 283, 92-103. doi:10.1016/j.icarus.2016.05.011",
      "url": "https://doi.org/10.1016/j.icarus.2016.05.011",
      "says": "Coordinates of anthropogenic (man-made) objects on the Moon as measured by Wagner, et al. (2017) using Lunar Reconnaissance Orbiter Camera (LROC) NAC images combined with Earth-based laser-ranging measurements. [...] More recent anthropogenic objects have also been included."
+    },
+    {
+     "title": "Soviet Union Lunar Rovers (NASA Science)",
+     "url": "https://science.nasa.gov/photojournal/soviet-union-lunar-rovers/",
+     "says": "Soviet robotic lander Luna 17 still sitting on Mare Imbrium where it delivered the Lunokhod 1 Rover in November 1970, LROC NAC Image M114185541RE."
     }
    ]
   },
@@ -387,7 +427,7 @@
    "tier": "core",
    "lat": 44.1214,
    "lon": -19.5117,
-   "place": "",
+   "place": "Mare Imbrium",
    "side": "near",
    "earthFlatPct": 100.0,
    "nearField": {
@@ -416,6 +456,11 @@
      "title": "Wagner, R. V., Nelson, D. M., Plescia, J. B., Robinson, M. S., Speyerer, E. J., & Mazarico, E. (2017). Coordinates of anthropogenic features on the Moon. Icarus, 283, 92-103. doi:10.1016/j.icarus.2016.05.011",
      "url": "https://doi.org/10.1016/j.icarus.2016.05.011",
      "says": "Coordinates of anthropogenic (man-made) objects on the Moon as measured by Wagner, et al. (2017) using Lunar Reconnaissance Orbiter Camera (LROC) NAC images combined with Earth-based laser-ranging measurements. [...] More recent anthropogenic objects have also been included."
+    },
+    {
+     "title": "LRO Publications by Others (NASA Science)",
+     "url": "https://science.nasa.gov/mission/lro/lro-publications-by-others/",
+     "says": "Geologic characteristics of the Luna 17/Lunokhod 1 and Chang\u2019E-3/Yutu landing sites, Northwest Mare Imbrium of the Moon."
     }
    ]
   },
@@ -429,7 +474,7 @@
    "tier": "core",
    "lat": -45.4562,
    "lon": 177.5886,
-   "place": "",
+   "place": "Von K\u00e1rm\u00e1n crater",
    "side": "far",
    "earthFlatPct": 0.0,
    "nearField": {
@@ -458,6 +503,11 @@
      "title": "Wagner, R. V., Nelson, D. M., Plescia, J. B., Robinson, M. S., Speyerer, E. J., & Mazarico, E. (2017). Coordinates of anthropogenic features on the Moon. Icarus, 283, 92-103. doi:10.1016/j.icarus.2016.05.011",
      "url": "https://doi.org/10.1016/j.icarus.2016.05.011",
      "says": "Coordinates of anthropogenic (man-made) objects on the Moon as measured by Wagner, et al. (2017) using Lunar Reconnaissance Orbiter Camera (LROC) NAC images combined with Earth-based laser-ranging measurements. [...] More recent anthropogenic objects have also been included."
+    },
+    {
+     "title": "First Look: Chang'e Lunar Landing Site (NASA)",
+     "url": "https://www.nasa.gov/solar-system/first-look-change-lunar-landing-site/",
+     "says": "On Jan. 3, 2019, the Chinese spacecraft Chang\u2019e 4 safely landed on the floor of the Moon\u2019s Von K\u00e1rm\u00e1n crater (186 kilometer diameter, 116 miles)."
     }
    ]
   },
@@ -471,7 +521,7 @@
    "tier": "core",
    "lat": 43.0576,
    "lon": -51.9161,
-   "place": "",
+   "place": "north of Mons R\u00fcmker",
    "side": "near",
    "earthFlatPct": 100.0,
    "nearField": {
@@ -500,6 +550,11 @@
      "title": "Wagner, R. V., Nelson, D. M., Plescia, J. B., Robinson, M. S., Speyerer, E. J., & Mazarico, E. (2017). Coordinates of anthropogenic features on the Moon. Icarus, 283, 92-103. doi:10.1016/j.icarus.2016.05.011",
      "url": "https://doi.org/10.1016/j.icarus.2016.05.011",
      "says": "Coordinates of anthropogenic (man-made) objects on the Moon as measured by Wagner, et al. (2017) using Lunar Reconnaissance Orbiter Camera (LROC) NAC images combined with Earth-based laser-ranging measurements. [...] More recent anthropogenic objects have also been included."
+    },
+    {
+     "title": "APOD: 2020 December 5 - Mons Rumker in the Ocean of Storms (NASA Science)",
+     "url": "https://science.nasa.gov/image-article/apod-2020-december-5-mons-rumker-in-the-ocean-of-storms/",
+     "says": "China's Chang'e-5 mission landing site is also in the frame. The probe's lander-ascender combination touch down on the lunar surface within a region right of center and north of Mons Rumker's domes on December 1."
     }
    ]
   },
@@ -513,7 +568,7 @@
    "tier": "core",
    "lat": -41.6383,
    "lon": -153.9857,
-   "place": "",
+   "place": "Apollo basin",
    "side": "far",
    "earthFlatPct": 0.0,
    "nearField": {
@@ -542,6 +597,11 @@
      "title": "Wagner, R. V., Nelson, D. M., Plescia, J. B., Robinson, M. S., Speyerer, E. J., & Mazarico, E. (2017). Coordinates of anthropogenic features on the Moon. Icarus, 283, 92-103. doi:10.1016/j.icarus.2016.05.011",
      "url": "https://doi.org/10.1016/j.icarus.2016.05.011",
      "says": "Coordinates of anthropogenic (man-made) objects on the Moon as measured by Wagner, et al. (2017) using Lunar Reconnaissance Orbiter Camera (LROC) NAC images combined with Earth-based laser-ranging measurements. [...] More recent anthropogenic objects have also been included."
+    },
+    {
+     "title": "NASA\u2019s LRO Spots China\u2019s Chang'e 6 Spacecraft on Lunar Far Side (NASA)",
+     "url": "https://www.nasa.gov/centers-and-facilities/goddard/nasas-lro-spots-chinas-change-6-spacecraft-on-lunar-far-side/",
+     "says": "This image from NASA\u2019s Lunar Reconnaissance Orbiter shows China\u2019s Chang\u2019e 6 lander in the Apollo basin on the far side of the Moon on June 7, 2024."
     }
    ]
   },
@@ -555,7 +615,7 @@
    "tier": "core",
    "lat": -13.316,
    "lon": 25.251,
-   "place": "",
+   "place": "near Shioli crater",
    "side": "near",
    "earthFlatPct": 100.0,
    "nearField": {
@@ -584,6 +644,11 @@
      "title": "Wagner, R. V., Nelson, D. M., Plescia, J. B., Robinson, M. S., Speyerer, E. J., & Mazarico, E. (2017). Coordinates of anthropogenic features on the Moon. Icarus, 283, 92-103. doi:10.1016/j.icarus.2016.05.011",
      "url": "https://doi.org/10.1016/j.icarus.2016.05.011",
      "says": "Coordinates of anthropogenic (man-made) objects on the Moon as measured by Wagner, et al. (2017) using Lunar Reconnaissance Orbiter Camera (LROC) NAC images combined with Earth-based laser-ranging measurements. [...] More recent anthropogenic objects have also been included."
+    },
+    {
+     "title": "NASA\u2019s LRO Spots Japan\u2019s Moon Lander (NASA)",
+     "url": "https://www.nasa.gov/missions/lro/nasas-lro-spots-japans-moon-lander/",
+     "says": "Bright streaks on the left side of the image are rocky material ejected from the nearby, relatively young Shioli crater."
     }
    ]
   },
@@ -597,7 +662,7 @@
    "tier": "core",
    "lat": -69.374,
    "lon": 32.3187,
-   "place": "",
+   "place": "near Manzinus crater",
    "side": "near",
    "earthFlatPct": 100.0,
    "nearField": {
@@ -626,6 +691,11 @@
      "title": "Wagner, R. V., Nelson, D. M., Plescia, J. B., Robinson, M. S., Speyerer, E. J., & Mazarico, E. (2017). Coordinates of anthropogenic features on the Moon. Icarus, 283, 92-103. doi:10.1016/j.icarus.2016.05.011",
      "url": "https://doi.org/10.1016/j.icarus.2016.05.011",
      "says": "Coordinates of anthropogenic (man-made) objects on the Moon as measured by Wagner, et al. (2017) using Lunar Reconnaissance Orbiter Camera (LROC) NAC images combined with Earth-based laser-ranging measurements. [...] More recent anthropogenic objects have also been included."
+    },
+    {
+     "title": "Laser Instrument on NASA\u2019s LRO Successfully \u2018Pings\u2019 Indian Moon Lander (NASA Science)",
+     "url": "https://science.nasa.gov/missions/lro/laser-instrument-on-nasas-lro-successfully-pings-indian-moon-lander/",
+     "says": "The lander was 62 miles, or 100 kilometers, away from LRO, near Manzinus crater in the Moon\u2019s South Pole region, when LRO transmitted laser pulses toward it."
     }
    ],
    "maskSource": "LOLA LDEM_512 (59 m) near field + LOLA LDEM_64 (474 m)"
@@ -640,7 +710,7 @@
    "tier": "core",
    "lat": 18.5622,
    "lon": 61.8102,
-   "place": "",
+   "place": "Mare Crisium",
    "side": "near",
    "earthFlatPct": 100.0,
    "nearField": {
@@ -669,6 +739,11 @@
      "title": "Wagner, R. V., Nelson, D. M., Plescia, J. B., Robinson, M. S., Speyerer, E. J., & Mazarico, E. (2017). Coordinates of anthropogenic features on the Moon. Icarus, 283, 92-103. doi:10.1016/j.icarus.2016.05.011",
      "url": "https://doi.org/10.1016/j.icarus.2016.05.011",
      "says": "Coordinates of anthropogenic (man-made) objects on the Moon as measured by Wagner, et al. (2017) using Lunar Reconnaissance Orbiter Camera (LROC) NAC images combined with Earth-based laser-ranging measurements. [...] More recent anthropogenic objects have also been included."
+    },
+    {
+     "title": "Touchdown! Carrying NASA Science, Firefly\u2019s Blue Ghost Lands on Moon (NASA)",
+     "url": "https://www.nasa.gov/news-release/touchdown-carrying-nasa-science-fireflys-blue-ghost-lands-on-moon/",
+     "says": "Carrying a suite of NASA science and technology, Firefly Aerospace\u2019s Blue Ghost Mission 1 successfully landed at 3:34 a.m. EST on Sunday near a volcanic feature called Mons Latreille within Mare Crisium, a more than 300-mile-wide basin located in the northeast quadrant of the Moon\u2019s near side."
     }
    ]
   },
@@ -682,7 +757,7 @@
    "tier": "extended",
    "lat": -2.4745,
    "lon": -43.3398,
-   "place": "",
+   "place": "Flamsteed P crater",
    "side": "near",
    "earthFlatPct": 100.0,
    "nearField": {
@@ -711,6 +786,11 @@
      "title": "Wagner, R. V., Nelson, D. M., Plescia, J. B., Robinson, M. S., Speyerer, E. J., & Mazarico, E. (2017). Coordinates of anthropogenic features on the Moon. Icarus, 283, 92-103. doi:10.1016/j.icarus.2016.05.011",
      "url": "https://doi.org/10.1016/j.icarus.2016.05.011",
      "says": "Coordinates of anthropogenic (man-made) objects on the Moon as measured by Wagner, et al. (2017) using Lunar Reconnaissance Orbiter Camera (LROC) NAC images combined with Earth-based laser-ranging measurements. [...] More recent anthropogenic objects have also been included."
+    },
+    {
+     "title": "55 Years Ago: Surveyor 1 Makes A Soft Landing on the Moon (NASA)",
+     "url": "https://www.nasa.gov/history/55-years-ago-surveyor-1-makes-a-soft-landing-on-the-moon/",
+     "says": "After a 63.6-hour coast from Earth, the spacecraft made a soft-landing on the Moon on June 2 inside the 60-mile wide Flamsteed P crater in the Ocean of Storms, bouncing once before settling on the surface."
     }
    ]
   },
@@ -724,7 +804,7 @@
    "tier": "extended",
    "lat": -3.0162,
    "lon": -23.418,
-   "place": "",
+   "place": "Surveyor crater",
    "side": "near",
    "earthFlatPct": 100.0,
    "nearField": {
@@ -753,6 +833,11 @@
      "title": "Wagner, R. V., Nelson, D. M., Plescia, J. B., Robinson, M. S., Speyerer, E. J., & Mazarico, E. (2017). Coordinates of anthropogenic features on the Moon. Icarus, 283, 92-103. doi:10.1016/j.icarus.2016.05.011",
      "url": "https://doi.org/10.1016/j.icarus.2016.05.011",
      "says": "Coordinates of anthropogenic (man-made) objects on the Moon as measured by Wagner, et al. (2017) using Lunar Reconnaissance Orbiter Camera (LROC) NAC images combined with Earth-based laser-ranging measurements. [...] More recent anthropogenic objects have also been included."
+    },
+    {
+     "title": "Lunar Reconnaissance Orbiter Looks at Apollo 12, Surveyor 3 Landing Sites (NASA)",
+     "url": "https://www.nasa.gov/missions/lunar-reconnaissance-orbiter-looks-at-apollo-12-surveyor-3-landing-sites/",
+     "says": "Surveyor 3 landed on April 20, 1967, in Oceanus Procellarum, in a small, 200-meter crater that was later named Surveyor crater."
     }
    ]
   },
@@ -766,7 +851,7 @@
    "tier": "extended",
    "lat": -40.9811,
    "lon": -11.5127,
-   "place": "",
+   "place": "north of Tycho",
    "side": "near",
    "earthFlatPct": 100.0,
    "nearField": {
@@ -795,6 +880,11 @@
      "title": "Wagner, R. V., Nelson, D. M., Plescia, J. B., Robinson, M. S., Speyerer, E. J., & Mazarico, E. (2017). Coordinates of anthropogenic features on the Moon. Icarus, 283, 92-103. doi:10.1016/j.icarus.2016.05.011",
      "url": "https://doi.org/10.1016/j.icarus.2016.05.011",
      "says": "Coordinates of anthropogenic (man-made) objects on the Moon as measured by Wagner, et al. (2017) using Lunar Reconnaissance Orbiter Camera (LROC) NAC images combined with Earth-based laser-ranging measurements. [...] More recent anthropogenic objects have also been included."
+    },
+    {
+     "title": "Surveyor 7 (NASA Science)",
+     "url": "https://science.nasa.gov/mission/surveyor-7/",
+     "says": "Landing coordinates were 40.97 degrees south latitude and 11.44 degrees west longitude, about 18 miles (29 kilometers) north of Tycho\u2019s rim, and 1.5 miles (2.4 kilometers) from its target."
     }
    ]
   },
@@ -808,7 +898,7 @@
    "tier": "extended",
    "lat": 25.9994,
    "lon": 30.4076,
-   "place": "",
+   "place": "Le Monnier crater",
    "side": "near",
    "earthFlatPct": 100.0,
    "nearField": {
@@ -837,6 +927,11 @@
      "title": "Wagner, R. V., Nelson, D. M., Plescia, J. B., Robinson, M. S., Speyerer, E. J., & Mazarico, E. (2017). Coordinates of anthropogenic features on the Moon. Icarus, 283, 92-103. doi:10.1016/j.icarus.2016.05.011",
      "url": "https://doi.org/10.1016/j.icarus.2016.05.011",
      "says": "Coordinates of anthropogenic (man-made) objects on the Moon as measured by Wagner, et al. (2017) using Lunar Reconnaissance Orbiter Camera (LROC) NAC images combined with Earth-based laser-ranging measurements. [...] More recent anthropogenic objects have also been included."
+    },
+    {
+     "title": "Luna 21 Lander (NASA Science)",
+     "url": "https://science.nasa.gov/photojournal/luna-21-lander/",
+     "says": "Luna 21 lander delivered the Lunokhod 2 rover to the floor of Le Monnier crater in January 1973."
     }
    ]
   },
@@ -850,7 +945,7 @@
    "tier": "extended",
    "lat": 12.7142,
    "lon": 62.2129,
-   "place": "",
+   "place": "Mare Crisium",
    "side": "near",
    "earthFlatPct": 100.0,
    "nearField": {
@@ -879,6 +974,11 @@
      "title": "Wagner, R. V., Nelson, D. M., Plescia, J. B., Robinson, M. S., Speyerer, E. J., & Mazarico, E. (2017). Coordinates of anthropogenic features on the Moon. Icarus, 283, 92-103. doi:10.1016/j.icarus.2016.05.011",
      "url": "https://doi.org/10.1016/j.icarus.2016.05.011",
      "says": "Coordinates of anthropogenic (man-made) objects on the Moon as measured by Wagner, et al. (2017) using Lunar Reconnaissance Orbiter Camera (LROC) NAC images combined with Earth-based laser-ranging measurements. [...] More recent anthropogenic objects have also been included."
+    },
+    {
+     "title": "Mare Crisium (NASA Science)",
+     "url": "https://science.nasa.gov/image-detail/20100702lg/",
+     "says": "Luna 24 landed in Mare Crisium in 1976 and returned samples from the lunar surface to Earth."
     }
    ]
   }

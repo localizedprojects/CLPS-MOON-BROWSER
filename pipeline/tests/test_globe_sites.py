@@ -9,7 +9,9 @@ from __future__ import annotations
 
 import json
 import re
+import unicodedata
 from functools import lru_cache
+from urllib.parse import urlparse
 
 import numpy as np
 import pytest
@@ -70,6 +72,65 @@ def test_every_site_has_a_quoted_source():
             assert len(src.get("says", "").strip()) >= 20, s["id"]
     cs = _global()["coordinateSource"]
     assert cs["url"].startswith("https://") and cs["says"] and cs["licence"]
+
+
+# 1.14.1: the hosts a site's `place` may be quoted from (NASA and LROC pages).
+PLACE_HOSTS = {"www.nasa.gov", "science.nasa.gov", "lroc.asu.edu", "www.lroc.asu.edu"}
+# A place may start with one of these relations ("near Shioli crater"); the quote must then hold the
+# relation's word too (a quote's "nearby ... Shioli crater" holds "near").
+PLACE_RELATIONS = ("near ", "north of ")
+
+
+def _fold(text: str) -> str:
+    """Case, diacritics, dashes and apostrophes folded, so a quote's "Hadley-Apennine",
+    "Mons Rumker" and "Tycho’s" match the IAU spellings "Hadley–Apennine", "Mons Rümker"."""
+    t = unicodedata.normalize("NFKD", text)
+    t = "".join(c for c in t if not unicodedata.combining(c))
+    t = re.sub(r"[‐-―]", "-", t).replace("’", "'").replace("‘", "'")
+    return re.sub(r"\s+", " ", t).casefold()
+
+
+def _place_in_quote(place: str, says: str) -> bool:
+    p, q = _fold(place), _fold(says)
+    if p in q:
+        return True
+    for rel in PLACE_RELATIONS:
+        if p.startswith(rel) and rel.strip() in q and p[len(rel):] in q:
+            return True
+    return False
+
+
+def test_place_quote_folding():
+    assert _place_in_quote("Hadley–Apennine", "touched down at the Hadley-Apennine site")
+    assert _place_in_quote("north of Mons Rümker", "north of Mons Rumker's domes")
+    assert _place_in_quote("near Shioli crater", "ejected from the nearby, relatively young Shioli crater.")
+    assert not _place_in_quote("Shioli crater", "ejected from the nearby, relatively young Shioli basin.")
+    assert not _place_in_quote("near Tycho", "north of Tycho’s rim")
+    assert not _place_in_quote("Mare Imbrium", "exploring Mare Serenitatis")
+
+
+def test_every_place_has_a_quoted_source_on_an_allowed_host():
+    catalog = {s["id"]: s for s in gs.load_catalog()["sites"]}
+    for s in _sites():
+        c, place = catalog[s["id"]], s["place"]
+        assert place == c.get("place", ""), s["id"]
+        assert place, f"{s['id']}: every 1.14.1 preset has a sourced place"
+        assert place == place.strip() and len(place) <= 24, (s["id"], place)
+        assert "-" not in place, f"{s['id']}: an en dash joins a compound name ({place!r})"
+        src = c["placeSource"]
+        assert set(src) == {"title", "url", "says"}, s["id"]
+        url = urlparse(src["url"])
+        assert url.scheme == "https" and url.hostname in PLACE_HOSTS, (s["id"], src["url"])
+        assert src["title"].strip() and len(src["says"].strip()) >= 20, s["id"]
+        assert _place_in_quote(place, src["says"]), (s["id"], place, src["says"])
+        # sites.json cites it after the shapefile record and Wagner et al. (2017)
+        assert len(s["sources"]) == 3 and s["sources"][-1] == src, s["id"]
+
+
+def test_polar_sites_have_no_place_fields():
+    for f in (POLAR_SITES, gs.CATALOG.with_name("site_catalog.json")):
+        for s in _json(f)["sites"]:
+            assert "place" not in s and "placeSource" not in s, (f.name, s["id"])
 
 
 def test_confidence_and_latitude_band():

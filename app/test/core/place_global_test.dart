@@ -189,20 +189,23 @@ void main() {
       expect(positionLine(_global('x', lat: -3.01, lon: -23.42, place: '  ')), '3.01° S, 23.42° W');
     });
 
-    test('the shipped Whole Moon sites: coordinates only, as no source quoted a feature name (1.14.0)', () {
-      // a place is shown only with a quoted source (contract `place`,
-      // `placeSource`); none of the 1.14.0 presets has one, so the position
-      // line is the coordinates (formula §18.2). The feature name stays in
-      // the site's name ('Apollo 15 LM, Hadley–Apennine').
+    test('the shipped Whole Moon sites: "lat, lon · place", each place quoted (1.14.1)', () {
+      // every 1.14.1 preset has a place quoted from a NASA page (catalogue
+      // `placeSource`, the row's last source), so the position line is
+      // "lat, lon · place" (formula §18.2).
       final f = File('assets/data/global/sites.json');
       if (!f.existsSync()) return;
       final rows = (jsonDecode(f.readAsStringSync()) as Map)['sites'] as List;
       expect(rows, hasLength(20));
       for (final r in rows.cast<Map>()) {
-        expect(r['place'], '', reason: '${r['id']}: a place needs a quoted placeSource');
-        final s = _global(r['id'] as String, lat: (r['lat'] as num).toDouble(), lon: (r['lon'] as num).toDouble());
-        expect(globalPositionLine(s), latLonText(s.lat, s.lon), reason: '${r['id']}');
+        final place = r['place'] as String;
+        expect(place, isNotEmpty, reason: '${r['id']}: a place quoted from its source');
+        expect(((r['sources'] as List).last as Map)['url'], startsWith('https://'), reason: '${r['id']}');
+        final s = _global(r['id'] as String, lat: (r['lat'] as num).toDouble(), lon: (r['lon'] as num).toDouble(), place: place);
+        expect(globalPositionLine(s), '${latLonText(s.lat, s.lon)} · $place', reason: '${r['id']}');
       }
+      final a15 = rows.cast<Map>().firstWhere((r) => r['id'] == 'apollo-15-lm');
+      expect(a15['place'], 'Hadley–Apennine');
     });
 
     test('no coordinates: null', () {

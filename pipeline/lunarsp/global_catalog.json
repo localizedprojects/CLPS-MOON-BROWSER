@@ -1,5 +1,5 @@
 {
- "description": "Whole Moon presets (1.14.0). Coordinates are read at build time from the LROC 'Anthropogenic Features on the Moon' shapefile record named by shapefileId; candidate values are the plan's recalled values, kept only to flag differences (> 0.05 deg). Never a source.",
+ "description": "Whole Moon presets (1.14.0). Coordinates are read at build time from the LROC 'Anthropogenic Features on the Moon' shapefile record named by shapefileId; candidate values are the plan's recalled values, kept only to flag differences (> 0.05 deg). Never a source. place: a short feature name for the position line, quoted verbatim in placeSource from a NASA page (www.nasa.gov or science.nasa.gov, fetched 2026-11-12); never inferred.",
  "shapefile": {
   "file": "ANTHROPOGENIC_OBJECTS_180.ZIP",
   "dbf": "ANTHROPOGENIC_OBJECTS_180.DBF",
@@ -36,6 +36,12 @@
    "group": "apollo",
    "tier": "core",
    "shapefileId": "A11_LM",
+   "place": "Mare Tranquillitatis",
+   "placeSource": {
+    "title": "Apollo 11 and Landing Site 2 in the Sea of Tranquility (NASA)",
+    "url": "https://www.nasa.gov/image-article/apollo-11-landing-site-2-sea-of-tranquility/",
+    "says": "Apollo 11 did launch on schedule and landed on Site 2, which is located at 23 degrees 42 minutes 28 seconds east longitude and 0 degrees 42 minutes 50 seconds north latitude in southwestern Mare Tranquillitatis (Sea of Tranquility)."
+   },
    "candidate": {
     "lat": 0.67416,
     "lon": 23.47314
@@ -48,6 +54,12 @@
    "group": "apollo",
    "tier": "core",
    "shapefileId": "A12_LM",
+   "place": "Oceanus Procellarum",
+   "placeSource": {
+    "title": "Lunar Reconnaissance Orbiter Looks at Apollo 12, Surveyor 3 Landing Sites (NASA)",
+    "url": "https://www.nasa.gov/missions/lunar-reconnaissance-orbiter-looks-at-apollo-12-surveyor-3-landing-sites/",
+    "says": "Two-and-a-half years later, on Nov. 19, 1969, Apollo 12 demonstrated the lunar module’s capability to make a pinpoint landing by setting down on the edge of Surveyor Crater, about 170 yards (155 meters) from the deactivated Surveyor 3 spacecraft. Almost 45 years later, LROC (short for the LRO Camera) imaged the same area of Oceanus Procellarum that Lunar Orbiter 3 photographed."
+   },
    "candidate": {
     "lat": -3.01239,
     "lon": -23.42157
@@ -60,6 +72,12 @@
    "group": "apollo",
    "tier": "core",
    "shapefileId": "A14_LM",
+   "place": "Fra Mauro highlands",
+   "placeSource": {
+    "title": "50 Years Ago: Apollo 14 Lands at Fra Mauro (NASA)",
+    "url": "https://www.nasa.gov/history/50-years-ago-apollo-14-lands-at-fra-mauro/",
+    "says": "Shepard and Mitchell touched down in the Fra Mauro highlands region and conducted two lunar surface excursions lasting more than nine hours in total."
+   },
    "candidate": {
     "lat": -3.6453,
     "lon": -17.47136
@@ -72,6 +90,12 @@
    "group": "apollo",
    "tier": "core",
    "shapefileId": "A15_LM",
+   "place": "Hadley–Apennine",
+   "placeSource": {
+    "title": "50 Years Ago: Apollo 15 on the Moon at Hadley-Apennine (NASA)",
+    "url": "https://www.nasa.gov/history/50-years-ago-apollo-15-on-the-moon-at-hadley-apennine/",
+    "says": "Scott and Irwin touched down at the Hadley-Apennine site and conducted four spacewalks, including three excursions using the Lunar Roving Vehicle, for a combined total of 19 hours."
+   },
    "candidate": {
     "lat": 26.13222,
     "lon": 3.63386
@@ -84,6 +108,12 @@
    "group": "apollo",
    "tier": "core",
    "shapefileId": "A16_LM",
+   "place": "Descartes highlands",
+   "placeSource": {
+    "title": "Apollo 16 Heads Home to Earth (NASA)",
+    "url": "https://www.nasa.gov/history/apollo-16-heads-home-to-earth/",
+    "says": "On April 23, 1972, following three days exploring the Descartes highlands site on the Moon, Apollo 16 astronauts John W. Young and Charles M. Duke lifted off aboard the Lunar Module (LM) Orion …"
+   },
    "candidate": {
     "lat": -8.97301,
     "lon": 15.50019
@@ -96,6 +126,12 @@
    "group": "apollo",
    "tier": "core",
    "shapefileId": "A17_LM",
+   "place": "Taurus–Littrow",
+   "placeSource": {
+    "title": "Apollo 17: Mission Details (NASA)",
+    "url": "https://www.nasa.gov/missions/apollo/apollo-17-mission-details/",
+    "says": "The lunar landing site was the Taurus-Littrow highlands and valley area."
+   },
    "candidate": {
     "lat": 20.1908,
     "lon": 30.77168
@@ -108,6 +144,12 @@
    "group": "robotic",
    "tier": "core",
    "shapefileId": "Luna16",
+   "place": "Mare Fecunditatis",
+   "placeSource": {
+    "title": "Luna 16 (NASA Science)",
+    "url": "https://science.nasa.gov/photojournal/luna-16/",
+    "says": "The lunar landing occurred on the basaltic plains of Mare Fecunditatis; about 101 grams (3.5 ounces) of lunar material were returned."
+   },
    "candidate": {
     "lat": -0.5137,
     "lon": 56.3638
@@ -120,6 +162,12 @@
    "group": "robotic",
    "tier": "core",
    "shapefileId": "Luna17",
+   "place": "Mare Imbrium",
+   "placeSource": {
+    "title": "Soviet Union Lunar Rovers (NASA Science)",
+    "url": "https://science.nasa.gov/photojournal/soviet-union-lunar-rovers/",
+    "says": "Soviet robotic lander Luna 17 still sitting on Mare Imbrium where it delivered the Lunokhod 1 Rover in November 1970, LROC NAC Image M114185541RE."
+   },
    "candidate": {
     "lat": 38.2378,
     "lon": -35.0017
@@ -132,6 +180,12 @@
    "group": "international",
    "tier": "core",
    "shapefileId": "ChangE3",
+   "place": "Mare Imbrium",
+   "placeSource": {
+    "title": "LRO Publications by Others (NASA Science)",
+    "url": "https://science.nasa.gov/mission/lro/lro-publications-by-others/",
+    "says": "Geologic characteristics of the Luna 17/Lunokhod 1 and Chang’E-3/Yutu landing sites, Northwest Mare Imbrium of the Moon."
+   },
    "candidate": {
     "lat": 44.1214,
     "lon": -19.5116
@@ -144,6 +198,12 @@
    "group": "international",
    "tier": "core",
    "shapefileId": "ChangE4",
+   "place": "Von Kármán crater",
+   "placeSource": {
+    "title": "First Look: Chang'e Lunar Landing Site (NASA)",
+    "url": "https://www.nasa.gov/solar-system/first-look-change-lunar-landing-site/",
+    "says": "On Jan. 3, 2019, the Chinese spacecraft Chang’e 4 safely landed on the floor of the Moon’s Von Kármán crater (186 kilometer diameter, 116 miles)."
+   },
    "candidate": {
     "lat": -45.4446,
     "lon": 177.5991
@@ -156,6 +216,12 @@
    "group": "international",
    "tier": "core",
    "shapefileId": "ChangE5",
+   "place": "north of Mons Rümker",
+   "placeSource": {
+    "title": "APOD: 2020 December 5 - Mons Rumker in the Ocean of Storms (NASA Science)",
+    "url": "https://science.nasa.gov/image-article/apod-2020-december-5-mons-rumker-in-the-ocean-of-storms/",
+    "says": "China's Chang'e-5 mission landing site is also in the frame. The probe's lander-ascender combination touch down on the lunar surface within a region right of center and north of Mons Rumker's domes on December 1."
+   },
    "candidate": {
     "lat": 43.0576,
     "lon": -51.9161
@@ -168,6 +234,12 @@
    "group": "international",
    "tier": "core",
    "shapefileId": "ChangE6",
+   "place": "Apollo basin",
+   "placeSource": {
+    "title": "NASA’s LRO Spots China’s Chang'e 6 Spacecraft on Lunar Far Side (NASA)",
+    "url": "https://www.nasa.gov/centers-and-facilities/goddard/nasas-lro-spots-chinas-change-6-spacecraft-on-lunar-far-side/",
+    "says": "This image from NASA’s Lunar Reconnaissance Orbiter shows China’s Chang’e 6 lander in the Apollo basin on the far side of the Moon on June 7, 2024."
+   },
    "candidate": {
     "lat": -41.6385,
     "lon": -153.9852
@@ -180,6 +252,12 @@
    "group": "international",
    "tier": "core",
    "shapefileId": "SLIM",
+   "place": "near Shioli crater",
+   "placeSource": {
+    "title": "NASA’s LRO Spots Japan’s Moon Lander (NASA)",
+    "url": "https://www.nasa.gov/missions/lro/nasas-lro-spots-japans-moon-lander/",
+    "says": "Bright streaks on the left side of the image are rocky material ejected from the nearby, relatively young Shioli crater."
+   },
    "candidate": {
     "lat": -13.316,
     "lon": 25.251
@@ -192,6 +270,12 @@
    "group": "international",
    "tier": "core",
    "shapefileId": "Vikram2",
+   "place": "near Manzinus crater",
+   "placeSource": {
+    "title": "Laser Instrument on NASA’s LRO Successfully ‘Pings’ Indian Moon Lander (NASA Science)",
+    "url": "https://science.nasa.gov/missions/lro/laser-instrument-on-nasas-lro-successfully-pings-indian-moon-lander/",
+    "says": "The lander was 62 miles, or 100 kilometers, away from LRO, near Manzinus crater in the Moon’s South Pole region, when LRO transmitted laser pulses toward it."
+   },
    "candidate": {
     "lat": -69.373,
     "lon": 32.319
@@ -204,6 +288,12 @@
    "group": "commercial",
    "tier": "core",
    "shapefileId": "BlueGhost1",
+   "place": "Mare Crisium",
+   "placeSource": {
+    "title": "Touchdown! Carrying NASA Science, Firefly’s Blue Ghost Lands on Moon (NASA)",
+    "url": "https://www.nasa.gov/news-release/touchdown-carrying-nasa-science-fireflys-blue-ghost-lands-on-moon/",
+    "says": "Carrying a suite of NASA science and technology, Firefly Aerospace’s Blue Ghost Mission 1 successfully landed at 3:34 a.m. EST on Sunday near a volcanic feature called Mons Latreille within Mare Crisium, a more than 300-mile-wide basin located in the northeast quadrant of the Moon’s near side."
+   },
    "candidate": {
     "lat": 18.562,
     "lon": 61.81
@@ -216,6 +306,12 @@
    "group": "robotic",
    "tier": "extended",
    "shapefileId": "Surveyor1",
+   "place": "Flamsteed P crater",
+   "placeSource": {
+    "title": "55 Years Ago: Surveyor 1 Makes A Soft Landing on the Moon (NASA)",
+    "url": "https://www.nasa.gov/history/55-years-ago-surveyor-1-makes-a-soft-landing-on-the-moon/",
+    "says": "After a 63.6-hour coast from Earth, the spacecraft made a soft-landing on the Moon on June 2 inside the 60-mile wide Flamsteed P crater in the Ocean of Storms, bouncing once before settling on the surface."
+   },
    "candidate": {
     "lat": -2.474,
     "lon": -43.339
@@ -228,6 +324,12 @@
    "group": "robotic",
    "tier": "extended",
    "shapefileId": "Surveyor3",
+   "place": "Surveyor crater",
+   "placeSource": {
+    "title": "Lunar Reconnaissance Orbiter Looks at Apollo 12, Surveyor 3 Landing Sites (NASA)",
+    "url": "https://www.nasa.gov/missions/lunar-reconnaissance-orbiter-looks-at-apollo-12-surveyor-3-landing-sites/",
+    "says": "Surveyor 3 landed on April 20, 1967, in Oceanus Procellarum, in a small, 200-meter crater that was later named Surveyor crater."
+   },
    "candidate": {
     "lat": -3.016,
     "lon": -23.418
@@ -240,6 +342,12 @@
    "group": "robotic",
    "tier": "extended",
    "shapefileId": "Surveyor7",
+   "place": "north of Tycho",
+   "placeSource": {
+    "title": "Surveyor 7 (NASA Science)",
+    "url": "https://science.nasa.gov/mission/surveyor-7/",
+    "says": "Landing coordinates were 40.97 degrees south latitude and 11.44 degrees west longitude, about 18 miles (29 kilometers) north of Tycho’s rim, and 1.5 miles (2.4 kilometers) from its target."
+   },
    "candidate": {
     "lat": -40.98,
     "lon": -11.5
@@ -252,6 +360,12 @@
    "group": "robotic",
    "tier": "extended",
    "shapefileId": "Luna21",
+   "place": "Le Monnier crater",
+   "placeSource": {
+    "title": "Luna 21 Lander (NASA Science)",
+    "url": "https://science.nasa.gov/photojournal/luna-21-lander/",
+    "says": "Luna 21 lander delivered the Lunokhod 2 rover to the floor of Le Monnier crater in January 1973."
+   },
    "candidate": {
     "lat": 25.9,
     "lon": 30.4
@@ -264,6 +378,12 @@
    "group": "robotic",
    "tier": "extended",
    "shapefileId": "Luna24",
+   "place": "Mare Crisium",
+   "placeSource": {
+    "title": "Mare Crisium (NASA Science)",
+    "url": "https://science.nasa.gov/image-detail/20100702lg/",
+    "says": "Luna 24 landed in Mare Crisium in 1976 and returned samples from the lunar surface to Earth."
+   },
    "candidate": {
     "lat": 12.7142,
     "lon": 62.2129

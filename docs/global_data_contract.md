@@ -89,7 +89,7 @@ Row (`sites[]`), every polar key plus the global ones:
 | `confidence` | string | req | `"high"` or `"medium-high"` |
 | `tier` | string | req | `"core"` or `"extended"` |
 | `lat`, `lon` | number | req | degrees, planetocentric, east-positive in [−180, 180); from the shapefile row |
-| `place` | string | req | feature name from the source (e.g. `"Hadley–Apennine"`), or from the IAU gazetteer only when quoted (`placeSource`); `""` for every 1.14.0 preset, as none was quoted, so the position line shows the coordinates only |
+| `place` | string | req | short feature name (IAU spelling with diacritics, en dash in compound names, ≤ 24 characters), only when a source quoted in the catalogue's `placeSource` `{title, url, says}` names it: `says` is a verbatim sentence that contains the place (case, accents, dash and apostrophe type aside). Where the source only puts the lander near or north of a feature, the place says so (`"near Shioli crater"`, `"north of Tycho"`). Since 1.14.1 every preset has one (e.g. `"Hadley–Apennine"`), each quoted from a page on www.nasa.gov or science.nasa.gov, so the position line reads "lat, lon · place"; `""` (coordinates only) where no allowed source names the place |
 | `side` | string | req | `"near"` (flat-horizon 18.6-yr Earth-visible share = 100 %), `"far"` (0 %), else `"limb"`; must agree with `earthvis` at the site |
 | `earthFlatPct` | number | req | that flat-horizon share, %, from which `side` is derived |
 | `maskSource` | string | | per-row override of the file's `maskSource` (e.g. Chandrayaan-3: `"LOLA LDEM_512 (59 m) near field + LOLA LDEM_64 (474 m)"`, or `"LOLA LDEM_64 (474 m) only"` where the near-field fetch failed) |
@@ -99,7 +99,7 @@ Row (`sites[]`), every polar key plus the global ones:
 | `horizonMaxDeg`, `horizonMaxAzDeg`, `horizonMaxDistanceKm`, `horizonMeanDeg` | number | req | of the 2 m mask, as the polar file |
 | `longTermSunlitPct`, `longTermEarthPct`, `longTermBothPct` | number | req | 18.6-yr averages with the terrain mask and eclipses (`sites._fractions(..., eclipses=True)`), 2 m observer, upper-limb rule, % |
 | `notes` | string | req | plain text; how the coordinates were checked |
-| `sources` | object[] | req | ≥ 1 `{title, url, says}`; the first is the shapefile row: `says` quotes the record (`NAME`, `LATITUDE`, `LONGITUDE`, `COORD_SRC`, `UNCERTAIN`, `REFERENCES`). A site missing from the shapefile carries the quoted official statement (JAXA, ISRO, NASA or Firefly) instead, or is dropped |
+| `sources` | object[] | req | ≥ 1 `{title, url, says}`; the first is the shapefile row: `says` quotes the record (`NAME`, `LATITUDE`, `LONGITUDE`, `COORD_SRC`, `UNCERTAIN`, `REFERENCES`). A site missing from the shapefile carries the quoted official statement (JAXA, ISRO, NASA or Firefly) instead, or is dropped. When the site has a `place`, its `placeSource` is the last entry (1.14.1: 3 entries per preset) |
 
 The parser maps a row to `Site` field for field (`region` from the caller;
 `maskSource` from the row, else the file, else `'LOLA 80 m + 240 m DEM'`;

@@ -72,8 +72,8 @@ double kmPerPixel(double pxPerDeg) => pxPerDeg <= 0 ? double.nan : 2 * math.pi *
 String globalLatLonText(double lat, double lon) => latLonText(lat, lon);
 
 /// A whole-Moon site's position line: "26.13° N, 3.63° E", plus
-/// " · " and the place when the site has a sourced one (no 1.14.0 preset has one:
-/// formula §18.2).
+/// " · " and the place when the site has a sourced one (every 1.14.1 preset has
+/// one, quoted from a NASA page; a custom spot has none: formula §18.2).
 String globalPositionLine(Site site) {
   final at = globalLatLonText(site.lat, site.lon);
   return site.place.isEmpty ? at : '$at · ${site.place}';

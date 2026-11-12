@@ -5,6 +5,7 @@
 // each row's lat, lon and horizon filled in (1.14.0 left them empty). Runs on the synthetic whole-Moon
 // fixtures (test/fixtures/global_sample, made-up values).
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:polar_horizon/core/export_csv.dart';
@@ -131,5 +132,23 @@ void main() {
     expect(rows, [for (final l in withRanks) l.substring(l.indexOf(',') + 1)]);
     // every row, polar or Whole Moon, has its lat, lon and horizon (1.14.1)
     expectProvenance(rows);
+  });
+
+  // 1.14.1 review: exportScorecard looked its rows up in a hand-written copy
+  // of compareSiteIndex (the same today, free to drift later); it now uses the
+  // index Compare ranks and checks for mixed regions with.
+  test('the saved CSV looks its sites up in compareSiteIndex, the index Compare uses', () async {
+    final source = File('lib/state/chart_hub.dart').readAsStringSync();
+    final at = source.indexOf('Future<void> exportScorecard(');
+    expect(at, greaterThan(0));
+    // up to the next blank line or the class's end
+    final ends = [for (final e in ['\n\n', '\n}']) source.indexOf(e, at)]..removeWhere((e) => e < 0);
+    final body = source.substring(at, ends.reduce((a, b) => a < b ? a : b));
+    expect(body, contains('sites: compareSiteIndex(s)'));
+    expect(body, isNot(contains('s.global?.sites')), reason: 'no second, hand-written site index');
+    applyShortlist(state, [...polarPair, 'apollo-11-lm']);
+    expect(await saved(), scorecardCsv(
+        rankedFor(state), '${date(state.rangeStartMs)} - ${date(state.rangeEndMs - 1)}', formulaText(state.weights),
+        sites: compareSiteIndex(state), observerHeightM: state.observerHeightM, options: state.options, mixed: true));
   });
 }

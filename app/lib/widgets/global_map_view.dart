@@ -276,13 +276,18 @@ List<({MapLabel label, bool small})> globalMapLabels({
   );
   final out = [for (final m in placed) (label: m, small: false)];
   final named = {for (final m in placed) ...[m.site, ...m.merged]};
-  (LabelBox, LabelSpot)? spotFor(int i, String text, {bool small = true}) {
+  bool inView(int i) {
+    final (x, y) = anchors[i];
+    return bounds != null && x >= bounds.left && x <= bounds.right && y >= bounds.top && y <= bounds.bottom;
+  }
+
+  (LabelBox, LabelSpot)? spotFor(int i, String text, {bool small = true, double farthest = 24}) {
     final (x, y) = anchors[i];
     final (w, h) = measure(i, text, small);
-    final inView = bounds != null && x >= bounds.left && x <= bounds.right && y >= bounds.top && y <= bounds.bottom;
+    final shown = inView(i);
     LabelBox fit(LabelBox b) {
-      if (!inView) return b;
-      final dx = b.left < bounds.left ? bounds.left - b.left : (b.right > bounds.right ? bounds.right - b.right : 0.0);
+      if (!shown) return b;
+      final dx = b.left < bounds!.left ? bounds.left - b.left : (b.right > bounds.right ? bounds.right - b.right : 0.0);
       final dy = b.top < bounds.top ? bounds.top - b.top : (b.bottom > bounds.bottom ? bounds.bottom - b.bottom : 0.0);
       return LabelBox(b.left + dx, b.top + dy, b.right + dx, b.bottom + dy);
     }
@@ -290,6 +295,7 @@ List<({MapLabel label, bool small})> globalMapLabels({
     // beside the marker, then farther out (a leader joins them), also at the
     // four corners; never on a marker, a chip or another name
     for (final extra in [0.0, r, 2 * r, 4 * r, 6 * r, 8 * r, 12 * r, 16 * r, 24 * r]) {
+      if (extra > farthest * r) break;
       final d = (reach[i] + 2 + extra) * math.sqrt1_2;
       for (final (b, spot) in [
         for (final spot in LabelSpot.values) (labelBoxAt(spot, x, y, reach[i], w, h, gap: 2 + extra), spot),
@@ -347,8 +353,41 @@ List<({MapLabel label, bool small})> globalMapLabels({
     }
     named.addAll(group);
   }
+
+  // a stack's "Name +n" gives up each site in view that has a free spot of
+  // its own close by (at the smaller size, with a leader if need be), so on
+  // a phone more sites are named directly (1.14.1); the rest stay in its
+  // "+n". Only in the room the names above left: none of them moves and
+  // none is lost, and the shorter "Name +n" keeps the side nearest its
+  // marker, inside the box it had.
+  for (var n = 0; n < out.length; n++) {
+    final (:label, :small) = out[n];
+    if (label.merged.isEmpty) continue;
+    final keep = <int>[];
+    for (final j in label.merged) {
+      final found = inView(j) ? spotFor(j, texts[j], farthest: globalLabelFreeReach) : null;
+      if (found == null) {
+        keep.add(j);
+      } else {
+        out.add((label: MapLabel(j, const [], texts[j], found.$1, found.$2), small: true));
+      }
+    }
+    if (keep.length == label.merged.length) continue;
+    final text = mergedLabelText(texts[label.site], keep.length);
+    final (w, _) = measure(label.site, text, small);
+    final b = label.box, x = anchors[label.site].$1;
+    final left = x <= b.left ? b.left : (x >= b.right ? b.right - w : (b.left + b.right - w) / 2);
+    out[n] = (
+      label: MapLabel(label.site, keep, text, LabelBox(left, b.top, left + w, b.bottom), label.spot),
+      small: small,
+    );
+  }
   return out;
 }
+
+/// How far out (in marker radii, beyond the marker's own spots) a site
+/// taken out of a stack's "Name +n" may be named ([globalMapLabels]).
+const globalLabelFreeReach = 8.0;
 
 /// The NEAR SIDE and FAR SIDE chips of a [size] map at zoom [k]: each text
 /// and its chip's box (3 px either side of the text, 1 px above and below, on

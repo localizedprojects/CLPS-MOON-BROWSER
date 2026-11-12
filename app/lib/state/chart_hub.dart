@@ -464,7 +464,9 @@ class ChartHub {
             'polar_horizon_comparison_${_start(s)}.csv',
             // the period's last day (the range end is exclusive), as the app shows it
             utf8.encode(scorecardCsv(rankedFor(s), '${date(s.rangeStartMs)} - ${date(s.rangeEndMs - 1)}', formulaText(s.weights),
-                sites: {for (final x in s.allSites) x.id: x},
+                // polar and (once loaded) Whole Moon sites, so every row has its
+                // lat, lon and horizon (1.14.1)
+                sites: {for (final x in s.allSites) x.id: x, for (final x in s.global?.sites ?? const <Site>[]) x.id: x},
                 observerHeightM: s.observerHeightM,
                 options: s.options,
                 // a mixed shortlist has no single ranking: no rank column (1.14.1)

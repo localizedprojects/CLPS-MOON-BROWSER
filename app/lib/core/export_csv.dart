@@ -5,12 +5,19 @@ library;
 import '../version.dart';
 import 'catalog.dart';
 import 'metrics.dart';
+import 'region.dart';
 import 'summary.dart' show Ranked;
 import 'timeseries.dart';
 
-/// Where a site's horizon comes from: the precomputed 80 m/240 m preset
-/// masks, or the approximate 400 m mask computed on the device.
-String _horizonSource(Site site) => site.custom ? 'LOLA 400 m DEM (approximate, on device)' : 'LOLA 80 m/240 m DEM';
+/// Where [site]'s horizon comes from, for the CSV provenance. Polar sites
+/// (1.14.0 text, unchanged): the precomputed 80 m/240 m preset masks, or the
+/// approximate 400 m mask computed on the device. Whole Moon sites (1.14.1):
+/// the site's own mask source, as its badge names it; a custom spot's is
+/// marked approximate.
+String _horizonSource(Site site) => switch (site.region) {
+      Region.southPole => site.custom ? 'LOLA 400 m DEM (approximate, on device)' : 'LOLA 80 m/240 m DEM',
+      Region.wholeMoon => site.custom ? '${site.maskSource}, approximate' : site.maskSource,
+    };
 
 String _iso(double ms) => DateTime.fromMillisecondsSinceEpoch(ms.round(), isUtc: true).toIso8601String();
 

@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:polar_horizon/core/catalog.dart';
 import 'package:polar_horizon/core/export_csv.dart';
 import 'package:polar_horizon/core/metrics.dart';
+import 'package:polar_horizon/core/region.dart';
 import 'package:polar_horizon/core/score.dart';
 import 'package:polar_horizon/core/summary.dart';
 import 'package:polar_horizon/core/timeseries.dart';
@@ -144,5 +145,35 @@ void main() {
         expect(row.replaceAll(RegExp(r'"[^"]*"'), 'q').split(',').length, header.length, reason: row);
       }
     });
+  });
+
+  test('Whole Moon sites: the horizon is the site\'s own mask source, a custom spot\'s marked approximate (1.14.1)', () {
+    const preset = Site(id: 'g', name: 'Apollo 11 LM', short: 'Apollo 11', group: 'g', kind: 'k', confidence: 'c',
+        notes: '', lat: 0.67, lon: 23.47, terrainHeightM: 0, region: Region.wholeMoon,
+        maskSource: 'SLDEM2015 59 m (to 20 km) + LOLA 474 m DEM');
+    const spot = Site(id: 'gc', name: 'My spot', short: 'Mine', group: 'g', kind: 'k', confidence: 'c', notes: '',
+        lat: 10.5, lon: -20.25, terrainHeightM: 0, custom: true, region: Region.wholeMoon,
+        maskSource: 'LOLA 8 px/deg (3.8 km) whole-Moon DEM (on device)');
+    final m = computeMetrics(s);
+    final r = [
+      Ranked('x', 'Test', m, score(m, const ScoreWeights())),
+      Ranked('g', 'Apollo 11', m, score(m, const ScoreWeights())),
+      Ranked('gc', 'Mine', m, score(m, const ScoreWeights())),
+    ];
+    final rows = scorecardCsv(r, 'P', 'formula', sites: {'x': site, 'g': preset, 'gc': spot}, observerHeightM: 2, mixed: true)
+        .trim()
+        .split('\n')
+        .where((l) => l.startsWith('"'))
+        .toList();
+    expect(rows, hasLength(3));
+    expect(rows[0], endsWith(',-89.5,10.0,2.0,,,"LOLA 80 m/240 m DEM"'), reason: 'polar: the 1.14.0 text');
+    expect(rows[1], endsWith(',0.67,23.47,2.0,,,"SLDEM2015 59 m (to 20 km) + LOLA 474 m DEM"'));
+    expect(rows[2], endsWith(',10.5,-20.25,2.0,,,"LOLA 8 px/deg (3.8 km) whole-Moon DEM (on device), approximate"'));
+    final series = seriesCsv(preset, s, observerHeightM: 2, options: const SeriesOptions(), ephemeris: 'DE440');
+    expect(series, contains('horizon=SLDEM2015 59 m (to 20 km) + LOLA 474 m DEM\n'));
+    expect(series, isNot(contains('80 m/240 m')));
+    // polar series CSV: unchanged
+    expect(seriesCsv(site, s, observerHeightM: 2, options: const SeriesOptions(), ephemeris: 'DE440'),
+        contains('horizon=LOLA 80 m/240 m DEM\n'));
   });
 }

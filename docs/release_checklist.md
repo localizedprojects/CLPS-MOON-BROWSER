@@ -59,6 +59,21 @@ All the texts (with character counts), the form answers and the screenshot list 
   1.11.0 on the same emulator (2026-11-01): it updated in place over 1.9.3 with the settings kept; the
   Lander's view heights, relief switch, full screen with site switching, landscape, the IM-1 and IM-2
   photo cards and Back navigation worked, with no app errors in logcat.
+- Done (1.14.1, 2026-11-12): the known issue "Screen readers during Play on Android 7" (1.13.2 to
+  1.14.0), on the same emulator with the 1.14.0 release APK (Malapert peak (MP1), Light & shadow).
+  The positions from `adb shell uiautomator dump` were those of the layout with the bars shown, and
+  the screen showed that layout during each dump: the emulator's screen recording
+  (`adb emu screenrecord`) shows the bars come back while the dump runs and hide again after it,
+  during Play and after pausing; once a scroll to the top had brought them back, a dump matched a
+  screenshot. The cause:
+  Flutter's Android bridge reports "accessible navigation" to the app as soon as any accessibility
+  client reads a control (`createAccessibilityNodeInfo` in `AccessibilityBridge.java`), and the app
+  shows the hidden bars to screen readers (`hide_on_scroll.dart`), so the screenshots taken between
+  dumps (bars hidden) showed another layout. A diagnostic build that ignored accessible navigation
+  (not kept) left the bars hidden during the dump, and its dumps then matched the screenshots, during
+  Play and after pausing. Not a fault in the app; no app code changed. TalkBack is not on this
+  emulator image, so no screen reader itself was run. Check positions against a recording made
+  during the dump. `play_reader_semantics_test.dart` covers it.
 - **Not tested:** Android 8 and 9, real iPhones and iPads, real low-end Android phones, Play
   pre-launch report (runs after the first upload: check it).
 

@@ -79,12 +79,26 @@ class _ExploreState extends State<_Explore> {
   /// The map's view, handed to the full-screen map and back.
   final _mapView = MapViewController();
 
+  /// The polar map's view while Whole Moon is shown, given back to it on the
+  /// way back to the south pole (1.14.1: the round trip reset its zoom and
+  /// pan, 50 km scale back to 100 km).
+  MapCamera? _polarView;
+
   @override
   Widget build(BuildContext context) {
     final s = context.watch<AppState>();
     final wide = MediaQuery.sizeOf(context).width >= exploreTwoPaneWidth;
     // Whole Moon: its own map and list; the polar layout below is untouched
-    if (s.region == Region.wholeMoon) return _GlobalExplore(state: s, wide: wide);
+    if (s.region == Region.wholeMoon) {
+      // the polar map is still attached during the build that replaces it
+      _polarView ??= _mapView.camera;
+      return _GlobalExplore(state: s, wide: wide);
+    }
+    if (_polarView case final view?) {
+      // the new polar map takes it at its first layout, at once
+      _polarView = null;
+      _mapView.centreOn(view, animate: false);
+    }
     final items = exploreItems(s);
     final shortlisted = s.compareIds.isNotEmpty;
 

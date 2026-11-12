@@ -50,8 +50,20 @@ String seriesCsv(Site site, SiteSeries s, {required double observerHeightM, requ
 /// source) so a row can be told apart outside the app; unknown ones are left
 /// empty. The power and energy columns are the Sun-facing-panel proxy; the
 /// score does not use them.
+/// The header line of a [scorecardCsv] for a shortlist that mixes regions, in
+/// the app's own words (Compare's title says "mixed regions: no single
+/// ranking"; its table drops the Rank column the same way).
+const scorecardMixedNote = '# mixed regions: no single ranking (rows in score order; no rank column)';
+
+/// [mixed] (a shortlist that mixes regions, 1.14.1): no rank numbers, the
+/// `rank` column is left out and [scorecardMixedNote] says why. Without it the
+/// output is byte-for-byte the 1.14.0 one.
 String scorecardCsv(List<Ranked> ranked, String period, String formula,
-    {bool requireDsn = false, Map<String, Site> sites = const {}, double? observerHeightM, SeriesOptions? options}) {
+    {bool requireDsn = false,
+    Map<String, Site> sites = const {},
+    double? observerHeightM,
+    SeriesOptions? options,
+    bool mixed = false}) {
   final dsn = options?.requireDsn ?? requireDsn;
   String q(String s) => '"${s.replaceAll('"', '""')}"';
   String win(Interval? i) => i == null ? '' : '${_iso(i.startMs)},${i.hours.toStringAsFixed(1)}';
@@ -64,7 +76,8 @@ String scorecardCsv(List<Ranked> ranked, String period, String formula,
   if (dsn) {
     b.writeln('# pct_earth and longest_earth_outage_h count Earth contact: Earth in view AND a DSN complex sees the Moon >= 10 deg');
   }
-  b.writeln('rank,site,score,power_component,comms_component,pct_sunlit,pct_earth,pct_both,longest_sun_h,longest_dark_h,'
+  if (mixed) b.writeln(scorecardMixedNote);
+  b.writeln('${mixed ? '' : 'rank,'}site,score,power_component,comms_component,pct_sunlit,pct_earth,pct_both,longest_sun_h,longest_dark_h,'
       'longest_earth_outage_h,best_both_start_utc,best_both_h,mean_power_w_m2_proxy,energy_kwh_m2_proxy,'
       'lat_deg,lon_deg_east,observer_height_m,sun_rule,earth_rule,horizon');
   final sunRule = options?.sunCriterion.name ?? '';
@@ -72,7 +85,8 @@ String scorecardCsv(List<Ranked> ranked, String period, String formula,
   for (final (i, r) in ranked.indexed) {
     final m = r.metrics, site = sites[r.id];
     b.writeln([
-      i + 1, q(r.name), r.score.total.toStringAsFixed(1), r.score.power.toStringAsFixed(1), r.score.comms.toStringAsFixed(1),
+      if (!mixed) i + 1,
+      q(r.name), r.score.total.toStringAsFixed(1), r.score.power.toStringAsFixed(1), r.score.comms.toStringAsFixed(1),
       m.pctSunlit.toStringAsFixed(2), m.pctEarth.toStringAsFixed(2), m.pctBoth.toStringAsFixed(2),
       m.longestSunHours.toStringAsFixed(1), m.longestDarkHours.toStringAsFixed(1), m.longestEarthOutageHours.toStringAsFixed(1),
       m.longestBoth == null ? ',' : win(m.longestBoth),

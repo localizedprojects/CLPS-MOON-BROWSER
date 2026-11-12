@@ -83,4 +83,66 @@ void main() {
     expect(bare, endsWith(',433.3,1.3,,,,,,'));
     expect(bare.split(',').length, header.length);
   });
+
+  // 1.14.1: a shortlist that mixes regions has no single ranking (Compare
+  // says so and its table drops the Rank column): its CSV writes no rank.
+  group('scorecard CSV for a mixed shortlist (1.14.1)', () {
+    final m = computeMetrics(s);
+    final r = [Ranked('x', 'Test', m, score(m, const ScoreWeights())), Ranked('c', 'Mine', m, score(m, const ScoreWeights()))];
+    const custom = Site(id: 'c', name: 'My spot', short: 'Mine', group: 'g', kind: 'k', confidence: 'c', notes: '',
+        lat: -88.25, lon: -45.5, terrainHeightM: 0, custom: true);
+    const opts = SeriesOptions(sunCriterion: SunCriterion.fullDisk, earthCriterion: EarthCriterion.anyPart, requireDsn: true);
+    String full({bool? mixed}) => mixed == null
+        ? scorecardCsv(r, 'P', 'formula', sites: {'x': site, 'c': custom}, observerHeightM: 2, options: opts)
+        : scorecardCsv(r, 'P', 'formula', sites: {'x': site, 'c': custom}, observerHeightM: 2, options: opts, mixed: mixed);
+    const notes = '# formula\n'
+        '# mean_power_w_m2_proxy = period mean of 1361 * (1 au / r)^2 * visible fraction: a panel facing the Sun '
+        '(no cos(elevation) factor, no panel losses); energy_kwh_m2_proxy = its sum over the period. '
+        'The score does not use them (power_component uses pct_sunlit and longest_dark_h)\n';
+    const dsnNote = '# pct_earth and longest_earth_outage_h count Earth contact: Earth in view AND a DSN complex sees the Moon >= 10 deg\n';
+    const cols = 'site,score,power_component,comms_component,pct_sunlit,pct_earth,pct_both,longest_sun_h,longest_dark_h,'
+        'longest_earth_outage_h,best_both_start_utc,best_both_h,mean_power_w_m2_proxy,energy_kwh_m2_proxy,'
+        'lat_deg,lon_deg_east,observer_height_m,sun_rule,earth_rule,horizon\n';
+    const rowX = '"Test",53.3,59.9,59.9,33.33,33.33,33.33,1.0,1.0,1.0,1970-01-01T01:00:00.000Z,1.0,433.3,1.3,'
+        '-89.5,10.0,2.0,fullDisk,anyPart+dsn,"LOLA 80 m/240 m DEM"\n';
+    const rowC = '"Mine",53.3,59.9,59.9,33.33,33.33,33.33,1.0,1.0,1.0,1970-01-01T01:00:00.000Z,1.0,433.3,1.3,'
+        '-88.25,-45.5,2.0,fullDisk,anyPart+dsn,"LOLA 400 m DEM (approximate, on device)"\n';
+
+    test('a single-region shortlist is byte-for-byte the 1.14.0 output (with or without mixed: false)', () {
+      // captured from the 1.14.0 scorecardCsv (only the version is interpolated)
+      final golden = '# Lunar Horizon comparison - P - Version $appVersion\n$notes$dsnNote'
+          'rank,$cols'
+          '1,$rowX'
+          '2,$rowC';
+      expect(full(), golden);
+      expect(full(mixed: false), golden);
+      final bare = '# Lunar Horizon comparison - P - Version $appVersion\n$notes'
+          'rank,$cols'
+          '1,"Test",53.3,59.9,59.9,33.33,33.33,33.33,1.0,1.0,1.0,1970-01-01T01:00:00.000Z,1.0,433.3,1.3,,,,,,\n';
+      expect(scorecardCsv(r.sublist(0, 1), 'P', 'formula'), bare);
+      expect(scorecardCsv(r.sublist(0, 1), 'P', 'formula', mixed: false), bare);
+    });
+
+    test('a mixed shortlist: no rank column, no rank numbers, and a note in the app\'s words', () {
+      final csv = full(mixed: true);
+      expect(csv, '# Lunar Horizon comparison - P - Version $appVersion\n$notes$dsnNote'
+          '$scorecardMixedNote\n'
+          '$cols'
+          '$rowX'
+          '$rowC');
+      expect(scorecardMixedNote, startsWith('# '));
+      expect(scorecardMixedNote, contains('mixed regions: no single ranking'));
+      final lines = csv.trim().split('\n');
+      final header = lines.firstWhere((l) => l.startsWith('site,')).split(',');
+      expect(header, isNot(contains('rank')));
+      expect(lines.where((l) => l.startsWith('rank,')), isEmpty);
+      final rows = lines.where((l) => !l.startsWith('#') && !l.startsWith('site,')).toList();
+      expect(rows, hasLength(2));
+      for (final row in rows) {
+        expect(row, startsWith('"'), reason: 'each row starts with the site name, not a rank: $row');
+        // fields outside quotes ("LOLA 400 m DEM (approximate, on device)" has a comma)
+        expect(row.replaceAll(RegExp(r'"[^"]*"'), 'q').split(',').length, header.length, reason: row);
+      }
+    });
+  });
 }

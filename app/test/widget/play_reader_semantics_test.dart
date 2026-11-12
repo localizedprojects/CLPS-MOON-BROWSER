@@ -1,4 +1,4 @@
-// The 1.13.1 to 1.14.0 known issue "screen readers during Play on Android 7"
+// The 1.13.2 to 1.14.0 known issue "screen readers during Play on Android 7"
 // (found 1.14.1 on the Android 7 emulator, recorded on screen): reading the
 // accessibility tree there (adb shell uiautomator dump) is what brought the
 // bars back. Flutter's Android bridge turns on "accessible navigation" when

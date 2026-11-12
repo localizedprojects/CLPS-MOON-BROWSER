@@ -243,6 +243,11 @@ const globalMarkerHitDp = 24.0;
 /// little farther out if need be (the painter draws a leader), shifted into
 /// view: on a phone no marker is a bare shape (1.14.0 review). [measure] gives
 /// a text's width and height at either size.
+///
+/// With [free] (the default, 1.14.1) a stack's "Name +n" then gives up each
+/// site in view that has a spot of its own close by which reads as that
+/// site's alone; `free: false` gives the 1.14.0 placement (tests compare the
+/// two).
 List<({MapLabel label, bool small})> globalMapLabels({
   required List<(double, double)> anchors,
   required List<String> texts,
@@ -252,6 +257,7 @@ List<({MapLabel label, bool small})> globalMapLabels({
   required (double, double) Function(int site, String text, bool small) measure,
   LabelBox? bounds,
   List<LabelBox> avoid = const [],
+  bool free = true,
 }) {
   final reach = [for (var i = 0; i < anchors.length; i++) i == selected ? 2.4 * r : 1.4 * r];
   // every marker is an obstacle, the selected one's ring included: no name
@@ -281,7 +287,32 @@ List<({MapLabel label, bool small})> globalMapLabels({
     return bounds != null && x >= bounds.left && x <= bounds.right && y >= bounds.top && y <= bounds.bottom;
   }
 
-  (LabelBox, LabelSpot)? spotFor(int i, String text, {bool small = true, double farthest = 24}) {
+  // a name taken out of a "+n" must read as its own marker's (1.14.1
+  // review: on a phone "Apollo 17 LM" sat 0.5 px from Luna 17 and Apollo 15
+  // but 26 px from its own marker, its leader under theirs, and "Chang'e-3"
+  // covered Apollo 15's leader): strictly nearer its own marker than any
+  // other, its leader (as the painter draws it) under no other marker, chip
+  // or name, and the name over no other name's leader
+  bool readsAsOwn(int i, LabelBox f) {
+    final own = f.gapTo(anchors[i].$1, anchors[i].$2, reach[i]);
+    for (var k = 0; k < anchors.length; k++) {
+      if (k != i && f.gapTo(anchors[k].$1, anchors[k].$2, reach[k]) <= own) return false;
+    }
+    if (globalLabelLeader(anchors[i], f, r) case (final x0, final y0, final x1, final y1)) {
+      for (var k = 0; k < obstacles.length; k++) {
+        if (k != i && obstacles[k].crossedBy(x0, y0, x1, y1)) return false;
+      }
+      if (out.any((o) => o.label.box.crossedBy(x0, y0, x1, y1))) return false;
+    }
+    for (final (label: o, small: _) in out) {
+      if (globalLabelLeader(anchors[o.site], o.box, r) case (final x0, final y0, final x1, final y1)) {
+        if (f.crossedBy(x0, y0, x1, y1)) return false;
+      }
+    }
+    return true;
+  }
+
+  (LabelBox, LabelSpot)? spotFor(int i, String text, {bool small = true, double farthest = 24, bool own = false}) {
     final (x, y) = anchors[i];
     final (w, h) = measure(i, text, small);
     final shown = inView(i);
@@ -306,6 +337,7 @@ List<({MapLabel label, bool small})> globalMapLabels({
       ]) {
         final f = fit(b);
         if (obstacles.any(f.overlaps) || out.any((o) => o.label.box.overlaps(f))) continue;
+        if (own && !readsAsOwn(i, f)) continue;
         return (f, spot);
       }
     }
@@ -355,17 +387,18 @@ List<({MapLabel label, bool small})> globalMapLabels({
   }
 
   // a stack's "Name +n" gives up each site in view that has a free spot of
-  // its own close by (at the smaller size, with a leader if need be), so on
-  // a phone more sites are named directly (1.14.1); the rest stay in its
-  // "+n". Only in the room the names above left: none of them moves and
-  // none is lost, and the shorter "Name +n" keeps the side nearest its
-  // marker, inside the box it had.
-  for (var n = 0; n < out.length; n++) {
+  // its own close by (at the smaller size, with a leader if need be) that
+  // reads as that site's alone ([readsAsOwn]), so on a phone more sites are
+  // named directly (1.14.1); the rest stay in its "+n". Only in the room
+  // the names above left: none of them moves and none is lost, and the
+  // shorter "Name +n" keeps the side nearest its marker, inside the box it
+  // had.
+  for (var n = 0; free && n < out.length; n++) {
     final (:label, :small) = out[n];
     if (label.merged.isEmpty) continue;
     final keep = <int>[];
     for (final j in label.merged) {
-      final found = inView(j) ? spotFor(j, texts[j], farthest: globalLabelFreeReach) : null;
+      final found = inView(j) ? spotFor(j, texts[j], farthest: globalLabelFreeReach, own: true) : null;
       if (found == null) {
         keep.add(j);
       } else {
@@ -388,6 +421,18 @@ List<({MapLabel label, bool small})> globalMapLabels({
 /// How far out (in marker radii, beyond the marker's own spots) a site
 /// taken out of a stack's "Name +n" may be named ([globalMapLabels]).
 const globalLabelFreeReach = 8.0;
+
+/// The thin leader the map draws from a marker at [anchor] (of radius [r]) to
+/// its name's [box], as (x0, y0, x1, y1): from the marker's edge (1.4 [r]
+/// out) to the box's nearest point. Null for a name beside its marker (its
+/// nearest point within 2.4 [r] + 2 px), which gets none.
+(double, double, double, double)? globalLabelLeader((double, double) anchor, LabelBox box, double r) {
+  final (ax, ay) = anchor;
+  final nx = ax.clamp(box.left, box.right), ny = ay.clamp(box.top, box.bottom);
+  final d = math.sqrt((nx - ax) * (nx - ax) + (ny - ay) * (ny - ay));
+  if (d <= 2.4 * r + 2) return null;
+  return (ax + (nx - ax) / d * 1.4 * r, ay + (ny - ay) / d * 1.4 * r, nx, ny);
+}
 
 /// The NEAR SIDE and FAR SIDE chips of a [size] map at zoom [k]: each text
 /// and its chip's box (3 px either side of the text, 1 px above and below, on
@@ -1098,11 +1143,9 @@ class _GlobalPainter extends CustomPainter {
       ..strokeWidth = 1 / k;
     for (final (:label, small: _) in placed) {
       final a = anchors[label.site];
-      final b = label.box;
-      final near = Offset(a.dx.clamp(b.left, b.right), a.dy.clamp(b.top, b.bottom));
-      final d = near - a;
-      if (d.distance <= 2.4 * r + 2) continue;
-      canvas.drawLine(a + d / d.distance * 1.4 * r, near, leader);
+      if (globalLabelLeader((a.dx, a.dy), label.box, r) case (final x0, final y0, final x1, final y1)) {
+        canvas.drawLine(Offset(x0, y0), Offset(x1, y1), leader);
+      }
     }
     // near and far side, on the marker labels' navy chip: straight on the
     // hillshade and the Earth overlay they read at about 1.5-2:1

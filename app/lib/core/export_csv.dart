@@ -50,6 +50,11 @@ String seriesCsv(Site site, SiteSeries s, {required double observerHeightM, requ
   return b.toString();
 }
 
+/// The header line of a [scorecardCsv] for a shortlist that mixes regions, in
+/// the app's own words (Compare's title says "mixed regions: no single
+/// ranking"; its table drops the Rank column the same way).
+const scorecardMixedNote = '# mixed regions: no single ranking (rows in score order; no rank column)';
+
 /// [requireDsn]: the Earth columns count Earth contact (Earth in view AND a
 /// DSN complex up), which the header then says ([options] overrides it).
 /// [sites] (by id), [observerHeightM] and [options] fill each row's
@@ -57,14 +62,11 @@ String seriesCsv(Site site, SiteSeries s, {required double observerHeightM, requ
 /// source) so a row can be told apart outside the app; unknown ones are left
 /// empty. The power and energy columns are the Sun-facing-panel proxy; the
 /// score does not use them.
-/// The header line of a [scorecardCsv] for a shortlist that mixes regions, in
-/// the app's own words (Compare's title says "mixed regions: no single
-/// ranking"; its table drops the Rank column the same way).
-const scorecardMixedNote = '# mixed regions: no single ranking (rows in score order; no rank column)';
-
+///
 /// [mixed] (a shortlist that mixes regions, 1.14.1): no rank numbers, the
 /// `rank` column is left out and [scorecardMixedNote] says why. Without it the
-/// output is byte-for-byte the 1.14.0 one.
+/// output is byte-for-byte the 1.14.0 one for south-pole sites (a Whole Moon
+/// row's horizon column gives the site's own horizon source since 1.14.1).
 String scorecardCsv(List<Ranked> ranked, String period, String formula,
     {bool requireDsn = false,
     Map<String, Site> sites = const {},

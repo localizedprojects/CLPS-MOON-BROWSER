@@ -1,13 +1,16 @@
 // 1.14.1 (c): on a phone's Whole Moon map (328 x 164 dp at 360 dp width)
 // only 12 of the 20 sites were named directly; 8 showed only inside a
 // stack's "Name +n". A stack's "+n" now gives up each site in view that has a
-// free spot of its own close by (with a leader if need be). Measured with the
-// bundled IBM Plex Sans as drawn, on the real catalogue, with no selection
-// and with each site selected in turn (directly named: before -> after):
-//   328 x 164 at 1x: 12 -> 16 with no selection, at least 9 -> 14
-//   328 x 164 at 2x: 13 -> 16 of the 17 in view, at least 12 -> 15
-//   951 x 476 (1440 px desktop) at 1x: 19 -> 20 of 20, at least 18 -> 20
-//   951 x 476 at 2x: 17 -> 17 of 17, at least 16 -> 17
+// free spot of its own close by (with a leader if need be) that reads as that
+// site's alone: nearer its own marker than any other, its leader under no
+// other marker, chip or name, and over no other name's leader (1.14.1
+// review). Measured with the bundled IBM Plex Sans as drawn, on the real
+// catalogue, with no selection and with each site selected in turn (directly
+// named: 1.14.0 -> 1.14.1):
+//   328 x 164 at 1x: 12 -> 13 with no selection, at least 9 -> 11
+//   328 x 164 at 2x: 13 -> 15 of the 17 in view, at least 12 -> 13
+//   951 x 476 (1440 px desktop) at 1x: 19 -> 19 of 20, at least 18 -> 18
+//   951 x 476 at 2x: 17 -> 17 of 17, at least 16 -> 16
 // The 1.14.0 rules hold (global_map_labels_test.dart): no name covers a
 // side chip or a marker, and every site in view is named or counted.
 import 'dart:io';
@@ -44,10 +47,10 @@ void main() {
     expect(real, hasLength(20));
     // (size, zoom, directly named with no selection, the fewest with any one selected)
     for (final (size, k, none, fewest) in [
-      (const Size(328, 164), 1.0, 16, 14),
-      (const Size(328, 164), 2.0, 16, 15),
-      (const Size(951, 476), 1.0, 20, 20),
-      (const Size(951, 476), 2.0, 17, 17),
+      (const Size(328, 164), 1.0, 13, 11),
+      (const Size(328, 164), 2.0, 15, 13),
+      (const Size(951, 476), 1.0, 19, 18),
+      (const Size(951, 476), 2.0, 17, 16),
     ]) {
       final chips = [for (final (_, b) in globalSideChips(size, k, (t) => textSize(t, 12, k, FontWeight.w600))) b];
       for (final id in <String?>[null, for (final st in real) st.id]) {
@@ -99,5 +102,94 @@ void main() {
         }
       }
     }
+  });
+
+  // 1.14.1 review: on a phone with no selection, "Apollo 17 LM" was taken out
+  // of its "+n" and set 26 px from its own marker but 0.5 px from Luna 17's
+  // and Apollo 15's, its leader under Apollo 15 and Luna 21; "Chang'e-3"
+  // was set over Apollo 15's leader. A name taken out of a "+n" now reads as
+  // its own marker's, and the 1.14.0 names stay as they were.
+  test("a name taken out of a stack's \"+n\" reads as its own marker's", () {
+    var freedCount = 0;
+    for (final (size, k) in [
+      (const Size(328, 164), 1.0),
+      (const Size(328, 164), 2.0),
+      (const Size(951, 476), 1.0),
+      (const Size(951, 476), 2.0),
+    ]) {
+      final chips = [for (final (_, b) in globalSideChips(size, k, (t) => textSize(t, 12, k, FontWeight.w600))) b];
+      final r = 6 / k;
+      for (final id in <String?>[null, for (final st in real) st.id]) {
+        final ordered = [...real.where((x) => x.id != id), ...real.where((x) => x.id == id)];
+        final anchors = [
+          for (final st in ordered) (globalMapPoint(st.lat, st.lon, size).dx, globalMapPoint(st.lat, st.lon, size).dy)
+        ];
+        final w = size.width / k, h = size.height / k;
+        final (x0, y0) = ((size.width - w) / 2, (size.height - h) / 2);
+        final bounds = LabelBox(x0, y0, x0 + w, y0 + h);
+        final selected = id == null ? null : ordered.length - 1;
+        final reach = [for (var i = 0; i < ordered.length; i++) i == selected ? 2.4 * r : 1.4 * r];
+        List<({MapLabel label, bool small})> place({required bool free}) => globalMapLabels(
+          anchors: anchors,
+          texts: [for (final st in ordered) st.short],
+          selected: selected,
+          r: r,
+          stackWithin: globalMarkerHitDp / k,
+          measure: (i, t, small) {
+            final (tw, th) = textSize(t, small ? 10 : 12, k, ordered[i].id == id ? FontWeight.w700 : FontWeight.w500);
+            return (tw + 6 / k, th + 2 / k);
+          },
+          bounds: bounds,
+          avoid: chips,
+          free: free,
+        );
+        final where = 'at $size, ${k}x, selected $id';
+        final base = place(free: false), labels = place(free: true);
+        // the 1.14.0 names keep their place (a "+n" only gets shorter)
+        final before = {for (final (:label, small: _) in base) label.site: label};
+        for (final (:label, small: _) in labels) {
+          final was = before[label.site];
+          if (was == null) continue;
+          expect(label.box.top, was.box.top, reason: '${ordered[label.site].id} moved $where');
+          expect(label.box.left >= was.box.left - 1e-9 && label.box.right <= was.box.right + 1e-9, isTrue,
+              reason: '${ordered[label.site].id} left its box $where');
+        }
+        final carried = {for (final (:label, small: _) in base) ...label.merged};
+        for (final (:label, small: _) in labels) {
+          final j = label.site;
+          if (!carried.contains(j)) continue;
+          freedCount++;
+          final name = '"${label.text}" $where';
+          final b = label.box;
+          final own = b.gapTo(anchors[j].$1, anchors[j].$2, reach[j]);
+          for (var m = 0; m < anchors.length; m++) {
+            if (m == j) continue;
+            expect(b.gapTo(anchors[m].$1, anchors[m].$2, reach[m]), greaterThan(own),
+                reason: '$name is as near ${ordered[m].id} as its own marker');
+          }
+          if (globalLabelLeader(anchors[j], b, r) case (final ax, final ay, final bx, final by)) {
+            for (var m = 0; m < anchors.length; m++) {
+              if (m == j) continue;
+              expect(LabelBox.around(anchors[m].$1, anchors[m].$2, reach[m]).crossedBy(ax, ay, bx, by), isFalse,
+                  reason: "$name: its leader runs under ${ordered[m].id}'s marker");
+            }
+            for (final c in chips) {
+              expect(c.crossedBy(ax, ay, bx, by), isFalse, reason: '$name: its leader runs under a side chip');
+            }
+            for (final (label: o, small: _) in labels) {
+              if (o.site == j) continue;
+              expect(o.box.crossedBy(ax, ay, bx, by), isFalse, reason: '$name: its leader runs under "${o.text}"');
+            }
+          }
+          for (final (label: o, small: _) in labels) {
+            if (o.site == j) continue;
+            if (globalLabelLeader(anchors[o.site], o.box, r) case (final ax, final ay, final bx, final by)) {
+              expect(b.crossedBy(ax, ay, bx, by), isFalse, reason: '$name covers the leader of "${o.text}"');
+            }
+          }
+        }
+      }
+    }
+    expect(freedCount, greaterThan(0), reason: 'no name was taken out of a "+n"');
   });
 }

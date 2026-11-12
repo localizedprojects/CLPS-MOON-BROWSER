@@ -22,7 +22,7 @@ import '../core/horizon.dart' show HorizonMask;
 import '../core/region.dart' show Region;
 import '../core/timeseries.dart' show SeriesOptions, SiteSeries;
 import '../widgets/chart_bridge.dart';
-import '../widgets/compare_panel.dart' show compareMixed, comparePayload, rankedFor;
+import '../widgets/compare_panel.dart' show compareMixed, comparePayload, compareSiteIndex, rankedFor;
 import '../widgets/save_file.dart';
 import 'app_state.dart';
 
@@ -465,8 +465,8 @@ class ChartHub {
             // the period's last day (the range end is exclusive), as the app shows it
             utf8.encode(scorecardCsv(rankedFor(s), '${date(s.rangeStartMs)} - ${date(s.rangeEndMs - 1)}', formulaText(s.weights),
                 // polar and (once loaded) Whole Moon sites, so every row has its
-                // lat, lon and horizon (1.14.1)
-                sites: {for (final x in s.allSites) x.id: x, for (final x in s.global?.sites ?? const <Site>[]) x.id: x},
+                // lat, lon and horizon (1.14.1): the index Compare ranks with
+                sites: compareSiteIndex(s),
                 observerHeightM: s.observerHeightM,
                 options: s.options,
                 // a mixed shortlist has no single ranking: no rank column (1.14.1)

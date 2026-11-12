@@ -1,5 +1,5 @@
 {
- "generatedUtc": "2026-11-12T12:29:17Z",
+ "generatedUtc": "2026-11-12T12:45:04Z",
  "projection": "equirectangular (plate carree), near side centred, north up: width x height pixels cover lon [-180, 180) left to right and lat [90, -90] top to bottom; pixel (i, j) centre at lon = -180 + (i + 0.5) * 360 / width, lat = 90 - (j + 0.5) * 180 / height",
  "hillshade": {
   "file": "global/hillshade.webp",
@@ -104,6 +104,6 @@
   "global/thumbs/surveyor-1.webp": "73d9ef77f555ed5002bbf7c0693f3f4ebd1e519e7eb74f4e36fc0dc9004bf210",
   "global/thumbs/surveyor-3.webp": "b12914c52dde507e6ce791d53d0cdcf7327e52607ac6a3af36266343bfde0ed3",
   "global/thumbs/surveyor-7.webp": "109bb0fbe0442908d938d456a0c880e712893301e40376b4ce9fe685848bd5bc",
-  "global/validation.json": "59e9bc73492edf0cd28cc3c8098b75725ed515b6b0ed7d91a9073b4e0a28320f"
+  "global/validation.json": "e4f3c7c2ddb5b7c4cdf97ad87b7e9f89809f5506d8a49ab1d2ad2e3cf1e0f6de"
  }
 }

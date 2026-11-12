@@ -106,7 +106,7 @@ Record each result in the PR description.
       selected until the ranking finishes and then the goal's top pick, as in 1.13.5; the
       light map, the Lander, Compare and Learn match 1.13.5; switching to Whole Moon and back leaves the
       polar selection, goal and shortlist unchanged.
-- [ ] **Budget:** `app/assets/data/global/` is at most 12.5 MB (measured on 2026-11-09: 9,527,276 bytes
+- [ ] **Budget:** `app/assets/data/global/` is at most 12.5 MB (measured on 2026-11-12 for 1.14.1: 9,534,942 bytes
       in 48 files; `du -cb app/assets/data/global`), and `pytest tests/test_globe_map.py tests/test_globe_tiles.py`
       passes its per-file budgets.
 - [ ] **Validation gates:** from `pipeline/` with the cache, `python -m lunarsp.globe validate` ends
@@ -114,6 +114,9 @@ Record each result in the PR description.
       has `"pass": true`. Re-running it only changes `generatedUtc`; restore the committed file if so.
 - [ ] **References:** `python3 -I docs/make_references.py --check` passes (it reads
       `app/assets/data/global/sites.json` too).
+- [ ] **Place names (1.14.1):** from `pipeline/`, `pytest tests/test_globe_sites.py -k place` passes (each
+      Whole Moon place is in its quoted NASA sentence, on an allowed https host), and from `app/`,
+      `flutter test test/widget/global_place_overview_test.dart` finds "lat, lon · place" on all 20 Overviews.
 - [ ] **Docs:** `python tools/check_formula_refs.py` (formula.md §18) and `python tools/check_workflows.py`.
 - [ ] **Version:** `app/pubspec.yaml` says `1.14.0+27`.
 

@@ -73,19 +73,18 @@ Full tour (3:16), with captions: the question, when to land, Sky & time, light &
 ```text
 Repository (MIT licence): https://github.com/localizedprojects/CLPS-MOON-BROWSER
 Web app: https://localizedprojects.github.io/CLPS-MOON-BROWSER/
-Android app (APK, Android 7.0 or newer): https://github.com/localizedprojects/CLPS-MOON-BROWSER/releases/latest/download/lunar-horizon.apk
+Android app (APK, Android 7.0 or newer): https://github.com/localizedprojects/CLPS-MOON-BROWSER/raw/main/release/lunar-horizon.apk
 Demo video (30 s): https://github.com/localizedprojects/CLPS-MOON-BROWSER/releases/download/v1.13.3/lunar-horizon-demo-30s-v1.13.0.mp4
 Full tour (3:16): https://github.com/localizedprojects/CLPS-MOON-BROWSER/releases/download/v1.13.3/lunar-horizon-tour-v1.13.0.mp4
 Brief for judges: https://github.com/localizedprojects/CLPS-MOON-BROWSER/blob/main/docs/judge_one_pager.md
 ```
 
-> **Release.** The APK link serves the latest GitHub release. On 12 November 2026 that is
-> v1.13.3 (7 November 2026), while the web app is 1.14.1 from `main`; no v1.13.4, v1.13.5 or
-> v1.14.0 release was published. Publish v1.14.1 with `lunar-horizon.apk` and `SHA256SUMS.txt` before
-> submitting, or this link serves an older version than the web app. None of the links above
-> change when v1.14.1 is published: the APK link then serves 1.14.1, and the two video links keep pointing at the
-> v1.13.3 release, so do not delete that release or its two MP4 files. After publishing, put
-> the new APK's SHA-256 in the source note at the end of `docs/judge_one_pager.md`.
+> **Release.** The APK link serves `release/lunar-horizon.apk` from `main`, the same version as
+> the web app: on 12 November 2026 that is 1.14.1 (build 28), SHA-256
+> bf423875be27b5f3ee52eb2495a04568d22a4aff2888ba6645f960991c2be128 (also in `release/SHA256SUMS.txt`).
+> It needs no login and downloads the file. The two video links point at the v1.13.3 GitHub release,
+> so do not delete that release or its two MP4 files. Publishing a v1.14.1 GitHub release is optional;
+> it does not change these links.
 
 ## Project details
 

@@ -1,7 +1,7 @@
-# Store listing texts and form answers (Lunar Horizon 1.14.0)
+# Store listing texts and form answers (Lunar Horizon 1.14.1)
 
 Everything to paste into Google Play Console and App Store Connect for the first upload of
-version 1.14.0. Nothing here has been uploaded: the store accounts are opened by an account owner who
+version 1.14.1. Nothing here has been uploaded: the store accounts are opened by an account owner who
 meets Google's and Apple's age requirements ([release_checklist.md](../release_checklist.md#accounts)). The form answers follow the
 checklist's [Store forms](../release_checklist.md#store-forms) section.
 
@@ -89,7 +89,18 @@ Made for the NASA Space Apps Challenge. Not an official NASA product.
 | Privacy policy | <https://localizedprojects.github.io/CLPS-MOON-BROWSER/privacy/> |
 | Price | Owner's choice (the app has no ads and no in-app purchases) |
 
-### What's new in 1.14.0 (477/500)
+### What's new in 1.14.1 (413/500)
+From the 1.14.1 changes since 1.14.0, shortened. Every line holds in the Android app: the place names
+are in the bundled Whole Moon data, and the CSV is saved through the share sheet.
+```text
+• Each Whole Moon site names its place, such as Hadley–Apennine for Apollo 15, quoted from a NASA page.
+• Zoom in on the Whole Moon map works on the first tap.
+• More Whole Moon sites are named on the map on a phone.
+• The south pole map keeps its zoom and pan after a visit to the Whole Moon.
+• A scorecard CSV that mixes regions has no rank column, and its Whole Moon rows give each site's position and horizon.
+```
+
+### What's new in 1.14.0 (477/500), the previous release, kept for reference
 From the 1.14.0 release notes (the changes since 1.13.5), shortened. Every line holds in the Android
 app: the Whole Moon data is bundled in the APK, so it works offline too.
 ```text
@@ -99,17 +110,6 @@ app: the Whole Moon data is bundled in the APK, so it works offline too.
 • Pole vs the rest: the south pole's best site beside the best elsewhere.
 • Overview, Sky & time, Compare and the Lander's view work there too.
 • The south pole stays the default and is unchanged.
-```
-
-### What's new in 1.13.5 (463/500), the previous release, kept for reference
-From the 1.13.5 release notes (the changes since v1.13.3, the last published release), shortened.
-```text
-• Light map: during Play the Sun and Earth labels glide with their arrows instead of hopping.
-• Site › Overview gives the Sun's height and when the Sun and Earth next set or rise.
-• Lander's view: labels keep clear of the Sun and Earth, and the controls fit phones.
-• After a feature guide, the page goes back to where you were.
-• Learn › Credits opens every open-source licence the app uses.
-• The status line makes the Sun's height and the countdowns stand out.
 ```
 
 ### Data safety (Play Console › App content › Data safety)

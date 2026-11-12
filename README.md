@@ -9,6 +9,8 @@ Lunar Horizon answers one question: *which south-pole landing site, on which dat
 
 Since version 1.14.0 a **Whole Moon** region (Explore › *Whole Moon*) adds 20 landed-mission sites elsewhere on the Moon, from Apollo 11 to Blue Ghost Mission 1, so the south pole can be compared with the rest of the Moon. The south pole stays the default, and each region is ranked on its own ([below](#whole-moon-1140)).
 
+**What's new in 1.14.1.** Each Whole Moon site's position line names its place, such as "26.13° N, 3.63° E · Hadley–Apennine" for Apollo 15, quoted word for word from a NASA page that is listed with the site's sources. Whole Moon *Zoom in* works on the first tap, more Whole Moon sites are named directly on a phone's map, and the south-pole map keeps its zoom and pan after a visit to the Whole Moon. A scorecard CSV of a shortlist that mixes regions has no rank column (there is no single ranking), and its Whole Moon rows give each site's lat, lon and horizon source. The known issue "Screen readers during Play on Android 7" is resolved: it was not a fault in the app ([Android](#android)). The south pole is unchanged.
+
 The same Flutter code runs as a web app and on Android.
 
 **Try it:** [web app](https://localizedprojects.github.io/CLPS-MOON-BROWSER/) · [Android APK](https://github.com/localizedprojects/CLPS-MOON-BROWSER/releases/latest/download/lunar-horizon.apk) · [30-second demo](https://github.com/localizedprojects/CLPS-MOON-BROWSER/releases/download/v1.13.3/lunar-horizon-demo-30s-v1.13.0.mp4) · [full tour, 3:16](https://github.com/localizedprojects/CLPS-MOON-BROWSER/releases/download/v1.13.3/lunar-horizon-tour-v1.13.0.mp4) · [brief for judges](docs/judge_one_pager.md)
@@ -24,7 +26,7 @@ The same Flutter code runs as a web app and on Android.
 Scan the code with your phone's camera. It opens <https://localizedprojects.github.io/CLPS-MOON-BROWSER/get/>, which picks the right install for the device:
 
 - **Android:** downloads [lunar-horizon.apk](https://github.com/localizedprojects/CLPS-MOON-BROWSER/releases/latest/download/lunar-horizon.apk) from the [latest release](https://github.com/localizedprojects/CLPS-MOON-BROWSER/releases/latest). Open it and allow installing from your browser when Android asks (Android 7.0 or newer; signed with a development key, so it is installed directly, not from the Play Store). If you later switch to the Play Store version (or a build signed with a different key), uninstall this one first; Android will not update across signing keys. The latest release can be older than the web app, which is always the newest version; the release page names its version.
-  <!-- On 2026-11-09 the latest release is v1.13.3 (7 November 2026) and the web app is 1.14.0 (from `main`). Once the owner publishes v1.14.0, the latest release and the web app are both 1.14.0. This link stays the same as long as the APK keeps the name lunar-horizon.apk. -->
+  <!-- On 2026-11-12 the latest release is v1.13.3 (7 November 2026) and the web app is 1.14.1 (from `main`). Once the owner publishes v1.14.1, the latest release and the web app are both 1.14.1. This link stays the same as long as the APK keeps the name lunar-horizon.apk. -->
 - **iPhone and iPad:** opens the web app in Safari; use Share, then *Add to Home Screen* to keep it as an app. (Installing an iOS app file needs a paid Apple Developer account; the page has one switch, `IOS_URL` in `app/web/get/index.html`, for a TestFlight or App Store link later, and the QR code stays the same.) With a Mac you can build and run the native app yourself in Xcode: [docs/xcode.md](docs/xcode.md).
 - **Computers:** <https://localizedprojects.github.io/CLPS-MOON-BROWSER/>
 - **Privacy:** no accounts, no analytics, no ads, no tracking; see the [privacy policy](https://localizedprojects.github.io/CLPS-MOON-BROWSER/privacy/).
@@ -627,10 +629,10 @@ CLAUDE.md                   conventions for contributors and coding agents
 
 | Suite | Location | Command | Count |
 |---|---|---|---|
-| Flutter: Dart core, state, widgets | `app/test/` | `flutter test` | 1,745 pass, 4 skipped, with `flutter analyze` clean (local run, 9 November 2026, 1.14.0, and again with the date faked to 14 November 2026 06:00 UTC; the four light-map label tests also pass with it faked to 16 November 2026 12:00, 15 December 2026 12:00 and 20 January 2027 12:00 UTC) |
-| Chart bundle | `charts/src/*.test.ts` | `npm test` | 268 in 21 files (local run, 9 November 2026, 1.14.0) |
-| Python pipeline | `pipeline/tests/` | `python -m pytest` | 789: 782 pass, 7 skipped, with the SPICE kernels, the 80 m and 240 m LOLA DEMs and the Whole Moon inputs in the cache (local run, 9 November 2026, 1.14.0; the 7 need DE442, the 120 m DEM, PyYAML or the `lunarhorizon` package). In CI, without that data: 586 pass, 203 skipped (a local run with an empty cache, 9 November 2026, 1.14.0) |
-| Python library | `pylib/tests/` | `python -m pytest` (from `pylib/`) | 520 pass, with the SPICE kernels in the cache (local run, 9 November 2026, 1.14.0; `pylib/src` is unchanged in 1.14.0, and its goldens' provenance records the additive `dem.dart`; some skip without them; CI does not run this suite) |
+| Flutter: Dart core, state, widgets | `app/test/` | `flutter test` | 1,782 pass, 4 skipped, with `flutter analyze` clean (local run, 12 November 2026, 1.14.1, and again with the date faked to 14 November 2026 06:00 UTC; the four light-map label tests also pass with it faked to 16 November 2026 12:00, 15 December 2026 12:00 and 20 January 2027 12:00 UTC) |
+| Chart bundle | `charts/src/*.test.ts` | `npm test` | 268 in 21 files (local run, 12 November 2026, 1.14.1) |
+| Python pipeline | `pipeline/tests/` | `python -m pytest` | 793: 786 pass, 7 skipped, with the SPICE kernels, the 80 m and 240 m LOLA DEMs and the Whole Moon inputs in the cache (local run, 12 November 2026, 1.14.1; the 7 need DE442, the 120 m DEM, PyYAML or the `lunarhorizon` package). In CI, without that data: 590 pass, 203 skipped (a local run with an empty cache, 12 November 2026, 1.14.1) |
+| Python library | `pylib/tests/` | `python -m pytest` (from `pylib/`) | 520 pass, with the SPICE kernels in the cache (local run, 12 November 2026, 1.14.1; `pylib/src` is unchanged in 1.14.0 and 1.14.1, and its goldens' provenance records the additive `dem.dart`; some skip without them; CI does not run this suite) |
 
 Each count is from a full run at the commit given. They change as work continues.
 

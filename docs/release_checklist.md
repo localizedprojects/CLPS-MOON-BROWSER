@@ -42,7 +42,7 @@ All the texts (with character counts), the form answers and the screenshot list 
       [App Store](store/listing.md#app-store-app-store-connect).
 
 ## Testing status (before the first store upload)
-- These notes were written at v1.1.0; re-check each line against the current release (1.14.0) before
+- These notes were written at v1.1.0; re-check each line against the current release (1.14.1) before
   the first store upload.
 - Planned end-to-end runs (record results here): Android emulator (Android 14, API 34) on normal
   and small screens, offline, rotation, backgrounding during Play; the same on the Mac's iOS simulators.
@@ -133,11 +133,32 @@ Record each result in the PR description.
       Whole Moon place is in its quoted NASA sentence, on an allowed https host), and from `app/`,
       `flutter test test/widget/global_place_overview_test.dart` finds "lat, lon · place" on all 20 Overviews.
 - [ ] **Docs:** `python tools/check_formula_refs.py` (formula.md §18) and `python tools/check_workflows.py`.
-- [ ] **Version:** `app/pubspec.yaml` says `1.14.0+27`.
+- [ ] **Version:** `app/pubspec.yaml` says `1.14.0+27` (1.14.0; since 1.14.1, `1.14.1+28`).
+
+## 1.14.1 checks (on `r1141`, committed straight to `main`)
+The same guard as for 1.14.0, against `e2ef21d` (1.14.0). There is no pull request, so the G3
+allowlist is kept here.
+- [x] **G1:** the G1 command above with `e2ef21d` in place of `85c472f` prints nothing (polar data,
+      `spice_truth.json`, `pipeline/validation` outside `global/` and `pylib/src` byte-identical).
+- [x] **G2:** every G2 file above is unchanged against `e2ef21d` (also `dem.dart`, `lander_view.dart`
+      and `lander_light.dart`).
+- [x] **G3:** `git diff e2ef21d -- app/test charts/src pipeline/tests pylib/tests | grep -E '^-[^-]'`
+      prints only these lines, each replaced by a stricter or equivalent check:
+  - `app/test/widget/chart_hub_test.dart`: `group('ComparePanel', () {` and the line that pumped
+    `ComparePanel(...)`. The unused widget was removed in 1.14.1; the group pumps a test-local
+    `_OneColumn` with the same CompareChart and CompareNumbers, and no assertion changed.
+  - `app/test/core/place_global_test.dart`: the 1.14.0 test "the shipped Whole Moon sites:
+    coordinates only, as no source quoted a feature name", its comment, and its three lines that
+    expected no place. Since 1.14.1 every preset has a quoted place: the test now expects a
+    non-empty place with an https source and the position line "lat, lon · place".
+- [x] **G4:** `polar_baseline_test.dart` passes. **G5:** `global_explore_test.dart` passes, and on the
+      release web build in headless Chrome loading `/` requests nothing under `assets/data/global/`.
+- [x] **G7:** the charts' polar baseline (`charts/src/global.test.ts`) passes; `npm run build` gives
+      the committed `app/assets/charts/` byte for byte.
 
 ## Competition / sideload release (GitHub Releases APK)
 For the Space Apps entry and anyone installing from the QR code. This APK is not a store build.
-- [ ] Bump `version:` in `app/pubspec.yaml` (for example `1.14.0+27`; the build number must rise, or
+- [ ] Bump `version:` in `app/pubspec.yaml` (for example `1.14.1+28`; the build number must rise, or
       Android refuses to install the update over the earlier one). After the build, check that the
       version the app shows matches.
 - [ ] From `app/`: `flutter build apk --release`. Without `app/android/key.properties` the release APK
@@ -147,7 +168,7 @@ For the Space Apps entry and anyone installing from the QR code. This APK is not
       ones; a build signed with another key must be uninstalled first.
 - [ ] Rename `app/build/app/outputs/flutter-apk/app-release.apk` to `lunar-horizon.apk` and record its
       checksum: `sha256sum lunar-horizon.apk` (PowerShell: `Get-FileHash lunar-horizon.apk`).
-- [ ] Publish a GitHub release (tag `v1.14.0` for 1.14.0, notes with the changes and the SHA-256), attach
+- [ ] Publish a GitHub release (tag `v1.14.1` for 1.14.1, notes with the changes and the SHA-256), attach
       `lunar-horizon.apk` and `SHA256SUMS.txt`, and mark it **latest**. No v1.13.4 release was
       published; the notes cover the changes since the previous published release.
 - [ ] Check that <https://github.com/localizedprojects/CLPS-MOON-BROWSER/releases/latest/download/lunar-horizon.apk>

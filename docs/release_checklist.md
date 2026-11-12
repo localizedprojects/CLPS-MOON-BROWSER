@@ -155,10 +155,8 @@ allowlist is kept here.
       release web build in headless Chrome loading `/` requests nothing under `assets/data/global/`.
 - [x] **G7:** the charts' polar baseline (`charts/src/global.test.ts`) passes; `npm run build` gives
       the committed `app/assets/charts/` byte for byte.
-- [ ] **release/:** `release/` still holds the 1.14.0 (build 27) APK and notes
-      (`RELEASE_NOTES_v1.14.0.md`). When the 1.14.1 APK is built, replace `release/lunar-horizon.apk`,
-      regenerate `release/SHA256SUMS.txt`, add `release/RELEASE_NOTES_v1.14.1.md` and remove this
-      sentence here and in `docs/submission.md` (12 November 2026 entry);
+- [x] **release/:** `release/lunar-horizon.apk` is the 1.14.1 (build 28) APK, with
+      `release/SHA256SUMS.txt` and `release/RELEASE_NOTES_v1.14.1.md` (the 1.14.0 notes were removed);
       `pipeline/tests/test_release_folder.py` checks the APK's version against `app/pubspec.yaml`.
 
 ## Competition / sideload release (GitHub Releases APK)

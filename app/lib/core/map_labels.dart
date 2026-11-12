@@ -22,6 +22,33 @@ class LabelBox {
   LabelBox union(LabelBox o) =>
       LabelBox(math.min(left, o.left), math.min(top, o.top), math.max(right, o.right), math.max(bottom, o.bottom));
 
+  /// The gap between this box and the square of half-size [r] around
+  /// ([x], [y]): the larger of the horizontal and vertical gaps (0 where the
+  /// two touch or overlap).
+  double gapTo(double x, double y, double r) {
+    final dx = math.max(left - x, x - right), dy = math.max(top - y, y - bottom);
+    return math.max(0.0, math.max(dx, dy) - r);
+  }
+
+  /// Whether the segment from ([x0], [y0]) to ([x1], [y1]) runs through this
+  /// box for some length (one that only touches a corner, or runs along an
+  /// edge, does not).
+  bool crossedBy(double x0, double y0, double x1, double y1) {
+    // Liang-Barsky: clip the segment's parameter range [0, 1] to the box
+    var t0 = 0.0, t1 = 1.0;
+    final dx = x1 - x0, dy = y1 - y0;
+    for (final (p, q) in [(-dx, x0 - left), (dx, right - x0), (-dy, y0 - top), (dy, bottom - y0)]) {
+      if (p == 0) {
+        if (q <= 0) return false;
+      } else if (p < 0) {
+        t0 = math.max(t0, q / p);
+      } else {
+        t1 = math.min(t1, q / p);
+      }
+    }
+    return t1 > t0;
+  }
+
   @override
   String toString() => 'LabelBox($left, $top, $right, $bottom)';
 }

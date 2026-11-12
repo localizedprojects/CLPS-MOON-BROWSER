@@ -35,6 +35,27 @@ void main() {
       expect([u.left, u.top, u.right, u.bottom], [-5, 0, 10, 30]);
       expect(LabelBox.around(10, 20, 3).width, 6);
     });
+
+    test('gapTo: the larger of the horizontal and vertical gaps to a square, 0 where they meet', () {
+      const a = LabelBox(0, 0, 10, 10);
+      expect(a.gapTo(20, 5, 2), 8); // right of the box
+      expect(a.gapTo(-6, -9, 2), 7); // up and to the left: the vertical gap is larger
+      expect(a.gapTo(5, 14, 2), 2); // below
+      expect(a.gapTo(12, 5, 2), 0); // touching
+      expect(a.gapTo(5, 5, 2), 0); // inside
+    });
+
+    test('crossedBy: a segment through the box, not one that only touches it', () {
+      const a = LabelBox(0, 0, 10, 10);
+      expect(a.crossedBy(-5, 5, 15, 5), isTrue); // straight through
+      expect(a.crossedBy(2, 2, 3, 3), isTrue); // wholly inside
+      expect(a.crossedBy(-5, -5, 5, 5), isTrue); // ends inside
+      expect(a.crossedBy(-5, 5, -1, 5), isFalse); // stops short
+      expect(a.crossedBy(-5, 15, 15, 12), isFalse); // passes below
+      expect(a.crossedBy(-5, 5, 5, 15), isFalse); // meets only the corner (0, 10)
+      expect(a.crossedBy(0, -5, 0, 15), isFalse); // along the left edge
+      expect(a.crossedBy(10, -5, -5, 10), isTrue); // cuts the corner diagonally
+    });
   });
 
   group('markerStacks', () {

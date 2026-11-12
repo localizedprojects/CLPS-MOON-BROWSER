@@ -15,13 +15,15 @@ and the fonts are cited in
 - **Coordinates:** a source for the site's position or region. It is in
   `app/assets/data/sites.json` (south pole) or `app/assets/data/global/sites.json` (Whole
   Moon), with a note of what the source says.
+- **Place name:** a NASA page that names the place on a Whole Moon site's position line
+  (`place`, quoted in the last entry of its `sources`). It is not a source of coordinates.
 - **Description:** a source for the site's description in the app. It is in
   `app/assets/data/curated_sites.json`.
 
-There are 127 distinct URLs: 54 for coordinates and 69 for descriptions (13 are both), and 11
-for named features (2 of them also cited for a site), and 8 in other text fields. Sources are
-grouped by the site group they support, with the most-used first. A source with no recorded
-title is shown by its URL.
+There are 127 distinct URLs: 35 for coordinates, 19 for place names and 69 for descriptions (13
+are both), and 11 for named features (2 of them also cited for a site), and 8 in other text
+fields. Sources are grouped by the site group they support, with the most-used first. A source
+with no recorded title is shown by its URL.
 
 ## Artemis III candidate regions
 
@@ -212,50 +214,50 @@ title is shown by its URL.
 ## Apollo (crewed landings)
 
 - **Apollo 11 and Landing Site 2 in the Sea of Tranquility (NASA)**: <https://www.nasa.gov/image-article/apollo-11-landing-site-2-sea-of-tranquility/>
-  - Coordinates: Apollo 11 LM
+  - Place name: Apollo 11 LM
 - **50 Years Ago: Apollo 14 Lands at Fra Mauro (NASA)**: <https://www.nasa.gov/history/50-years-ago-apollo-14-lands-at-fra-mauro/>
-  - Coordinates: Apollo 14 LM
+  - Place name: Apollo 14 LM
 - **50 Years Ago: Apollo 15 on the Moon at Hadley-Apennine (NASA)**: <https://www.nasa.gov/history/50-years-ago-apollo-15-on-the-moon-at-hadley-apennine/>
-  - Coordinates: Apollo 15 LM
+  - Place name: Apollo 15 LM
 - **Apollo 16 Heads Home to Earth (NASA)**: <https://www.nasa.gov/history/apollo-16-heads-home-to-earth/>
-  - Coordinates: Apollo 16 LM
+  - Place name: Apollo 16 LM
 - **Apollo 17: Mission Details (NASA)**: <https://www.nasa.gov/missions/apollo/apollo-17-mission-details/>
-  - Coordinates: Apollo 17 LM
+  - Place name: Apollo 17 LM
 
 ## Robotic landers 1966–76 (Surveyor, Luna)
 
 - **Luna 16 (NASA Science)**: <https://science.nasa.gov/photojournal/luna-16/>
-  - Coordinates: Luna 16
+  - Place name: Luna 16
 - **Soviet Union Lunar Rovers (NASA Science)**: <https://science.nasa.gov/photojournal/soviet-union-lunar-rovers/>
-  - Coordinates: Luna 17
+  - Place name: Luna 17
 - **55 Years Ago: Surveyor 1 Makes A Soft Landing on the Moon (NASA)**: <https://www.nasa.gov/history/55-years-ago-surveyor-1-makes-a-soft-landing-on-the-moon/>
-  - Coordinates: Surveyor 1
+  - Place name: Surveyor 1
 - **Surveyor 7 (NASA Science)**: <https://science.nasa.gov/mission/surveyor-7/>
-  - Coordinates: Surveyor 7
+  - Place name: Surveyor 7
 - **Luna 21 Lander (NASA Science)**: <https://science.nasa.gov/photojournal/luna-21-lander/>
-  - Coordinates: Luna 21
+  - Place name: Luna 21
 - **Mare Crisium (NASA Science)**: <https://science.nasa.gov/image-detail/20100702lg/>
-  - Coordinates: Luna 24
+  - Place name: Luna 24
 
 ## Other countries' programmes
 
 - **LRO Publications by Others (NASA Science)**: <https://science.nasa.gov/mission/lro/lro-publications-by-others/>
-  - Coordinates: Chang'e-3
+  - Place name: Chang'e-3
 - **First Look: Chang'e Lunar Landing Site (NASA)**: <https://www.nasa.gov/solar-system/first-look-change-lunar-landing-site/>
-  - Coordinates: Chang'e-4
+  - Place name: Chang'e-4
 - **APOD: 2020 December 5 - Mons Rumker in the Ocean of Storms (NASA Science)**: <https://science.nasa.gov/image-article/apod-2020-december-5-mons-rumker-in-the-ocean-of-storms/>
-  - Coordinates: Chang'e-5
+  - Place name: Chang'e-5
 - **NASA’s LRO Spots China’s Chang'e 6 Spacecraft on Lunar Far Side (NASA)**: <https://www.nasa.gov/centers-and-facilities/goddard/nasas-lro-spots-chinas-change-6-spacecraft-on-lunar-far-side/>
-  - Coordinates: Chang'e-6
+  - Place name: Chang'e-6
 - **NASA’s LRO Spots Japan’s Moon Lander (NASA)**: <https://www.nasa.gov/missions/lro/nasas-lro-spots-japans-moon-lander/>
-  - Coordinates: SLIM
+  - Place name: SLIM
 - **Laser Instrument on NASA’s LRO Successfully ‘Pings’ Indian Moon Lander (NASA Science)**: <https://science.nasa.gov/missions/lro/laser-instrument-on-nasas-lro-successfully-pings-indian-moon-lander/>
-  - Coordinates: Vikram
+  - Place name: Vikram
 
 ## Commercial (CLPS)
 
 - **Touchdown! Carrying NASA Science, Firefly’s Blue Ghost Lands on Moon (NASA)**: <https://www.nasa.gov/news-release/touchdown-carrying-nasa-science-fireflys-blue-ghost-lands-on-moon/>
-  - Coordinates: Blue Ghost 1
+  - Place name: Blue Ghost 1
 
 ## Whole Moon: sources for sites in more than one group
 
@@ -264,7 +266,7 @@ title is shown by its URL.
 - **Wagner, R. V., Nelson, D. M., Plescia, J. B., Robinson, M. S., Speyerer, E. J., & Mazarico, E. (2017). Coordinates of anthropogenic features on the Moon. Icarus, 283, 92-103. doi:10.1016/j.icarus.2016.05.011**: <https://doi.org/10.1016/j.icarus.2016.05.011>
   - Coordinates: Apollo 11 LM, Apollo 12 LM, Apollo 14 LM, Apollo 15 LM, Apollo 16 LM, Apollo 17 LM, Luna 16, Luna 17, Chang'e-3, Chang'e-4, Chang'e-5, Chang'e-6, SLIM, Vikram, Blue Ghost 1, Surveyor 1, Surveyor 3, Surveyor 7, Luna 21, Luna 24
 - **Lunar Reconnaissance Orbiter Looks at Apollo 12, Surveyor 3 Landing Sites (NASA)**: <https://www.nasa.gov/missions/lunar-reconnaissance-orbiter-looks-at-apollo-12-surveyor-3-landing-sites/>
-  - Coordinates: Apollo 12 LM, Surveyor 3
+  - Place name: Apollo 12 LM, Surveyor 3
 
 ## Sources for sites in more than one group
 

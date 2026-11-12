@@ -331,7 +331,7 @@ Challenge: Lunar Landing Site Navigator (NASA Space Apps Challenge 2026): https:
   the Whole Moon; a scorecard CSV that mixes regions has no rank column, and its Whole Moon rows
   give their position and horizon. The known issue with screen readers during Play on Android 7
   is resolved: it was not a fault in the app. The south pole is unchanged. The demo videos stay
-  as recorded on 1.13.0.
+  as recorded on 1.13.0. `release/` still holds the 1.14.0 (build 27) APK and notes.
 - Every commit on `main` carries a `Co-authored-by: Claude` trailer (checked on 8 November 2026:
   all 137 commits up to `004ee16`; on 7 November, all 80 up to `6f80997`).
 - The NASA Space Apps Challenge 2026 hackathon is on 14–15 November 2026.

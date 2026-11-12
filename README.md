@@ -479,6 +479,8 @@ flutter run -d emulator-5554
 adb exec-out screencap -p > shot.png       # screenshot
 ```
 
+**Checking screen-reader positions.** `adb shell uiautomator dump` lists where each control sits for a screen reader. For Flutter on Android, any accessibility client that reads a control counts as a screen reader at work, so while the dump runs the app brings back the bars that Play (or a scroll down) had hidden, as it does for a screen reader, and hides them again once the dump ends. Compare a dump with the screen recorded during it (`adb emu screenrecord start rec.webm`, then `adb emu screenrecord stop`), not with a screenshot taken before or after it. That mismatch was the known issue "Screen readers during Play on Android 7" of 1.13.2 to 1.14.0; in 1.14.1 the Android 7 emulator showed it is not a fault in the app: each dump matched the screen during the dump (`docs/release_checklist.md`, Testing status; `app/test/widget/play_reader_semantics_test.dart`).
+
 **On a real phone or tablet (Windows):** build the release APK, find a USB-connected device, install it and open the app in one step. It waits for a device and says what to turn on if none is ready; `-SkipBuild` reuses the last APK, `-Serial <id>` picks one device.
 
 ```powershell

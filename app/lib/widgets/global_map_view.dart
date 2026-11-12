@@ -419,7 +419,16 @@ class GlobalMapView extends StatefulWidget {
 enum _TapNote { none, south, north }
 
 class _GlobalMapViewState extends State<GlobalMapView> {
-  final _tc = TransformationController();
+  TransformationController _tc = TransformationController();
+
+  // The viewer glides on by itself after a pinch or a flick (its inertia),
+  // setting the zoom and pan on every frame until it stops, so a zoom
+  // button pressed meanwhile was undone at the next frame: the tap seemed
+  // ignored, and only a later one worked (1.14.1, the Android 7 emulator).
+  // Once a gesture has ended, a button starts a fresh viewer on a fresh
+  // controller, which ends the glide ([_setView]).
+  int _viewer = 0;
+  bool _gestured = false;
   bool _earth = true;
   (double, double)? _pending;
   _TapNote _note = _TapNote.none;
@@ -455,9 +464,27 @@ class _GlobalMapViewState extends State<GlobalMapView> {
     final p = MatrixUtils.transformPoint(inv, c);
     final tx = (c.dx - s * p.dx).clamp(size.width - size.width * s, 0.0);
     final ty = (c.dy - s * p.dy).clamp(size.height - size.height * s, 0.0);
-    _tc.value = Matrix4.diagonal3Values(s, s, 1)
+    _setView(Matrix4.diagonal3Values(s, s, 1)
       ..setEntry(0, 3, tx)
-      ..setEntry(1, 3, ty);
+      ..setEntry(1, 3, ty));
+  }
+
+  /// The zoom buttons' view, kept even while the viewer is still gliding
+  /// after a gesture (see [_viewer]).
+  void _setView(Matrix4 m) {
+    if (!_gestured) {
+      _tc.value = m;
+      return;
+    }
+    _gestured = false;
+    final old = _tc..removeListener(_zoomed);
+    _tc = TransformationController(m)..addListener(_zoomed);
+    setState(() {
+      _viewer++;
+      _semK = _scale;
+    });
+    // the old viewer still holds it until this frame replaces it
+    WidgetsBinding.instance.addPostFrameCallback((_) => old.dispose());
   }
 
   @override
@@ -592,9 +619,11 @@ class _GlobalMapViewState extends State<GlobalMapView> {
           final size = c.biggest;
           _viewSize = size;
           return InteractiveViewer(
+            key: ValueKey(_viewer),
             transformationController: _tc,
             minScale: 1,
             maxScale: globalMapMaxZoom,
+            onInteractionEnd: (_) => _gestured = true,
             child: GestureDetector(
               behavior: HitTestBehavior.opaque,
               // a screen-reader "tap" has no position (it would land at the
@@ -704,7 +733,7 @@ class _GlobalMapViewState extends State<GlobalMapView> {
                 zoom: _scale,
                 onIn: () => _zoomStep(2),
                 onOut: () => _zoomStep(0.5),
-                onReset: () => _tc.value = Matrix4.identity(),
+                onReset: () => _setView(Matrix4.identity()),
               ),
             FilterChip(
               key: const ValueKey('global-earth-toggle'),
@@ -1125,6 +1154,7 @@ class _GlobalPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant _GlobalPainter old) =>
       old.layers != layers ||
+      old.tc != tc ||
       old.sites != sites ||
       old.selectedId != selectedId ||
       old.earth != earth ||

@@ -398,14 +398,14 @@ void main() {
     });
   });
 
-  group('ComparePanel', () {
+  group('Compare chart and numbers in one column', () {
     Future<void> pumpPanel(WidgetTester tester, Size size) async {
       tester.view.physicalSize = size;
       tester.view.devicePixelRatio = 1;
       addTearDown(tester.view.reset);
       await tester.pumpWidget(MaterialApp(
         theme: buildTheme(),
-        home: Scaffold(body: ComparePanel(state: state, chart: ChartController('compare'), onOpenSite: (_) {})),
+        home: Scaffold(body: _OneColumn(state: state, chart: ChartController('compare'), onOpenSite: (_) {})),
       ));
       await tester.pump();
     }
@@ -640,4 +640,42 @@ void main() {
       expect(sky.lastWhere((m) => m['type'] == 'skyNow')['now'], want, reason: 'Sun and Earth for the site on screen');
     });
   });
+}
+
+/// The verdict, the chart and "All numbers" (open) in one scrolling column:
+/// the host the group above pumps. It was a panel class in the app, which
+/// nothing in the app used (removed in 1.14.1); Compare itself lays these
+/// parts out.
+class _OneColumn extends StatelessWidget {
+  final AppState state;
+  final ChartController chart;
+  final ValueChanged<String> onOpenSite;
+  const _OneColumn({required this.state, required this.chart, required this.onOpenSite});
+
+  @override
+  Widget build(BuildContext context) {
+    final ranked = rankedFor(state);
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(8),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        if (ranked.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: Semantics(
+              liveRegion: true,
+              child: Text(comparisonVerdict(ranked, state.weights, dsn: state.options.requireDsn), style: PHText.body),
+            ),
+          ),
+        CompareChart(chart: chart, rows: ranked.length, showTitle: false, exact: state.expert),
+        const SizedBox(height: 8),
+        CompareNumbers(
+          ranked: ranked,
+          dsn: state.options.requireDsn,
+          exact: state.expert,
+          initiallyExpanded: true,
+          onOpenSite: onOpenSite,
+        ),
+      ]),
+    );
+  }
 }

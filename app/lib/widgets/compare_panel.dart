@@ -388,43 +388,6 @@ class CompareNumbers extends StatelessWidget {
   }
 }
 
-/// The verdict, the chart and "All numbers" (open) in one scrolling column,
-/// for a pane that only needs those parts. Compare itself lays the parts out
-/// (the WinnerCard says the verdict there).
-class ComparePanel extends StatelessWidget {
-  final AppState state;
-  final ChartController chart;
-  final ValueChanged<String> onOpenSite;
-  const ComparePanel({super.key, required this.state, required this.chart, required this.onOpenSite});
-
-  @override
-  Widget build(BuildContext context) {
-    final ranked = rankedFor(state);
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(8),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-        if (ranked.isNotEmpty)
-          Padding(
-            padding: const EdgeInsets.only(bottom: 12),
-            child: Semantics(
-              liveRegion: true,
-              child: Text(comparisonVerdict(ranked, state.weights, dsn: state.options.requireDsn), style: PHText.body),
-            ),
-          ),
-        CompareChart(chart: chart, rows: ranked.length, showTitle: false, exact: state.expert),
-        const SizedBox(height: 8),
-        CompareNumbers(
-          ranked: ranked,
-          dsn: state.options.requireDsn,
-          exact: state.expert,
-          initiallyExpanded: true,
-          onOpenSite: onOpenSite,
-        ),
-      ]),
-    );
-  }
-}
-
 /// The scorecard scrolls sideways when it is wider than the pane, with an
 /// always-visible scrollbar so the clipped columns are discoverable.
 class _ScrollableTable extends StatefulWidget {
